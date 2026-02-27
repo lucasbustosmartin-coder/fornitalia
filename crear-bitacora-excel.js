@@ -32,6 +32,9 @@ const datosLog = [
   ['27/02/2025', '18:00', 'Excepción errores: Alquileres y Servicios / Alquiler', 'Si la categoría es Alquiler (mostrada como Alquileres y Servicios) y la cuenta contable es Alquiler, se considera consistente y no entra en el log de errores de clasificación.', 'Diagnostico'],
   ['27/02/2025', '18:10', 'Solapa Errores global y exportación a Excel', 'Nueva pestaña Errores en el dashboard (a la derecha de Sin cotización) que lista todos los egresos con error de clasificación, permite editar cada registro con el mismo modal de edición y se puede exportar a Excel con todos los campos relevantes (incluyendo editado y editado_detalle).', 'Diagnostico'],
   ['27/02/2025', '18:20', 'Monto numérico en exportación Excel', 'En ambas exportaciones (Transacciones y Errores), la columna monto se escribe como valor numérico (Number) en lugar de texto, para que Excel reconozca números y permita usar fórmulas (SUM, SUMIF, etc.).', 'Diagnostico'],
+  ['27/02/2025', '18:30', 'Tipo de error y detección de potencial duplicado', 'En la solapa Errores: columna Tipo de error (Inconsistencia entre Categoria/Cuenta/Descripcion o Potencial registro duplicado). Detección de duplicados por misma fecha, monto, tipo_movimiento y descripción similar. Para duplicados: icono Ver que abre modal comparando ambos registros; opciones Excluir de cálculos (anular) o Eliminar registro. Export Excel incluye tipo_error.', 'Diagnostico'],
+  ['27/02/2025', '18:40', 'Filtro por tipo de error en solapa Errores', 'Selector "Tipo de error" en la barra de la solapa Errores: Todos, Inconsistencia (categoría/cuenta/descripción), Potencial registro duplicado. La tabla y la exportación a Excel respetan el filtro seleccionado.', 'Diagnostico'],
+  ['27/02/2025', '18:50', 'Duplicados: cliente igual e id_origen en comparación', 'Solo se marca potencial duplicado si además de fecha, monto, tipo y descripción similar el campo cliente es igual; si cliente es distinto no se marca. En el modal de comparación (Este registro / Posible duplicado) se incluye id_origen y Cliente.', 'Diagnostico'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -75,6 +78,10 @@ const funcionalidades = [
   ['Campo moneda (BD)', 'Columna moneda en tabla transacciones (ARS/USD). Si está informada, el dashboard la usa; si no, infiere desde medio_pago (ej. "dolar" → USD). Export a Excel incluye moneda.'],
   ['Edición desde modal Errores', 'En el detalle de errores, icono de edición por registro. Abre modal para corregir: Categoría y Cuenta contable solo desde valores existentes en BD; Descripción libre. Al guardar se actualiza la fila y se marcan editado y editado_detalle (qué campos se editaron).'],
   ['Campos editado y editado_detalle', 'En transacciones: editado (boolean) y editado_detalle (texto, ej. "Categoria, Descripcion, Cuenta Contable"). Migración supabase_transacciones_editado.sql. Export Excel los incluye.'],
+  ['Tipo de error en Errores', 'Tabla de errores muestra columna Tipo de error: Inconsistencia entre Categoria, Cuenta Contable y Descripcion; o Potencial registro duplicado. Export a Excel incluye tipo_error.'],
+  ['Detección de potencial duplicado', 'Registros con misma fecha, monto, tipo_movimiento y descripción similar se marcan como potencial duplicado. Icono Ver abre modal con comparación Este registro / Posible duplicado; acciones: Excluir de cálculos (anular) o Eliminar registro.'],
+  ['Filtro por tipo de error', 'En la solapa Errores, selector para filtrar por tipo: Todos, Inconsistencia (categoría/cuenta/descripción), Potencial registro duplicado. La exportación a Excel exporta solo los registros visibles según el filtro.'],
+  ['Duplicados: condición cliente', 'Dos registros son potencial duplicado solo si coinciden en fecha, monto, tipo_movimiento, descripción similar y además cliente es igual; si cliente es distinto no se marcan como duplicado. Modal de comparación muestra id_origen y Cliente.'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
@@ -104,6 +111,7 @@ const versiones = [
   ['1.2', '27/02/2025', 'Modal mensual: detalle en tabla + moneda registración + TC; normalización moneda en BD y export Excel con moneda'],
   ['1.3', '27/02/2025', 'Errores de clasificación (solapa Errores), edición desde modal, editado/editado_detalle; excepciones: Comisiones Bancarias/Gastos Bancarios, Impuestos/MercadoPago y Transferencia Morba, Alquiler/Alquiler'],
   ['1.4', '27/02/2025', 'Exportación Excel: monto como valor numérico (fórmulas en Excel); regla bitácora por defecto reforzada'],
+  ['1.5', '27/02/2025', 'Errores: tipo de error, detección duplicados (cliente igual), filtro por tipo, modal comparación con id_origen; timeout carga y fechaStr para fechas'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];

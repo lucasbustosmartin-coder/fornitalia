@@ -54,6 +54,9 @@
     .panel.activo { display: block; }
     .sin-cotizacion-note { color: #b45309; font-size: 0.9rem; margin-top: 0.5rem; }
     .errores-panel-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .errores-filtros { display: flex; align-items: center; gap: 0.5rem; }
+    .errores-filtros label { font-size: 0.9rem; color: #555; white-space: nowrap; }
+    .errores-filtros select { padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; min-width: 200px; }
     tr.fila-mes { cursor: pointer; }
     tr.fila-mes:hover { background: #f8f8f8; }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
@@ -106,6 +109,19 @@
     .edit-btn { background: none; border: none; cursor: pointer; color: #444; padding: 0.35rem; display: inline-flex; align-items: center; justify-content: center; }
     .edit-btn:hover { color: #1a1a1a; }
     .edit-btn svg { width: 18px; height: 18px; }
+    .ver-duplicado-btn { margin-right: 0.2rem; }
+    .ver-duplicado-btn svg { width: 18px; height: 18px; }
+    .duplicado-comparacion { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.75rem; }
+    .duplicado-bloque { background: #f8f9fa; border-radius: 8px; padding: 0.75rem 1rem; border: 1px solid #e6e6e6; }
+    .duplicado-bloque-titulo { margin: 0 0 0.5rem 0; font-size: 0.95rem; color: #555; }
+    .duplicado-bloque dl { margin: 0; font-size: 0.85rem; }
+    .duplicado-bloque dt { font-weight: 600; color: #444; margin-top: 0.35rem; }
+    .duplicado-bloque dt:first-child { margin-top: 0; }
+    .duplicado-bloque dd { margin: 0.15rem 0 0 0; color: #333; }
+    #modal-duplicado .btn-excluir-calc { background: #b45309; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
+    #modal-duplicado .btn-excluir-calc:hover { background: #9a4607; }
+    #modal-duplicado .btn-eliminar-reg { background: #b91c1c; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
+    #modal-duplicado .btn-eliminar-reg:hover { background: #991b1b; }
     #modal-editar-registro .form-group { margin-bottom: 0.75rem; }
     #modal-editar-registro label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; }
     #modal-editar-registro select, #modal-editar-registro input[type="text"], #modal-editar-registro textarea { width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
@@ -213,11 +229,20 @@
     <div id="panel-errores-global" class="card panel">
       <div class="errores-panel-toolbar">
         <p class="sin-cotizacion-note" style="margin:0;">Registros de egresos con posibles inconsistencias entre categoría, cuenta contable y descripción. Pueden corregirse desde el icono de edición.</p>
+        <div class="errores-filtros">
+          <label for="filtro-tipo-error">Tipo de error:</label>
+          <select id="filtro-tipo-error" title="Filtrar por tipo de error">
+            <option value="todos">Todos</option>
+            <option value="inconsistencia">Inconsistencia (categoría / cuenta / descripción)</option>
+            <option value="duplicado">Potencial registro duplicado</option>
+          </select>
+        </div>
         <button type="button" class="btn-ver-errores" id="btn-exportar-errores" title="Exportar lista de errores a Excel">Exportar errores a Excel</button>
       </div>
       <table>
         <thead>
           <tr>
+            <th>Tipo de error</th>
             <th>Fecha</th>
             <th>Mes-Año</th>
             <th>Tipo</th>
@@ -316,10 +341,40 @@
     </div>
   </div>
 
+  <div id="modal-duplicado-backdrop" class="modal-backdrop oculto">
+    <div class="modal" id="modal-duplicado">
+      <div class="modal-header" id="modal-duplicado-header-drag">
+        <h2 id="modal-duplicado-titulo">Posible registro duplicado</h2>
+        <button type="button" class="modal-close" id="modal-duplicado-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-duplicado-body">
+        <p class="sin-cotizacion-note" style="margin-top:0;">Compará los dos registros. Si confirmás que es duplicado, podés excluir este registro de los cálculos (anular) o eliminarlo.</p>
+        <div class="duplicado-comparacion">
+          <div class="duplicado-bloque">
+            <h3 class="duplicado-bloque-titulo">Este registro</h3>
+            <div id="modal-duplicado-este"></div>
+          </div>
+          <div class="duplicado-bloque">
+            <h3 class="duplicado-bloque-titulo">Posible duplicado (otro registro)</h3>
+            <div id="modal-duplicado-otro"></div>
+          </div>
+        </div>
+        <div class="form-actions" style="margin-top:1rem;">
+          <button type="button" id="modal-duplicado-excluir" class="btn-excluir-calc">Excluir de cálculos (anular)</button>
+          <button type="button" id="modal-duplicado-eliminar" class="btn-eliminar-reg">Eliminar registro</button>
+          <button type="button" id="modal-duplicado-cerrar">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = 'https://moeqgzezdraknwmheheu.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZXFnemV6ZHJha253bWhlaGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNTY2MDgsImV4cCI6MjA3MDkzMjYwOH0.ZHIJjZv7izlaegfeypj8s6jNb0ls-LTrt914qhgO_uA';
 
+    if (typeof window.supabase === 'undefined') {
+      throw new Error('No se pudo cargar la librería de Supabase. Revisá la conexión a internet.');
+    }
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -348,7 +403,9 @@
     function fechaStr(f) {
       if (!f) return '';
       if (typeof f === 'string') return f.slice(0, 10);
-      return f;
+      if (typeof f === 'object' && f instanceof Date) return f.toISOString().slice(0, 10);
+      if (typeof f === 'object' && f.toISOString) return f.toISOString().slice(0, 10);
+      return String(f).slice(0, 10);
     }
 
     function excluirCategoria(c) {
@@ -412,6 +469,47 @@
       return { categoria: base, esError: false, baseCategoria: base };
     }
 
+    const TIPO_ERROR_INCONSISTENCIA = 'Inconsistencia entre Categoria, Cuenta Contable y Descripcion';
+    const TIPO_ERROR_DUPLICADO = 'Potencial registro duplicado';
+
+    function descripcionSimilar(descA, descB) {
+      const na = (descA || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const nb = (descB || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      if (!na || !nb) return na === nb;
+      if (na.length < 3 && nb.length < 3) return na === nb;
+      return na === nb || na.includes(nb) || nb.includes(na) || na.slice(0, 20) === nb.slice(0, 20);
+    }
+
+    function getPosibleDuplicado(r, lista) {
+      const idR = (r.id || '').toString();
+      const fechaR = fechaStr(r.fecha);
+      const montoR = Number(r.monto);
+      const tipoR = (r.tipo_movimiento || '').trim();
+      const clienteR = (r.cliente || '').trim();
+      if (!fechaR || (montoR !== 0 && !montoR)) return null;
+      for (let i = 0; i < lista.length; i++) {
+        const s = lista[i];
+        if ((s.id || '').toString() === idR) continue;
+        if (fechaStr(s.fecha) !== fechaR) continue;
+        if (Number(s.monto) !== montoR) continue;
+        if ((s.tipo_movimiento || '').trim() !== tipoR) continue;
+        if ((s.cliente || '').trim() !== clienteR) continue;
+        if (!descripcionSimilar(r.descripcion || r.cliente, s.descripcion || s.cliente)) continue;
+        return s;
+      }
+      return null;
+    }
+
+    function getErroresDuplicados() {
+      const lista = cacheTransacciones.filter(r => !excluirCategoria(r.categoria));
+      const out = [];
+      lista.forEach(r => {
+        const otro = getPosibleDuplicado(r, lista);
+        if (otro) out.push({ ...r, tipoError: TIPO_ERROR_DUPLICADO, registroPosibleDuplicado: otro });
+      });
+      return out;
+    }
+
     let cacheTransacciones = [];
     let cacheTC = {};
     let fechasConTasa = { mep: [], ccl: [], oficial: [] };
@@ -428,11 +526,23 @@
       return tc && tc[rateKey] != null && tc[rateKey] > 0 ? tc[rateKey] : null;
     }
 
-    async function cargarDatos() {
-      const [txRes, tcRes] = await Promise.all([
-        client.from('transacciones').select('id, fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, editado, editado_detalle').neq('status', 'Anulado'),
-        client.from('tipo_de_cambio').select('fecha, usd_mep, usd_ccl, usd_oficial')
+    const CARGA_TIMEOUT_MS = 25000;
+
+    function withTimeout(promise, ms, msg) {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(msg || 'Tiempo de espera agotado')), ms))
       ]);
+    }
+
+    async function cargarDatos() {
+      const txPromise = client.from('transacciones').select('id, id_origen, fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, editado, editado_detalle').neq('status', 'Anulado');
+      const tcPromise = client.from('tipo_de_cambio').select('fecha, usd_mep, usd_ccl, usd_oficial');
+      const [txRes, tcRes] = await withTimeout(
+        Promise.all([txPromise, tcPromise]),
+        CARGA_TIMEOUT_MS,
+        'La carga de datos tardó demasiado. Revisá la conexión o intentá de nuevo.'
+      );
       if (txRes.error) throw txRes.error;
       if (tcRes.error) throw tcRes.error;
       cacheTransacciones = txRes.data || [];
@@ -630,13 +740,14 @@
         alert('No hay registros con error para exportar.');
         return;
       }
-      const headers = ['id', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'categoria_original', 'categoria_mostrada', 'cuenta_contable', 'medio_pago', 'moneda', 'monto', 'descripcion', 'cliente', 'cat_desc', 'origen_archivo', 'editado', 'editado_detalle'];
+      const headers = ['tipo_error', 'id', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'categoria_original', 'categoria_mostrada', 'cuenta_contable', 'medio_pago', 'moneda', 'monto', 'descripcion', 'cliente', 'cat_desc', 'origen_archivo', 'editado', 'editado_detalle'];
       const rows = [headers];
       lastErroresGlobal.forEach(r => {
         const regIsUSD = esTransaccionUSD(r);
         const monedaReg = regIsUSD ? 'USD' : 'ARS';
         const montoNum = (r.monto != null && r.monto !== '') ? Number(r.monto) : '';
         rows.push([
+          (r.tipoError || '').toString(),
           (r.id || '').toString(),
           r.fecha != null ? r.fecha : '',
           r.mes != null ? r.mes : '',
@@ -658,7 +769,7 @@
       });
       const ws = XLSX.utils.aoa_to_sheet(rows);
       ws['!cols'] = [
-        { wch: 36 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 16 },
+        { wch: 48 }, { wch: 36 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 16 },
         { wch: 26 }, { wch: 26 }, { wch: 22 }, { wch: 16 }, { wch: 8 },
         { wch: 16 }, { wch: 40 }, { wch: 22 }, { wch: 22 }, { wch: 18 },
         { wch: 8 }, { wch: 32 }
@@ -1010,12 +1121,18 @@
         if (infoCat.esError && r.tipo_movimiento === 'Egreso') {
           erroresClasificacion.push({
             ...r,
+            tipoError: TIPO_ERROR_INCONSISTENCIA,
             categoriaDisplay: infoCat.categoria || 'Sin categoría',
             categoriaOriginal: (r.categoria || '').trim() || 'Sin categoría'
           });
         }
       });
-      return erroresClasificacion;
+      const duplicadosMes = getErroresDuplicados().filter(e => e.anio === anio && e.mes === mes);
+      duplicadosMes.forEach(d => {
+        d.categoriaDisplay = getCategoriaDisplay(d.categoria, d.descripcion, d.cat_desc) || 'Sin categoría';
+        d.categoriaOriginal = (d.categoria || '').trim() || 'Sin categoría';
+      });
+      return [...erroresClasificacion, ...duplicadosMes];
     }
 
     function getErroresGlobal() {
@@ -1025,21 +1142,39 @@
         if (infoCat.esError && r.tipo_movimiento === 'Egreso') {
           erroresClasificacion.push({
             ...r,
+            tipoError: TIPO_ERROR_INCONSISTENCIA,
             categoriaDisplay: infoCat.categoria || 'Sin categoría',
             categoriaOriginal: (r.categoria || '').trim() || 'Sin categoría'
           });
         }
       });
-      return erroresClasificacion;
+      const duplicados = getErroresDuplicados();
+      duplicados.forEach(d => {
+        d.categoriaDisplay = getCategoriaDisplay(d.categoria, d.descripcion, d.cat_desc) || 'Sin categoría';
+        d.categoriaOriginal = (d.categoria || '').trim() || 'Sin categoría';
+      });
+      return [...erroresClasificacion, ...duplicados];
+    }
+
+    function getFiltroTipoError() {
+      const sel = document.getElementById('filtro-tipo-error');
+      return (sel && sel.value) ? sel.value : 'todos';
     }
 
     function renderErroresGlobal() {
       const tbody = document.getElementById('tbody-errores-global');
       if (!tbody) return;
-      const errores = getErroresGlobal();
+      const todos = getErroresGlobal();
+      const filtro = getFiltroTipoError();
+      const errores = filtro === 'todos' ? todos : todos.filter(r => {
+        if (filtro === 'inconsistencia') return r.tipoError === TIPO_ERROR_INCONSISTENCIA;
+        if (filtro === 'duplicado') return r.tipoError === TIPO_ERROR_DUPLICADO;
+        return true;
+      });
       lastErroresGlobal = errores;
       if (!errores.length) {
-        tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; color:#666;">No hay registros con errores de clasificación.</td></tr>';
+        const msg = filtro === 'todos' ? 'No hay registros con errores de clasificación.' : 'No hay registros con el tipo de error seleccionado.';
+        tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; color:#666;">' + msg + '</td></tr>';
         return;
       }
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
@@ -1051,8 +1186,11 @@
         const valReg = montoReg != null ? (simboloReg + formatearNumero(montoReg, monedaReg)) : '–';
         const id = (r.id || '').toString().replace(/"/g, '&quot;');
         const labelMes = (r.mes != null && r.anio != null) ? formatoMesAnio(r.mes, r.anio) : '';
+        const esDuplicado = r.tipoError === TIPO_ERROR_DUPLICADO;
+        const btnVer = esDuplicado ? `<button type="button" class="ver-duplicado-btn edit-btn edit-btn-global" data-id="${id}" title="Ver posible duplicado" aria-label="Ver posible duplicado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>` : '';
         return `
           <tr>
+            <td>${esc(r.tipoError || '')}</td>
             <td>${esc(fechaStr(r.fecha))}</td>
             <td>${esc(labelMes)}</td>
             <td>${esc(r.tipo_movimiento || '')}</td>
@@ -1065,7 +1203,7 @@
             <td>${esc((r.descripcion || r.cliente || '–').slice(0, 160))}</td>
             <td>${esc((r.origen_archivo || '').trim() || '—')}</td>
             <td>${r.editado === true ? 'Sí' : ''}</td>
-            <td><button type="button" class="edit-btn edit-btn-global" data-id="${id}" title="Editar registro" aria-label="Editar registro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+            <td>${btnVer}<button type="button" class="edit-btn edit-btn-global" data-id="${id}" title="Editar registro" aria-label="Editar registro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
           </tr>
         `;
       }).join('');
@@ -1075,11 +1213,20 @@
       currentErroresAnio = null;
       currentErroresMes = null;
       tbody.querySelectorAll('.edit-btn-global').forEach(btn => {
+        if (btn.classList.contains('ver-duplicado-btn')) return;
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const id = btn.getAttribute('data-id');
           const record = currentErroresList.find(x => (x.id || '').toString() === id);
           if (record) abrirModalEditar(record);
+        });
+      });
+      tbody.querySelectorAll('.ver-duplicado-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-id');
+          const record = currentErroresList.find(x => (x.id || '').toString() === id);
+          if (record && record.tipoError === TIPO_ERROR_DUPLICADO && record.registroPosibleDuplicado) abrirModalDuplicado(record);
         });
       });
     }
@@ -1105,8 +1252,11 @@
         const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
         const rows = errores.map(r => {
           const id = (r.id || '').toString().replace(/"/g, '&quot;');
+          const esDup = r.tipoError === TIPO_ERROR_DUPLICADO;
+          const btnVer = esDup ? `<button type="button" class="ver-duplicado-btn-modal edit-btn" data-id="${id}" title="Ver posible duplicado" aria-label="Ver posible duplicado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>` : '';
           return `
           <tr>
+            <td>${esc(r.tipoError || '')}</td>
             <td>${esc(fechaStr(r.fecha))}</td>
             <td>${esc(r.tipo_movimiento || '')}</td>
             <td>${esc(r.categoriaOriginal || '')}</td>
@@ -1115,15 +1265,15 @@
             <td>${esc(r.medio_pago || '')}</td>
             <td>${esc((r.descripcion || r.cliente || '–').slice(0, 160))}</td>
             <td>${esc((r.origen_archivo || '').trim() || '—')}</td>
-            <td><button type="button" class="edit-btn" data-id="${id}" title="Editar registro" aria-label="Editar registro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+            <td>${btnVer}<button type="button" class="edit-btn" data-id="${id}" title="Editar registro" aria-label="Editar registro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
           </tr>
         `;
         }).join('');
         body.innerHTML = `
-          <p><strong>Tipo de Error:</strong> Inconsistencia entre Categoria , Cuenta Contable y Descripcion</p>
           <table class="detalle-tabla">
             <thead>
               <tr>
+                <th>Tipo de error</th>
                 <th>Fecha</th>
                 <th>Tipo</th>
                 <th>Categoría orig.</th>
@@ -1141,6 +1291,15 @@
           </table>
         `;
         body.querySelectorAll('.edit-btn').forEach(btn => {
+          if (btn.classList.contains('ver-duplicado-btn-modal')) {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const id = btn.getAttribute('data-id');
+              const record = currentErroresList.find(x => (x.id || '').toString() === id);
+              if (record && record.tipoError === TIPO_ERROR_DUPLICADO && record.registroPosibleDuplicado) abrirModalDuplicado(record);
+            });
+            return;
+          }
           btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const id = btn.getAttribute('data-id');
@@ -1205,6 +1364,75 @@
       backdrop.classList.remove('oculto');
     }
 
+    let currentDuplicadoRecord = null;
+
+    function renderRegistroEnModal(reg) {
+      const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
+      const moneda = esTransaccionUSD(reg) ? 'USD' : 'ARS';
+      const sim = esTransaccionUSD(reg) ? 'US$ ' : '$ ';
+      const monto = reg.monto != null ? sim + formatearNumero(Number(reg.monto), moneda) : '–';
+      return `
+        <dl>
+          <dt>id_origen</dt><dd>${esc(reg.id_origen)}</dd>
+          <dt>Fecha</dt><dd>${esc(fechaStr(reg.fecha))}</dd>
+          <dt>Tipo</dt><dd>${esc(reg.tipo_movimiento)}</dd>
+          <dt>Monto</dt><dd>${esc(monto)}</dd>
+          <dt>Cliente</dt><dd>${esc(reg.cliente || '—')}</dd>
+          <dt>Medio de pago</dt><dd>${esc(reg.medio_pago)}</dd>
+          <dt>Categoría</dt><dd>${esc(reg.categoria)}</dd>
+          <dt>Cuenta contable</dt><dd>${esc(reg.cuenta_contable)}</dd>
+          <dt>Descripción</dt><dd>${esc((reg.descripcion || reg.cliente || '–').slice(0, 200))}</dd>
+          <dt>Origen</dt><dd>${esc(reg.origen_archivo || '—')}</dd>
+        </dl>
+      `;
+    }
+
+    function abrirModalDuplicado(record) {
+      const backdrop = document.getElementById('modal-duplicado-backdrop');
+      const bodyEste = document.getElementById('modal-duplicado-este');
+      const bodyOtro = document.getElementById('modal-duplicado-otro');
+      if (!backdrop || !bodyEste || !bodyOtro) return;
+      currentDuplicadoRecord = record;
+      const otro = record.registroPosibleDuplicado;
+      bodyEste.innerHTML = renderRegistroEnModal(record);
+      bodyOtro.innerHTML = otro ? renderRegistroEnModal(otro) : '<p class="muted">—</p>';
+
+      const btnCerrar = document.getElementById('modal-duplicado-close');
+      const btnExcluir = document.getElementById('modal-duplicado-excluir');
+      const btnEliminar = document.getElementById('modal-duplicado-eliminar');
+      const btnCerrarAbajo = document.getElementById('modal-duplicado-cerrar');
+
+      const cerrar = () => { backdrop.classList.add('oculto'); currentDuplicadoRecord = null; };
+
+      const oneExcluir = async () => {
+        if (!currentDuplicadoRecord || !currentDuplicadoRecord.id) return;
+        if (!confirm('¿Excluir este registro de todos los cálculos (marcar como anulado)? No se borrará, pero dejará de sumar en el flujo.')) return;
+        const { error } = await client.from('transacciones').update({ status: 'Anulado' }).eq('id', currentDuplicadoRecord.id);
+        if (error) { alert('Error al anular: ' + (error.message || 'Unknown')); return; }
+        cerrar();
+        await cargarDatos();
+        recalcular();
+        renderErroresGlobal();
+      };
+      const oneEliminar = async () => {
+        if (!currentDuplicadoRecord || !currentDuplicadoRecord.id) return;
+        if (!confirm('¿Eliminar este registro de la base de datos? Esta acción no se puede deshacer.')) return;
+        const { error } = await client.from('transacciones').delete().eq('id', currentDuplicadoRecord.id);
+        if (error) { alert('Error al eliminar: ' + (error.message || 'Unknown')); return; }
+        cerrar();
+        await cargarDatos();
+        recalcular();
+        renderErroresGlobal();
+      };
+
+      btnCerrar.onclick = cerrar;
+      btnCerrarAbajo.onclick = cerrar;
+      btnExcluir.onclick = oneExcluir;
+      btnEliminar.onclick = oneEliminar;
+
+      backdrop.classList.remove('oculto');
+    }
+
     async function init() {
       const loading = document.getElementById('loading');
       const errorEl = document.getElementById('error');
@@ -1213,6 +1441,7 @@
       const labelTipoDolar = document.getElementById('label-tipo-dolar');
 
       try {
+        if (!loading || !errorEl) return;
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebar-toggle');
         if (sidebar && sidebarToggle) {
@@ -1243,6 +1472,7 @@
         document.getElementById('tipoDolar').addEventListener('change', recalcular);
         document.getElementById('btn-exportar-excel').addEventListener('click', exportarAExcel);
         document.getElementById('btn-exportar-errores').addEventListener('click', exportarErroresExcel);
+        document.getElementById('filtro-tipo-error').addEventListener('change', renderErroresGlobal);
         labelTipoDolar.style.display = getMoneda() === 'USD' ? 'flex' : 'none';
         recalcular();
 
@@ -1325,9 +1555,10 @@
           });
         });
       } catch (e) {
-        loading.style.display = 'none';
-        errorEl.textContent = 'Error: ' + (e.message || e);
+        errorEl.textContent = 'Error: ' + (e.message || String(e));
         errorEl.style.display = 'block';
+      } finally {
+        if (loading) loading.style.display = 'none';
       }
     }
 
