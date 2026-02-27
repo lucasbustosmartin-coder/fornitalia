@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flujo de caja – Fornitalia</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f5f5f5; display: flex; min-height: 100vh; }
+    .sidebar { width: 56px; min-width: 56px; background: #1a1a1a; color: #fff; transition: width 0.25s ease; overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
+    .sidebar.expanded { width: 220px; }
+    .sidebar-toggle { display: flex; align-items: center; justify-content: center; width: 56px; height: 52px; border: none; background: transparent; color: #fff; cursor: pointer; font-size: 1.25rem; flex-shrink: 0; }
+    .sidebar-toggle:hover { background: rgba(255,255,255,0.1); }
+    .sidebar-toggle .icon-collapse { display: none; }
+    .sidebar.expanded .sidebar-toggle .icon-expand { display: none; }
+    .sidebar.expanded .sidebar-toggle .icon-collapse { display: inline; }
+    .sidebar-nav { padding: 0.5rem 0; }
+    .sidebar-nav .menu-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1rem; color: rgba(255,255,255,0.9); text-decoration: none; border: none; background: none; width: 100%; cursor: pointer; font-size: 0.95rem; font-family: inherit; text-align: left; }
+    .sidebar-nav .menu-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .sidebar-nav .menu-item .menu-icon { width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+    .sidebar-nav .menu-item .menu-label { white-space: nowrap; opacity: 0; width: 0; overflow: hidden; transition: opacity 0.2s, width 0.2s; }
+    .sidebar.expanded .sidebar-nav .menu-item .menu-label { opacity: 1; width: auto; }
+    .main-content { flex: 1; padding: 1.5rem; overflow-x: auto; }
+    h1 { margin-top: 0; color: #1a1a1a; }
+    .card { background: #fff; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: right; padding: 0.5rem 0.75rem; border-bottom: 1px solid #eee; }
+    th { text-align: right; font-weight: 600; color: #555; }
+    td:first-child, th:first-child { text-align: left; }
+    .ingresos { color: #0d7d3d; }
+    .egresos { color: #b91c1c; }
+    .balance { font-weight: 600; }
+    .balance.positivo { color: #0d7d3d; }
+    .balance.negativo { color: #b91c1c; }
+    .loading { color: #666; }
+    .error { color: #b91c1c; }
+    .resumen { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .resumen .card { flex: 1; min-width: 140px; }
+    .resumen .valor { font-size: 1.5rem; font-weight: 700; }
+    .filtros { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+    .filtros label { display: flex; align-items: center; gap: 0.5rem; }
+    .filtros select { padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px solid #ccc; }
+    .toggle-moneda { display: inline-flex; border-radius: 8px; border: 1px solid #ccc; overflow: hidden; background: #eee; }
+    .toggle-moneda button { padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; font-size: 1rem; }
+    .toggle-moneda button.activo { background: #1a1a1a; color: #fff; font-weight: 600; }
+    .tabs { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; }
+    .tabs button { padding: 0.5rem 1rem; border: 1px solid #ccc; background: #fff; border-radius: 6px; cursor: pointer; }
+    .tabs button.activo { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+    .panel { display: none; }
+    .panel.activo { display: block; }
+    .sin-cotizacion-note { color: #b45309; font-size: 0.9rem; margin-top: 0.5rem; }
+    tr.fila-mes { cursor: pointer; }
+    tr.fila-mes:hover { background: #f8f8f8; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+    .modal-backdrop.oculto { display: none; }
+    .modal { background: #fff; border-radius: 12px; max-width: 640px; width: 100%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+    .modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: move; user-select: none; }
+    .modal-header .modal-close { cursor: pointer; }
+    .modal-header h2 { margin: 0; font-size: 1.25rem; }
+    .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; line-height: 1; padding: 0 0.25rem; }
+    .modal-body { padding: 1rem 1.25rem; overflow-y: auto; }
+    .modal-body .modal-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; }
+    .modal-body .modal-tabs button { padding: 0.5rem 1rem; border: 1px solid #ccc; background: #fff; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .modal-body .modal-tabs button.activo { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+    .modal-body .modal-panel { display: none; }
+    .modal-body .modal-panel.activo { display: block; }
+    .modal-tabla { margin-top: 0.5rem; }
+    .modal-tabla th, .modal-tabla td { padding: 0.5rem 0.75rem; }
+    .modal-tabla .ver-btn, .modal-tabla .grafico-btn { background: none; border: none; cursor: pointer; color: #444; padding: 0.35rem; display: inline-flex; align-items: center; justify-content: center; margin-left: 0.25rem; }
+    .modal-tabla .ver-btn:hover, .modal-tabla .grafico-btn:hover { color: #1a1a1a; }
+    .modal-tabla tr.detalle-cat td { background: #f8f9fa; padding-left: 1.5rem; vertical-align: top; }
+    .modal-tabla .detalle-list { margin: 0; padding-left: 1rem; font-size: 0.85rem; color: #555; list-style: none; }
+    .modal-tabla .detalle-list li { margin-bottom: 0.35rem; padding: 0.15rem 0; border-bottom: 1px solid #eee; }
+    .modal-tabla .detalle-list li:last-child { border-bottom: none; }
+    .modal-tabla .origen-detalle { font-size: 0.8em; color: #888; margin-left: 0.35rem; }
+    .alert-icon { color: #b45309; cursor: pointer; font-size: 1.1rem; padding: 0 0.25rem; vertical-align: middle; }
+    .alert-icon:hover { opacity: 0.8; }
+    .alert-icon-cell { width: 2rem; text-align: center; }
+    #modal-alertas .modal-body ul { margin: 0; padding-left: 1.25rem; }
+    #modal-alertas .modal-body li { margin-bottom: 0.5rem; }
+    .app-footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #eee; font-size: 0.85rem; color: #888; text-align: center; }
+    .modal-grafico { max-width: 720px; }
+    .modal-grafico-body { min-height: 280px; }
+    .grafico-container { position: relative; height: 280px; width: 100%; }
+    .modal-tabla .icon-btn { width: 24px; height: 24px; }
+    .modal-tabla .icon-btn svg { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <aside id="sidebar" class="sidebar" aria-label="Menú principal">
+    <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Expandir menú">
+      <span class="icon-expand" aria-hidden="true">▶</span>
+      <span class="icon-collapse" aria-hidden="true">◀</span>
+    </button>
+    <nav class="sidebar-nav">
+      <a href="#" class="menu-item" id="menu-home" title="Home" aria-label="Home">
+        <span class="menu-icon" aria-hidden="true">⌂</span>
+        <span class="menu-label">Home</span>
+      </a>
+    </nav>
+  </aside>
+  <main id="main-content" class="main-content">
+  <h1>Flujo de caja</h1>
+  <p style="color:#666; margin-top:0;">Entradas y salidas por mes. No se incluyen transacciones anuladas. Si no hay cotización para la fecha, se usa la inmediata anterior. Hacé clic en un mes para ver el detalle por categoría.</p>
+
+  <div id="loading" class="card loading">Cargando transacciones y tipos de cambio…</div>
+  <div id="error" class="card error" style="display:none;"></div>
+
+  <div id="filtros-wrap" style="display:none;" class="filtros card">
+    <label>
+      <span>Moneda:</span>
+      <div class="toggle-moneda" id="toggle-moneda" role="group" aria-label="Moneda">
+        <button type="button" class="activo" data-moneda="ARS">ARS</button>
+        <button type="button" data-moneda="USD">USD</button>
+      </div>
+    </label>
+    <label id="label-tipo-dolar" style="display:none;">
+      <span>Conversión a dólar:</span>
+      <select id="tipoDolar">
+        <option value="mep">MEP</option>
+        <option value="ccl">CCL</option>
+        <option value="oficial">Oficial</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="resumen" class="resumen" style="display:none;"></div>
+
+  <div id="tabla-wrap" style="display:none;">
+    <div class="tabs">
+      <button type="button" class="tab activo" data-panel="flujo">Flujo por mes</button>
+      <button type="button" class="tab" data-panel="sin-cotizacion">Sin cotización</button>
+    </div>
+    <div id="panel-flujo" class="card panel activo">
+      <table>
+        <thead>
+          <tr>
+            <th>Mes-Año</th>
+            <th>Ingresos</th>
+            <th>Egresos</th>
+            <th>Balance</th>
+            <th>Comisiones/Ventas %</th>
+            <th>Egr s/com. / Ingresos</th>
+            <th class="alert-icon-cell"></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div id="panel-sin-cotizacion" class="card panel">
+      <p class="sin-cotizacion-note">Transacciones sin tipo de cambio (ni fecha exacta ni anterior). Excluidas del resumen y del flujo por mes.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Medio</th>
+            <th>Descripción</th>
+            <th>Monto orig.</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-sin-cotizacion"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    © 2025 Developed by L&amp;P Financial Consulting
+  </footer>
+  </main>
+
+  <div id="modal-alertas-backdrop" class="modal-backdrop oculto">
+    <div class="modal" id="modal-alertas">
+      <div class="modal-header" id="modal-alertas-header-drag">
+        <h2 id="modal-alertas-titulo">Alertas del mes</h2>
+        <button type="button" class="modal-close" id="modal-alertas-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-alertas-body"></div>
+    </div>
+  </div>
+
+  <div id="modal-backdrop" class="modal-backdrop oculto">
+    <div class="modal" id="modal-caja">
+      <div class="modal-header" id="modal-header-drag">
+        <h2 id="modal-titulo">Detalle del mes</h2>
+        <button type="button" class="modal-close" id="modal-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="modal-grafico-backdrop" class="modal-backdrop oculto">
+    <div class="modal modal-grafico" id="modal-grafico">
+      <div class="modal-header" id="modal-grafico-header-drag">
+        <h2 id="modal-grafico-titulo">Serie mensual</h2>
+        <button type="button" class="modal-close" id="modal-grafico-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body modal-grafico-body">
+        <div class="grafico-container"><canvas id="chart-serie-mensual"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://moeqgzezdraknwmheheu.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZXFnemV6ZHJha253bWhlaGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNTY2MDgsImV4cCI6MjA3MDkzMjYwOH0.ZHIJjZv7izlaegfeypj8s6jNb0ls-LTrt914qhgO_uA';
+
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+    function formatoMesAnio(mes, anio) {
+      return String(mes).padStart(2, '0') + '-' + anio;
+    }
+
+    function formatearNumero(n, moneda) {
+      if (n == null || isNaN(n)) return '–';
+      return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: moneda === 'USD' ? 2 : 0 }).format(n);
+    }
+
+    function esMonedaUSD(medioPago) {
+      return (medioPago || '').toLowerCase().indexOf('dolar') !== -1;
+    }
+
+    function fechaStr(f) {
+      if (!f) return '';
+      if (typeof f === 'string') return f.slice(0, 10);
+      return f;
+    }
+
+    function excluirCategoria(c) {
+      const t = (c || '').trim();
+      return t === 'Apertura' || t === 'Cierre';
+    }
+
+    function textoIndicaComision(desc, catDesc) {
+      const d = ((desc || '') + ' ' + (catDesc || '')).toLowerCase();
+      return d.includes('comision') || d.includes('comisones');
+    }
+
+    function getCategoriaDisplay(cat, desc, catDesc) {
+      const c = (cat || '').trim().toLowerCase();
+      if (c.includes('sueldos')) return textoIndicaComision(desc, catDesc) ? 'Comisiones' : 'Sueldos';
+      return (cat || '').trim() || 'Sin categoría';
+    }
+
+    function esComisionDentroSueldos(cat, desc, catDesc) {
+      const c = (cat || '').trim().toLowerCase();
+      if (!c.includes('sueldos')) return false;
+      return textoIndicaComision(desc, catDesc);
+    }
+
+    let cacheTransacciones = [];
+    let cacheTC = {};
+    let fechasConTasa = { mep: [], ccl: [], oficial: [] };
+
+    function getTasaAnterior(fecha, rateKey) {
+      if (!fecha || !rateKey) return null;
+      const list = fechasConTasa[rateKey];
+      if (!list || list.length === 0) return null;
+      let idx = list.findIndex(d => d > fecha);
+      if (idx === -1) idx = list.length;
+      if (idx === 0) return null;
+      const fechaAnterior = list[idx - 1];
+      const tc = cacheTC[fechaAnterior];
+      return tc && tc[rateKey] != null && tc[rateKey] > 0 ? tc[rateKey] : null;
+    }
+
+    async function cargarDatos() {
+      const [txRes, tcRes] = await Promise.all([
+        client.from('transacciones').select('fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable').neq('status', 'Anulado'),
+        client.from('tipo_de_cambio').select('fecha, usd_mep, usd_ccl, usd_oficial')
+      ]);
+      if (txRes.error) throw txRes.error;
+      if (tcRes.error) throw tcRes.error;
+      cacheTransacciones = txRes.data || [];
+      const tcs = tcRes.data || [];
+      const map = {};
+      tcs.forEach(r => {
+        const f = fechaStr(r.fecha);
+        if (!f) return;
+        if (!map[f]) map[f] = { mep: r.usd_mep != null ? Number(r.usd_mep) : null, ccl: r.usd_ccl != null ? Number(r.usd_ccl) : null, oficial: r.usd_oficial != null ? Number(r.usd_oficial) : null };
+      });
+      cacheTC = map;
+      ['mep','ccl','oficial'].forEach(rateKey => {
+        fechasConTasa[rateKey] = Object.keys(map).filter(d => map[d][rateKey] != null && map[d][rateKey] > 0).sort();
+      });
+      return { transacciones: cacheTransacciones, tcMap: cacheTC };
+    }
+
+    function getMoneda() {
+      return document.querySelector('#toggle-moneda button.activo')?.getAttribute('data-moneda') || 'ARS';
+    }
+
+    function recalcular() {
+      const moneda = getMoneda();
+      const tipoDolar = document.getElementById('tipoDolar').value;
+      const rows = cacheTransacciones;
+
+      const porMes = {};
+      const porMesCategoria = {};
+      let totalIngresos = 0, totalEgresos = 0;
+      const sinCotizacion = [];
+
+      rows.filter(r => !excluirCategoria(r.categoria)).forEach(r => {
+        const montoOrig = Number(r.monto) || 0;
+        const fecha = fechaStr(r.fecha);
+        let tasa = (cacheTC[fecha] && cacheTC[fecha][tipoDolar] != null && cacheTC[fecha][tipoDolar] > 0) ? cacheTC[fecha][tipoDolar] : getTasaAnterior(fecha, tipoDolar);
+
+        let montoParaSumar = montoOrig;
+        const esUSD = esMonedaUSD(r.medio_pago);
+
+        if (moneda === 'USD') {
+          if (esUSD) {
+            montoParaSumar = montoOrig;
+          } else {
+            if (tasa == null) { sinCotizacion.push(r); return; }
+            montoParaSumar = montoOrig / tasa;
+          }
+        } else {
+          if (esUSD) {
+            if (tasa == null) { sinCotizacion.push(r); return; }
+            montoParaSumar = montoOrig * tasa;
+          }
+        }
+
+        const key = `${r.anio}-${String(r.mes).padStart(2,'0')}`;
+        const cat = (r.categoria || '').trim() || 'Sin categoría';
+        const catLow = cat.toLowerCase();
+        if (!porMes[key]) porMes[key] = { anio: r.anio, mes: r.mes, ingresos: 0, egresos: 0, comisiones: 0, ventas: 0 };
+        if (!porMesCategoria[key]) porMesCategoria[key] = {};
+        if (!porMesCategoria[key][cat]) porMesCategoria[key][cat] = 0;
+        porMesCategoria[key][cat] += montoParaSumar;
+        if (r.tipo_movimiento === 'Ingreso') {
+          porMes[key].ingresos += montoParaSumar;
+          totalIngresos += montoParaSumar;
+          if (catLow.includes('venta')) porMes[key].ventas += montoParaSumar;
+        } else if (r.tipo_movimiento === 'Egreso') {
+          porMes[key].egresos += montoParaSumar;
+          totalEgresos += montoParaSumar;
+          if (esComisionDentroSueldos(r.categoria, r.descripcion, r.cat_desc)) porMes[key].comisiones += montoParaSumar;
+        }
+      });
+
+      const ordenados = Object.keys(porMes).sort();
+      const categoriasEnMes = {};
+      ordenados.forEach(key => {
+        const [anio, mes] = [parseInt(key.slice(0, 4), 10), parseInt(key.slice(5), 10)];
+        const trans = cacheTransacciones.filter(r => r.anio === anio && r.mes === mes && !excluirCategoria(r.categoria));
+        categoriasEnMes[key] = [...new Set(trans.map(r => getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc)))];
+      });
+      const UMBRAL_DESVIO_PCT = 25;
+      const categoriasEsperadas = [
+        { nombre: 'Sueldos', tiene: (arr) => arr.includes('Sueldos') },
+        { nombre: 'Comisiones', tiene: (arr) => arr.includes('Comisiones') },
+        { nombre: 'Alquileres', tiene: (arr) => arr.some(c => (c || '').toLowerCase().includes('alquiler')) },
+        { nombre: 'Impuestos', tiene: (arr) => arr.some(c => (c || '').toLowerCase().includes('impuesto')) }
+      ];
+      const alertasPorMes = {};
+      ordenados.forEach((key, idx) => {
+        const alertas = [];
+        const d = porMes[key];
+        if (d.egresos === 0 || (typeof d.egresos === 'number' && d.egresos < 1e-6)) alertas.push('El mes no tiene egresos.');
+        categoriasEsperadas.forEach(({ nombre, tiene }) => {
+          if (!tiene(categoriasEnMes[key] || [])) alertas.push('No hay registros de ' + nombre + ' en el mes.');
+        });
+        if (idx > 0) {
+          const prevKey = ordenados[idx - 1];
+          Object.keys(porMesCategoria[key] || {}).forEach(cat => {
+            const actual = porMesCategoria[key][cat] || 0;
+            const anterior = porMesCategoria[prevKey] && porMesCategoria[prevKey][cat] != null ? porMesCategoria[prevKey][cat] : 0;
+            if (anterior > 0 && actual >= 0) {
+              const desvioPct = Math.abs((actual - anterior) / anterior * 100);
+              if (desvioPct >= UMBRAL_DESVIO_PCT) alertas.push('La categoría "' + cat + '" tiene un desvío de ' + desvioPct.toFixed(1) + '% respecto del mes anterior.');
+            }
+          });
+        }
+        alertasPorMes[key] = alertas;
+      });
+      const balanceTotal = totalIngresos - totalEgresos;
+      const simbolo = moneda === 'USD' ? 'US$ ' : '$ ';
+
+      document.getElementById('resumen').innerHTML = `
+        <div class="card"><div style="color:#555;">Total ingresos</div><div class="valor ingresos">${simbolo}${formatearNumero(totalIngresos, moneda)}</div></div>
+        <div class="card"><div style="color:#555;">Total egresos</div><div class="valor egresos">${simbolo}${formatearNumero(totalEgresos, moneda)}</div></div>
+        <div class="card"><div style="color:#555;">Balance</div><div class="valor balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</div></div>
+      `;
+      document.getElementById('resumen').style.display = 'flex';
+
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = ordenados.map(key => {
+        const d = porMes[key];
+        const balance = d.ingresos - d.egresos;
+        const label = formatoMesAnio(d.mes, d.anio);
+        const comisiones = d.comisiones != null ? d.comisiones : 0;
+        const ventas = d.ventas != null ? d.ventas : 0;
+        const comVentasPct = ventas > 0 ? ((comisiones / ventas) * 100).toFixed(1) + '%' : '–';
+        const egrSinCom = (d.egresos != null ? d.egresos : 0) - comisiones;
+        const egrSinComIngPct = d.ingresos > 0 ? ((egrSinCom / d.ingresos) * 100).toFixed(1) + '%' : '–';
+        const alertas = alertasPorMes[key] || [];
+        const alertasJson = alertas.length ? JSON.stringify(alertas).replace(/"/g, '&quot;') : '';
+        const iconoAlert = alertas.length ? `<span class="alert-icon" role="button" tabindex="0" data-alertas="${alertasJson}" data-label="${label.replace(/"/g, '&quot;')}" title="Ver alertas">⚠️</span>` : '';
+        return `<tr class="fila-mes" data-anio="${d.anio}" data-mes="${d.mes}">
+          <td>${label}</td>
+          <td class="ingresos">${simbolo}${formatearNumero(d.ingresos, moneda)}</td>
+          <td class="egresos">${simbolo}${formatearNumero(d.egresos, moneda)}</td>
+          <td class="balance ${balance >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balance, moneda)}</td>
+          <td>${comVentasPct}</td>
+          <td>${egrSinComIngPct}</td>
+          <td class="alert-icon-cell">${iconoAlert}</td>
+        </tr>`;
+      }).join('');
+
+      document.getElementById('tbody-sin-cotizacion').innerHTML = sinCotizacion.length === 0
+        ? '<tr><td colspan="5" style="text-align:center; color:#666;">No hay transacciones sin cotización.</td></tr>'
+        : sinCotizacion.map(r => `
+          <tr>
+            <td>${fechaStr(r.fecha)}</td>
+            <td>${(r.tipo_movimiento || '').replace(/</g,'&lt;')}</td>
+            <td>${(r.medio_pago || '').replace(/</g,'&lt;')}</td>
+            <td>${(r.descripcion || r.cliente || '–').slice(0, 60).replace(/</g,'&lt;')}</td>
+            <td>${formatearNumero(r.monto)}</td>
+          </tr>
+        `).join('');
+    }
+
+    function montoConvertido(r, moneda, tipoDolar) {
+      const montoOrig = Number(r.monto) || 0;
+      const fecha = fechaStr(r.fecha);
+      let tasa = (cacheTC[fecha] && cacheTC[fecha][tipoDolar] != null && cacheTC[fecha][tipoDolar] > 0) ? cacheTC[fecha][tipoDolar] : getTasaAnterior(fecha, tipoDolar);
+      const esUSD = esMonedaUSD(r.medio_pago);
+      if (moneda === 'USD') return esUSD ? montoOrig : (tasa != null ? montoOrig / tasa : null);
+      return esUSD ? (tasa != null ? montoOrig * tasa : null) : montoOrig;
+    }
+
+    let chartSerieMensual = null;
+
+    const verticalLinePlugin = {
+      id: 'verticalLineMes',
+      afterDraw(chart) {
+        try {
+          const idx = chart.options.verticalLineIndex;
+          if (idx == null || idx < 0 || idx >= (chart.data.labels || []).length) return;
+          const xScale = chart.scales.x || chart.scales['x'];
+          const yScale = chart.scales.y || chart.scales['y'];
+          if (!xScale || !yScale) return;
+          const ctx = chart.ctx;
+          const x = xScale.getPixelForValue(chart.data.labels[idx]);
+          const value = chart.data.datasets[0] && chart.data.datasets[0].data[idx];
+          const opts = chart.options.verticalLineOpts || {};
+          ctx.save();
+          ctx.beginPath();
+          ctx.strokeStyle = opts.lineColor || '#b91c1c';
+          ctx.lineWidth = opts.lineWidth || 2;
+          ctx.setLineDash(opts.dash || [6, 4]);
+          ctx.moveTo(x, yScale.top);
+          ctx.lineTo(x, yScale.bottom);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          if (value != null && typeof opts.formatValue === 'function') {
+            const label = opts.formatValue(value);
+            ctx.font = (opts.fontSize || 12) + 'px system-ui, sans-serif';
+            ctx.fillStyle = opts.lineColor || '#b91c1c';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, x, yScale.top - 8);
+          }
+          ctx.restore();
+        } catch (e) { /* no romper el gráfico */ }
+      }
+    };
+    if (typeof Chart !== 'undefined') Chart.register(verticalLinePlugin);
+
+    function getSerieMensual(tipo, nombre) {
+      const moneda = getMoneda();
+      const tipoDolar = document.getElementById('tipoDolar').value;
+      const rows = cacheTransacciones.filter(r => !excluirCategoria(r.categoria));
+      const match = (r) => {
+        if (tipo === 'categoria') return getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) === nombre;
+        const cuenta = (r.cuenta_contable || '').trim() || 'Sin cuenta contable';
+        return cuenta === nombre;
+      };
+      const todosLosMeses = [...new Set(rows.map(r => `${r.anio}-${String(r.mes).padStart(2,'0')}`))].sort();
+      const porMes = {};
+      rows.filter(match).forEach(r => {
+        const m = montoConvertido(r, moneda, tipoDolar);
+        if (m == null) return;
+        const key = `${r.anio}-${String(r.mes).padStart(2,'0')}`;
+        if (!porMes[key]) porMes[key] = 0;
+        porMes[key] += r.tipo_movimiento === 'Ingreso' ? m : -m;
+      });
+      const labels = todosLosMeses.map(k => {
+        const [anio, mes] = [parseInt(k.slice(0, 4), 10), parseInt(k.slice(5), 10)];
+        return formatoMesAnio(mes, anio);
+      });
+      const valoresNetos = todosLosMeses.map(k => porMes[k] || 0);
+      const total = valoresNetos.reduce((s, v) => s + v, 0);
+      const tipoMovimiento = total >= 0 ? 'Ingreso' : 'Egreso';
+      const values = valoresNetos.map(v => Math.abs(v));
+      return { labels, values, tipoMovimiento };
+    }
+
+    function openGraficoModal(tipo, nombre, anioSel, mesSel) {
+      const titulo = document.getElementById('modal-grafico-titulo');
+      const canvas = document.getElementById('chart-serie-mensual');
+      if (!titulo || !canvas) return;
+      const { labels, values, tipoMovimiento } = getSerieMensual(tipo, nombre);
+      titulo.textContent = 'Tipo: ' + tipoMovimiento + ' — Serie mensual: ' + (nombre || '');
+      if (chartSerieMensual) { chartSerieMensual.destroy(); chartSerieMensual = null; }
+      document.getElementById('modal-grafico-backdrop').classList.remove('oculto');
+      const moneda = getMoneda();
+      const simbolo = moneda === 'USD' ? 'US$ ' : '$ ';
+      const decimals = moneda === 'USD' ? 2 : 0;
+      const formatTick = (v) => typeof v === 'number' ? new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: decimals }).format(v) : v;
+      const labelMesSel = (anioSel != null && mesSel != null) ? formatoMesAnio(mesSel, anioSel) : null;
+      const selectedIndex = labelMesSel != null ? labels.indexOf(labelMesSel) : -1;
+      const lineColor = '#444';
+      const fillColor = 'rgba(68, 68, 68, 0.15)';
+      const config = {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: tipoMovimiento,
+            data: values,
+            borderColor: lineColor,
+            backgroundColor: fillColor,
+            borderWidth: 2,
+            fill: true,
+            tension: 0.2,
+            pointRadius: 4,
+            pointBackgroundColor: lineColor
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { display: false } },
+          verticalLineIndex: selectedIndex >= 0 ? selectedIndex : null,
+          verticalLineOpts: selectedIndex >= 0 ? { lineColor: '#b91c1c', formatValue: v => simbolo + formatTick(v) } : null,
+          scales: {
+            y: { min: 0, ticks: { callback: function(v) { return simbolo + formatTick(v); } } }
+          }
+        }
+      };
+      requestAnimationFrame(function() {
+        chartSerieMensual = new Chart(canvas.getContext('2d'), config);
+      });
+    }
+
+    function abrirModal(anio, mes) {
+      const modal = document.getElementById('modal-caja');
+      if (modal) {
+        modal.style.position = '';
+        modal.style.left = '';
+        modal.style.top = '';
+        modal.style.right = '';
+        modal.style.transform = '';
+      }
+      const moneda = getMoneda();
+      const tipoDolar = document.getElementById('tipoDolar').value;
+      const simbolo = moneda === 'USD' ? 'US$ ' : '$ ';
+      const labelMes = formatoMesAnio(mes, anio);
+      const transaccionesMes = cacheTransacciones.filter(r => r.anio === anio && r.mes === mes && !excluirCategoria(r.categoria));
+      const totalSolo = (items) => items.reduce((s, i) => s + (i.montoConvertido != null ? i.montoConvertido : 0), 0);
+      const renderLineas = (items) => items.map(i => {
+        const tipo = i.tipo_movimiento === 'Ingreso' ? 'ingresos' : 'egresos';
+        const val = i.montoConvertido != null ? simbolo + formatearNumero(i.montoConvertido, moneda) : formatearNumero(i.monto) + ' (sin cot.)';
+        const desc = (i.descripcion || i.cliente || '–').replace(/</g,'&lt;').slice(0, 80);
+        const origen = (i.origen_archivo || '').trim();
+        const origenHtml = origen ? ` <span class="origen-detalle" title="Origen">${('Origen: ' + origen).replace(/</g,'&lt;')}</span>` : '';
+        return `<li><span class="${tipo}">${val}</span> — ${desc}${origenHtml}</li>`;
+      }).join('');
+
+      const porCategoria = {};
+      transaccionesMes.forEach(r => {
+        const cat = (r.categoria || '').trim() || 'Sin categoría';
+        const catDisplay = getCategoriaDisplay(cat, r.descripcion, r.cat_desc);
+        if (!porCategoria[catDisplay]) porCategoria[catDisplay] = [];
+        porCategoria[catDisplay].push({ ...r, montoConvertido: montoConvertido(r, moneda, tipoDolar) });
+      });
+      const itemsIngreso = cat => (porCategoria[cat] || []).filter(i => i.tipo_movimiento === 'Ingreso');
+      const itemsEgreso = cat => (porCategoria[cat] || []).filter(i => i.tipo_movimiento === 'Egreso');
+      const categoriasIngreso = Object.keys(porCategoria).filter(cat => itemsIngreso(cat).length > 0).sort();
+      const categoriasEgreso = Object.keys(porCategoria).filter(cat => itemsEgreso(cat).length > 0).sort();
+      const filasModal = [
+        ...categoriasIngreso.map(cat => ({ nombre: cat, items: itemsIngreso(cat), totalCat: totalSolo(itemsIngreso(cat)), esIngreso: true })),
+        ...categoriasEgreso.map(cat => ({ nombre: cat, items: itemsEgreso(cat), totalCat: totalSolo(itemsEgreso(cat)), esIngreso: false }))
+      ];
+
+      const porCuenta = {};
+      transaccionesMes.forEach(r => {
+        const cuenta = (r.cuenta_contable || '').trim() || 'Sin cuenta contable';
+        if (!porCuenta[cuenta]) porCuenta[cuenta] = [];
+        porCuenta[cuenta].push({ ...r, montoConvertido: montoConvertido(r, moneda, tipoDolar) });
+      });
+      const itemsIngresoCuenta = cuenta => (porCuenta[cuenta] || []).filter(i => i.tipo_movimiento === 'Ingreso');
+      const itemsEgresoCuenta = cuenta => (porCuenta[cuenta] || []).filter(i => i.tipo_movimiento === 'Egreso');
+      const cuentasIngreso = Object.keys(porCuenta).filter(c => itemsIngresoCuenta(c).length > 0).sort();
+      const cuentasEgreso = Object.keys(porCuenta).filter(c => itemsEgresoCuenta(c).length > 0).sort();
+      const filasModalCuenta = [
+        ...cuentasIngreso.map(cuenta => ({ nombre: cuenta, items: itemsIngresoCuenta(cuenta), totalCat: totalSolo(itemsIngresoCuenta(cuenta)), esIngreso: true })),
+        ...cuentasEgreso.map(cuenta => ({ nombre: cuenta, items: itemsEgresoCuenta(cuenta), totalCat: totalSolo(itemsEgresoCuenta(cuenta)), esIngreso: false }))
+      ];
+
+      document.getElementById('modal-titulo').textContent = labelMes;
+      const body = document.getElementById('modal-body');
+
+      const buildTabla = (filas, prefixId, columnaNombre, tipo, anioSel, mesSel) => {
+        let h = `<table class="modal-tabla"><thead><tr><th>Mes</th><th>${columnaNombre}</th><th>Monto</th><th></th></tr></thead><tbody>`;
+        filas.forEach((fila, idx) => {
+          const { nombre, items, totalCat, esIngreso } = fila;
+          const claseMonto = esIngreso ? 'ingresos' : 'egresos';
+          const lineas = renderLineas(items);
+          const nombreEsc = nombre.replace(/</g,'&lt;').replace(/"/g,'&quot;');
+          const nombreAttr = nombre.replace(/"/g, '&quot;');
+          h += `
+          <tr data-row-index="${idx}">
+            <td>${labelMes.replace(/</g,'&lt;')}</td>
+            <td>${nombreEsc}</td>
+            <td class="${claseMonto}">${simbolo}${formatearNumero(totalCat, moneda)}</td>
+            <td><button type="button" class="ver-btn icon-btn" data-row-index="${idx}" data-prefix="${prefixId}" aria-label="Ver transacciones" title="Ver transacciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button><button type="button" class="grafico-btn icon-btn" data-tipo="${tipo}" data-nombre="${nombreAttr}" data-anio="${anioSel}" data-mes="${mesSel}" aria-label="Ver gráfico" title="Ver gráfico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></button></td>
+          </tr>
+          <tr class="detalle-cat" id="${prefixId}-detalle-${idx}" style="display:none;">
+            <td colspan="4"><ul class="detalle-list">${lineas}</ul></td>
+          </tr>`;
+        });
+        h += '</tbody></table>';
+        return h;
+      };
+
+      let html = `
+        <div class="modal-tabs" role="tablist">
+          <button type="button" class="modal-tab activo" data-panel="categoria" role="tab">By Categoria</button>
+          <button type="button" class="modal-tab" data-panel="cuenta" role="tab">By Cuenta Contable</button>
+        </div>
+        <div id="modal-panel-categoria" class="modal-panel activo">${buildTabla(filasModal, 'modal-detalle-cat', 'Categoría', 'categoria', anio, mes)}</div>
+        <div id="modal-panel-cuenta" class="modal-panel">${buildTabla(filasModalCuenta, 'modal-detalle-cuenta', 'Cuenta contable', 'cuenta', anio, mes)}</div>
+      `;
+      body.innerHTML = html;
+
+      body.querySelectorAll('.modal-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const panelId = tab.getAttribute('data-panel');
+          body.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('activo'));
+          body.querySelectorAll('.modal-panel').forEach(p => p.classList.remove('activo'));
+          tab.classList.add('activo');
+          const panel = document.getElementById('modal-panel-' + panelId);
+          if (panel) panel.classList.add('activo');
+        });
+      });
+
+      body.querySelectorAll('.ver-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const idx = btn.getAttribute('data-row-index');
+          const prefix = btn.getAttribute('data-prefix');
+          const detalle = document.getElementById(prefix + '-detalle-' + idx);
+          if (detalle) {
+            const visible = detalle.style.display !== 'none';
+            detalle.style.display = visible ? 'none' : 'table-row';
+            btn.setAttribute('title', visible ? 'Ver transacciones' : 'Ocultar');
+            btn.setAttribute('aria-label', visible ? 'Ver transacciones' : 'Ocultar');
+          }
+        });
+      });
+      body.querySelectorAll('.grafico-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const anioSel = btn.getAttribute('data-anio');
+          const mesSel = btn.getAttribute('data-mes');
+          openGraficoModal(btn.getAttribute('data-tipo'), btn.getAttribute('data-nombre'), anioSel ? parseInt(anioSel, 10) : null, mesSel ? parseInt(mesSel, 10) : null);
+        });
+      });
+
+      document.getElementById('modal-backdrop').classList.remove('oculto');
+    }
+
+    async function init() {
+      const loading = document.getElementById('loading');
+      const errorEl = document.getElementById('error');
+      const filtrosWrap = document.getElementById('filtros-wrap');
+      const tablaWrap = document.getElementById('tabla-wrap');
+      const labelTipoDolar = document.getElementById('label-tipo-dolar');
+
+      try {
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        if (sidebar && sidebarToggle) {
+          const saved = localStorage.getItem('fornitalia-sidebar-expanded');
+          if (saved === '1') sidebar.classList.add('expanded');
+          sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('expanded');
+            localStorage.setItem('fornitalia-sidebar-expanded', sidebar.classList.contains('expanded') ? '1' : '0');
+            sidebarToggle.setAttribute('aria-label', sidebar.classList.contains('expanded') ? 'Contraer menú' : 'Expandir menú');
+          });
+          sidebarToggle.setAttribute('aria-label', sidebar.classList.contains('expanded') ? 'Contraer menú' : 'Expandir menú');
+        }
+        document.getElementById('menu-home')?.addEventListener('click', (e) => { e.preventDefault(); });
+
+        await cargarDatos();
+        filtrosWrap.style.display = 'flex';
+        tablaWrap.style.display = 'block';
+        loading.style.display = 'none';
+
+        document.querySelectorAll('#toggle-moneda button').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('#toggle-moneda button').forEach(b => b.classList.remove('activo'));
+            btn.classList.add('activo');
+            labelTipoDolar.style.display = getMoneda() === 'USD' ? 'flex' : 'none';
+            recalcular();
+          });
+        });
+        document.getElementById('tipoDolar').addEventListener('change', recalcular);
+        labelTipoDolar.style.display = getMoneda() === 'USD' ? 'flex' : 'none';
+        recalcular();
+
+        document.getElementById('tbody').addEventListener('click', (e) => {
+          const iconAlert = e.target.closest('.alert-icon');
+          if (iconAlert) {
+            e.stopPropagation();
+            const alertas = JSON.parse(iconAlert.getAttribute('data-alertas') || '[]');
+            const label = iconAlert.getAttribute('data-label') || '';
+            document.getElementById('modal-alertas-titulo').textContent = 'Alertas — ' + label;
+            document.getElementById('modal-alertas-body').innerHTML = alertas.length
+              ? '<ul>' + alertas.map(a => '<li>' + (a.replace(/</g, '&lt;')) + '</li>').join('') + '</ul>'
+              : '<p>No hay alertas.</p>';
+            document.getElementById('modal-alertas-backdrop').classList.remove('oculto');
+            return;
+          }
+          const tr = e.target.closest('tr.fila-mes');
+          if (tr) abrirModal(parseInt(tr.dataset.anio, 10), parseInt(tr.dataset.mes, 10));
+        });
+
+        document.getElementById('modal-close').addEventListener('click', () => document.getElementById('modal-backdrop').classList.add('oculto'));
+        document.getElementById('modal-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-backdrop') e.target.classList.add('oculto'); });
+        document.getElementById('modal-alertas-close').addEventListener('click', () => document.getElementById('modal-alertas-backdrop').classList.add('oculto'));
+        document.getElementById('modal-alertas-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-alertas-backdrop') e.target.classList.add('oculto'); });
+        document.getElementById('modal-grafico-close').addEventListener('click', () => {
+          document.getElementById('modal-grafico-backdrop').classList.add('oculto');
+          if (chartSerieMensual) { chartSerieMensual.destroy(); chartSerieMensual = null; }
+        });
+        document.getElementById('modal-grafico-backdrop').addEventListener('click', (e) => {
+          if (e.target.id === 'modal-grafico-backdrop') {
+            e.target.classList.add('oculto');
+            if (chartSerieMensual) { chartSerieMensual.destroy(); chartSerieMensual = null; }
+          }
+        });
+
+        function setupModalDrag(modalId, headerId, closeBtnId) {
+          const modal = document.getElementById(modalId);
+          const header = document.getElementById(headerId);
+          const closeBtn = document.getElementById(closeBtnId);
+          if (!modal || !header) return;
+          header.addEventListener('mousedown', function(e) {
+            if (e.target === closeBtn || closeBtn.contains(e.target)) return;
+            const rect = modal.getBoundingClientRect();
+            let startX = e.clientX - rect.left;
+            let startY = e.clientY - rect.top;
+            modal.style.position = 'fixed';
+            modal.style.left = rect.left + 'px';
+            modal.style.top = rect.top + 'px';
+            modal.style.right = 'auto';
+            modal.style.transform = 'none';
+            function move(e) {
+              modal.style.left = (e.clientX - startX) + 'px';
+              modal.style.top = (e.clientY - startY) + 'px';
+            }
+            function stop() {
+              document.removeEventListener('mousemove', move);
+              document.removeEventListener('mouseup', stop);
+            }
+            document.addEventListener('mousemove', move);
+            document.addEventListener('mouseup', stop);
+          });
+        }
+        setupModalDrag('modal-caja', 'modal-header-drag', 'modal-close');
+        setupModalDrag('modal-alertas', 'modal-alertas-header-drag', 'modal-alertas-close');
+        setupModalDrag('modal-grafico', 'modal-grafico-header-drag', 'modal-grafico-close');
+
+        document.querySelectorAll('.tab').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(b => b.classList.remove('activo'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('activo'));
+            btn.classList.add('activo');
+            const id = btn.getAttribute('data-panel');
+            if (id) document.getElementById('panel-' + id).classList.add('activo');
+          });
+        });
+      } catch (e) {
+        loading.style.display = 'none';
+        errorEl.textContent = 'Error: ' + (e.message || e);
+        errorEl.style.display = 'block';
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

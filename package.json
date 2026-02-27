@@ -1,0 +1,11 @@
+{
+  "name": "fornitalia",
+  "private": true,
+  "scripts": {
+    "dev": "live-server . --open=dashboard-flujo-caja.html --port=3000"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2",
+    "xlsx": "^0.18.5"
+  }
+}

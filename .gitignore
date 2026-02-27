@@ -1,0 +1,18 @@
+# Dependencias
+node_modules/
+
+# Entorno virtual Python
+.venv/
+venv/
+env/
+
+# Variables de entorno (contienen claves)
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+
+# Excel generado (opcional: si quieres versionarlo, borra esta línea)
+# Bitacora_tareas.xlsx
