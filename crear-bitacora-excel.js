@@ -27,6 +27,9 @@ const datosLog = [
   ['27/02/2025', '16:50', 'Recategorización Alquiler → Alquileres y Servicios', 'Si la categoría original es exactamente Alquiler, el dashboard la muestra como Alquileres y Servicios (solo cambio de etiqueta visual, los números y agrupaciones siguen conciliando).', 'Diagnostico'],
   ['27/02/2025', '17:00', 'Detección de errores de clasificación (Egresos)', 'Para egresos: si la descripción (más cat_desc/cliente) no contiene palabras relevantes de la categoría mostrada o de la cuenta contable, se recategoriza visualmente como Sin categoría y se registra como error de tipo "Inconsistencia entre Categoria , Cuenta Contable y Descripcion". En el modal mensual se agrega solapa Errores con el conteo y un acceso a un modal de detalle con todos los registros en error.', 'Diagnostico'],
   ['27/02/2025', '17:30', 'Modal errores: ampliar, editar registro y campos editado/editado_detalle', 'Ampliar modal de detalle de errores. Agregar icono de edición por registro que abre modal para actualizar en BD: Categoría y Cuenta contable solo desde valores existentes (dropdown), Descripción libre. Tabla transacciones: nuevos campos editado (flag) y editado_detalle (ej. Categoria, Descripcion, Cuenta Contable). Migración supabase_transacciones_editado.sql. Export Excel incluye editado y editado_detalle.', 'Diagnostico'],
+  ['27/02/2025', '17:40', 'Excepción errores: Comisiones Bancarias / Gastos Bancarios', 'Si la categoría es Comisiones Bancarias y la cuenta contable es Gastos Bancarios, se considera consistente y no entra en el log de errores de clasificación (aunque la descripción no contenga esas palabras).', 'Diagnostico'],
+  ['27/02/2025', '17:50', 'Excepción errores: Impuestos / MercadoPago y Impuestos / Transferencia Morba', 'Si la categoría es Impuestos y la cuenta contable es MercadoPago o Transferencia Morba, se considera consistente y no entra en el log de errores de clasificación, aunque la descripción no contenga esas palabras.', 'Diagnostico'],
+  ['27/02/2025', '18:00', 'Excepción errores: Alquileres y Servicios / Alquiler', 'Si la categoría es Alquiler (mostrada como Alquileres y Servicios) y la cuenta contable es Alquiler, se considera consistente y no entra en el log de errores de clasificación.', 'Diagnostico'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -97,6 +100,7 @@ const versiones = [
   ['1.0', '27/02/2025', 'Estado inicial: dashboard flujo de caja, exportar transacciones a Excel, despliegue en Vercel'],
   ['1.1', '27/02/2025', 'Regla flujo despliegue (probar en local → confirmar → desplegar); hoja Versiones en bitácora'],
   ['1.2', '27/02/2025', 'Modal mensual: detalle en tabla + moneda registración + TC; normalización moneda en BD y export Excel con moneda'],
+  ['1.3', '27/02/2025', 'Errores de clasificación (solapa Errores), edición desde modal, editado/editado_detalle; excepciones: Comisiones Bancarias/Gastos Bancarios, Impuestos/MercadoPago y Transferencia Morba, Alquiler/Alquiler'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];

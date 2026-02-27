@@ -349,6 +349,16 @@
     // Valida consistencia entre categoría, cuenta contable y descripción (solo Egresos).
     function esDescripcionConsistenteConCategoriaYCuenta(r) {
       if (!r || r.tipo_movimiento !== 'Egreso') return true;
+      const catOrig = (r.categoria || '').trim().toLowerCase();
+      const cuentaOrig = (r.cuenta_contable || '').trim().toLowerCase();
+      // Excepción: Comisiones Bancarias / Gastos Bancarios se considera consistente
+      if (catOrig === 'comisiones bancarias' && cuentaOrig === 'gastos bancarios') return true;
+      // Excepción: Impuestos / MercadoPago se considera consistente
+      if (catOrig === 'impuestos' && cuentaOrig === 'mercadopago') return true;
+      // Excepción: Impuestos / Transferencia Morba se considera consistente
+      if (catOrig === 'impuestos' && cuentaOrig === 'transferencia morba') return true;
+      // Excepción: Alquileres y Servicios (categoría Alquiler) / Cuenta Alquiler se considera consistente
+      if (catOrig === 'alquiler' && cuentaOrig === 'alquiler') return true;
       const descBase = ((r.descripcion || '') + ' ' + (r.cat_desc || '') + ' ' + (r.cliente || '')).toLowerCase();
       const cuenta = (r.cuenta_contable || '').toString().toLowerCase();
       const catDisplay = getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc).toString().toLowerCase();
