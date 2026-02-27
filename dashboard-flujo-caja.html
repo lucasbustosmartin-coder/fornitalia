@@ -223,7 +223,7 @@
             <th>Mes-Año</th>
             <th>Ingresos</th>
             <th>Egresos</th>
-            <th>Balance</th>
+            <th>G/P</th>
             <th>Comisiones/Ventas %</th>
             <th>Egr s/com. / Ingresos</th>
             <th class="alert-icon-cell"></th>
@@ -428,6 +428,7 @@
               <th>Descripción</th>
               <th>Monto</th>
               <th>Origen</th>
+              <th>Id_Origen</th>
             </tr>
           </thead>
           <tbody id="tbody-evolucion-detalle"></tbody>
@@ -723,7 +724,7 @@
       document.getElementById('resumen').innerHTML = `
         <div class="card"><div style="color:#555;">Total ingresos</div><div class="valor ingresos">${simbolo}${formatearNumero(totalIngresos, moneda)}</div></div>
         <div class="card"><div style="color:#555;">Total egresos</div><div class="valor egresos">${simbolo}${formatearNumero(totalEgresos, moneda)}</div></div>
-        <div class="card"><div style="color:#555;">Balance</div><div class="valor balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</div></div>
+        <div class="card"><div style="color:#555;">G/P</div><div class="valor balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</div></div>
       `;
       document.getElementById('resumen').style.display = 'flex';
 
@@ -796,7 +797,7 @@
       const colLabel = colKey === '__total__' ? 'Total' : formatearColHeaderEvolucion(colKey, periodo);
       titulo.textContent = 'Detalle — ' + (rowKey || '').replace(/</g, '&lt;') + (colKey !== '__total__' ? ' · ' + colLabel : ' (' + colLabel + ')');
       if (!list || list.length === 0) {
-        tbodyDet.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">No hay registros.</td></tr>';
+        tbodyDet.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">No hay registros.</td></tr>';
       } else {
         const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
         tbodyDet.innerHTML = list.map(item => `
@@ -806,6 +807,7 @@
             <td>${esc((item.descripcion || '—').slice(0, 200))}</td>
             <td class="${item.monto >= 0 ? 'ingresos' : 'egresos'}">${evolucionSimbolo}${formatearNumero(item.monto, evolucionMoneda)}</td>
             <td>${esc(item.origen_archivo || '—')}</td>
+            <td>${esc(item.id_origen || '—')}</td>
           </tr>
         `).join('');
       }
@@ -855,7 +857,8 @@
           categoria: getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || r.categoria || '—',
           descripcion: (r.descripcion || r.cliente || '').trim() || '—',
           monto: valor,
-          origen_archivo: (r.origen_archivo || '').trim() || '—'
+          origen_archivo: (r.origen_archivo || '').trim() || '—',
+          id_origen: (r.id_origen != null && r.id_origen !== '') ? String(r.id_origen) : '—'
         });
       });
 
