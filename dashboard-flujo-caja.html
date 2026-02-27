@@ -86,6 +86,29 @@
     .modal-tabla .detalle-tabla td.monto-vista { white-space: nowrap; }
     .modal-tabla .detalle-tabla td.desc { color: #333; }
     .modal-tabla .detalle-tabla .muted { color: #777; }
+    .modal-tabla .btn-ver-errores,
+    .btn-ver-errores {
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .modal-tabla .btn-ver-errores:hover,
+    .btn-ver-errores:hover {
+      background: #1a1a1a;
+      color: #fff;
+      border-color: #1a1a1a;
+    }
+    .modal-errores-ancho { max-width: 960px; }
+    .edit-btn { background: none; border: none; cursor: pointer; color: #444; padding: 0.35rem; display: inline-flex; align-items: center; justify-content: center; }
+    .edit-btn:hover { color: #1a1a1a; }
+    .edit-btn svg { width: 18px; height: 18px; }
+    #modal-editar-registro .form-group { margin-bottom: 0.75rem; }
+    #modal-editar-registro label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; }
+    #modal-editar-registro select, #modal-editar-registro input[type="text"], #modal-editar-registro textarea { width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
+    #modal-editar-registro .form-actions { margin-top: 1rem; display: flex; gap: 0.5rem; }
     .alert-icon { color: #b45309; cursor: pointer; font-size: 1.1rem; padding: 0 0.25rem; vertical-align: middle; }
     .alert-icon:hover { opacity: 0.8; }
     .alert-icon-cell { width: 2rem; text-align: center; }
@@ -224,6 +247,47 @@
     </div>
   </div>
 
+  <div id="modal-errores-backdrop" class="modal-backdrop oculto">
+    <div class="modal modal-errores-ancho" id="modal-errores">
+      <div class="modal-header" id="modal-errores-header-drag">
+        <h2 id="modal-errores-titulo">Errores de clasificación</h2>
+        <button type="button" class="modal-close" id="modal-errores-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-errores-body"></div>
+    </div>
+  </div>
+
+  <div id="modal-editar-backdrop" class="modal-backdrop oculto">
+    <div class="modal" id="modal-editar-registro">
+      <div class="modal-header" id="modal-editar-header-drag">
+        <h2 id="modal-editar-titulo">Editar registro</h2>
+        <button type="button" class="modal-close" id="modal-editar-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-editar-body">
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="text" id="edit-fecha" readonly disabled style="background:#f0f0f0;">
+        </div>
+        <div class="form-group">
+          <label>Categoría</label>
+          <select id="edit-categoria"></select>
+        </div>
+        <div class="form-group">
+          <label>Cuenta contable</label>
+          <select id="edit-cuenta-contable"></select>
+        </div>
+        <div class="form-group">
+          <label>Descripción</label>
+          <input type="text" id="edit-descripcion" placeholder="Texto libre">
+        </div>
+        <div class="form-actions">
+          <button type="button" id="edit-guardar">Guardar</button>
+          <button type="button" id="edit-cancelar">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = 'https://moeqgzezdraknwmheheu.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZXFnemV6ZHJha253bWhlaGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNTY2MDgsImV4cCI6MjA3MDkzMjYwOH0.ZHIJjZv7izlaegfeypj8s6jNb0ls-LTrt914qhgO_uA';
@@ -272,6 +336,7 @@
     function getCategoriaDisplay(cat, desc, catDesc) {
       const c = (cat || '').trim().toLowerCase();
       if (c.includes('sueldos')) return textoIndicaComision(desc, catDesc) ? 'Comisiones' : 'Sueldos';
+      if (c === 'alquiler') return 'Alquileres y Servicios';
       return (cat || '').trim() || 'Sin categoría';
     }
 
@@ -279,6 +344,34 @@
       const c = (cat || '').trim().toLowerCase();
       if (!c.includes('sueldos')) return false;
       return textoIndicaComision(desc, catDesc);
+    }
+
+    // Valida consistencia entre categoría, cuenta contable y descripción (solo Egresos).
+    function esDescripcionConsistenteConCategoriaYCuenta(r) {
+      if (!r || r.tipo_movimiento !== 'Egreso') return true;
+      const descBase = ((r.descripcion || '') + ' ' + (r.cat_desc || '') + ' ' + (r.cliente || '')).toLowerCase();
+      const cuenta = (r.cuenta_contable || '').toString().toLowerCase();
+      const catDisplay = getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc).toString().toLowerCase();
+      const tokens = [];
+      function agregarTokens(texto) {
+        texto.split(/[^a-záéíóúüñ0-9]+/i).forEach(t => {
+          const tok = t.trim();
+          if (tok.length >= 3 && !tokens.includes(tok)) tokens.push(tok);
+        });
+      }
+      agregarTokens(catDisplay);
+      agregarTokens(cuenta);
+      if (!tokens.length) return true;
+      const desc = descBase;
+      return tokens.some(t => desc.indexOf(t) !== -1);
+    }
+
+    function getCategoriaDisplayConValidacion(r) {
+      const base = getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc);
+      if (!esDescripcionConsistenteConCategoriaYCuenta(r)) {
+        return { categoria: 'Sin categoría', esError: true, baseCategoria: base };
+      }
+      return { categoria: base, esError: false, baseCategoria: base };
     }
 
     let cacheTransacciones = [];
@@ -299,7 +392,7 @@
 
     async function cargarDatos() {
       const [txRes, tcRes] = await Promise.all([
-        client.from('transacciones').select('fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable').neq('status', 'Anulado'),
+        client.from('transacciones').select('id, fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, editado, editado_detalle').neq('status', 'Anulado'),
         client.from('tipo_de_cambio').select('fecha, usd_mep, usd_ccl, usd_oficial')
       ]);
       if (txRes.error) throw txRes.error;
@@ -378,7 +471,7 @@
       ordenados.forEach(key => {
         const [anio, mes] = [parseInt(key.slice(0, 4), 10), parseInt(key.slice(5), 10)];
         const trans = cacheTransacciones.filter(r => r.anio === anio && r.mes === mes && !excluirCategoria(r.categoria));
-        categoriasEnMes[key] = [...new Set(trans.map(r => getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc)))];
+        categoriasEnMes[key] = [...new Set(trans.map(r => getCategoriaDisplayConValidacion(r).categoria))];
       });
       const UMBRAL_DESVIO_PCT = 25;
       const categoriasEsperadas = [
@@ -460,7 +553,7 @@
         if (!cacheTransacciones.length) alert('No hay transacciones cargadas para exportar.');
         return;
       }
-      const headers = ['fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable'];
+      const headers = ['fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'editado', 'editado_detalle'];
       const rows = [headers];
       cacheTransacciones.forEach(r => {
         rows.push([
@@ -477,11 +570,13 @@
           (r.categoria || '').toString(),
           (r.cat_desc || '').toString(),
           (r.origen_archivo || '').toString(),
-          (r.cuenta_contable || '').toString()
+          (r.cuenta_contable || '').toString(),
+          r.editado === true ? 'Sí' : '',
+          (r.editado_detalle || '').toString()
         ]);
       });
       const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{ wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }];
+      ws['!cols'] = [{ wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }, { wch: 6 }, { wch: 32 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Transacciones');
       const hoy = new Date();
@@ -690,11 +785,19 @@
       };
 
       const porCategoria = {};
+      const erroresClasificacion = [];
       transaccionesMes.forEach(r => {
-        const cat = (r.categoria || '').trim() || 'Sin categoría';
-        const catDisplay = getCategoriaDisplay(cat, r.descripcion, r.cat_desc);
+        const infoCat = getCategoriaDisplayConValidacion(r);
+        const catDisplay = infoCat.categoria || 'Sin categoría';
         if (!porCategoria[catDisplay]) porCategoria[catDisplay] = [];
         porCategoria[catDisplay].push({ ...r, montoConvertido: montoConvertido(r, moneda, tipoDolar) });
+        if (infoCat.esError && r.tipo_movimiento === 'Egreso') {
+          erroresClasificacion.push({
+            ...r,
+            categoriaDisplay: catDisplay,
+            categoriaOriginal: (r.categoria || '').trim() || 'Sin categoría'
+          });
+        }
       });
       const itemsIngreso = cat => (porCategoria[cat] || []).filter(i => i.tipo_movimiento === 'Ingreso');
       const itemsEgreso = cat => (porCategoria[cat] || []).filter(i => i.tipo_movimiento === 'Egreso');
@@ -746,13 +849,24 @@
         return h;
       };
 
+      const erroresCount = erroresClasificacion.length;
+      const erroresResumenHtml = erroresCount === 0
+        ? '<p class="muted">No hay registros con errores de clasificación en este mes.</p>'
+        : `
+          <p><strong>Tipo de Error:</strong> Inconsistencia entre Categoria , Cuenta Contable y Descripcion</p>
+          <p><strong>Cantidad de registros con este error:</strong> ${erroresCount}</p>
+          <button type="button" class="btn-ver-errores" data-anio="${anio}" data-mes="${mes}">Ver detalle de errores</button>
+        `;
+
       let html = `
         <div class="modal-tabs" role="tablist">
           <button type="button" class="modal-tab activo" data-panel="categoria" role="tab">By Categoria</button>
           <button type="button" class="modal-tab" data-panel="cuenta" role="tab">By Cuenta Contable</button>
+          <button type="button" class="modal-tab" data-panel="errores" role="tab">Errores (${erroresCount})</button>
         </div>
         <div id="modal-panel-categoria" class="modal-panel activo">${buildTabla(filasModal, 'modal-detalle-cat', 'Categoría', 'categoria', anio, mes)}</div>
         <div id="modal-panel-cuenta" class="modal-panel">${buildTabla(filasModalCuenta, 'modal-detalle-cuenta', 'Cuenta contable', 'cuenta', anio, mes)}</div>
+        <div id="modal-panel-errores" class="modal-panel">${erroresResumenHtml}</div>
       `;
       body.innerHTML = html;
 
@@ -790,7 +904,151 @@
         });
       });
 
+      const btnVerErrores = body.querySelector('.btn-ver-errores');
+      if (btnVerErrores && erroresClasificacion.length > 0) {
+        btnVerErrores.addEventListener('click', (e) => {
+          e.stopPropagation();
+          abrirModalErrores(labelMes, erroresClasificacion, anio, mes);
+        });
+      }
+
       document.getElementById('modal-backdrop').classList.remove('oculto');
+    }
+
+    function getErroresDelMes(anio, mes) {
+      const transaccionesMes = cacheTransacciones.filter(r => r.anio === anio && r.mes === mes && !excluirCategoria(r.categoria));
+      const erroresClasificacion = [];
+      transaccionesMes.forEach(r => {
+        const infoCat = getCategoriaDisplayConValidacion(r);
+        if (infoCat.esError && r.tipo_movimiento === 'Egreso') {
+          erroresClasificacion.push({
+            ...r,
+            categoriaDisplay: infoCat.categoria || 'Sin categoría',
+            categoriaOriginal: (r.categoria || '').trim() || 'Sin categoría'
+          });
+        }
+      });
+      return erroresClasificacion;
+    }
+
+    let currentErroresList = [];
+    let currentErroresLabel = '';
+    let currentErroresAnio = null;
+    let currentErroresMes = null;
+
+    function abrirModalErrores(labelMes, errores, anio, mes) {
+      const backdrop = document.getElementById('modal-errores-backdrop');
+      const body = document.getElementById('modal-errores-body');
+      const titulo = document.getElementById('modal-errores-titulo');
+      if (!backdrop || !body || !titulo) return;
+      currentErroresList = errores || [];
+      currentErroresLabel = labelMes || '';
+      currentErroresAnio = anio != null ? anio : null;
+      currentErroresMes = mes != null ? mes : null;
+      titulo.textContent = 'Errores — ' + (labelMes || '');
+      if (!errores || errores.length === 0) {
+        body.innerHTML = '<p class="muted">No hay registros con errores de clasificación para este mes.</p>';
+      } else {
+        const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
+        const rows = errores.map(r => {
+          const id = (r.id || '').toString().replace(/"/g, '&quot;');
+          return `
+          <tr>
+            <td>${esc(fechaStr(r.fecha))}</td>
+            <td>${esc(r.tipo_movimiento || '')}</td>
+            <td>${esc(r.categoriaOriginal || '')}</td>
+            <td>${esc(r.categoriaDisplay || '')}</td>
+            <td>${esc(r.cuenta_contable || '')}</td>
+            <td>${esc(r.medio_pago || '')}</td>
+            <td>${esc((r.descripcion || r.cliente || '–').slice(0, 160))}</td>
+            <td>${esc((r.origen_archivo || '').trim() || '—')}</td>
+            <td><button type="button" class="edit-btn" data-id="${id}" title="Editar registro" aria-label="Editar registro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+          </tr>
+        `;
+        }).join('');
+        body.innerHTML = `
+          <p><strong>Tipo de Error:</strong> Inconsistencia entre Categoria , Cuenta Contable y Descripcion</p>
+          <table class="detalle-tabla">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Categoría orig.</th>
+                <th>Categoría mostrada</th>
+                <th>Cuenta contable</th>
+                <th>Medio</th>
+                <th>Descripción</th>
+                <th>Origen</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        `;
+        body.querySelectorAll('.edit-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.getAttribute('data-id');
+            const record = currentErroresList.find(x => (x.id || '').toString() === id);
+            if (record) abrirModalEditar(record);
+          });
+        });
+      }
+      backdrop.classList.remove('oculto');
+    }
+
+    function abrirModalEditar(record) {
+      const backdrop = document.getElementById('modal-editar-backdrop');
+      const titulo = document.getElementById('modal-editar-titulo');
+      const editFecha = document.getElementById('edit-fecha');
+      const editCategoria = document.getElementById('edit-categoria');
+      const editCuenta = document.getElementById('edit-cuenta-contable');
+      const editDescripcion = document.getElementById('edit-descripcion');
+      if (!backdrop || !editCategoria || !editCuenta || !editDescripcion) return;
+      titulo.textContent = 'Editar registro — ' + (fechaStr(record.fecha) || '');
+      editFecha.value = fechaStr(record.fecha) || '';
+      editDescripcion.value = (record.descripcion || '').toString();
+
+      const categoriasUnicas = [...new Set(cacheTransacciones.map(r => (r.categoria || '').trim()).filter(Boolean))].sort();
+      const cuentasUnicas = [...new Set(cacheTransacciones.map(r => (r.cuenta_contable || '').trim()).filter(Boolean))].sort();
+      editCategoria.innerHTML = '<option value="">—</option>' + categoriasUnicas.map(c => '<option value="' + (c.replace(/"/g, '&quot;')) + '">' + (c.replace(/</g, '&lt;')) + '</option>').join('');
+      editCuenta.innerHTML = '<option value="">—</option>' + cuentasUnicas.map(c => '<option value="' + (c.replace(/"/g, '&quot;')) + '">' + (c.replace(/</g, '&lt;')) + '</option>').join('');
+      editCategoria.value = (record.categoria || '').trim();
+      editCuenta.value = (record.cuenta_contable || '').trim();
+
+      const guardarBtn = document.getElementById('edit-guardar');
+      const cancelarBtn = document.getElementById('edit-cancelar');
+      const oneGuardar = async () => {
+        const nuevaCat = (editCategoria.value || '').trim();
+        const nuevaCuenta = (editCuenta.value || '').trim();
+        const nuevaDesc = (editDescripcion.value || '').trim();
+        const partes = [];
+        if (nuevaCat !== (record.categoria || '').trim()) partes.push('Categoria');
+        if (nuevaDesc !== (record.descripcion || '').toString().trim()) partes.push('Descripcion');
+        if (nuevaCuenta !== (record.cuenta_contable || '').trim()) partes.push('Cuenta Contable');
+        if (partes.length === 0) {
+          document.getElementById('modal-editar-backdrop').classList.add('oculto');
+          return;
+        }
+        const editadoDetalle = partes.join(', ');
+        const payload = { categoria: nuevaCat || null, cuenta_contable: nuevaCuenta || null, descripcion: nuevaDesc || null, editado: true, editado_detalle: editadoDetalle };
+        const { error } = await client.from('transacciones').update(payload).eq('id', record.id);
+        if (error) { alert('Error al guardar: ' + (error.message || 'Unknown')); return; }
+        document.getElementById('modal-editar-backdrop').classList.add('oculto');
+        await cargarDatos();
+        recalcular();
+        if (currentErroresAnio != null && currentErroresMes != null) {
+          const nuevosErrores = getErroresDelMes(currentErroresAnio, currentErroresMes);
+          abrirModalErrores(currentErroresLabel, nuevosErrores, currentErroresAnio, currentErroresMes);
+        }
+      };
+      guardarBtn.replaceWith(guardarBtn.cloneNode(true));
+      cancelarBtn.replaceWith(cancelarBtn.cloneNode(true));
+      document.getElementById('edit-guardar').addEventListener('click', oneGuardar);
+      document.getElementById('edit-cancelar').addEventListener('click', () => document.getElementById('modal-editar-backdrop').classList.add('oculto'));
+      backdrop.classList.remove('oculto');
     }
 
     async function init() {
@@ -864,6 +1122,10 @@
             if (chartSerieMensual) { chartSerieMensual.destroy(); chartSerieMensual = null; }
           }
         });
+        document.getElementById('modal-errores-close').addEventListener('click', () => document.getElementById('modal-errores-backdrop').classList.add('oculto'));
+        document.getElementById('modal-errores-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-errores-backdrop') e.target.classList.add('oculto'); });
+        document.getElementById('modal-editar-close').addEventListener('click', () => document.getElementById('modal-editar-backdrop').classList.add('oculto'));
+        document.getElementById('modal-editar-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-editar-backdrop') e.target.classList.add('oculto'); });
 
         function setupModalDrag(modalId, headerId, closeBtnId) {
           const modal = document.getElementById(modalId);
@@ -895,6 +1157,8 @@
         setupModalDrag('modal-caja', 'modal-header-drag', 'modal-close');
         setupModalDrag('modal-alertas', 'modal-alertas-header-drag', 'modal-alertas-close');
         setupModalDrag('modal-grafico', 'modal-grafico-header-drag', 'modal-grafico-close');
+        setupModalDrag('modal-errores', 'modal-errores-header-drag', 'modal-errores-close');
+        setupModalDrag('modal-editar-registro', 'modal-editar-header-drag', 'modal-editar-close');
 
         document.querySelectorAll('.tab').forEach(btn => {
           btn.addEventListener('click', () => {

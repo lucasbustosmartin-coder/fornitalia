@@ -24,6 +24,9 @@ const datosLog = [
   ['27/02/2025', '16:20', 'Modal detalle: ancho y moneda registración', 'Ensanchado del modal mensual de detalle. En el listado de transacciones se muestra el monto con su moneda de registración (US$ / $) antes del monto; si difiere de la moneda seleccionada, se muestra la conversión a la moneda de vista (→) o (sin cot.) si falta tipo de cambio.', 'Diagnostico'],
   ['27/02/2025', '16:30', 'Modal detalle: transacciones en tabla', 'En el modal mensual (By Categoría / By Cuenta), el detalle expandido de transacciones ahora se renderiza como una tabla con encabezados (Fecha, Tipo, Medio, Mon., Monto, moneda vista, Descripción, Origen) para una lectura y análisis más clara.', 'Diagnostico'],
   ['27/02/2025', '16:40', 'Modal detalle: columna TC', 'En la tabla de detalle expandida del modal mensual se agrega columna TC (MEP/CCL/OFICIAL según selector). Se muestra el tipo de cambio aplicado por fecha cuando hay conversión entre moneda de registración y moneda de vista; si no aplica muestra — y si falta cotización muestra sin cot.', 'Diagnostico'],
+  ['27/02/2025', '16:50', 'Recategorización Alquiler → Alquileres y Servicios', 'Si la categoría original es exactamente Alquiler, el dashboard la muestra como Alquileres y Servicios (solo cambio de etiqueta visual, los números y agrupaciones siguen conciliando).', 'Diagnostico'],
+  ['27/02/2025', '17:00', 'Detección de errores de clasificación (Egresos)', 'Para egresos: si la descripción (más cat_desc/cliente) no contiene palabras relevantes de la categoría mostrada o de la cuenta contable, se recategoriza visualmente como Sin categoría y se registra como error de tipo "Inconsistencia entre Categoria , Cuenta Contable y Descripcion". En el modal mensual se agrega solapa Errores con el conteo y un acceso a un modal de detalle con todos los registros en error.', 'Diagnostico'],
+  ['27/02/2025', '17:30', 'Modal errores: ampliar, editar registro y campos editado/editado_detalle', 'Ampliar modal de detalle de errores. Agregar icono de edición por registro que abre modal para actualizar en BD: Categoría y Cuenta contable solo desde valores existentes (dropdown), Descripción libre. Tabla transacciones: nuevos campos editado (flag) y editado_detalle (ej. Categoria, Descripcion, Cuenta Contable). Migración supabase_transacciones_editado.sql. Export Excel incluye editado y editado_detalle.', 'Diagnostico'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -65,6 +68,8 @@ const funcionalidades = [
   ['Flujo de despliegue', 'Al terminar cada tarea: el usuario prueba en local y confirma; recién entonces el asistente hace git add, commit y push (Vercel redepliega automático). No se despliega hasta confirmación.'],
   ['Versiones en bitácora', 'Hoja "Versiones" en Bitacora_tareas.xlsx: registro incremental (1.0, 1.1, …) con fecha y descripción de cada despliegue a Git/Vercel.'],
   ['Campo moneda (BD)', 'Columna moneda en tabla transacciones (ARS/USD). Si está informada, el dashboard la usa; si no, infiere desde medio_pago (ej. "dolar" → USD). Export a Excel incluye moneda.'],
+  ['Edición desde modal Errores', 'En el detalle de errores, icono de edición por registro. Abre modal para corregir: Categoría y Cuenta contable solo desde valores existentes en BD; Descripción libre. Al guardar se actualiza la fila y se marcan editado y editado_detalle (qué campos se editaron).'],
+  ['Campos editado y editado_detalle', 'En transacciones: editado (boolean) y editado_detalle (texto, ej. "Categoria, Descripcion, Cuenta Contable"). Migración supabase_transacciones_editado.sql. Export Excel los incluye.'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
