@@ -265,7 +265,7 @@
           <tr>
             <th>Tipo de error</th>
             <th>Fecha</th>
-            <th>Mes-Año</th>
+            <th>Id_Origen</th>
             <th>Tipo</th>
             <th>Categoría orig.</th>
             <th>Categoría mostrada</th>
@@ -1440,14 +1440,14 @@
         const montoReg = r.monto != null ? Number(r.monto) : null;
         const valReg = montoReg != null ? (simboloReg + formatearNumero(montoReg, monedaReg)) : '–';
         const id = (r.id || '').toString().replace(/"/g, '&quot;');
-        const labelMes = (r.mes != null && r.anio != null) ? formatoMesAnio(r.mes, r.anio) : '';
+        const idOrigen = (r.id_origen != null && r.id_origen !== '') ? String(r.id_origen) : '';
         const esDuplicado = r.tipoError === TIPO_ERROR_DUPLICADO;
         const btnVer = esDuplicado ? `<button type="button" class="ver-duplicado-btn edit-btn edit-btn-global" data-id="${id}" title="Ver posible duplicado" aria-label="Ver posible duplicado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>` : '';
         return `
           <tr>
             <td>${esc(r.tipoError || '')}</td>
             <td>${esc(fechaStr(r.fecha))}</td>
-            <td>${esc(labelMes)}</td>
+            <td>${esc(idOrigen)}</td>
             <td>${esc(r.tipo_movimiento || '')}</td>
             <td>${esc(r.categoriaOriginal || '')}</td>
             <td>${esc(getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || '')}</td>

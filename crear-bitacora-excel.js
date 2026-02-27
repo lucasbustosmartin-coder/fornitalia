@@ -40,6 +40,7 @@ const datosLog = [
   ['27/02/2025', '19:20', 'Evolución: clic en valor y exportar a Excel', 'Al hacer clic en un valor de la tabla Evolución se abre un modal con detalle mínimo: Fecha, Categoría, Descripción, Monto (registros que componen esa celda). Botón Exportar Evolución a Excel exporta la tabla resultante según los filtros Agrupar por y Período.', 'Diagnostico'],
   ['27/02/2025', '19:30', 'Exportaciones: título moneda, icono Excel, Exportar Base Histórica', 'En todas las exportaciones a Excel se agrega una fila título que indica la moneda (o que ver columna moneda). Icono tipo Excel (tabla/grid) en botones de exportar. Exportar base de transacciones movido a la línea del selector de moneda con título "Exportar Base Histórica" e icono Excel; mismo icono en Exportar Evolución a Excel.', 'Diagnostico'],
   ['27/02/2025', '19:40', 'Evolución: ingreso primero, luego egreso', 'En la tabla Evolución las filas (categorías o cuentas) se ordenan primero las de ingreso (total >= 0) y luego las de egreso (total < 0); dentro de cada grupo orden alfabético.', 'Diagnostico'],
+  ['27/02/2025', '19:50', 'Solapa Errores: columna Mes-Año por Id_Origen', 'En la tabla de la solapa Errores se reemplaza la columna Mes-Año por Id_Origen (identificador de origen del registro).', 'Diagnostico'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -123,6 +124,7 @@ const versiones = [
   ['1.4', '27/02/2025', 'Exportación Excel: monto como valor numérico (fórmulas en Excel); regla bitácora por defecto reforzada'],
   ['1.5', '27/02/2025', 'Errores: tipo de error, detección duplicados (cliente igual), filtro por tipo, modal comparación con id_origen; timeout carga y fechaStr para fechas'],
   ['1.6', '27/02/2025', 'Export Excel: botones verde y blanco; Evolución: orden ingreso luego egreso; modal detalle Evolución con columna Origen y modal más ancho'],
+  ['1.7', '27/02/2025', 'Solapa Errores: columna Mes-Año reemplazada por Id_Origen en la tabla'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
