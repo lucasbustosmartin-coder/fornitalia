@@ -17,6 +17,9 @@ const datosLog = [
   ['27/02/2025', '14:00', 'Repositorio Git en GitHub', 'Crear repo fornitalia en GitHub (lucasbustosmartin-coder). git init, .gitignore (node_modules, .venv, .env), primer commit con dashboard, bitácora, scripts, SQL. Remote origin: https://github.com/lucasbustosmartin-coder/fornitalia.git. Push a rama main.', 'Diagnostico'],
   ['27/02/2025', '14:15', 'Despliegue en Vercel', 'Conectar cuenta GitHub a Vercel. Importar repo lucasbustosmartin-coder/fornitalia. Deploy con preset Other, sin build. App publicada en https://fornitalia.vercel.app/', 'Diagnostico'],
   ['27/02/2025', '14:20', 'Raíz Vercel con vercel.json', 'Crear vercel.json con rewrite: source / → destination /dashboard-flujo-caja.html. Así https://fornitalia.vercel.app/ abre directo el dashboard. Commit y push; Vercel redepliega automático.', 'Diagnostico'],
+  ['27/02/2025', '15:00', 'Exportar a Excel', 'Botón "Exportar a Excel" con icono (mismo estilo que los del modal: gris, sencillo). Exporta la tabla de transacciones tal como está en Supabase: todas las columnas (fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable) en una hoja Excel para poder analizar los datos desde Excel. Librería SheetJS (xlsx) en el navegador.', 'Diagnostico'],
+  ['27/02/2025', '15:10', 'Exportar transacciones crudas', 'Ajuste: el botón Exportar a Excel pasa a exportar directamente la tabla de transacciones (datos crudos de Supabase), no el resumen flujo por mes, para permitir manipular y analizar los datos desde Excel.', 'Diagnostico'],
+  ['27/02/2025', '15:30', 'Regla flujo despliegue y versiones', 'Nueva regla: al final de cada tarea el usuario prueba en local y confirma; recién entonces el asistente despliega (git push). Se agrega hoja Versiones en la bitácora para registrar versión incremental en cada despliegue (1.0, 1.1, …).', 'Diagnostico'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -51,6 +54,9 @@ const funcionalidades = [
   ['Menú lateral', 'Sidebar izquierdo colapsable/expandible; botón toggle (▶/◀); ítem Home por ahora; estado persistido en localStorage. Listo para ampliar con más ítems.'],
   ['Repositorio Git (GitHub)', 'Repo: https://github.com/lucasbustosmartin-coder/fornitalia. Rama main. .gitignore excluye node_modules, .venv, .env. Para actualizar: git add . ; git commit -m "mensaje" ; git push origin main.'],
   ['App en producción (Vercel)', 'URL pública: https://fornitalia.vercel.app/ (vercel.json reescribe / al dashboard). Cada push a main en GitHub dispara redeploy automático en Vercel. Proyecto: fornitalia, equipo Lucas Bustos, plan Hobby.'],
+  ['Exportar a Excel', 'Botón en la barra de la tabla (solo icono). Exporta la tabla de transacciones tal como está en Supabase: una hoja "Transacciones" con columnas fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable. Permite analizar y manipular los datos desde Excel.'],
+  ['Flujo de despliegue', 'Al terminar cada tarea: el usuario prueba en local y confirma; recién entonces el asistente hace git add, commit y push (Vercel redepliega automático). No se despliega hasta confirmación.'],
+  ['Versiones en bitácora', 'Hoja "Versiones" en Bitacora_tareas.xlsx: registro incremental (1.0, 1.1, …) con fecha y descripción de cada despliegue a Git/Vercel.'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
@@ -72,10 +78,20 @@ const refGitVercel = [
 const wsRef = XLSX.utils.aoa_to_sheet(refGitVercel);
 wsRef['!cols'] = [{ wch: 28 }, { wch: 70 }];
 
+// --- Hoja Versiones (versión incremental por despliegue)
+const versiones = [
+  ['Versión', 'Fecha', 'Descripción'],
+  ['1.0', '27/02/2025', 'Estado inicial: dashboard flujo de caja, exportar transacciones a Excel, despliegue en Vercel'],
+  ['1.1', '27/02/2025', 'Regla flujo despliegue (probar en local → confirmar → desplegar); hoja Versiones en bitácora'],
+];
+const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
+wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
+
 const wb = XLSX.utils.book_new();
 XLSX.utils.book_append_sheet(wb, wsLog, 'Log');
 XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
 XLSX.utils.book_append_sheet(wb, wsRef, 'Ref Git y Vercel');
+XLSX.utils.book_append_sheet(wb, wsVersiones, 'Versiones');
 
 const outPath = path.join(__dirname, 'Bitacora_tareas.xlsx');
 XLSX.writeFile(wb, outPath);

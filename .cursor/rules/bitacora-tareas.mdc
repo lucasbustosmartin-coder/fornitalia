@@ -1,5 +1,5 @@
 ---
-description: Actualizar bitácora Excel (Log y Resumen) al completar tareas
+description: Actualizar bitácora Excel (Log y Resumen) al completar tareas; flujo de despliegue
 alwaysApply: true
 ---
 
@@ -19,7 +19,22 @@ Al completar una tarea relevante en este proyecto:
 3. **Regenerar Excel**  
    Después de editar el script, ejecutar:  
    `node crear-bitacora-excel.js`  
-   para que `Bitacora_tareas.xlsx` tenga actualizadas las solapas Log y Resumen.
+   para que `Bitacora_tareas.xlsx` tenga actualizadas las solapas Log, Resumen y Versiones.
 
 Archivo a editar: `crear-bitacora-excel.js`.  
 Salida: `Bitacora_tareas.xlsx`.
+
+---
+
+# Flujo al final de cada tarea (despliegue)
+
+Al terminar una tarea:
+
+1. **El usuario prueba en local** y valida que todo funcione.
+2. **El usuario confirma** (por ejemplo: "listo", "confirmo", "desplegá", "subilo").
+3. **Recién entonces** el asistente despliega:
+   - `git add .` → `git commit -m "descripción breve"` → `git push origin main`
+   - Vercel redepliega automáticamente al hacer push.
+4. **Registrar versión incremental** en la bitácora: agregar una fila en el array `versiones` de `crear-bitacora-excel.js` (Versión, Fecha, Descripción del despliegue), incrementar el número de versión, y ejecutar `node crear-bitacora-excel.js`. Luego hacer commit y push de la bitácora actualizada (si no se incluyó ya en el mismo commit del punto 3).
+
+No hacer push a Git / no asumir despliegue hasta que el usuario confirme después de probar en local.
