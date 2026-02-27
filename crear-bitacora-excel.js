@@ -14,6 +14,9 @@ const datosLog = [
   ['27/02/2025', '11:45', 'Menú lateral colapsable', 'Menú a la izquierda que se colapsa y expande; por ahora ítem Home (icono). Layout flex: sidebar + main-content. Estado expandido guardado en localStorage. Preparado para ir ampliando según pedidos del cliente.', 'Diagnostico'],
   ['27/02/2025', '12:00', 'Símbolo de moneda a la izquierda', 'Mostrar $ (pesos) y US$ (dólares) a la izquierda del monto en lugar de USD/ARS a la derecha.', 'Diagnostico'],
   ['27/02/2025', '12:15', 'Modal gráfico serie mensual por categoría/cuenta', 'Al hacer clic en "Gráfico" junto a una categoría o cuenta contable en el modal del mes, abrir modal con gráfico de barras de la serie mensual (neto por mes), respetando la moneda seleccionada (Chart.js).', 'Diagnostico'],
+  ['27/02/2025', '14:00', 'Repositorio Git en GitHub', 'Crear repo fornitalia en GitHub (lucasbustosmartin-coder). git init, .gitignore (node_modules, .venv, .env), primer commit con dashboard, bitácora, scripts, SQL. Remote origin: https://github.com/lucasbustosmartin-coder/fornitalia.git. Push a rama main.', 'Diagnostico'],
+  ['27/02/2025', '14:15', 'Despliegue en Vercel', 'Conectar cuenta GitHub a Vercel. Importar repo lucasbustosmartin-coder/fornitalia. Deploy con preset Other, sin build. App publicada en https://fornitalia.vercel.app/', 'Diagnostico'],
+  ['27/02/2025', '14:20', 'Raíz Vercel con vercel.json', 'Crear vercel.json con rewrite: source / → destination /dashboard-flujo-caja.html. Así https://fornitalia.vercel.app/ abre directo el dashboard. Commit y push; Vercel redepliega automático.', 'Diagnostico'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -46,14 +49,33 @@ const funcionalidades = [
   ['Exclusiones', 'No se incluyen transacciones anuladas ni categorías Apertura y Cierre.'],
   ['Datos', 'Transacciones y tipo de cambio desde Supabase. Cotización faltante: se usa la fecha anterior disponible.'],
   ['Menú lateral', 'Sidebar izquierdo colapsable/expandible; botón toggle (▶/◀); ítem Home por ahora; estado persistido en localStorage. Listo para ampliar con más ítems.'],
+  ['Repositorio Git (GitHub)', 'Repo: https://github.com/lucasbustosmartin-coder/fornitalia. Rama main. .gitignore excluye node_modules, .venv, .env. Para actualizar: git add . ; git commit -m "mensaje" ; git push origin main.'],
+  ['App en producción (Vercel)', 'URL pública: https://fornitalia.vercel.app/ (vercel.json reescribe / al dashboard). Cada push a main en GitHub dispara redeploy automático en Vercel. Proyecto: fornitalia, equipo Lucas Bustos, plan Hobby.'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
 wsResumen['!cols'] = [{ wch: 32 }, { wch: 85 }];
 
+// --- Hoja Referencia Git y Vercel
+const refGitVercel = [
+  ['Concepto', 'Valor'],
+  ['Repositorio GitHub', 'https://github.com/lucasbustosmartin-coder/fornitalia'],
+  ['URL app en vivo (Vercel)', 'https://fornitalia.vercel.app/'],
+  ['Rama principal', 'main'],
+  ['Actualizar y subir cambios', 'git add .  →  git commit -m "descripción"  →  git push origin main'],
+  ['Vercel redeploy', 'Automático al hacer push a main'],
+  ['Archivo configuración raíz', 'vercel.json (rewrite / a dashboard-flujo-caja.html)'],
+  ['Cuenta GitHub', 'lucasbustosmartin-coder'],
+  ['Proyecto Vercel', 'fornitalia (equipo Lucas Bustos, plan Hobby)'],
+];
+
+const wsRef = XLSX.utils.aoa_to_sheet(refGitVercel);
+wsRef['!cols'] = [{ wch: 28 }, { wch: 70 }];
+
 const wb = XLSX.utils.book_new();
 XLSX.utils.book_append_sheet(wb, wsLog, 'Log');
 XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
+XLSX.utils.book_append_sheet(wb, wsRef, 'Ref Git y Vercel');
 
 const outPath = path.join(__dirname, 'Bitacora_tareas.xlsx');
 XLSX.writeFile(wb, outPath);
