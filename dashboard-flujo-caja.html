@@ -58,6 +58,7 @@
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
     .modal-backdrop.oculto { display: none; }
     .modal { background: #fff; border-radius: 12px; max-width: 640px; width: 100%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+    #modal-caja { max-width: 920px; }
     .modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: move; user-select: none; }
     .modal-header .modal-close { cursor: pointer; }
     .modal-header h2 { margin: 0; font-size: 1.25rem; }
@@ -76,7 +77,15 @@
     .modal-tabla .detalle-list { margin: 0; padding-left: 1rem; font-size: 0.85rem; color: #555; list-style: none; }
     .modal-tabla .detalle-list li { margin-bottom: 0.35rem; padding: 0.15rem 0; border-bottom: 1px solid #eee; }
     .modal-tabla .detalle-list li:last-child { border-bottom: none; }
+    .modal-tabla .conv-detalle { font-size: 0.82em; color: #777; margin-left: 0.35rem; }
     .modal-tabla .origen-detalle { font-size: 0.8em; color: #888; margin-left: 0.35rem; }
+    .modal-tabla .detalle-tabla { width: 100%; border-collapse: collapse; font-size: 0.85rem; color: #444; margin: 0.25rem 0; }
+    .modal-tabla .detalle-tabla th, .modal-tabla .detalle-tabla td { border-bottom: 1px solid #e6e6e6; padding: 0.45rem 0.55rem; vertical-align: top; }
+    .modal-tabla .detalle-tabla th { background: #f2f3f5; color: #555; font-weight: 600; }
+    .modal-tabla .detalle-tabla td.monto-reg { white-space: nowrap; font-weight: 600; }
+    .modal-tabla .detalle-tabla td.monto-vista { white-space: nowrap; }
+    .modal-tabla .detalle-tabla td.desc { color: #333; }
+    .modal-tabla .detalle-tabla .muted { color: #777; }
     .alert-icon { color: #b45309; cursor: pointer; font-size: 1.1rem; padding: 0 0.25rem; vertical-align: middle; }
     .alert-icon:hover { opacity: 0.8; }
     .alert-icon-cell { width: 2rem; text-align: center; }
@@ -236,6 +245,14 @@
       return (medioPago || '').toLowerCase().indexOf('dolar') !== -1;
     }
 
+    /** Moneda de la transacción: prioriza campo moneda en BD; si no existe, infiere desde medio_pago. */
+    function esTransaccionUSD(r) {
+      const m = (r.moneda || '').toString().trim().toUpperCase();
+      if (m === 'USD') return true;
+      if (m === 'ARS') return false;
+      return esMonedaUSD(r.medio_pago);
+    }
+
     function fechaStr(f) {
       if (!f) return '';
       if (typeof f === 'string') return f.slice(0, 10);
@@ -282,7 +299,7 @@
 
     async function cargarDatos() {
       const [txRes, tcRes] = await Promise.all([
-        client.from('transacciones').select('fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable').neq('status', 'Anulado'),
+        client.from('transacciones').select('fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable').neq('status', 'Anulado'),
         client.from('tipo_de_cambio').select('fecha, usd_mep, usd_ccl, usd_oficial')
       ]);
       if (txRes.error) throw txRes.error;
@@ -322,7 +339,7 @@
         let tasa = (cacheTC[fecha] && cacheTC[fecha][tipoDolar] != null && cacheTC[fecha][tipoDolar] > 0) ? cacheTC[fecha][tipoDolar] : getTasaAnterior(fecha, tipoDolar);
 
         let montoParaSumar = montoOrig;
-        const esUSD = esMonedaUSD(r.medio_pago);
+        const esUSD = esTransaccionUSD(r);
 
         if (moneda === 'USD') {
           if (esUSD) {
@@ -443,7 +460,7 @@
         if (!cacheTransacciones.length) alert('No hay transacciones cargadas para exportar.');
         return;
       }
-      const headers = ['fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable'];
+      const headers = ['fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable'];
       const rows = [headers];
       cacheTransacciones.forEach(r => {
         rows.push([
@@ -454,6 +471,7 @@
           r.monto != null ? r.monto : '',
           (r.status || '').toString(),
           (r.medio_pago || '').toString(),
+          (r.moneda != null && r.moneda !== '' ? (r.moneda || '').toString().trim().toUpperCase() : ''),
           (r.descripcion || '').toString(),
           (r.cliente || '').toString(),
           (r.categoria || '').toString(),
@@ -463,7 +481,7 @@
         ]);
       });
       const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{ wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }];
+      ws['!cols'] = [{ wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Transacciones');
       const hoy = new Date();
@@ -475,7 +493,7 @@
       const montoOrig = Number(r.monto) || 0;
       const fecha = fechaStr(r.fecha);
       let tasa = (cacheTC[fecha] && cacheTC[fecha][tipoDolar] != null && cacheTC[fecha][tipoDolar] > 0) ? cacheTC[fecha][tipoDolar] : getTasaAnterior(fecha, tipoDolar);
-      const esUSD = esMonedaUSD(r.medio_pago);
+      const esUSD = esTransaccionUSD(r);
       if (moneda === 'USD') return esUSD ? montoOrig : (tasa != null ? montoOrig / tasa : null);
       return esUSD ? (tasa != null ? montoOrig * tasa : null) : montoOrig;
     }
@@ -610,14 +628,66 @@
       const labelMes = formatoMesAnio(mes, anio);
       const transaccionesMes = cacheTransacciones.filter(r => r.anio === anio && r.mes === mes && !excluirCategoria(r.categoria));
       const totalSolo = (items) => items.reduce((s, i) => s + (i.montoConvertido != null ? i.montoConvertido : 0), 0);
-      const renderLineas = (items) => items.map(i => {
-        const tipo = i.tipo_movimiento === 'Ingreso' ? 'ingresos' : 'egresos';
-        const val = i.montoConvertido != null ? simbolo + formatearNumero(i.montoConvertido, moneda) : formatearNumero(i.monto) + ' (sin cot.)';
-        const desc = (i.descripcion || i.cliente || '–').replace(/</g,'&lt;').slice(0, 80);
-        const origen = (i.origen_archivo || '').trim();
-        const origenHtml = origen ? ` <span class="origen-detalle" title="Origen">${('Origen: ' + origen).replace(/</g,'&lt;')}</span>` : '';
-        return `<li><span class="${tipo}">${val}</span> — ${desc}${origenHtml}</li>`;
-      }).join('');
+      const renderDetalleTabla = (items) => {
+        const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
+        const fmtTC = (n) => typeof n === 'number'
+          ? new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
+          : '';
+        const head = `
+          <table class="detalle-tabla">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Medio</th>
+                <th>Mon.</th>
+                <th>Monto</th>
+                <th>${esc(moneda)}</th>
+                <th>TC (${esc((tipoDolar || '').toString().toUpperCase())})</th>
+                <th>Descripción</th>
+                <th>Origen</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+        const body = items.map(i => {
+          const regIsUSD = esTransaccionUSD(i);
+          const monedaReg = regIsUSD ? 'USD' : 'ARS';
+          const simboloReg = regIsUSD ? 'US$ ' : '$ ';
+          const montoReg = i.monto != null ? Number(i.monto) : null;
+          const valReg = montoReg != null ? (simboloReg + formatearNumero(montoReg, monedaReg)) : '–';
+          const difiereDeVista = (monedaReg !== (moneda || '').toString().trim().toUpperCase());
+          const fecha = fechaStr(i.fecha);
+          const tasa = (cacheTC[fecha] && cacheTC[fecha][tipoDolar] != null && cacheTC[fecha][tipoDolar] > 0) ? cacheTC[fecha][tipoDolar] : getTasaAnterior(fecha, tipoDolar);
+          const valVista = !difiereDeVista
+            ? '<span class="muted">—</span>'
+            : (i.montoConvertido != null
+              ? (simbolo + formatearNumero(i.montoConvertido, moneda))
+              : '<span class="muted">sin cot.</span>');
+          const valTC = !difiereDeVista
+            ? '<span class="muted">—</span>'
+            : (tasa != null
+              ? `<span class="muted">${esc(fmtTC(Number(tasa)))}</span>`
+              : '<span class="muted">sin cot.</span>');
+          const desc = (i.descripcion || i.cliente || '–').slice(0, 120);
+          const origen = (i.origen_archivo || '').trim();
+          return `
+            <tr>
+              <td>${esc(fechaStr(i.fecha))}</td>
+              <td>${esc(i.tipo_movimiento || '')}</td>
+              <td>${esc(i.medio_pago || '')}</td>
+              <td>${esc(monedaReg)}</td>
+              <td class="monto-reg">${esc(valReg)}</td>
+              <td class="monto-vista">${valVista}</td>
+              <td>${valTC}</td>
+              <td class="desc">${esc(desc)}</td>
+              <td>${origen ? `<span class="origen-detalle" title="Origen">${esc(origen)}</span>` : '<span class="muted">—</span>'}</td>
+            </tr>
+          `;
+        }).join('');
+        const foot = '</tbody></table>';
+        return head + body + foot;
+      };
 
       const porCategoria = {};
       transaccionesMes.forEach(r => {
@@ -658,7 +728,7 @@
         filas.forEach((fila, idx) => {
           const { nombre, items, totalCat, esIngreso } = fila;
           const claseMonto = esIngreso ? 'ingresos' : 'egresos';
-          const lineas = renderLineas(items);
+          const detalleTabla = renderDetalleTabla(items);
           const nombreEsc = nombre.replace(/</g,'&lt;').replace(/"/g,'&quot;');
           const nombreAttr = nombre.replace(/"/g, '&quot;');
           h += `
@@ -669,7 +739,7 @@
             <td><button type="button" class="ver-btn icon-btn" data-row-index="${idx}" data-prefix="${prefixId}" aria-label="Ver transacciones" title="Ver transacciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button><button type="button" class="grafico-btn icon-btn" data-tipo="${tipo}" data-nombre="${nombreAttr}" data-anio="${anioSel}" data-mes="${mesSel}" aria-label="Ver gráfico" title="Ver gráfico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></button></td>
           </tr>
           <tr class="detalle-cat" id="${prefixId}-detalle-${idx}" style="display:none;">
-            <td colspan="4"><ul class="detalle-list">${lineas}</ul></td>
+            <td colspan="4">${detalleTabla}</td>
           </tr>`;
         });
         h += '</tbody></table>';

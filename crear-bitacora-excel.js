@@ -20,6 +20,10 @@ const datosLog = [
   ['27/02/2025', '15:00', 'Exportar a Excel', 'Botón "Exportar a Excel" con icono (mismo estilo que los del modal: gris, sencillo). Exporta la tabla de transacciones tal como está en Supabase: todas las columnas (fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable) en una hoja Excel para poder analizar los datos desde Excel. Librería SheetJS (xlsx) en el navegador.', 'Diagnostico'],
   ['27/02/2025', '15:10', 'Exportar transacciones crudas', 'Ajuste: el botón Exportar a Excel pasa a exportar directamente la tabla de transacciones (datos crudos de Supabase), no el resumen flujo por mes, para permitir manipular y analizar los datos desde Excel.', 'Diagnostico'],
   ['27/02/2025', '15:30', 'Regla flujo despliegue y versiones', 'Nueva regla: al final de cada tarea el usuario prueba en local y confirma; recién entonces el asistente despliega (git push). Se agrega hoja Versiones en la bitácora para registrar versión incremental en cada despliegue (1.0, 1.1, …).', 'Diagnostico'],
+  ['27/02/2025', '16:00', 'Campo moneda en tabla transacciones', 'Agregar columna moneda (ARS/USD) a la tabla transacciones en Supabase para normalizar la moneda de registración. Migración en supabase_transacciones_moneda.sql. Dashboard prioriza moneda; si viene vacío, infiere desde medio_pago. Export a Excel incluye columna moneda.', 'Diagnostico'],
+  ['27/02/2025', '16:20', 'Modal detalle: ancho y moneda registración', 'Ensanchado del modal mensual de detalle. En el listado de transacciones se muestra el monto con su moneda de registración (US$ / $) antes del monto; si difiere de la moneda seleccionada, se muestra la conversión a la moneda de vista (→) o (sin cot.) si falta tipo de cambio.', 'Diagnostico'],
+  ['27/02/2025', '16:30', 'Modal detalle: transacciones en tabla', 'En el modal mensual (By Categoría / By Cuenta), el detalle expandido de transacciones ahora se renderiza como una tabla con encabezados (Fecha, Tipo, Medio, Mon., Monto, moneda vista, Descripción, Origen) para una lectura y análisis más clara.', 'Diagnostico'],
+  ['27/02/2025', '16:40', 'Modal detalle: columna TC', 'En la tabla de detalle expandida del modal mensual se agrega columna TC (MEP/CCL/OFICIAL según selector). Se muestra el tipo de cambio aplicado por fecha cuando hay conversión entre moneda de registración y moneda de vista; si no aplica muestra — y si falta cotización muestra sin cot.', 'Diagnostico'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -47,6 +51,9 @@ const funcionalidades = [
   ['By Cuenta Contable', 'Solapa del modal: detalle agrupado por cuenta_contable; misma tabla con Monto y Ver para ver transacciones.'],
   ['Gráfico serie mensual', 'Botón "Gráfico" en cada fila de categoría/cuenta: abre modal con gráfico de barras de la serie mensual (neto por mes) para esa categoría o cuenta, en la moneda seleccionada.'],
   ['Detalle transacciones', 'En cada agrupación, listado con monto, descripción y origen (origen_archivo).'],
+  ['Detalle transacciones (moneda registración)', 'En el modal mensual, cada línea muestra el monto en su moneda de registración (US$ / $). Si la moneda seleccionada difiere, se muestra la conversión a la moneda de vista (→) o indica (sin cot.) si falta tipo de cambio.'],
+  ['Detalle transacciones (tabla)', 'En el modal mensual, al expandir una categoría/cuenta se muestra una tabla con títulos y filas de transacciones (Fecha, Tipo, Medio, Moneda, Monto, moneda vista, Descripción, Origen).'],
+  ['Detalle transacciones (tipo de cambio)', 'En el detalle expandido del modal mensual, se muestra la columna TC (según MEP/CCL/Oficial) cuando hay conversión entre moneda registración y moneda vista; si no aplica muestra — y si falta cotización muestra sin cot.'],
   ['Alertas por mes', 'Avisos: mes sin egresos; sin registros de Sueldos, Comisiones, Alquileres o Impuestos; desvío % de categoría vs mes anterior.'],
   ['Sin cotización', 'Pestaña con transacciones que no tienen tipo de cambio (excluidas del resumen).'],
   ['Exclusiones', 'No se incluyen transacciones anuladas ni categorías Apertura y Cierre.'],
@@ -57,6 +64,7 @@ const funcionalidades = [
   ['Exportar a Excel', 'Botón en la barra de la tabla (solo icono). Exporta la tabla de transacciones tal como está en Supabase: una hoja "Transacciones" con columnas fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable. Permite analizar y manipular los datos desde Excel.'],
   ['Flujo de despliegue', 'Al terminar cada tarea: el usuario prueba en local y confirma; recién entonces el asistente hace git add, commit y push (Vercel redepliega automático). No se despliega hasta confirmación.'],
   ['Versiones en bitácora', 'Hoja "Versiones" en Bitacora_tareas.xlsx: registro incremental (1.0, 1.1, …) con fecha y descripción de cada despliegue a Git/Vercel.'],
+  ['Campo moneda (BD)', 'Columna moneda en tabla transacciones (ARS/USD). Si está informada, el dashboard la usa; si no, infiere desde medio_pago (ej. "dolar" → USD). Export a Excel incluye moneda.'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
@@ -83,6 +91,7 @@ const versiones = [
   ['Versión', 'Fecha', 'Descripción'],
   ['1.0', '27/02/2025', 'Estado inicial: dashboard flujo de caja, exportar transacciones a Excel, despliegue en Vercel'],
   ['1.1', '27/02/2025', 'Regla flujo despliegue (probar en local → confirmar → desplegar); hoja Versiones en bitácora'],
+  ['1.2', '27/02/2025', 'Modal mensual: detalle en tabla + moneda registración + TC; normalización moneda en BD y export Excel con moneda'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
