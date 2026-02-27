@@ -35,6 +35,11 @@ const datosLog = [
   ['27/02/2025', '18:30', 'Tipo de error y detección de potencial duplicado', 'En la solapa Errores: columna Tipo de error (Inconsistencia entre Categoria/Cuenta/Descripcion o Potencial registro duplicado). Detección de duplicados por misma fecha, monto, tipo_movimiento y descripción similar. Para duplicados: icono Ver que abre modal comparando ambos registros; opciones Excluir de cálculos (anular) o Eliminar registro. Export Excel incluye tipo_error.', 'Diagnostico'],
   ['27/02/2025', '18:40', 'Filtro por tipo de error en solapa Errores', 'Selector "Tipo de error" en la barra de la solapa Errores: Todos, Inconsistencia (categoría/cuenta/descripción), Potencial registro duplicado. La tabla y la exportación a Excel respetan el filtro seleccionado.', 'Diagnostico'],
   ['27/02/2025', '18:50', 'Duplicados: cliente igual e id_origen en comparación', 'Solo se marca potencial duplicado si además de fecha, monto, tipo y descripción similar el campo cliente es igual; si cliente es distinto no se marca. En el modal de comparación (Este registro / Posible duplicado) se incluye id_origen y Cliente.', 'Diagnostico'],
+  ['27/02/2025', '19:00', 'Regla bitácora: actualizar todas las solapas necesarias', 'La regla pasa a exigir actualizar todas las solapas que correspondan: Log, Resumen (si aplica), Presupuesto (cuando la tarea agrega o cambia un entregable comercial), Versiones (en despliegue). Presupuesto se actualiza con el rubro "Detección de duplicados y gestión de errores".', 'Diagnostico'],
+  ['27/02/2025', '19:10', 'Solapa Evolución (tabla dinámica)', 'Nueva pestaña Evolución: tabla dinámica con Agrupar por (Categoría o Cuenta contable) como fila y Período (Diario o Mensual) como columna. Diario muestra fecha (día), Mensual muestra MM-YYYY. Celdas = neto (ingresos - egresos) en la moneda seleccionada. Columna Total por fila.', 'Diagnostico'],
+  ['27/02/2025', '19:20', 'Evolución: clic en valor y exportar a Excel', 'Al hacer clic en un valor de la tabla Evolución se abre un modal con detalle mínimo: Fecha, Categoría, Descripción, Monto (registros que componen esa celda). Botón Exportar Evolución a Excel exporta la tabla resultante según los filtros Agrupar por y Período.', 'Diagnostico'],
+  ['27/02/2025', '19:30', 'Exportaciones: título moneda, icono Excel, Exportar Base Histórica', 'En todas las exportaciones a Excel se agrega una fila título que indica la moneda (o que ver columna moneda). Icono tipo Excel (tabla/grid) en botones de exportar. Exportar base de transacciones movido a la línea del selector de moneda con título "Exportar Base Histórica" e icono Excel; mismo icono en Exportar Evolución a Excel.', 'Diagnostico'],
+  ['27/02/2025', '19:40', 'Evolución: ingreso primero, luego egreso', 'En la tabla Evolución las filas (categorías o cuentas) se ordenan primero las de ingreso (total >= 0) y luego las de egreso (total < 0); dentro de cada grupo orden alfabético.', 'Diagnostico'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -82,6 +87,11 @@ const funcionalidades = [
   ['Detección de potencial duplicado', 'Registros con misma fecha, monto, tipo_movimiento y descripción similar se marcan como potencial duplicado. Icono Ver abre modal con comparación Este registro / Posible duplicado; acciones: Excluir de cálculos (anular) o Eliminar registro.'],
   ['Filtro por tipo de error', 'En la solapa Errores, selector para filtrar por tipo: Todos, Inconsistencia (categoría/cuenta/descripción), Potencial registro duplicado. La exportación a Excel exporta solo los registros visibles según el filtro.'],
   ['Duplicados: condición cliente', 'Dos registros son potencial duplicado solo si coinciden en fecha, monto, tipo_movimiento, descripción similar y además cliente es igual; si cliente es distinto no se marcan como duplicado. Modal de comparación muestra id_origen y Cliente.'],
+  ['Regla bitácora', 'Actualizar todas las solapas necesarias: Log (siempre que haya tarea), Resumen (si cambia funcionalidad), Presupuesto (si agrega o cambia entregable comercial), Versiones (en despliegue). Regenerar Excel tras editar crear-bitacora-excel.js.'],
+  ['Evolución (tabla dinámica)', 'Solapa Evolución: Agrupar por = Categoría o Cuenta contable (fila); Período = Diario (fecha por día) o Mensual (MM-YYYY). Columnas = períodos, celdas = neto en moneda seleccionada, columna Total.'],
+  ['Evolución: detalle al clic y exportar', 'Clic en un valor de la tabla Evolución abre modal con detalle: Fecha, Categoría, Descripción, Monto. Exportar Evolución a Excel exporta la tabla según filtros Agrupar por y Período.'],
+  ['Exportaciones Excel', 'Todas las exportaciones incluyen una fila título con la moneda. Exportar Base Histórica (icono Excel) en la línea del selector de moneda; Exportar Evolución a Excel con el mismo icono.'],
+  ['Evolución: orden ingreso/egreso', 'En la tabla Evolución las filas se muestran primero las de ingreso (total >= 0) y luego las de egreso (total < 0); dentro de cada grupo orden alfabético. Aplica tanto al agrupar por Categoría como por Cuenta contable.'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
@@ -112,6 +122,7 @@ const versiones = [
   ['1.3', '27/02/2025', 'Errores de clasificación (solapa Errores), edición desde modal, editado/editado_detalle; excepciones: Comisiones Bancarias/Gastos Bancarios, Impuestos/MercadoPago y Transferencia Morba, Alquiler/Alquiler'],
   ['1.4', '27/02/2025', 'Exportación Excel: monto como valor numérico (fórmulas en Excel); regla bitácora por defecto reforzada'],
   ['1.5', '27/02/2025', 'Errores: tipo de error, detección duplicados (cliente igual), filtro por tipo, modal comparación con id_origen; timeout carga y fechaStr para fechas'],
+  ['1.6', '27/02/2025', 'Export Excel: botones verde y blanco; Evolución: orden ingreso luego egreso; modal detalle Evolución con columna Origen y modal más ancho'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
@@ -121,6 +132,8 @@ const presupuesto = [
   ['Grupo', 'Descripción comercial', 'Importe sugerido (ARS)'],
   ['Normalización de datos', 'Relevamiento, limpieza y normalización de datos históricos de caja (campos de moneda, categorías, cuentas contables, flags de edición). Incluye lógica de excepciones y detección de inconsistencias.', 250000],
   ['Dashboard flujo de caja', 'Diseño y desarrollo del dashboard mensual (Flujo por mes, Resumen, alertas, modal By Categoría / By Cuenta, gráficos de serie mensual). Incluye formatos de moneda y visualizaciones.', 320000],
+  ['Detección de duplicados y gestión de errores', 'Detección de potencial duplicado (fecha, monto, tipo, cliente, descripción similar), tipo de error (inconsistencia / duplicado), filtro por tipo, modal de comparación con id_origen y Cliente, acciones anular o eliminar registro.', 85000],
+  ['Evolución (tabla dinámica)', 'Solapa Evolución: tabla dinámica con filas por Categoría o Cuenta contable y columnas por Período (Diario o Mensual). Neto por celda en moneda seleccionada.', 55000],
   ['Bitácora y documentación', 'Implementación de la bitácora en Excel (Log, Resumen, Versiones, Ref Git y Vercel, Presupuesto) y documentación funcional básica para el uso de la app.', 120000],
   ['Integración y despliegue', 'Configuración de repositorio Git/GitHub, flujo de despliegue a Vercel y ajustes de configuración (vercel.json, conexión con Supabase).', 90000],
   ['Mantenimiento y soporte inicial', 'Soporte post–implementación, pequeños ajustes funcionales y acompañamiento durante el primer período de uso.', 80000],

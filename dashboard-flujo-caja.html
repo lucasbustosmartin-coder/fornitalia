@@ -57,6 +57,13 @@
     .errores-filtros { display: flex; align-items: center; gap: 0.5rem; }
     .errores-filtros label { font-size: 0.9rem; color: #555; white-space: nowrap; }
     .errores-filtros select { padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; min-width: 200px; }
+    .evolucion-table-wrap { overflow-x: auto; margin-top: 0.5rem; }
+    #tabla-evolucion { min-width: 100%; }
+    #tabla-evolucion th, #tabla-evolucion td { padding: 0.45rem 0.65rem; white-space: nowrap; }
+    #tabla-evolucion th { background: #f2f3f5; font-weight: 600; color: #555; }
+    #tabla-evolucion td.num-evolucion { text-align: right; white-space: nowrap; }
+    #tabla-evolucion td.num-evolucion.evolucion-clickable { cursor: pointer; }
+    #tabla-evolucion td.num-evolucion.evolucion-clickable:hover { text-decoration: underline; }
     tr.fila-mes { cursor: pointer; }
     tr.fila-mes:hover { background: #f8f8f8; }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
@@ -106,6 +113,7 @@
       border-color: #1a1a1a;
     }
     .modal-errores-ancho { max-width: 960px; }
+    .modal-evolucion-detalle-ancho { max-width: 960px; }
     .edit-btn { background: none; border: none; cursor: pointer; color: #444; padding: 0.35rem; display: inline-flex; align-items: center; justify-content: center; }
     .edit-btn:hover { color: #1a1a1a; }
     .edit-btn svg { width: 18px; height: 18px; }
@@ -142,6 +150,16 @@
     .export-excel-btn:hover { color: #1a1a1a; background: #eee; }
     .export-excel-btn.icon-btn { width: 36px; height: 36px; margin-left: 0.25rem; }
     .export-excel-btn.icon-btn svg { width: 22px; height: 22px; }
+    .export-excel-btn .icon-excel { width: 20px; height: 20px; flex-shrink: 0; }
+    .exportar-base-wrap { margin-left: auto; }
+    .btn-exportar-base { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #16a34a; background: #16a34a; cursor: pointer; font-size: 0.9rem; color: #fff; }
+    .btn-exportar-base:hover { background: #15803d; border-color: #15803d; color: #fff; }
+    .btn-exportar-base .icon-excel { width: 20px; height: 20px; color: inherit; }
+    .icon-document-arrow-down { flex-shrink: 0; }
+    .btn-exportar-evolucion { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .btn-exportar-evolucion .icon-excel { width: 20px; height: 20px; flex-shrink: 0; }
+    .btn-exportar-evolucion.btn-ver-errores { background: #16a34a; color: #fff; border-color: #16a34a; }
+    .btn-exportar-evolucion.btn-ver-errores:hover { background: #15803d; color: #fff; border-color: #15803d; }
   </style>
 </head>
 <body>
@@ -180,6 +198,11 @@
         <option value="oficial">Oficial</option>
       </select>
     </label>
+    <div class="exportar-base-wrap">
+      <button type="button" class="btn-exportar-base export-excel-btn" id="btn-exportar-excel" title="Exportar base de transacciones a Excel" aria-label="Exportar Base Histórica">
+        <svg class="icon-excel icon-document-arrow-down" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg> Exportar Base Histórica
+      </button>
+    </div>
   </div>
 
   <div id="resumen" class="resumen" style="display:none;"></div>
@@ -190,10 +213,8 @@
         <button type="button" class="tab activo" data-panel="flujo">Flujo por mes</button>
         <button type="button" class="tab" data-panel="sin-cotizacion">Sin cotización</button>
         <button type="button" class="tab" data-panel="errores-global">Errores</button>
+        <button type="button" class="tab" data-panel="evolucion">Evolución</button>
       </div>
-      <button type="button" class="export-excel-btn icon-btn" id="btn-exportar-excel" title="Exportar a Excel" aria-label="Exportar a Excel">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      </button>
     </div>
     <div id="panel-flujo" class="card panel activo">
       <table>
@@ -260,6 +281,30 @@
         </thead>
         <tbody id="tbody-errores-global"></tbody>
       </table>
+    </div>
+    <div id="panel-evolucion" class="card panel">
+      <div class="errores-panel-toolbar">
+        <p class="sin-cotizacion-note" style="margin:0;">Tabla dinámica: filas por agrupación, columnas por período. Valores en la moneda seleccionada (ARS/USD).</p>
+        <div class="errores-filtros">
+          <label for="evolucion-agrupar">Agrupar por:</label>
+          <select id="evolucion-agrupar" title="Fila de la tabla">
+            <option value="categoria">Categoría</option>
+            <option value="cuenta">Cuenta contable</option>
+          </select>
+          <label for="evolucion-periodo" style="margin-left:0.75rem;">Período:</label>
+          <select id="evolucion-periodo" title="Columna de la tabla">
+            <option value="mensual">Mensual (MM-YYYY)</option>
+            <option value="diario">Diario (fecha)</option>
+          </select>
+        </div>
+        <button type="button" class="btn-ver-errores btn-exportar-evolucion" id="btn-exportar-evolucion" title="Exportar tabla Evolución a Excel"><svg class="icon-excel icon-document-arrow-down" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg> Exportar Evolución a Excel</button>
+      </div>
+      <div class="evolucion-table-wrap">
+        <table id="tabla-evolucion">
+          <thead id="thead-evolucion"></thead>
+          <tbody id="tbody-evolucion"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -364,6 +409,29 @@
           <button type="button" id="modal-duplicado-eliminar" class="btn-eliminar-reg">Eliminar registro</button>
           <button type="button" id="modal-duplicado-cerrar">Cerrar</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-evolucion-detalle-backdrop" class="modal-backdrop oculto">
+    <div class="modal modal-evolucion-detalle-ancho" id="modal-evolucion-detalle">
+      <div class="modal-header" id="modal-evolucion-detalle-header-drag">
+        <h2 id="modal-evolucion-detalle-titulo">Detalle</h2>
+        <button type="button" class="modal-close" id="modal-evolucion-detalle-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-evolucion-detalle-body">
+        <table class="detalle-tabla">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Categoría</th>
+              <th>Descripción</th>
+              <th>Monto</th>
+              <th>Origen</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-evolucion-detalle"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -696,6 +764,193 @@
         `).join('');
 
       renderErroresGlobal();
+      renderEvolucion();
+    }
+
+    let evolucionDetalle = {};
+    let evolucionMatrix = {};
+    let evolucionColumnasOrdenadas = [];
+    let evolucionFilasOrdenadas = [];
+    let evolucionMoneda = 'ARS';
+    let evolucionSimbolo = '$ ';
+
+    function formatearColHeaderEvolucion(key, periodo) {
+      if (periodo === 'diario') {
+        if (key.length >= 10) {
+          const [y, m, d] = key.split('-');
+          return (d || '') + '/' + (m || '') + '/' + (y || '');
+        }
+        return key;
+      }
+      const [anio, mes] = key.split('-');
+      return (mes || '') + '-' + (anio || '');
+    }
+
+    function abrirModalEvolucionDetalle(rowKey, colKey) {
+      const list = evolucionDetalle[rowKey] && (colKey === '__total__' ? evolucionDetalle[rowKey].__total__ : evolucionDetalle[rowKey][colKey]);
+      const backdrop = document.getElementById('modal-evolucion-detalle-backdrop');
+      const titulo = document.getElementById('modal-evolucion-detalle-titulo');
+      const tbodyDet = document.getElementById('tbody-evolucion-detalle');
+      if (!backdrop || !titulo || !tbodyDet) return;
+      const periodo = (document.getElementById('evolucion-periodo') && document.getElementById('evolucion-periodo').value) || 'mensual';
+      const colLabel = colKey === '__total__' ? 'Total' : formatearColHeaderEvolucion(colKey, periodo);
+      titulo.textContent = 'Detalle — ' + (rowKey || '').replace(/</g, '&lt;') + (colKey !== '__total__' ? ' · ' + colLabel : ' (' + colLabel + ')');
+      if (!list || list.length === 0) {
+        tbodyDet.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">No hay registros.</td></tr>';
+      } else {
+        const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
+        tbodyDet.innerHTML = list.map(item => `
+          <tr>
+            <td>${esc(item.fecha)}</td>
+            <td>${esc(item.categoria)}</td>
+            <td>${esc((item.descripcion || '—').slice(0, 200))}</td>
+            <td class="${item.monto >= 0 ? 'ingresos' : 'egresos'}">${evolucionSimbolo}${formatearNumero(item.monto, evolucionMoneda)}</td>
+            <td>${esc(item.origen_archivo || '—')}</td>
+          </tr>
+        `).join('');
+      }
+      backdrop.classList.remove('oculto');
+    }
+
+    function renderEvolucion() {
+      const thead = document.getElementById('thead-evolucion');
+      const tbody = document.getElementById('tbody-evolucion');
+      if (!thead || !tbody) return;
+      const agrupar = (document.getElementById('evolucion-agrupar') && document.getElementById('evolucion-agrupar').value) || 'categoria';
+      const periodo = (document.getElementById('evolucion-periodo') && document.getElementById('evolucion-periodo').value) || 'mensual';
+      const moneda = getMoneda();
+      evolucionMoneda = moneda;
+      evolucionSimbolo = moneda === 'USD' ? 'US$ ' : '$ ';
+      const tipoDolar = document.getElementById('tipoDolar') ? document.getElementById('tipoDolar').value : 'mep';
+
+      const matrix = {};
+      const detalle = {};
+      const columnasSet = new Set();
+
+      cacheTransacciones.filter(r => !excluirCategoria(r.categoria)).forEach(r => {
+        const montoConv = montoConvertido(r, moneda, tipoDolar);
+        if (montoConv == null) return;
+        const signo = r.tipo_movimiento === 'Ingreso' ? 1 : -1;
+        const valor = signo * montoConv;
+        const rowKey = agrupar === 'categoria'
+          ? (getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || 'Sin categoría')
+          : ((r.cuenta_contable || '').trim() || '—');
+        let colKey;
+        if (periodo === 'diario') {
+          colKey = fechaStr(r.fecha);
+          if (!colKey) return;
+        } else {
+          const anio = r.anio != null ? r.anio : (r.fecha ? new Date(r.fecha).getFullYear() : null);
+          const mes = r.mes != null ? r.mes : (r.fecha ? new Date(r.fecha).getMonth() + 1 : null);
+          if (anio == null || mes == null) return;
+          colKey = anio + '-' + String(mes).padStart(2, '0');
+        }
+        columnasSet.add(colKey);
+        if (!matrix[rowKey]) matrix[rowKey] = {};
+        matrix[rowKey][colKey] = (matrix[rowKey][colKey] || 0) + valor;
+        if (!detalle[rowKey]) detalle[rowKey] = {};
+        if (!detalle[rowKey][colKey]) detalle[rowKey][colKey] = [];
+        detalle[rowKey][colKey].push({
+          fecha: fechaStr(r.fecha),
+          categoria: getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || r.categoria || '—',
+          descripcion: (r.descripcion || r.cliente || '').trim() || '—',
+          monto: valor,
+          origen_archivo: (r.origen_archivo || '').trim() || '—'
+        });
+      });
+
+      const columnasOrdenadas = Array.from(columnasSet).sort();
+      const rowKeys = Object.keys(matrix);
+      const rowTotals = {};
+      rowKeys.forEach(rk => {
+        let t = 0;
+        columnasOrdenadas.forEach(ck => { t += matrix[rk][ck] || 0; });
+        rowTotals[rk] = t;
+      });
+      const filasOrdenadas = rowKeys.sort((a, b) => {
+        const ta = rowTotals[a], tb = rowTotals[b];
+        if (ta >= 0 && tb < 0) return -1;
+        if (ta < 0 && tb >= 0) return 1;
+        return a.localeCompare(b);
+      });
+
+      filasOrdenadas.forEach(rowKey => {
+        if (!detalle[rowKey].__total__) detalle[rowKey].__total__ = [];
+        columnasOrdenadas.forEach(colKey => {
+          if (detalle[rowKey][colKey]) detalle[rowKey].__total__ = detalle[rowKey].__total__.concat(detalle[rowKey][colKey]);
+        });
+      });
+      evolucionDetalle = detalle;
+      evolucionMatrix = matrix;
+      evolucionColumnasOrdenadas = columnasOrdenadas;
+      evolucionFilasOrdenadas = filasOrdenadas;
+
+      const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
+      const simbolo = evolucionSimbolo;
+
+      const formatearColHeader = (key) => formatearColHeaderEvolucion(key, periodo);
+
+      thead.innerHTML = '<tr><th>' + esc(agrupar === 'categoria' ? 'Categoría' : 'Cuenta contable') + '</th>' + columnasOrdenadas.map(c => '<th>' + esc(formatearColHeader(c)) + '</th>').join('') + '<th>Total</th></tr>';
+      if (filasOrdenadas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="' + (columnasOrdenadas.length + 2) + '" style="text-align:center; color:#666;">No hay datos para mostrar.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = filasOrdenadas.map(rowKey => {
+        let totalFila = 0;
+        const celdas = columnasOrdenadas.map(colKey => {
+          const v = matrix[rowKey][colKey] || 0;
+          totalFila += v;
+          const cls = v > 0 ? 'ingresos' : (v < 0 ? 'egresos' : '');
+          const tieneDetalle = (detalle[rowKey][colKey] || []).length > 0;
+          const clickable = tieneDetalle ? ' evolucion-clickable' : '';
+          const dataAttrs = tieneDetalle ? ' data-rowkey="' + esc(rowKey).replace(/"/g, '&quot;') + '" data-colkey="' + esc(colKey).replace(/"/g, '&quot;') + '"' : '';
+          return '<td class="num-evolucion ' + cls + clickable + '"' + dataAttrs + '>' + (v !== 0 ? simbolo + formatearNumero(v, moneda) : '—') + '</td>';
+        });
+        const totalCls = totalFila >= 0 ? 'balance positivo' : 'balance negativo';
+        const totalList = (detalle[rowKey].__total__ || []).length;
+        const totalAttrs = totalList > 0 ? ' data-rowkey="' + esc(rowKey).replace(/"/g, '&quot;') + '" data-colkey="__total__" class="num-evolucion ' + totalCls + ' evolucion-clickable"' : ' class="num-evolucion ' + totalCls + '"';
+        return '<tr><td>' + esc(rowKey) + '</td>' + celdas.join('') + '<td' + totalAttrs + '>' + simbolo + formatearNumero(totalFila, moneda) + '</td></tr>';
+      }).join('');
+
+      tbody.querySelectorAll('.evolucion-clickable').forEach(td => {
+        td.addEventListener('click', () => {
+          const rk = td.getAttribute('data-rowkey');
+          const ck = td.getAttribute('data-colkey');
+          if (rk != null && ck != null) abrirModalEvolucionDetalle(rk, ck);
+        });
+      });
+
+      thead.querySelectorAll('th').forEach((th, i) => { th.style.textAlign = i === 0 ? 'left' : 'right'; });
+    }
+
+    function exportarEvolucionExcel() {
+      if (!window.XLSX || !evolucionFilasOrdenadas.length) {
+        alert('No hay datos en Evolución para exportar.');
+        return;
+      }
+      const agrupar = (document.getElementById('evolucion-agrupar') && document.getElementById('evolucion-agrupar').value) || 'categoria';
+      const periodo = (document.getElementById('evolucion-periodo') && document.getElementById('evolucion-periodo').value) || 'mensual';
+      const formatearColHeader = (key) => formatearColHeaderEvolucion(key, periodo);
+      const monedaExport = getMoneda();
+
+      const headerRow = [agrupar === 'categoria' ? 'Categoría' : 'Cuenta contable'].concat(evolucionColumnasOrdenadas.map(formatearColHeader)).concat(['Total']);
+      const rows = [['Moneda: ' + (monedaExport === 'USD' ? 'USD' : 'ARS') + '.'], headerRow];
+      evolucionFilasOrdenadas.forEach(rowKey => {
+        let totalFila = 0;
+        const celdas = evolucionColumnasOrdenadas.map(colKey => {
+          const v = (evolucionMatrix[rowKey] && evolucionMatrix[rowKey][colKey]) || 0;
+          totalFila += v;
+          return v !== 0 ? v : '';
+        });
+        rows.push([rowKey].concat(celdas).concat([totalFila]));
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Evolucion');
+      const hoy = new Date();
+      const fecha = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
+      XLSX.writeFile(wb, 'Evolucion_Fornitalia_' + fecha + '.xlsx');
     }
 
     function exportarAExcel() {
@@ -704,7 +959,7 @@
         return;
       }
       const headers = ['fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'editado', 'editado_detalle'];
-      const rows = [headers];
+      const rows = [['Exportado: Base histórica. Moneda de cada monto: ver columna "moneda" (ARS o USD).'], headers];
       cacheTransacciones.forEach(r => {
         const montoNum = (r.monto != null && r.monto !== '') ? Number(r.monto) : '';
         rows.push([
@@ -741,7 +996,7 @@
         return;
       }
       const headers = ['tipo_error', 'id', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'categoria_original', 'categoria_mostrada', 'cuenta_contable', 'medio_pago', 'moneda', 'monto', 'descripcion', 'cliente', 'cat_desc', 'origen_archivo', 'editado', 'editado_detalle'];
-      const rows = [headers];
+      const rows = [['Moneda de los montos: ver columna "moneda" (ARS o USD).'], headers];
       lastErroresGlobal.forEach(r => {
         const regIsUSD = esTransaccionUSD(r);
         const monedaReg = regIsUSD ? 'USD' : 'ARS';
@@ -1552,8 +1807,14 @@
             btn.classList.add('activo');
             const id = btn.getAttribute('data-panel');
             if (id) document.getElementById('panel-' + id).classList.add('activo');
+            if (id === 'evolucion') renderEvolucion();
           });
         });
+        document.getElementById('evolucion-agrupar').addEventListener('change', renderEvolucion);
+        document.getElementById('evolucion-periodo').addEventListener('change', renderEvolucion);
+        document.getElementById('btn-exportar-evolucion').addEventListener('click', exportarEvolucionExcel);
+        document.getElementById('modal-evolucion-detalle-close').addEventListener('click', () => document.getElementById('modal-evolucion-detalle-backdrop').classList.add('oculto'));
+        document.getElementById('modal-evolucion-detalle-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-evolucion-detalle-backdrop') e.target.classList.add('oculto'); });
       } catch (e) {
         errorEl.textContent = 'Error: ' + (e.message || String(e));
         errorEl.style.display = 'block';
