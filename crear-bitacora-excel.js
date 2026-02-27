@@ -30,6 +30,8 @@ const datosLog = [
   ['27/02/2025', '17:40', 'Excepción errores: Comisiones Bancarias / Gastos Bancarios', 'Si la categoría es Comisiones Bancarias y la cuenta contable es Gastos Bancarios, se considera consistente y no entra en el log de errores de clasificación (aunque la descripción no contenga esas palabras).', 'Diagnostico'],
   ['27/02/2025', '17:50', 'Excepción errores: Impuestos / MercadoPago y Impuestos / Transferencia Morba', 'Si la categoría es Impuestos y la cuenta contable es MercadoPago o Transferencia Morba, se considera consistente y no entra en el log de errores de clasificación, aunque la descripción no contenga esas palabras.', 'Diagnostico'],
   ['27/02/2025', '18:00', 'Excepción errores: Alquileres y Servicios / Alquiler', 'Si la categoría es Alquiler (mostrada como Alquileres y Servicios) y la cuenta contable es Alquiler, se considera consistente y no entra en el log de errores de clasificación.', 'Diagnostico'],
+  ['27/02/2025', '18:10', 'Solapa Errores global y exportación a Excel', 'Nueva pestaña Errores en el dashboard (a la derecha de Sin cotización) que lista todos los egresos con error de clasificación, permite editar cada registro con el mismo modal de edición y se puede exportar a Excel con todos los campos relevantes (incluyendo editado y editado_detalle).', 'Diagnostico'],
+  ['27/02/2025', '18:20', 'Monto numérico en exportación Excel', 'En ambas exportaciones (Transacciones y Errores), la columna monto se escribe como valor numérico (Number) en lugar de texto, para que Excel reconozca números y permita usar fórmulas (SUM, SUMIF, etc.).', 'Diagnostico'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -67,7 +69,7 @@ const funcionalidades = [
   ['Menú lateral', 'Sidebar izquierdo colapsable/expandible; botón toggle (▶/◀); ítem Home por ahora; estado persistido en localStorage. Listo para ampliar con más ítems.'],
   ['Repositorio Git (GitHub)', 'Repo: https://github.com/lucasbustosmartin-coder/fornitalia. Rama main. .gitignore excluye node_modules, .venv, .env. Para actualizar: git add . ; git commit -m "mensaje" ; git push origin main.'],
   ['App en producción (Vercel)', 'URL pública: https://fornitalia.vercel.app/ (vercel.json reescribe / al dashboard). Cada push a main en GitHub dispara redeploy automático en Vercel. Proyecto: fornitalia, equipo Lucas Bustos, plan Hobby.'],
-  ['Exportar a Excel', 'Botón en la barra de la tabla (solo icono). Exporta la tabla de transacciones tal como está en Supabase: una hoja "Transacciones" con columnas fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable. Permite analizar y manipular los datos desde Excel.'],
+  ['Exportar a Excel', 'Botón en la barra de la tabla (solo icono). Exporta la tabla de transacciones tal como está en Supabase: una hoja "Transacciones" con columnas fecha, mes, anio, tipo_movimiento, monto (valor numérico para fórmulas), status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, editado, editado_detalle. Export Errores: monto también como número. Permite analizar y usar fórmulas en Excel.'],
   ['Flujo de despliegue', 'Al terminar cada tarea: el usuario prueba en local y confirma; recién entonces el asistente hace git add, commit y push (Vercel redepliega automático). No se despliega hasta confirmación.'],
   ['Versiones en bitácora', 'Hoja "Versiones" en Bitacora_tareas.xlsx: registro incremental (1.0, 1.1, …) con fecha y descripción de cada despliegue a Git/Vercel.'],
   ['Campo moneda (BD)', 'Columna moneda en tabla transacciones (ARS/USD). Si está informada, el dashboard la usa; si no, infiere desde medio_pago (ej. "dolar" → USD). Export a Excel incluye moneda.'],
@@ -101,15 +103,29 @@ const versiones = [
   ['1.1', '27/02/2025', 'Regla flujo despliegue (probar en local → confirmar → desplegar); hoja Versiones en bitácora'],
   ['1.2', '27/02/2025', 'Modal mensual: detalle en tabla + moneda registración + TC; normalización moneda en BD y export Excel con moneda'],
   ['1.3', '27/02/2025', 'Errores de clasificación (solapa Errores), edición desde modal, editado/editado_detalle; excepciones: Comisiones Bancarias/Gastos Bancarios, Impuestos/MercadoPago y Transferencia Morba, Alquiler/Alquiler'],
+  ['1.4', '27/02/2025', 'Exportación Excel: monto como valor numérico (fórmulas en Excel); regla bitácora por defecto reforzada'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
+
+// --- Hoja Presupuesto (rubros comerciales sugeridos)
+const presupuesto = [
+  ['Grupo', 'Descripción comercial', 'Importe sugerido (ARS)'],
+  ['Normalización de datos', 'Relevamiento, limpieza y normalización de datos históricos de caja (campos de moneda, categorías, cuentas contables, flags de edición). Incluye lógica de excepciones y detección de inconsistencias.', 250000],
+  ['Dashboard flujo de caja', 'Diseño y desarrollo del dashboard mensual (Flujo por mes, Resumen, alertas, modal By Categoría / By Cuenta, gráficos de serie mensual). Incluye formatos de moneda y visualizaciones.', 320000],
+  ['Bitácora y documentación', 'Implementación de la bitácora en Excel (Log, Resumen, Versiones, Ref Git y Vercel, Presupuesto) y documentación funcional básica para el uso de la app.', 120000],
+  ['Integración y despliegue', 'Configuración de repositorio Git/GitHub, flujo de despliegue a Vercel y ajustes de configuración (vercel.json, conexión con Supabase).', 90000],
+  ['Mantenimiento y soporte inicial', 'Soporte post–implementación, pequeños ajustes funcionales y acompañamiento durante el primer período de uso.', 80000],
+];
+const wsPresupuesto = XLSX.utils.aoa_to_sheet(presupuesto);
+wsPresupuesto['!cols'] = [{ wch: 32 }, { wch: 90 }, { wch: 24 }];
 
 const wb = XLSX.utils.book_new();
 XLSX.utils.book_append_sheet(wb, wsLog, 'Log');
 XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
 XLSX.utils.book_append_sheet(wb, wsRef, 'Ref Git y Vercel');
 XLSX.utils.book_append_sheet(wb, wsVersiones, 'Versiones');
+XLSX.utils.book_append_sheet(wb, wsPresupuesto, 'Presupuesto');
 
 const outPath = path.join(__dirname, 'Bitacora_tareas.xlsx');
 XLSX.writeFile(wb, outPath);

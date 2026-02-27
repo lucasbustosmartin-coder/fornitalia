@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Bitácora de tareas – Fornitalia
 
-**Por defecto:** siempre actualizar la bitácora (Log y, si aplica, Resumen) al completar una tarea. **Excepción:** no agregar a la bitácora solo cuando el usuario lo indique explícitamente (por ejemplo: "esto no agregarlo a la bitácora", "no lo registres", etc.).
+**Por defecto:** siempre actualizar la bitácora (Log y, si aplica, Resumen) al completar una tarea. No saltear esta regla salvo que el usuario lo indique explícitamente (por ejemplo: "esto no agregarlo a la bitácora", "no lo registres", "no actualices la bitácora").
 
 Al completar una tarea relevante en este proyecto:
 
@@ -16,10 +16,13 @@ Al completar una tarea relevante en este proyecto:
 2. **Solapa Resumen**  
    Si la tarea agrega o cambia una **funcionalidad de la app** (dashboard, flujo de caja, etc.), agregar (o actualizar) la fila correspondiente en el array `funcionalidades` de `crear-bitacora-excel.js` con: Funcionalidad, Descripción.
 
-3. **Regenerar Excel**  
+3. **Solapa Presupuesto**  
+   Solo cuando el usuario pida ajustar o ampliar el **presupuesto comercial** (rubros de trabajo y montos), actualizar el array `presupuesto` de `crear-bitacora-excel.js` con filas de la forma: Grupo, Descripción comercial, Importe sugerido (ARS). Los importes son orientativos para Argentina.
+
+4. **Regenerar Excel**  
    Después de editar el script, ejecutar:  
    `node crear-bitacora-excel.js`  
-   para que `Bitacora_tareas.xlsx` tenga actualizadas las solapas Log, Resumen y Versiones.
+   para que `Bitacora_tareas.xlsx` tenga actualizadas las solapas Log, Resumen, Versiones y Presupuesto.
 
 Archivo a editar: `crear-bitacora-excel.js`.  
 Salida: `Bitacora_tareas.xlsx`.
