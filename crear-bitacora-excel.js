@@ -42,6 +42,7 @@ const datosLog = [
   ['27/02/2025', '19:40', 'Evolución: ingreso primero, luego egreso', 'En la tabla Evolución las filas (categorías o cuentas) se ordenan primero las de ingreso (total >= 0) y luego las de egreso (total < 0); dentro de cada grupo orden alfabético.', 'Diagnostico'],
   ['27/02/2025', '19:50', 'Solapa Errores: columna Mes-Año por Id_Origen', 'En la tabla de la solapa Errores se reemplaza la columna Mes-Año por Id_Origen (identificador de origen del registro).', 'Diagnostico'],
   ['27/02/2025', '20:00', 'Balance por G/P e Id_Origen en modal Evolución', "En todo el dashboard se reemplaza la etiqueta Balance por G/P (Ganancia/Pérdida). En el modal de detalle al hacer clic en un valor de Evolución se agrega la columna Id_Origen.", 'Diagnostico'],
+  ['27/02/2025', '20:10', 'Comisiones, Total flujo, Errores', 'Comisiones solo categoría Comisiones (no Sueldos). Fila Total en flujo por mes con sumas y ratios. Tabla Errores: quitar columna Editado, scroll horizontal, Descripción alineada a la izquierda.', 'Diagnostico'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -127,6 +128,7 @@ const versiones = [
   ['1.6', '27/02/2025', 'Export Excel: botones verde y blanco; Evolución: orden ingreso luego egreso; modal detalle Evolución con columna Origen y modal más ancho'],
   ['1.7', '27/02/2025', 'Solapa Errores: columna Mes-Año reemplazada por Id_Origen en la tabla'],
   ['1.8', '27/02/2025', "Balance reemplazado por G/P (Ganancia/Pérdida); modal detalle Evolución con columna Id_Origen"],
+  ['1.9', '27/02/2025', 'Comisiones solo categoría Comisiones; fila Total en flujo por mes; Errores: sin columna Editado, scroll horizontal, Descripción a la izquierda'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
