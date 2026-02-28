@@ -460,7 +460,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.10';
+    const APP_VERSION = '1.11';
 
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -684,7 +684,7 @@
         const key = `${r.anio}-${String(r.mes).padStart(2,'0')}`;
         const cat = (r.categoria || '').trim() || 'Sin categoría';
         const catLow = cat.toLowerCase();
-        if (!porMes[key]) porMes[key] = { anio: r.anio, mes: r.mes, ingresos: 0, egresos: 0, comisiones: 0, ventas: 0 };
+        if (!porMes[key]) porMes[key] = { anio: r.anio, mes: r.mes, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0 };
         if (!porMesCategoria[key]) porMesCategoria[key] = {};
         if (!porMesCategoria[key][cat]) porMesCategoria[key][cat] = 0;
         porMesCategoria[key][cat] += montoParaSumar;
@@ -696,6 +696,7 @@
           porMes[key].egresos += montoParaSumar;
           totalEgresos += montoParaSumar;
           if (catLow === 'comisiones') porMes[key].comisiones += montoParaSumar;
+          if (catLow === 'comisiones' || esComisionDentroSueldos(r.categoria, r.descripcion, r.cat_desc)) porMes[key].comisionesParaRatio += montoParaSumar;
         }
       });
 
@@ -750,8 +751,9 @@
         const balance = d.ingresos - d.egresos;
         const label = formatoMesAnio(d.mes, d.anio);
         const comisiones = d.comisiones != null ? d.comisiones : 0;
+        const comisionesParaRatio = d.comisionesParaRatio != null ? d.comisionesParaRatio : 0;
         const ventas = d.ventas != null ? d.ventas : 0;
-        const comVentasPct = ventas > 0 ? ((comisiones / ventas) * 100).toFixed(1) + '%' : '–';
+        const comVentasPct = ventas > 0 ? ((comisionesParaRatio / ventas) * 100).toFixed(1) + '%' : '–';
         const egrSinCom = (d.egresos != null ? d.egresos : 0) - comisiones;
         const egrSinComIngPct = d.ingresos > 0 ? ((egrSinCom / d.ingresos) * 100).toFixed(1) + '%' : '–';
         const alertas = alertasPorMes[key] || [];
@@ -769,8 +771,9 @@
       }).join('');
 
       const totalComisiones = ordenados.reduce((s, k) => s + (porMes[k].comisiones != null ? porMes[k].comisiones : 0), 0);
+      const totalComisionesParaRatio = ordenados.reduce((s, k) => s + (porMes[k].comisionesParaRatio != null ? porMes[k].comisionesParaRatio : 0), 0);
       const totalVentas = ordenados.reduce((s, k) => s + (porMes[k].ventas != null ? porMes[k].ventas : 0), 0);
-      const comVentasPctTotal = totalVentas > 0 ? ((totalComisiones / totalVentas) * 100).toFixed(1) + '%' : '–';
+      const comVentasPctTotal = totalVentas > 0 ? ((totalComisionesParaRatio / totalVentas) * 100).toFixed(1) + '%' : '–';
       const egrSinComTotal = totalEgresos - totalComisiones;
       const egrSinComIngPctTotal = totalIngresos > 0 ? ((egrSinComTotal / totalIngresos) * 100).toFixed(1) + '%' : '–';
       const tfoot = document.getElementById('tfoot-flujo');
