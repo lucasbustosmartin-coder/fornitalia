@@ -68,6 +68,15 @@
     #tabla-todas-transacciones { min-width: max-content; }
     #tabla-todas-transacciones th:nth-child(11),
     #tabla-todas-transacciones td:nth-child(11) { text-align: left; max-width: 200px; }
+    .fila-proyeccion { font-style: italic; color: #555; background: #fafafa; }
+    .fila-proyeccion td:first-child { font-weight: 500; }
+    .fila-titulo-proyeccion td { font-weight: 600; color: #333; background: #f0f0f0; padding: 0.5rem 0.65rem; border-top: 2px solid #ccc; }
+    .fila-total-real { border-top: 2px solid #333; }
+    .config-section { margin-bottom: 1rem; }
+    .config-section-title { font-size: 1rem; margin: 0 0 0.5rem 0; color: #333; }
+    #modal-configuracion .form-group { margin-bottom: 0.75rem; }
+    #modal-configuracion label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; }
+    #modal-configuracion select { width: 100%; max-width: 200px; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; }
     #tabla-evolucion { min-width: 100%; }
     #tabla-evolucion th, #tabla-evolucion td { padding: 0.45rem 0.65rem; white-space: nowrap; }
     #tabla-evolucion th { background: #f2f3f5; font-weight: 600; color: #555; }
@@ -81,6 +90,7 @@
     #panel-flujo tfoot td { font-weight: 600; border-top: 2px solid #333; padding: 0.5rem 0.65rem; background: #f5f5f5; }
     #panel-flujo tfoot td:first-child { text-align: left; }
     #panel-flujo tfoot td:not(:first-child):not(.alert-icon-cell) { text-align: right; }
+    .disclaimer-proyeccion { font-size: 0.75rem; color: #555; font-weight: normal; padding: 0.35rem 0.65rem !important; border-top: none !important; background: #fafafa !important; }
     .th-int-caucion { color: #b91c1c; font-weight: 600; }
     .icon-int-caucion { display: inline-block; margin-right: 0.2em; font-size: 0.95em; font-weight: 700; }
     .icon-int-caucion::before { content: '%'; color: #b91c1c; }
@@ -194,6 +204,10 @@
         <span class="menu-icon" aria-hidden="true">⌂</span>
         <span class="menu-label">Home</span>
       </a>
+      <button type="button" class="menu-item" id="menu-configuracion" title="Configuración" aria-label="Configuración">
+        <span class="menu-icon" aria-hidden="true">⚙</span>
+        <span class="menu-label">Configuración</span>
+      </button>
     </nav>
     <div class="sidebar-version" id="sidebar-version" aria-label="Versión"></div>
   </aside>
@@ -509,6 +523,41 @@
     </div>
   </div>
 
+  <div id="modal-configuracion-backdrop" class="modal-backdrop oculto">
+    <div class="modal" id="modal-configuracion">
+      <div class="modal-header" id="modal-configuracion-header-drag">
+        <h2 id="modal-configuracion-titulo">Configuración</h2>
+        <button type="button" class="modal-close" id="modal-configuracion-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-configuracion-body">
+        <section class="config-section">
+          <h3 class="config-section-title">Proyección (Flujo por mes)</h3>
+          <p class="sin-cotizacion-note" style="margin-top:0;">Parámetros para los 3 meses proyectados debajo del total real. Ingresos y egresos usan el valor típico de la historia; Int. por caución se calcula en forma acumulativa.</p>
+          <div class="form-group">
+            <label for="config-proyeccion-metodo">Método</label>
+            <select id="config-proyeccion-metodo" title="Mediana o promedio de los meses de historia">
+              <option value="mediana">Mediana</option>
+              <option value="promedio">Promedio</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="config-proyeccion-meses">Meses de historia</label>
+            <select id="config-proyeccion-meses" title="Cantidad de meses para calcular el valor típico">
+              <option value="3">3</option>
+              <option value="6" selected>6</option>
+              <option value="12">12</option>
+              <option value="24">24</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button type="button" id="config-guardar">Guardar</button>
+            <button type="button" id="config-cerrar">Cerrar</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <div id="modal-duplicado-backdrop" class="modal-backdrop oculto">
     <div class="modal" id="modal-duplicado">
       <div class="modal-header" id="modal-duplicado-header-drag">
@@ -594,9 +643,38 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.15';
+    const APP_VERSION = '1.16';
+
+    const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
+    const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
 
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+    function getProyeccionConfig() {
+      const metodo = (localStorage.getItem(PROYECCION_METODO_KEY) || 'mediana');
+      const meses = parseInt(localStorage.getItem(PROYECCION_MESES_KEY) || '6', 10) || 6;
+      return { metodo: metodo === 'promedio' ? 'promedio' : 'mediana', meses: [3,6,12,24].includes(meses) ? meses : 6 };
+    }
+
+    function mediana(arr) {
+      if (!arr || arr.length === 0) return 0;
+      const sorted = [...arr].filter(x => typeof x === 'number' && !isNaN(x)).sort((a, b) => a - b);
+      if (sorted.length === 0) return 0;
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+
+    function promedio(arr) {
+      if (!arr || arr.length === 0) return 0;
+      const nums = arr.filter(x => typeof x === 'number' && !isNaN(x));
+      return nums.length === 0 ? 0 : nums.reduce((s, x) => s + x, 0) / nums.length;
+    }
+
+    function siguienteMesKey(key) {
+      const [anio, mes] = key.split('-').map(Number);
+      if (mes >= 12) return (anio + 1) + '-01';
+      return anio + '-' + String(mes + 1).padStart(2, '0');
+    }
 
     function formatoMesAnio(mes, anio) {
       return String(mes).padStart(2, '0') + '-' + anio;
@@ -1026,7 +1104,68 @@
       document.getElementById('resumen').style.display = 'flex';
 
       const tbody = document.getElementById('tbody');
-      tbody.innerHTML = ordenados.map(key => {
+      const configProy = getProyeccionConfig();
+      const N = configProy.meses;
+      const agg = configProy.metodo === 'promedio' ? promedio : (arr) => mediana(arr);
+      function proyeccionDesdeVentana(objetosMes) {
+        if (!objetosMes.length) return { ing: 0, egr: 0, gp: 0, comVentasPct: '–', egrSinComIngPct: '–', ratioComNum: 0, ratioEgrNum: 0 };
+        const ings = objetosMes.map(k => (k.ingresos != null ? k.ingresos : 0));
+        const egrs = objetosMes.map(k => (k.egresos != null ? k.egresos : 0));
+        const ing = agg(ings);
+        const egr = agg(egrs);
+        const gp = ing - egr;
+        const ratiosCom = objetosMes.map(k => {
+          const v = k.ventas != null ? k.ventas : 0;
+          const c = k.comisionesParaRatio != null ? k.comisionesParaRatio : 0;
+          return v > 0 ? (c / v) * 100 : null;
+        }).filter(x => x != null);
+        const ratiosEgr = objetosMes.map(k => {
+          const ing_ = k.ingresos != null ? k.ingresos : 0;
+          const com = k.comisiones != null ? k.comisiones : 0;
+          const egr_ = k.egresos != null ? k.egresos : 0;
+          return ing_ > 0 ? ((egr_ - com) / ing_) * 100 : null;
+        }).filter(x => x != null);
+        const ratioComNum = ratiosCom.length ? agg(ratiosCom) : 0;
+        const ratioEgrNum = ratiosEgr.length ? agg(ratiosEgr) : 0;
+        const comVentasPct = ratiosCom.length ? ratioComNum.toFixed(1) + '%' : '–';
+        const egrSinComIngPct = ratiosEgr.length ? ratioEgrNum.toFixed(1) + '%' : '–';
+        return { ing, egr, gp, comVentasPct, egrSinComIngPct, ratioComNum, ratioEgrNum };
+      }
+      function aObjetoMes(d) {
+        return {
+          ingresos: d.ingresos != null ? d.ingresos : 0,
+          egresos: d.egresos != null ? d.egresos : 0,
+          ventas: d.ventas != null ? d.ventas : 0,
+          comisionesParaRatio: d.comisionesParaRatio != null ? d.comisionesParaRatio : 0,
+          comisiones: d.comisiones != null ? d.comisiones : 0
+        };
+      }
+      function syntheticMes(ing, egr, ratioComNum, ratioEgrNum) {
+        return {
+          ingresos: ing,
+          egresos: egr,
+          ventas: ing,
+          comisionesParaRatio: ing * (ratioComNum / 100),
+          comisiones: egr - ing * (ratioEgrNum / 100)
+        };
+      }
+      function intCaucionProyectadoMes(baseStart, proyGP, tasaDiaria) {
+        const dias = 30;
+        const gpDia = proyGP / dias;
+        let gpAcum = baseStart;
+        let intAcum = 0;
+        let totalInt = 0;
+        for (let d = 0; d < dias; d++) {
+          gpAcum += gpDia;
+          const base = gpAcum + intAcum;
+          const intDia = base > 0 ? base * tasaDiaria : 0;
+          totalInt += intDia;
+          intAcum += intDia;
+        }
+        return { intCaucion: totalInt, baseFin: gpAcum + intAcum };
+      }
+
+      const filasReales = ordenados.map(key => {
         const d = porMes[key];
         const balance = d.ingresos - d.egresos;
         const label = formatoMesAnio(d.mes, d.anio);
@@ -1049,7 +1188,42 @@
           <td class="ingresos int-caucion-cell" data-key-mes="${key}" role="button" tabindex="0" title="Ver marcha de cálculo">${simbolo}${formatearNumero((d.intCaucion != null ? d.intCaucion : 0), moneda)}</td>
           <td class="alert-icon-cell">${iconoAlert}</td>
         </tr>`;
-      }).join('');
+      });
+
+      let filasProy = '';
+      let tasaDiariaProy = 0;
+      if (ordenados.length > 0 && N > 0) {
+        tasaDiariaProy = fechasOrdenadas.length ? getTasaCaucion(fechasOrdenadas[fechasOrdenadas.length - 1]) : 0;
+        const lastKey = ordenados[ordenados.length - 1];
+        const lastMonthGP = (porMes[lastKey].ingresos != null ? porMes[lastKey].ingresos : 0) - (porMes[lastKey].egresos != null ? porMes[lastKey].egresos : 0);
+        const lastMonthInt = porMes[lastKey].intCaucion != null ? porMes[lastKey].intCaucion : 0;
+        const listaReal = ordenados.map(k => aObjetoMes(porMes[k]));
+        let basePartida = lastMonthGP + lastMonthInt;
+        let keyProy = siguienteMesKey(ordenados[ordenados.length - 1]);
+        const proys = [];
+        for (let i = 0; i < 3; i++) {
+          const numReal = Math.max(0, N - i);
+          const ventana = listaReal.slice(-numReal).concat(proys.map(p => syntheticMes(p.ing, p.egr, p.ratioComNum, p.ratioEgrNum)));
+          const proy = proyeccionDesdeVentana(ventana);
+          proys.push(proy);
+          const [anioProy, mesProy] = keyProy.split('-').map(Number);
+          const res = intCaucionProyectadoMes(basePartida, proy.gp, tasaDiariaProy);
+          const intCaucionProy = res.intCaucion;
+          basePartida = proy.gp + intCaucionProy;
+          filasProy += `<tr class="fila-proyeccion">
+            <td>Proy. ${formatoMesAnio(mesProy, anioProy)}</td>
+            <td class="ingresos">${simbolo}${formatearNumero(proy.ing, moneda)}</td>
+            <td class="egresos">${simbolo}${formatearNumero(proy.egr, moneda)}</td>
+            <td class="balance ${proy.gp >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(proy.gp, moneda)}</td>
+            <td>${proy.comVentasPct}</td>
+            <td>${proy.egrSinComIngPct}</td>
+            <td class="ingresos">${simbolo}${formatearNumero(intCaucionProy, moneda)}</td>
+            <td class="alert-icon-cell"></td>
+          </tr>`;
+          keyProy = siguienteMesKey(keyProy);
+        }
+      }
+      tbody.innerHTML = filasReales.join('');
 
       const totalIntCaucion = ordenados.reduce((s, k) => s + (porMes[k].intCaucion != null ? porMes[k].intCaucion : 0), 0);
       const totalComisiones = ordenados.reduce((s, k) => s + (porMes[k].comisiones != null ? porMes[k].comisiones : 0), 0);
@@ -1060,7 +1234,7 @@
       const egrSinComIngPctTotal = totalIngresos > 0 ? ((egrSinComTotal / totalIngresos) * 100).toFixed(1) + '%' : '–';
       const tfoot = document.getElementById('tfoot-flujo');
       if (tfoot) {
-        tfoot.innerHTML = ordenados.length === 0 ? '' : `<tr>
+        let tfootHtml = ordenados.length === 0 ? '' : `<tr class="fila-total-real">
           <td>Total</td>
           <td class="ingresos">${simbolo}${formatearNumero(totalIngresos, moneda)}</td>
           <td class="egresos">${simbolo}${formatearNumero(totalEgresos, moneda)}</td>
@@ -1070,6 +1244,12 @@
           <td class="ingresos">${simbolo}${formatearNumero(totalIntCaucion, moneda)}</td>
           <td class="alert-icon-cell"></td>
         </tr>`;
+        if (filasProy) {
+          const metodoLabel = configProy.metodo === 'promedio' ? 'Promedio' : 'Mediana';
+          const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses con ventana rodante. Int. por caución: punto de partida = último mes real (G/P + interés), luego se aplica la última tasa conocida en cadena para cada mes proyectado.`;
+          tfootHtml += `<tr class="fila-titulo-proyeccion"><td colspan="8">Próximos 3 meses proyectados:</td></tr>${filasProy}<tr class="disclaimer-proyeccion"><td colspan="8">${disclaimer}</td></tr>`;
+        }
+        tfoot.innerHTML = tfootHtml;
       }
 
       document.getElementById('tbody-sin-cotizacion').innerHTML = sinCotizacion.length === 0
@@ -2332,6 +2512,28 @@
         document.getElementById('modal-int-caucion-close').addEventListener('click', () => document.getElementById('modal-int-caucion-backdrop').classList.add('oculto'));
         document.getElementById('modal-int-caucion-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-int-caucion-backdrop') e.target.classList.add('oculto'); });
         setupModalDrag('modal-int-caucion', 'modal-int-caucion-header-drag', 'modal-int-caucion-close');
+
+        document.getElementById('menu-configuracion').addEventListener('click', (e) => {
+          e.preventDefault();
+          const c = getProyeccionConfig();
+          const selMetodo = document.getElementById('config-proyeccion-metodo');
+          const selMeses = document.getElementById('config-proyeccion-meses');
+          if (selMetodo) selMetodo.value = c.metodo;
+          if (selMeses) selMeses.value = String(c.meses);
+          document.getElementById('modal-configuracion-backdrop').classList.remove('oculto');
+        });
+        document.getElementById('config-guardar').addEventListener('click', () => {
+          const selMetodo = document.getElementById('config-proyeccion-metodo');
+          const selMeses = document.getElementById('config-proyeccion-meses');
+          if (selMetodo) localStorage.setItem(PROYECCION_METODO_KEY, selMetodo.value);
+          if (selMeses) localStorage.setItem(PROYECCION_MESES_KEY, selMeses.value);
+          document.getElementById('modal-configuracion-backdrop').classList.add('oculto');
+          recalcular();
+        });
+        document.getElementById('config-cerrar').addEventListener('click', () => document.getElementById('modal-configuracion-backdrop').classList.add('oculto'));
+        document.getElementById('modal-configuracion-close').addEventListener('click', () => document.getElementById('modal-configuracion-backdrop').classList.add('oculto'));
+        document.getElementById('modal-configuracion-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-configuracion-backdrop') e.target.classList.add('oculto'); });
+        setupModalDrag('modal-configuracion', 'modal-configuracion-header-drag', 'modal-configuracion-close');
       } catch (e) {
         errorEl.textContent = 'Error: ' + (e.message || String(e));
         errorEl.style.display = 'block';

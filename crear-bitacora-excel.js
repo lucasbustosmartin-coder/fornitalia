@@ -49,6 +49,8 @@ const datosLog = [
   ['27/02/2025', '21:00', 'Int. por caución y marcha de cálculo', 'Columna Int. por caución en flujo por mes: interés por reinvertir sobrante a un día con tasa de Serie_Cauciones. Carga Excel Serie_Cauciones.xlsx al refrescar (o fallback serie_cauciones.json). Modal al clic en valor mensual con marcha: G/P acum, Int T-1, Base, Tasa, Int T. Cálculo sobre G/P acumulado a la fecha + interés acumulado (reinversión día a día). Fechas ISO (2025-08-25T00:00:00) y columna tasa_diaria.', 'Implementacion'],
   ['28/02/2025', '12:00', 'Solapa Todas las transacciones y edición completa', 'Nueva solapa Todas las transacciones: listado con todas las columnas, filtros por mes y categoría, botón Editar por registro. Modal de edición ampliado: todos los campos editables; combos para valores normalizados (categoría, cuenta contable, tipo movimiento, status, medio pago, moneda, origen archivo). editado y editado_detalle al guardar.', 'Implementacion'],
   ['28/02/2025', '12:15', 'Filtro Tipo en Todas las transacciones', 'Agregar filtro por campo Tipo (Ingreso/Egreso) en la solapa Todas las transacciones. Combina con filtros Mes y Categoría.', 'Implementacion'],
+  ['27/02/2026', '14:00', 'Proyección 3 meses e Int. por caución proyectado', 'Configuración (Configuración en menú): método Mediana/Promedio y meses de historia (3, 6, 12, 24). Próximos 3 meses proyectados con ventana rodante. Int. por caución: punto de partida = último mes real (G/P + interés), luego última tasa conocida aplicada en cadena para cada mes proyectado.', 'Implementacion'],
+  ['27/02/2026', '14:15', 'Disclaimer bajo proyección', 'Texto en letra chica y gris oscuro bajo la proyección indicando metodología: Mediana/Promedio de N meses, ventana rodante, y cómo se calcula Int. por caución proyectado.', 'Implementacion'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -104,6 +106,9 @@ const funcionalidades = [
   ['Int. por caución', 'Columna en flujo por mes: interés mensual por colocar el sobrante de caja a la tasa diaria de la serie de cauciones. Carga Serie_Cauciones.xlsx al refrescar (o serie_cauciones.json si no hay Excel). Cálculo: base = G/P acumulado a la fecha + interés acumulado; Int T = base × tasa. Clic en el valor abre modal con marcha (G/P acum, Int T-1, Base, Tasa, Int T).'],
   ['Todas las transacciones', 'Solapa que lista todas las transacciones con todas las columnas. Filtros por mes y categoría. Botón Editar por registro abre modal de edición completa.'],
   ['Edición completa de registros', 'Modal de edición con todos los campos: fecha, mes, año, tipo movimiento, monto, moneda, status, medio pago, categoría, cuenta contable, origen archivo, descripción, cliente, cat_desc, id_origen, id_operación. Combos para campos normalizados (valores existentes en BD). editado y editado_detalle al guardar.'],
+  ['Proyección próximos 3 meses', 'Debajo del total real en Flujo por mes: "Próximos 3 meses proyectados" con ventana rodante. Configuración (sidebar): método (Mediana/Promedio) y meses de historia (3, 6, 12, 24). Ingresos, egresos, G/P y ratios proyectados por mes.'],
+  ['Int. por caución proyectado', 'Para cada mes proyectado: punto de partida = G/P + interés del período anterior (último real para mes 1; proyectado 1 para mes 2; proyectado 2 para mes 3). Se aplica la última tasa conocida en cadena. Sin salto respecto al último valor real.'],
+  ['Disclaimer proyección', 'Debajo de las filas proyectadas, texto en letra chica y gris oscuro que explica la metodología: Mediana/Promedio de N meses, ventana rodante, y cálculo de Int. por caución proyectado.'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
@@ -144,6 +149,7 @@ const versiones = [
   ['1.13', '27/02/2025', 'Int. por caución: columna en flujo, carga Excel al refrescar, modal marcha de cálculo (G/P acum, Base, Tasa, Int T), cálculo sobre G/P acum + interés acum'],
   ['1.14', '28/02/2025', 'Solapa Todas las transacciones (filtros mes y categoría); modal edición completa con todos los campos y combos para normalizados'],
   ['1.15', '28/02/2025', 'Filtro Tipo (Ingreso/Egreso) en solapa Todas las transacciones'],
+  ['1.16', '27/02/2026', 'Proyección 3 meses: config (mediana/promedio, meses historia), ventana rodante; Int. por caución proyectado con punto de partida = último real (G/P+interés) y última tasa en cadena; disclaimer bajo proyección. Despliegue a producción.'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
