@@ -45,6 +45,7 @@ const datosLog = [
   ['27/02/2025', '20:10', 'Comisiones, Total flujo, Errores', 'Comisiones solo categoría Comisiones (no Sueldos). Fila Total en flujo por mes con sumas y ratios. Tabla Errores: quitar columna Editado, scroll horizontal, Descripción alineada a la izquierda.', 'Diagnostico'],
   ['27/02/2025', '20:20', 'Base histórica Excel y versión en sidebar', 'Export Base histórica: columnas id_origen e id_operacion. Versión de la app visible abajo en el sidebar (APP_VERSION). Regla de bitácora: al indicar desplegar, incrementar versión, actualizar bitácora y desplegar.', 'Diagnostico'],
   ['28/02/2025', '09:15', 'Comisiones/Ventas % y modal By Categoría', 'Ratio Comisiones/Ventas % incluye categoría Comisiones y Sueldos con descripción Comisiones Ventas (comision/comisones). Modal By Categoría ya usaba getCategoriaDisplay con la misma regla.', 'Diagnostico'],
+  ['28/02/2025', '09:30', 'Favicon L&P en pestaña del navegador', 'Favicon favicon.svg: círculo azul oscuro (#0d2137), texto L&P en blanco, más grande. Enlace en dashboard para que se vea en la solapa del explorador.', 'Diagnostico'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -133,6 +134,7 @@ const versiones = [
   ['1.9', '27/02/2025', 'Comisiones solo categoría Comisiones; fila Total en flujo por mes; Errores: sin columna Editado, scroll horizontal, Descripción a la izquierda'],
   ['1.10', '27/02/2025', 'Base histórica Excel: id_origen e id_operacion; versión en sidebar; regla de versionado al desplegar'],
   ['1.11', '28/02/2025', 'Comisiones/Ventas %: categoría Comisiones + Sueldos (Comisiones Ventas); misma regla en modal By Categoría'],
+  ['1.12', '28/02/2025', 'Favicon L&P: ícono en pestaña del navegador (fondo azul oscuro, texto blanco)'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
