@@ -47,6 +47,7 @@ const datosLog = [
   ['28/02/2025', '09:15', 'Comisiones/Ventas % y modal By Categoría', 'Ratio Comisiones/Ventas % incluye categoría Comisiones y Sueldos con descripción Comisiones Ventas (comision/comisones). Modal By Categoría ya usaba getCategoriaDisplay con la misma regla.', 'Diagnostico'],
   ['28/02/2025', '09:30', 'Favicon L&P en pestaña del navegador', 'Favicon favicon.svg: círculo azul oscuro (#0d2137), texto L&P en blanco, más grande. Enlace en dashboard para que se vea en la solapa del explorador.', 'Diagnostico'],
   ['27/02/2025', '21:00', 'Int. por caución y marcha de cálculo', 'Columna Int. por caución en flujo por mes: interés por reinvertir sobrante a un día con tasa de Serie_Cauciones. Carga Excel Serie_Cauciones.xlsx al refrescar (o fallback serie_cauciones.json). Modal al clic en valor mensual con marcha: G/P acum, Int T-1, Base, Tasa, Int T. Cálculo sobre G/P acumulado a la fecha + interés acumulado (reinversión día a día). Fechas ISO (2025-08-25T00:00:00) y columna tasa_diaria.', 'Implementacion'],
+  ['28/02/2025', '12:00', 'Solapa Todas las transacciones y edición completa', 'Nueva solapa Todas las transacciones: listado con todas las columnas, filtros por mes y categoría, botón Editar por registro. Modal de edición ampliado: todos los campos editables; combos para valores normalizados (categoría, cuenta contable, tipo movimiento, status, medio pago, moneda, origen archivo). editado y editado_detalle al guardar.', 'Implementacion'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -100,6 +101,8 @@ const funcionalidades = [
   ['Exportaciones Excel', 'Todas las exportaciones incluyen una fila título con la moneda. Exportar Base Histórica (icono Excel) en la línea del selector de moneda; Exportar Evolución a Excel con el mismo icono.'],
   ['Evolución: orden ingreso/egreso', 'En la tabla Evolución las filas se muestran primero las de ingreso (total >= 0) y luego las de egreso (total < 0); dentro de cada grupo orden alfabético. Aplica tanto al agrupar por Categoría como por Cuenta contable.'],
   ['Int. por caución', 'Columna en flujo por mes: interés mensual por colocar el sobrante de caja a la tasa diaria de la serie de cauciones. Carga Serie_Cauciones.xlsx al refrescar (o serie_cauciones.json si no hay Excel). Cálculo: base = G/P acumulado a la fecha + interés acumulado; Int T = base × tasa. Clic en el valor abre modal con marcha (G/P acum, Int T-1, Base, Tasa, Int T).'],
+  ['Todas las transacciones', 'Solapa que lista todas las transacciones con todas las columnas. Filtros por mes y categoría. Botón Editar por registro abre modal de edición completa.'],
+  ['Edición completa de registros', 'Modal de edición con todos los campos: fecha, mes, año, tipo movimiento, monto, moneda, status, medio pago, categoría, cuenta contable, origen archivo, descripción, cliente, cat_desc, id_origen, id_operación. Combos para campos normalizados (valores existentes en BD). editado y editado_detalle al guardar.'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
@@ -138,6 +141,7 @@ const versiones = [
   ['1.11', '28/02/2025', 'Comisiones/Ventas %: categoría Comisiones + Sueldos (Comisiones Ventas); misma regla en modal By Categoría'],
   ['1.12', '28/02/2025', 'Favicon L&P: ícono en pestaña del navegador (fondo azul oscuro, texto blanco)'],
   ['1.13', '27/02/2025', 'Int. por caución: columna en flujo, carga Excel al refrescar, modal marcha de cálculo (G/P acum, Base, Tasa, Int T), cálculo sobre G/P acum + interés acum'],
+  ['1.14', '28/02/2025', 'Solapa Todas las transacciones (filtros mes y categoría); modal edición completa con todos los campos y combos para normalizados'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
@@ -150,6 +154,7 @@ const presupuesto = [
   ['Detección de duplicados y gestión de errores', 'Detección de potencial duplicado (fecha, monto, tipo, cliente, descripción similar), tipo de error (inconsistencia / duplicado), filtro por tipo, modal de comparación con id_origen y Cliente, acciones anular o eliminar registro.', 85000],
   ['Evolución (tabla dinámica)', 'Solapa Evolución: tabla dinámica con filas por Categoría o Cuenta contable y columnas por Período (Diario o Mensual). Neto por celda en moneda seleccionada.', 55000],
   ['Interés por caución', 'Columna Int. por caución en flujo por mes: cálculo de interés mensual por reinversión del sobrante a un día con tasa de serie de cauciones. Carga de Excel al refrescar, modal de marcha de cálculo (G/P acum, Base, Tasa, Int T). Incluye soporte para múltiples formatos de fecha y columna tasa_diaria.', 50000],
+  ['Listado y edición completa de transacciones', 'Solapa Todas las transacciones con listado completo, filtros por mes y categoría, y modal de edición con todos los campos y combos para valores normalizados (categoría, cuenta contable, tipo movimiento, status, medio pago, moneda, origen archivo).', 45000],
   ['Bitácora y documentación', 'Implementación de la bitácora en Excel (Log, Resumen, Versiones, Ref Git y Vercel, Presupuesto) y documentación funcional básica para el uso de la app.', 120000],
   ['Integración y despliegue', 'Configuración de repositorio Git/GitHub, flujo de despliegue a Vercel y ajustes de configuración (vercel.json, conexión con Supabase).', 90000],
   ['Mantenimiento y soporte inicial', 'Soporte post–implementación, pequeños ajustes funcionales y acompañamiento durante el primer período de uso.', 80000],

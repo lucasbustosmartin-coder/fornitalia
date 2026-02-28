@@ -65,6 +65,9 @@
     #tabla-errores-global { min-width: max-content; }
     #tabla-errores-global th:nth-child(11),
     #tabla-errores-global td:nth-child(11) { text-align: left; }
+    #tabla-todas-transacciones { min-width: max-content; }
+    #tabla-todas-transacciones th:nth-child(11),
+    #tabla-todas-transacciones td:nth-child(11) { text-align: left; max-width: 200px; }
     #tabla-evolucion { min-width: 100%; }
     #tabla-evolucion th, #tabla-evolucion td { padding: 0.45rem 0.65rem; white-space: nowrap; }
     #tabla-evolucion th { background: #f2f3f5; font-weight: 600; color: #555; }
@@ -147,8 +150,11 @@
     #modal-duplicado .btn-eliminar-reg:hover { background: #991b1b; }
     #modal-editar-registro .form-group { margin-bottom: 0.75rem; }
     #modal-editar-registro label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; }
-    #modal-editar-registro select, #modal-editar-registro input[type="text"], #modal-editar-registro textarea { width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
+    #modal-editar-registro select, #modal-editar-registro input[type="text"], #modal-editar-registro input[type="number"], #modal-editar-registro input[type="date"], #modal-editar-registro textarea { width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
     #modal-editar-registro .form-actions { margin-top: 1rem; display: flex; gap: 0.5rem; }
+    #modal-editar-registro .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.5rem; }
+    #modal-editar-registro .form-grid .form-group-full { grid-column: 1 / -1; }
+    #modal-editar-registro .modal-body { max-height: 75vh; overflow-y: auto; }
     .alert-icon { color: #b45309; cursor: pointer; font-size: 1.1rem; padding: 0 0.25rem; vertical-align: middle; }
     .alert-icon:hover { opacity: 0.8; }
     .alert-icon-cell { width: 2rem; text-align: center; }
@@ -229,6 +235,7 @@
         <button type="button" class="tab activo" data-panel="flujo">Flujo por mes</button>
         <button type="button" class="tab" data-panel="sin-cotizacion">Sin cotización</button>
         <button type="button" class="tab" data-panel="errores-global">Errores</button>
+        <button type="button" class="tab" data-panel="todas-transacciones">Todas las transacciones</button>
         <button type="button" class="tab" data-panel="evolucion">Evolución</button>
       </div>
     </div>
@@ -299,6 +306,49 @@
         </thead>
         <tbody id="tbody-errores-global"></tbody>
       </table>
+      </div>
+    </div>
+    <div id="panel-todas-transacciones" class="card panel">
+      <div class="errores-panel-toolbar">
+        <p class="sin-cotizacion-note" style="margin:0;">Listado de todas las transacciones. Podés filtrar por mes y categoría, y editar cada registro (categoría, cuenta contable, descripción); al guardar se marca como editado.</p>
+        <div class="errores-filtros">
+          <label for="filtro-todas-mes">Mes:</label>
+          <select id="filtro-todas-mes" title="Filtrar por mes">
+            <option value="todos">Todos</option>
+          </select>
+          <label for="filtro-todas-categoria" style="margin-left:0.75rem;">Categoría:</label>
+          <select id="filtro-todas-categoria" title="Filtrar por categoría">
+            <option value="todos">Todas</option>
+          </select>
+        </div>
+      </div>
+      <div class="errores-table-wrap">
+        <table id="tabla-todas-transacciones">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Mes</th>
+              <th>Año</th>
+              <th>Tipo</th>
+              <th>Monto</th>
+              <th>Moneda</th>
+              <th>Status</th>
+              <th>Medio pago</th>
+              <th>Categoría</th>
+              <th>Cuenta contable</th>
+              <th>Descripción</th>
+              <th>Cliente</th>
+              <th>Cat desc</th>
+              <th>Origen</th>
+              <th>Id origen</th>
+              <th>Id operación</th>
+              <th>Editado</th>
+              <th>Editado detalle</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody-todas-transacciones"></tbody>
+        </table>
       </div>
     </div>
     <div id="panel-evolucion" class="card panel">
@@ -375,27 +425,77 @@
   </div>
 
   <div id="modal-editar-backdrop" class="modal-backdrop oculto">
-    <div class="modal" id="modal-editar-registro">
+    <div class="modal modal-evolucion-detalle-ancho" id="modal-editar-registro">
       <div class="modal-header" id="modal-editar-header-drag">
         <h2 id="modal-editar-titulo">Editar registro</h2>
         <button type="button" class="modal-close" id="modal-editar-close" aria-label="Cerrar">&times;</button>
       </div>
       <div class="modal-body" id="modal-editar-body">
-        <div class="form-group">
-          <label>Fecha</label>
-          <input type="text" id="edit-fecha" readonly disabled style="background:#f0f0f0;">
-        </div>
-        <div class="form-group">
-          <label>Categoría</label>
-          <select id="edit-categoria"></select>
-        </div>
-        <div class="form-group">
-          <label>Cuenta contable</label>
-          <select id="edit-cuenta-contable"></select>
-        </div>
-        <div class="form-group">
-          <label>Descripción</label>
-          <input type="text" id="edit-descripcion" placeholder="Texto libre">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Fecha</label>
+            <input type="date" id="edit-fecha">
+          </div>
+          <div class="form-group">
+            <label>Mes</label>
+            <input type="number" id="edit-mes" min="1" max="12" placeholder="1-12">
+          </div>
+          <div class="form-group">
+            <label>Año</label>
+            <input type="number" id="edit-anio" min="2000" max="2100" placeholder="Ej. 2025">
+          </div>
+          <div class="form-group">
+            <label>Tipo movimiento</label>
+            <select id="edit-tipo-movimiento"></select>
+          </div>
+          <div class="form-group">
+            <label>Monto</label>
+            <input type="number" id="edit-monto" step="0.01" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label>Moneda</label>
+            <select id="edit-moneda"></select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="edit-status"></select>
+          </div>
+          <div class="form-group">
+            <label>Medio de pago</label>
+            <select id="edit-medio-pago"></select>
+          </div>
+          <div class="form-group">
+            <label>Categoría</label>
+            <select id="edit-categoria"></select>
+          </div>
+          <div class="form-group">
+            <label>Cuenta contable</label>
+            <select id="edit-cuenta-contable"></select>
+          </div>
+          <div class="form-group">
+            <label>Origen archivo</label>
+            <select id="edit-origen-archivo"></select>
+          </div>
+          <div class="form-group form-group-full">
+            <label>Descripción</label>
+            <input type="text" id="edit-descripcion" placeholder="Texto libre">
+          </div>
+          <div class="form-group">
+            <label>Cliente</label>
+            <input type="text" id="edit-cliente" placeholder="Cliente">
+          </div>
+          <div class="form-group">
+            <label>Cat desc</label>
+            <input type="text" id="edit-cat-desc" placeholder="Descripción categoría">
+          </div>
+          <div class="form-group">
+            <label>Id origen</label>
+            <input type="text" id="edit-id-origen" placeholder="Id origen">
+          </div>
+          <div class="form-group">
+            <label>Id operación</label>
+            <input type="text" id="edit-id-operacion" placeholder="Id operación">
+          </div>
         </div>
         <div class="form-actions">
           <button type="button" id="edit-guardar">Guardar</button>
@@ -490,7 +590,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.13';
+    const APP_VERSION = '1.14';
 
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -1737,6 +1837,86 @@
     let currentErroresAnio = null;
     let currentErroresMes = null;
 
+    let currentTodasTransaccionesList = [];
+
+    function renderTodasTransacciones() {
+      const tbody = document.getElementById('tbody-todas-transacciones');
+      const selMes = document.getElementById('filtro-todas-mes');
+      const selCat = document.getElementById('filtro-todas-categoria');
+      if (!tbody || !selMes || !selCat) return;
+      const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
+      if (cacheTransacciones.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color:#666;">No hay transacciones cargadas.</td></tr>';
+        return;
+      }
+      if (selMes.options.length <= 1) {
+        const meses = [...new Set(cacheTransacciones.map(r => r.anio + '-' + String(r.mes).padStart(2, '0')))].sort();
+        selMes.innerHTML = '<option value="todos">Todos</option>' + meses.map(k => {
+          const [anio, mes] = [k.slice(0, 4), k.slice(5)];
+          return '<option value="' + esc(k) + '">' + formatoMesAnio(parseInt(mes, 10), parseInt(anio, 10)) + '</option>';
+        }).join('');
+      }
+      if (selCat.options.length <= 1) {
+        const categorias = [...new Set(cacheTransacciones.map(r => (r.categoria || '').trim() || 'Sin categoría'))].sort();
+        selCat.innerHTML = '<option value="todos">Todas</option>' + categorias.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('');
+      }
+      const valorMes = selMes.value;
+      const valorCat = selCat.value;
+      let list = cacheTransacciones;
+      if (valorMes !== 'todos') {
+        const [anio, mes] = valorMes.split('-').map(Number);
+        list = list.filter(r => r.anio === anio && r.mes === mes);
+      }
+      if (valorCat !== 'todos') {
+        const catNorm = valorCat === 'Sin categoría' ? '' : valorCat;
+        list = list.filter(r => ((r.categoria || '').trim() || 'Sin categoría') === valorCat);
+      }
+      currentTodasTransaccionesList = list;
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color:#666;">No hay registros con los filtros seleccionados.</td></tr>';
+        return;
+      }
+      const rows = list.map(r => {
+        const id = (r.id || '').toString().replace(/"/g, '&quot;');
+        const regIsUSD = esTransaccionUSD(r);
+        const monedaReg = regIsUSD ? 'USD' : 'ARS';
+        const simboloReg = regIsUSD ? 'US$ ' : '$ ';
+        const montoVal = r.monto != null ? (simboloReg + formatearNumero(Number(r.monto), monedaReg)) : '–';
+        return `
+          <tr>
+            <td>${esc(fechaStr(r.fecha))}</td>
+            <td>${esc(r.mes)}</td>
+            <td>${esc(r.anio)}</td>
+            <td>${esc(r.tipo_movimiento || '')}</td>
+            <td>${esc(montoVal)}</td>
+            <td>${esc(monedaReg)}</td>
+            <td>${esc(r.status || '')}</td>
+            <td>${esc(r.medio_pago || '')}</td>
+            <td>${esc((r.categoria || '').trim() || '')}</td>
+            <td>${esc(r.cuenta_contable || '')}</td>
+            <td>${esc((r.descripcion || '').slice(0, 120))}</td>
+            <td>${esc(r.cliente || '')}</td>
+            <td>${esc((r.cat_desc || '').slice(0, 80))}</td>
+            <td>${esc((r.origen_archivo || '').trim() || '')}</td>
+            <td>${esc(r.id_origen != null ? r.id_origen : '')}</td>
+            <td>${esc(r.id_operacion != null ? r.id_operacion : '')}</td>
+            <td>${r.editado ? 'Sí' : '—'}</td>
+            <td>${esc((r.editado_detalle || '').toString().slice(0, 60))}</td>
+            <td><button type="button" class="edit-btn edit-btn-todas" data-id="${id}" title="Editar registro" aria-label="Editar registro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+          </tr>
+        `;
+      }).join('');
+      tbody.innerHTML = rows;
+      tbody.querySelectorAll('.edit-btn-todas').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-id');
+          const record = currentTodasTransaccionesList.find(x => (x.id || '').toString() === id);
+          if (record) abrirModalEditar(record);
+        });
+      });
+    }
+
     function abrirModalErrores(labelMes, errores, anio, mes) {
       const backdrop = document.getElementById('modal-errores-backdrop');
       const body = document.getElementById('modal-errores-body');
@@ -1812,47 +1992,111 @@
       backdrop.classList.remove('oculto');
     }
 
+    function optionize(list, emptyLabel) {
+      const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+      return (emptyLabel ? '<option value="">' + esc(emptyLabel) + '</option>' : '') + list.map(v => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join('');
+    }
+
     function abrirModalEditar(record) {
       const backdrop = document.getElementById('modal-editar-backdrop');
       const titulo = document.getElementById('modal-editar-titulo');
-      const editFecha = document.getElementById('edit-fecha');
-      const editCategoria = document.getElementById('edit-categoria');
-      const editCuenta = document.getElementById('edit-cuenta-contable');
-      const editDescripcion = document.getElementById('edit-descripcion');
-      if (!backdrop || !editCategoria || !editCuenta || !editDescripcion) return;
+      if (!backdrop) return;
+      const get = (id) => document.getElementById(id);
+      const editFecha = get('edit-fecha');
+      const editMes = get('edit-mes');
+      const editAnio = get('edit-anio');
+      const editTipoMov = get('edit-tipo-movimiento');
+      const editMonto = get('edit-monto');
+      const editMoneda = get('edit-moneda');
+      const editStatus = get('edit-status');
+      const editMedioPago = get('edit-medio-pago');
+      const editCategoria = get('edit-categoria');
+      const editCuenta = get('edit-cuenta-contable');
+      const editOrigen = get('edit-origen-archivo');
+      const editDescripcion = get('edit-descripcion');
+      const editCliente = get('edit-cliente');
+      const editCatDesc = get('edit-cat-desc');
+      const editIdOrigen = get('edit-id-origen');
+      const editIdOperacion = get('edit-id-operacion');
+      if (!editCategoria || !editCuenta || !editDescripcion) return;
+
       titulo.textContent = 'Editar registro — ' + (fechaStr(record.fecha) || '');
+
       editFecha.value = fechaStr(record.fecha) || '';
+      editMes.value = record.mes != null ? String(record.mes) : '';
+      editAnio.value = record.anio != null ? String(record.anio) : '';
+      editMonto.value = record.monto != null ? String(record.monto) : '';
       editDescripcion.value = (record.descripcion || '').toString();
+      editCliente.value = (record.cliente || '').toString();
+      editCatDesc.value = (record.cat_desc || '').toString();
+      editIdOrigen.value = (record.id_origen != null ? String(record.id_origen) : '');
+      editIdOperacion.value = (record.id_operacion != null ? String(record.id_operacion) : '');
 
       const categoriasUnicas = [...new Set(cacheTransacciones.map(r => (r.categoria || '').trim()).filter(Boolean))].sort();
       const cuentasUnicas = [...new Set(cacheTransacciones.map(r => (r.cuenta_contable || '').trim()).filter(Boolean))].sort();
-      editCategoria.innerHTML = '<option value="">—</option>' + categoriasUnicas.map(c => '<option value="' + (c.replace(/"/g, '&quot;')) + '">' + (c.replace(/</g, '&lt;')) + '</option>').join('');
-      editCuenta.innerHTML = '<option value="">—</option>' + cuentasUnicas.map(c => '<option value="' + (c.replace(/"/g, '&quot;')) + '">' + (c.replace(/</g, '&lt;')) + '</option>').join('');
+      const tiposMov = [...new Set(cacheTransacciones.map(r => (r.tipo_movimiento || '').trim()).filter(Boolean))].sort();
+      const statusUnicos = [...new Set(cacheTransacciones.map(r => (r.status || '').trim()).filter(Boolean))].sort();
+      const mediosPago = [...new Set(cacheTransacciones.map(r => (r.medio_pago || '').trim()).filter(Boolean))].sort();
+      const origenesUnicos = [...new Set(cacheTransacciones.map(r => (r.origen_archivo || '').trim()).filter(Boolean))].sort();
+
+      editCategoria.innerHTML = optionize(categoriasUnicas, '—');
+      editCuenta.innerHTML = optionize(cuentasUnicas, '—');
+      editTipoMov.innerHTML = optionize(tiposMov.length ? tiposMov : ['Ingreso', 'Egreso'], '—');
+      editStatus.innerHTML = optionize(statusUnicos.length ? statusUnicos : ['Activo', 'Anulado'], '—');
+      editMedioPago.innerHTML = optionize(mediosPago, '—');
+      editMoneda.innerHTML = '<option value="">—</option><option value="ARS">ARS</option><option value="USD">USD</option>';
+      editOrigen.innerHTML = optionize(origenesUnicos, '—');
+
       editCategoria.value = (record.categoria || '').trim();
       editCuenta.value = (record.cuenta_contable || '').trim();
+      editTipoMov.value = (record.tipo_movimiento || '').trim();
+      editStatus.value = (record.status || '').trim();
+      editMedioPago.value = (record.medio_pago || '').trim();
+      editMoneda.value = (record.moneda || '').trim().toUpperCase() || '';
+      editOrigen.value = (record.origen_archivo || '').trim();
 
-      const guardarBtn = document.getElementById('edit-guardar');
-      const cancelarBtn = document.getElementById('edit-cancelar');
+      const guardarBtn = get('edit-guardar');
+      const cancelarBtn = get('edit-cancelar');
       const oneGuardar = async () => {
-        const nuevaCat = (editCategoria.value || '').trim();
-        const nuevaCuenta = (editCuenta.value || '').trim();
-        const nuevaDesc = (editDescripcion.value || '').trim();
+        const v = (el) => (el && el.value != null ? el.value.trim() : '');
+        const n = (el) => { const x = el && el.value !== '' ? Number(el.value) : null; return el && el.value !== '' && !isNaN(x) ? x : null; };
+        const fechaVal = v(editFecha);
+        const mesVal = n(editMes);
+        const anioVal = n(editAnio);
+        const montoVal = n(editMonto);
+        const payload = {};
         const partes = [];
-        if (nuevaCat !== (record.categoria || '').trim()) partes.push('Categoria');
-        if (nuevaDesc !== (record.descripcion || '').toString().trim()) partes.push('Descripcion');
-        if (nuevaCuenta !== (record.cuenta_contable || '').trim()) partes.push('Cuenta Contable');
+
+        if (fechaVal && fechaVal !== fechaStr(record.fecha)) { payload.fecha = fechaVal; partes.push('Fecha'); }
+        if (mesVal != null && mesVal !== (record.mes != null ? Number(record.mes) : null)) { payload.mes = mesVal; partes.push('Mes'); }
+        if (anioVal != null && anioVal !== (record.anio != null ? Number(record.anio) : null)) { payload.anio = anioVal; partes.push('Año'); }
+        if (v(editTipoMov) !== (record.tipo_movimiento || '').trim()) { payload.tipo_movimiento = v(editTipoMov) || null; partes.push('Tipo movimiento'); }
+        if (montoVal != null && montoVal !== (record.monto != null ? Number(record.monto) : null)) { payload.monto = montoVal; partes.push('Monto'); }
+        if (v(editMoneda) !== (record.moneda || '').trim().toUpperCase()) { payload.moneda = v(editMoneda) || null; partes.push('Moneda'); }
+        if (v(editStatus) !== (record.status || '').trim()) { payload.status = v(editStatus) || null; partes.push('Status'); }
+        if (v(editMedioPago) !== (record.medio_pago || '').trim()) { payload.medio_pago = v(editMedioPago) || null; partes.push('Medio pago'); }
+        if (v(editCategoria) !== (record.categoria || '').trim()) { payload.categoria = v(editCategoria) || null; partes.push('Categoria'); }
+        if (v(editCuenta) !== (record.cuenta_contable || '').trim()) { payload.cuenta_contable = v(editCuenta) || null; partes.push('Cuenta contable'); }
+        if (v(editOrigen) !== (record.origen_archivo || '').trim()) { payload.origen_archivo = v(editOrigen) || null; partes.push('Origen archivo'); }
+        if (v(editDescripcion) !== (record.descripcion || '').toString().trim()) { payload.descripcion = v(editDescripcion) || null; partes.push('Descripcion'); }
+        if (v(editCliente) !== (record.cliente || '').toString().trim()) { payload.cliente = v(editCliente) || null; partes.push('Cliente'); }
+        if (v(editCatDesc) !== (record.cat_desc || '').toString().trim()) { payload.cat_desc = v(editCatDesc) || null; partes.push('Cat desc'); }
+        if (v(editIdOrigen) !== (record.id_origen != null ? String(record.id_origen) : '')) { payload.id_origen = v(editIdOrigen) || null; partes.push('Id origen'); }
+        if (v(editIdOperacion) !== (record.id_operacion != null ? String(record.id_operacion) : '')) { payload.id_operacion = v(editIdOperacion) || null; partes.push('Id operación'); }
+
         if (partes.length === 0) {
-          document.getElementById('modal-editar-backdrop').classList.add('oculto');
+          backdrop.classList.add('oculto');
           return;
         }
-        const editadoDetalle = partes.join(', ');
-        const payload = { categoria: nuevaCat || null, cuenta_contable: nuevaCuenta || null, descripcion: nuevaDesc || null, editado: true, editado_detalle: editadoDetalle };
+        payload.editado = true;
+        payload.editado_detalle = partes.join(', ');
         const { error } = await client.from('transacciones').update(payload).eq('id', record.id);
         if (error) { alert('Error al guardar: ' + (error.message || 'Unknown')); return; }
-        document.getElementById('modal-editar-backdrop').classList.add('oculto');
+        backdrop.classList.add('oculto');
         await cargarDatos();
         recalcular();
         renderErroresGlobal();
+        renderTodasTransacciones();
         if (currentErroresAnio != null && currentErroresMes != null) {
           const nuevosErrores = getErroresDelMes(currentErroresAnio, currentErroresMes);
           abrirModalErrores(currentErroresLabel, nuevosErrores, currentErroresAnio, currentErroresMes);
@@ -1860,8 +2104,8 @@
       };
       guardarBtn.replaceWith(guardarBtn.cloneNode(true));
       cancelarBtn.replaceWith(cancelarBtn.cloneNode(true));
-      document.getElementById('edit-guardar').addEventListener('click', oneGuardar);
-      document.getElementById('edit-cancelar').addEventListener('click', () => document.getElementById('modal-editar-backdrop').classList.add('oculto'));
+      get('edit-guardar').addEventListener('click', oneGuardar);
+      get('edit-cancelar').addEventListener('click', () => backdrop.classList.add('oculto'));
       backdrop.classList.remove('oculto');
     }
 
@@ -2056,8 +2300,11 @@
             const id = btn.getAttribute('data-panel');
             if (id) document.getElementById('panel-' + id).classList.add('activo');
             if (id === 'evolucion') renderEvolucion();
+            if (id === 'todas-transacciones') renderTodasTransacciones();
           });
         });
+        document.getElementById('filtro-todas-mes').addEventListener('change', renderTodasTransacciones);
+        document.getElementById('filtro-todas-categoria').addEventListener('change', renderTodasTransacciones);
         document.getElementById('evolucion-agrupar').addEventListener('change', renderEvolucion);
         document.getElementById('evolucion-periodo').addEventListener('change', renderEvolucion);
         document.getElementById('btn-exportar-evolucion').addEventListener('click', exportarEvolucionExcel);
