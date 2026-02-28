@@ -24,6 +24,9 @@
     .sidebar-nav .menu-item .menu-icon { width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
     .sidebar-nav .menu-item .menu-label { white-space: nowrap; opacity: 0; width: 0; overflow: hidden; transition: opacity 0.2s, width 0.2s; }
     .sidebar.expanded .sidebar-nav .menu-item .menu-label { opacity: 1; width: auto; }
+    .sidebar-version { margin-top: auto; padding: 0.75rem 1rem; font-size: 0.75rem; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+    .sidebar.expanded .sidebar-version { opacity: 1; }
+    .sidebar:not(.expanded) .sidebar-version { text-align: center; padding: 0.5rem 0; }
     .main-content { flex: 1; padding: 1.5rem; overflow-x: auto; }
     h1 { margin-top: 0; color: #1a1a1a; }
     .card { background: #fff; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
@@ -181,6 +184,7 @@
         <span class="menu-label">Home</span>
       </a>
     </nav>
+    <div class="sidebar-version" id="sidebar-version" aria-label="Versión"></div>
   </aside>
   <main id="main-content" class="main-content">
   <h1>Flujo de caja</h1>
@@ -455,6 +459,9 @@
     }
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    /** Versión de la app: actualizar al desplegar cuando lo indiques */
+    const APP_VERSION = '1.10';
+
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
     function formatoMesAnio(mes, anio) {
@@ -614,7 +621,7 @@
     }
 
     async function cargarDatos() {
-      const txPromise = client.from('transacciones').select('id, id_origen, fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, editado, editado_detalle').neq('status', 'Anulado');
+      const txPromise = client.from('transacciones').select('id, id_origen, id_operacion, fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, editado, editado_detalle').neq('status', 'Anulado');
       const tcPromise = client.from('tipo_de_cambio').select('fecha, usd_mep, usd_ccl, usd_oficial');
       const [txRes, tcRes] = await withTimeout(
         Promise.all([txPromise, tcPromise]),
@@ -988,11 +995,13 @@
         if (!cacheTransacciones.length) alert('No hay transacciones cargadas para exportar.');
         return;
       }
-      const headers = ['fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'editado', 'editado_detalle'];
+      const headers = ['id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'editado', 'editado_detalle'];
       const rows = [['Exportado: Base histórica. Moneda de cada monto: ver columna "moneda" (ARS o USD).'], headers];
       cacheTransacciones.forEach(r => {
         const montoNum = (r.monto != null && r.monto !== '') ? Number(r.monto) : '';
         rows.push([
+          (r.id_origen != null && r.id_origen !== '') ? String(r.id_origen) : '',
+          (r.id_operacion != null && r.id_operacion !== '') ? String(r.id_operacion) : '',
           r.fecha != null ? r.fecha : '',
           r.mes != null ? r.mes : '',
           r.anio != null ? r.anio : '',
@@ -1012,7 +1021,7 @@
         ]);
       });
       const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{ wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }, { wch: 6 }, { wch: 32 }];
+      ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }, { wch: 6 }, { wch: 32 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Transacciones');
       const hoy = new Date();
@@ -1728,6 +1737,8 @@
         if (!loading || !errorEl) return;
         const sidebar = document.getElementById('sidebar');
         const sidebarToggle = document.getElementById('sidebar-toggle');
+        const versionEl = document.getElementById('sidebar-version');
+        if (versionEl && typeof APP_VERSION !== 'undefined') versionEl.textContent = 'v' + APP_VERSION;
         if (sidebar && sidebarToggle) {
           const saved = localStorage.getItem('fornitalia-sidebar-expanded');
           if (saved === '1') sidebar.classList.add('expanded');
