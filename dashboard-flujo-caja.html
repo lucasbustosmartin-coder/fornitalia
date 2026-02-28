@@ -320,6 +320,10 @@
           <select id="filtro-todas-categoria" title="Filtrar por categoría">
             <option value="todos">Todas</option>
           </select>
+          <label for="filtro-todas-tipo" style="margin-left:0.75rem;">Tipo:</label>
+          <select id="filtro-todas-tipo" title="Filtrar por tipo (Ingreso/Egreso)">
+            <option value="todos">Todos</option>
+          </select>
         </div>
       </div>
       <div class="errores-table-wrap">
@@ -590,7 +594,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.14';
+    const APP_VERSION = '1.15';
 
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -1843,7 +1847,8 @@
       const tbody = document.getElementById('tbody-todas-transacciones');
       const selMes = document.getElementById('filtro-todas-mes');
       const selCat = document.getElementById('filtro-todas-categoria');
-      if (!tbody || !selMes || !selCat) return;
+      const selTipo = document.getElementById('filtro-todas-tipo');
+      if (!tbody || !selMes || !selCat || !selTipo) return;
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       if (cacheTransacciones.length === 0) {
         tbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color:#666;">No hay transacciones cargadas.</td></tr>';
@@ -1860,16 +1865,23 @@
         const categorias = [...new Set(cacheTransacciones.map(r => (r.categoria || '').trim() || 'Sin categoría'))].sort();
         selCat.innerHTML = '<option value="todos">Todas</option>' + categorias.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('');
       }
+      if (selTipo.options.length <= 1) {
+        const tipos = [...new Set(cacheTransacciones.map(r => (r.tipo_movimiento || '').trim()).filter(Boolean))].sort();
+        selTipo.innerHTML = '<option value="todos">Todos</option>' + tipos.map(t => '<option value="' + esc(t) + '">' + esc(t) + '</option>').join('');
+      }
       const valorMes = selMes.value;
       const valorCat = selCat.value;
+      const valorTipo = selTipo.value;
       let list = cacheTransacciones;
       if (valorMes !== 'todos') {
         const [anio, mes] = valorMes.split('-').map(Number);
         list = list.filter(r => r.anio === anio && r.mes === mes);
       }
       if (valorCat !== 'todos') {
-        const catNorm = valorCat === 'Sin categoría' ? '' : valorCat;
         list = list.filter(r => ((r.categoria || '').trim() || 'Sin categoría') === valorCat);
+      }
+      if (valorTipo !== 'todos') {
+        list = list.filter(r => (r.tipo_movimiento || '').trim() === valorTipo);
       }
       currentTodasTransaccionesList = list;
       if (!list.length) {
@@ -2305,6 +2317,7 @@
         });
         document.getElementById('filtro-todas-mes').addEventListener('change', renderTodasTransacciones);
         document.getElementById('filtro-todas-categoria').addEventListener('change', renderTodasTransacciones);
+        document.getElementById('filtro-todas-tipo').addEventListener('change', renderTodasTransacciones);
         document.getElementById('evolucion-agrupar').addEventListener('change', renderEvolucion);
         document.getElementById('evolucion-periodo').addEventListener('change', renderEvolucion);
         document.getElementById('btn-exportar-evolucion').addEventListener('click', exportarEvolucionExcel);

@@ -48,6 +48,7 @@ const datosLog = [
   ['28/02/2025', '09:30', 'Favicon L&P en pestaña del navegador', 'Favicon favicon.svg: círculo azul oscuro (#0d2137), texto L&P en blanco, más grande. Enlace en dashboard para que se vea en la solapa del explorador.', 'Diagnostico'],
   ['27/02/2025', '21:00', 'Int. por caución y marcha de cálculo', 'Columna Int. por caución en flujo por mes: interés por reinvertir sobrante a un día con tasa de Serie_Cauciones. Carga Excel Serie_Cauciones.xlsx al refrescar (o fallback serie_cauciones.json). Modal al clic en valor mensual con marcha: G/P acum, Int T-1, Base, Tasa, Int T. Cálculo sobre G/P acumulado a la fecha + interés acumulado (reinversión día a día). Fechas ISO (2025-08-25T00:00:00) y columna tasa_diaria.', 'Implementacion'],
   ['28/02/2025', '12:00', 'Solapa Todas las transacciones y edición completa', 'Nueva solapa Todas las transacciones: listado con todas las columnas, filtros por mes y categoría, botón Editar por registro. Modal de edición ampliado: todos los campos editables; combos para valores normalizados (categoría, cuenta contable, tipo movimiento, status, medio pago, moneda, origen archivo). editado y editado_detalle al guardar.', 'Implementacion'],
+  ['28/02/2025', '12:15', 'Filtro Tipo en Todas las transacciones', 'Agregar filtro por campo Tipo (Ingreso/Egreso) en la solapa Todas las transacciones. Combina con filtros Mes y Categoría.', 'Implementacion'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -142,6 +143,7 @@ const versiones = [
   ['1.12', '28/02/2025', 'Favicon L&P: ícono en pestaña del navegador (fondo azul oscuro, texto blanco)'],
   ['1.13', '27/02/2025', 'Int. por caución: columna en flujo, carga Excel al refrescar, modal marcha de cálculo (G/P acum, Base, Tasa, Int T), cálculo sobre G/P acum + interés acum'],
   ['1.14', '28/02/2025', 'Solapa Todas las transacciones (filtros mes y categoría); modal edición completa con todos los campos y combos para normalizados'],
+  ['1.15', '28/02/2025', 'Filtro Tipo (Ingreso/Egreso) en solapa Todas las transacciones'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
