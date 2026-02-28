@@ -46,6 +46,7 @@ const datosLog = [
   ['27/02/2025', '20:20', 'Base histórica Excel y versión en sidebar', 'Export Base histórica: columnas id_origen e id_operacion. Versión de la app visible abajo en el sidebar (APP_VERSION). Regla de bitácora: al indicar desplegar, incrementar versión, actualizar bitácora y desplegar.', 'Diagnostico'],
   ['28/02/2025', '09:15', 'Comisiones/Ventas % y modal By Categoría', 'Ratio Comisiones/Ventas % incluye categoría Comisiones y Sueldos con descripción Comisiones Ventas (comision/comisones). Modal By Categoría ya usaba getCategoriaDisplay con la misma regla.', 'Diagnostico'],
   ['28/02/2025', '09:30', 'Favicon L&P en pestaña del navegador', 'Favicon favicon.svg: círculo azul oscuro (#0d2137), texto L&P en blanco, más grande. Enlace en dashboard para que se vea en la solapa del explorador.', 'Diagnostico'],
+  ['27/02/2025', '21:00', 'Int. por caución y marcha de cálculo', 'Columna Int. por caución en flujo por mes: interés por reinvertir sobrante a un día con tasa de Serie_Cauciones. Carga Excel Serie_Cauciones.xlsx al refrescar (o fallback serie_cauciones.json). Modal al clic en valor mensual con marcha: G/P acum, Int T-1, Base, Tasa, Int T. Cálculo sobre G/P acumulado a la fecha + interés acumulado (reinversión día a día). Fechas ISO (2025-08-25T00:00:00) y columna tasa_diaria.', 'Implementacion'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -98,6 +99,7 @@ const funcionalidades = [
   ['Evolución: detalle al clic y exportar', 'Clic en un valor de la tabla Evolución abre modal con detalle: Fecha, Categoría, Descripción, Monto. Exportar Evolución a Excel exporta la tabla según filtros Agrupar por y Período.'],
   ['Exportaciones Excel', 'Todas las exportaciones incluyen una fila título con la moneda. Exportar Base Histórica (icono Excel) en la línea del selector de moneda; Exportar Evolución a Excel con el mismo icono.'],
   ['Evolución: orden ingreso/egreso', 'En la tabla Evolución las filas se muestran primero las de ingreso (total >= 0) y luego las de egreso (total < 0); dentro de cada grupo orden alfabético. Aplica tanto al agrupar por Categoría como por Cuenta contable.'],
+  ['Int. por caución', 'Columna en flujo por mes: interés mensual por colocar el sobrante de caja a la tasa diaria de la serie de cauciones. Carga Serie_Cauciones.xlsx al refrescar (o serie_cauciones.json si no hay Excel). Cálculo: base = G/P acumulado a la fecha + interés acumulado; Int T = base × tasa. Clic en el valor abre modal con marcha (G/P acum, Int T-1, Base, Tasa, Int T).'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
@@ -135,6 +137,7 @@ const versiones = [
   ['1.10', '27/02/2025', 'Base histórica Excel: id_origen e id_operacion; versión en sidebar; regla de versionado al desplegar'],
   ['1.11', '28/02/2025', 'Comisiones/Ventas %: categoría Comisiones + Sueldos (Comisiones Ventas); misma regla en modal By Categoría'],
   ['1.12', '28/02/2025', 'Favicon L&P: ícono en pestaña del navegador (fondo azul oscuro, texto blanco)'],
+  ['1.13', '27/02/2025', 'Int. por caución: columna en flujo, carga Excel al refrescar, modal marcha de cálculo (G/P acum, Base, Tasa, Int T), cálculo sobre G/P acum + interés acum'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];

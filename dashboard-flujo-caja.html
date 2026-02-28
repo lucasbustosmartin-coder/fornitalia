@@ -71,11 +71,16 @@
     #tabla-evolucion td.num-evolucion { text-align: right; white-space: nowrap; }
     #tabla-evolucion td.num-evolucion.evolucion-clickable { cursor: pointer; }
     #tabla-evolucion td.num-evolucion.evolucion-clickable:hover { text-decoration: underline; }
+    .int-caucion-cell { cursor: pointer; }
+    .int-caucion-cell:hover { text-decoration: underline; }
     tr.fila-mes { cursor: pointer; }
     tr.fila-mes:hover { background: #f8f8f8; }
     #panel-flujo tfoot td { font-weight: 600; border-top: 2px solid #333; padding: 0.5rem 0.65rem; background: #f5f5f5; }
     #panel-flujo tfoot td:first-child { text-align: left; }
     #panel-flujo tfoot td:not(:first-child):not(.alert-icon-cell) { text-align: right; }
+    .th-int-caucion { color: #b91c1c; font-weight: 600; }
+    .icon-int-caucion { display: inline-block; margin-right: 0.2em; font-size: 0.95em; font-weight: 700; }
+    .icon-int-caucion::before { content: '%'; color: #b91c1c; }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
     .modal-backdrop.oculto { display: none; }
     .modal { background: #fff; border-radius: 12px; max-width: 640px; width: 100%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
@@ -237,6 +242,7 @@
             <th>G/P</th>
             <th>Comisiones/Ventas %</th>
             <th>Egr s/com. / Ingresos</th>
+            <th class="th-int-caucion" title="Interés acumulado por mes colocando el sobrante de caja a la tasa de la serie de cauciones"><span class="icon-int-caucion" aria-hidden="true"></span> Int. por caución</th>
             <th class="alert-icon-cell"></th>
           </tr>
         </thead>
@@ -450,6 +456,30 @@
     </div>
   </div>
 
+  <div id="modal-int-caucion-backdrop" class="modal-backdrop oculto">
+    <div class="modal modal-evolucion-detalle-ancho" id="modal-int-caucion">
+      <div class="modal-header" id="modal-int-caucion-header-drag">
+        <h2 id="modal-int-caucion-titulo">Marcha de cálculo — Int. por caución</h2>
+        <button type="button" class="modal-close" id="modal-int-caucion-close" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-int-caucion-body">
+        <table class="detalle-tabla" id="tabla-int-caucion">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>G/P acum</th>
+              <th>Int T-1</th>
+              <th>Base</th>
+              <th>Tasa</th>
+              <th>Int T</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-int-caucion"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = 'https://moeqgzezdraknwmheheu.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZXFnemV6ZHJha253bWhlaGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNTY2MDgsImV4cCI6MjA3MDkzMjYwOH0.ZHIJjZv7izlaegfeypj8s6jNb0ls-LTrt914qhgO_uA';
@@ -460,7 +490,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.12';
+    const APP_VERSION = '1.13';
 
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -598,6 +628,20 @@
     let cacheTransacciones = [];
     let cacheTC = {};
     let fechasConTasa = { mep: [], ccl: [], oficial: [] };
+    let cacheSerieCauciones = {};
+    let fechasCaucionOrdenadas = [];
+    let detalleIntCaucionPorMes = {};
+    let flujoMoneda = 'ARS';
+    let flujoSimbolo = '$ ';
+
+    function getTasaCaucion(fecha) {
+      if (!fecha || fechasCaucionOrdenadas.length === 0) return 0;
+      const idx = fechasCaucionOrdenadas.findIndex(d => d > fecha);
+      const i = idx === -1 ? fechasCaucionOrdenadas.length - 1 : (idx === 0 ? -1 : idx - 1);
+      if (i < 0) return 0;
+      const t = cacheSerieCauciones[fechasCaucionOrdenadas[i]];
+      return typeof t === 'number' && t >= 0 ? t : 0;
+    }
 
     function getTasaAnterior(fecha, rateKey) {
       if (!fecha || !rateKey) return null;
@@ -642,6 +686,106 @@
       ['mep','ccl','oficial'].forEach(rateKey => {
         fechasConTasa[rateKey] = Object.keys(map).filter(d => map[d][rateKey] != null && map[d][rateKey] > 0).sort();
       });
+      try {
+        const excelRes = await fetch('Serie_Cauciones.xlsx');
+        if (excelRes.ok && typeof XLSX !== 'undefined') {
+          const ab = await excelRes.arrayBuffer();
+          const wb = XLSX.read(ab, { type: 'array', cellDates: true });
+          const sheetName = wb.SheetNames[0];
+          if (sheetName) {
+            const data = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { raw: false, defval: '' });
+            const tasas = {};
+            function findColKey(row, keys, patterns) {
+              const keyList = keys || (data[0] ? Object.keys(data[0]) : []);
+              for (const p of patterns) {
+                const k = keyList.find(key => key != null && String(key).trim().toLowerCase().replace(/\s+/g, ' ').includes(p));
+                if (k) return k;
+              }
+              return keyList[0];
+            }
+            const headers = data[0] ? Object.keys(data[0]) : [];
+            const colFecha = findColKey(null, headers, ['fecha', 'date', 'dia', 'día']);
+            const colTasa = findColKey(null, headers, ['tasa_diaria', 'tasa', 'rate', 'diaria']);
+            function excelSerialToYYYYMMDD(serial) {
+              if (serial == null || typeof serial !== 'number' || isNaN(serial)) return null;
+              if (XLSX.SSF && typeof XLSX.SSF.parse_date_code === 'function') {
+                const date = XLSX.SSF.parse_date_code(serial);
+                if (date && date.y != null && date.m != null && date.d != null) {
+                  return date.y + '-' + String(date.m).padStart(2, '0') + '-' + String(date.d).padStart(2, '0');
+                }
+              }
+              const utc = (serial - 25569) * 86400 * 1000;
+              const d = new Date(utc);
+              if (isNaN(d.getTime())) return null;
+              const y = d.getUTCFullYear();
+              const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+              const day = String(d.getUTCDate()).padStart(2, '0');
+              return y + '-' + m + '-' + day;
+            }
+            function parseFechaToYYYYMMDD(val) {
+              if (val == null || val === '') return null;
+              if (typeof val === 'number' && !isNaN(val)) return excelSerialToYYYYMMDD(val);
+              if (val instanceof Date && !isNaN(val.getTime())) {
+                const y = val.getFullYear();
+                const m = String(val.getMonth() + 1).padStart(2, '0');
+                const d = String(val.getDate()).padStart(2, '0');
+                return y + '-' + m + '-' + d;
+              }
+              const s = String(val).trim();
+              if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+              if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s.slice(0, 10);
+              const ddmmyy = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+              if (ddmmyy) {
+                const d = parseInt(ddmmyy[1], 10);
+                const m = parseInt(ddmmyy[2], 10);
+                let y = parseInt(ddmmyy[3], 10);
+                if (y < 100) y += y < 50 ? 2000 : 1900;
+                if (d >= 1 && d <= 31 && m >= 1 && m <= 12) {
+                  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+                }
+              }
+              const ymd = s.match(/^(\d{2,4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
+              if (ymd) {
+                const a = parseInt(ymd[1], 10);
+                const b = parseInt(ymd[2], 10);
+                const c = parseInt(ymd[3], 10);
+                let y, m, d;
+                if (a > 31) {
+                  y = a; m = b; d = c;
+                } else if (c > 31) {
+                  d = a; m = b; y = a > 31 ? a : (a < 50 ? 2000 + a : 1900 + a);
+                } else {
+                  d = a; m = b; y = c < 100 ? (c < 50 ? 2000 + c : 1900 + c) : c;
+                }
+                if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1900) {
+                  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+                }
+              }
+              return null;
+            }
+            data.forEach(row => {
+              const f = colFecha != null ? row[colFecha] : row.Fecha;
+              const fechaStrVal = parseFechaToYYYYMMDD(f);
+              const rawTasa = colTasa != null ? row[colTasa] : row.Tasa_Diaria;
+              const tasa = rawTasa != null && rawTasa !== '' && rawTasa !== '-'
+                ? Number(String(rawTasa).replace(',', '.'))
+                : NaN;
+              if (fechaStrVal && typeof tasa === 'number' && !isNaN(tasa) && tasa >= 0) {
+                tasas[fechaStrVal] = tasa;
+              }
+            });
+            cacheSerieCauciones = tasas;
+            fechasCaucionOrdenadas = Object.keys(tasas).sort();
+          }
+        } else {
+          const r = await fetch('serie_cauciones.json');
+          if (r.ok) {
+            const j = await r.json();
+            cacheSerieCauciones = j.tasas || {};
+            fechasCaucionOrdenadas = Object.keys(cacheSerieCauciones).sort();
+          }
+        }
+      } catch (e) { /* serie cauciones opcional: Excel o JSON */ }
       return { transacciones: cacheTransacciones, tcMap: cacheTC };
     }
 
@@ -700,6 +844,37 @@
         }
       });
 
+      Object.keys(porMes).forEach(k => { porMes[k].intCaucion = 0; });
+      detalleIntCaucionPorMes = {};
+      Object.keys(porMes).forEach(k => { detalleIntCaucionPorMes[k] = []; });
+      const deltasPorFecha = {};
+      rows.filter(r => !excluirCategoria(r.categoria)).forEach(r => {
+        const fecha = fechaStr(r.fecha);
+        if (!fecha) return;
+        const m = montoConvertido(r, moneda, tipoDolar);
+        if (m == null) return;
+        const delta = r.tipo_movimiento === 'Ingreso' ? m : -m;
+        deltasPorFecha[fecha] = (deltasPorFecha[fecha] || 0) + delta;
+      });
+      const fechasOrdenadas = Object.keys(deltasPorFecha).sort();
+      let gpAcumulado = 0;
+      let intAcumuladoAnterior = 0;
+      fechasOrdenadas.forEach(fecha => {
+        gpAcumulado += deltasPorFecha[fecha];
+        const base = gpAcumulado + intAcumuladoAnterior;
+        const tasaDiaria = getTasaCaucion(fecha);
+        const intDia = base > 0 ? base * tasaDiaria : 0;
+        const [anio, mes] = fecha.split('-').map(Number);
+        if (anio != null && mes != null) {
+          const keyMes = anio + '-' + String(mes).padStart(2, '0');
+          if (porMes[keyMes] != null) {
+            porMes[keyMes].intCaucion = (porMes[keyMes].intCaucion || 0) + intDia;
+            detalleIntCaucionPorMes[keyMes].push({ fecha, gpAcum: gpAcumulado, intAnterior: intAcumuladoAnterior, base, tasa: tasaDiaria, intDia });
+          }
+        }
+        intAcumuladoAnterior += intDia;
+      });
+
       const ordenados = Object.keys(porMes).sort();
       const categoriasEnMes = {};
       ordenados.forEach(key => {
@@ -737,7 +912,8 @@
       });
       const balanceTotal = totalIngresos - totalEgresos;
       const simbolo = moneda === 'USD' ? 'US$ ' : '$ ';
-
+      flujoMoneda = moneda;
+      flujoSimbolo = simbolo;
       document.getElementById('resumen').innerHTML = `
         <div class="card"><div style="color:#555;">Total ingresos</div><div class="valor ingresos">${simbolo}${formatearNumero(totalIngresos, moneda)}</div></div>
         <div class="card"><div style="color:#555;">Total egresos</div><div class="valor egresos">${simbolo}${formatearNumero(totalEgresos, moneda)}</div></div>
@@ -766,10 +942,12 @@
           <td class="balance ${balance >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balance, moneda)}</td>
           <td>${comVentasPct}</td>
           <td>${egrSinComIngPct}</td>
+          <td class="ingresos int-caucion-cell" data-key-mes="${key}" role="button" tabindex="0" title="Ver marcha de cálculo">${simbolo}${formatearNumero((d.intCaucion != null ? d.intCaucion : 0), moneda)}</td>
           <td class="alert-icon-cell">${iconoAlert}</td>
         </tr>`;
       }).join('');
 
+      const totalIntCaucion = ordenados.reduce((s, k) => s + (porMes[k].intCaucion != null ? porMes[k].intCaucion : 0), 0);
       const totalComisiones = ordenados.reduce((s, k) => s + (porMes[k].comisiones != null ? porMes[k].comisiones : 0), 0);
       const totalComisionesParaRatio = ordenados.reduce((s, k) => s + (porMes[k].comisionesParaRatio != null ? porMes[k].comisionesParaRatio : 0), 0);
       const totalVentas = ordenados.reduce((s, k) => s + (porMes[k].ventas != null ? porMes[k].ventas : 0), 0);
@@ -785,6 +963,7 @@
           <td class="balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</td>
           <td>${comVentasPctTotal}</td>
           <td>${egrSinComIngPctTotal}</td>
+          <td class="ingresos">${simbolo}${formatearNumero(totalIntCaucion, moneda)}</td>
           <td class="alert-icon-cell"></td>
         </tr>`;
       }
@@ -845,6 +1024,32 @@
             <td class="${item.monto >= 0 ? 'ingresos' : 'egresos'}">${evolucionSimbolo}${formatearNumero(item.monto, evolucionMoneda)}</td>
             <td>${esc(item.origen_archivo || '—')}</td>
             <td>${esc(item.id_origen || '—')}</td>
+          </tr>
+        `).join('');
+      }
+      backdrop.classList.remove('oculto');
+    }
+
+    function abrirModalIntCaucion(keyMes) {
+      const list = detalleIntCaucionPorMes[keyMes];
+      const backdrop = document.getElementById('modal-int-caucion-backdrop');
+      const titulo = document.getElementById('modal-int-caucion-titulo');
+      const tbody = document.getElementById('tbody-int-caucion');
+      if (!backdrop || !titulo || !tbody) return;
+      const [anio, mes] = keyMes.split('-');
+      const label = formatoMesAnio(parseInt(mes, 10), parseInt(anio, 10));
+      titulo.textContent = 'Marcha de cálculo — Int. por caución · ' + label;
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">No hay datos para este mes.</td></tr>';
+      } else {
+        tbody.innerHTML = list.map(row => `
+          <tr>
+            <td>${(row.fecha || '').replace(/</g, '&lt;')}</td>
+            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.gpAcum, flujoMoneda)}</td>
+            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.intAnterior, flujoMoneda)}</td>
+            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.base, flujoMoneda)}</td>
+            <td>${row.tasa != null ? (row.tasa * 100).toFixed(4) + '%' : '—'}</td>
+            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.intDia, flujoMoneda)}</td>
           </tr>
         `).join('');
       }
@@ -1858,6 +2063,15 @@
         document.getElementById('btn-exportar-evolucion').addEventListener('click', exportarEvolucionExcel);
         document.getElementById('modal-evolucion-detalle-close').addEventListener('click', () => document.getElementById('modal-evolucion-detalle-backdrop').classList.add('oculto'));
         document.getElementById('modal-evolucion-detalle-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-evolucion-detalle-backdrop') e.target.classList.add('oculto'); });
+        document.getElementById('panel-flujo').addEventListener('click', (e) => {
+          const cell = e.target.closest('.int-caucion-cell');
+          if (!cell) return;
+          const keyMes = cell.getAttribute('data-key-mes');
+          if (keyMes) abrirModalIntCaucion(keyMes);
+        });
+        document.getElementById('modal-int-caucion-close').addEventListener('click', () => document.getElementById('modal-int-caucion-backdrop').classList.add('oculto'));
+        document.getElementById('modal-int-caucion-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-int-caucion-backdrop') e.target.classList.add('oculto'); });
+        setupModalDrag('modal-int-caucion', 'modal-int-caucion-header-drag', 'modal-int-caucion-close');
       } catch (e) {
         errorEl.textContent = 'Error: ' + (e.message || String(e));
         errorEl.style.display = 'block';
