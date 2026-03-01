@@ -59,6 +59,7 @@ const datosLog = [
   ['27/02/2026', '13:15', 'Config dashboard por usuario en Supabase', 'Tabla config_dashboard en Supabase (user_id, proyeccion_metodo, proyeccion_meses, proyeccion_cantidad, pct_caucion). RLS por usuario. Al cargar: sync desde Supabase (Auth anónimo); al guardar: upsert en Supabase. Fallback a localStorage si no hay usuario.', 'Implementacion'],
   ['27/02/2026', '14:00', 'Recorte % (cada lado) en Configuración', 'Parámetro Recorte % (cada lado) en Configuración (0, 5, 10, 15, 20, 25) para el método Promedio recortado. Persistido en localStorage y columna proyeccion_recorte en config_dashboard (Supabase).', 'Implementacion'],
   ['27/02/2026', '14:10', 'Recorte % solo si Promedio recortado', 'El campo Recorte % (cada lado) se muestra en Configuración solo cuando el método elegido es Promedio recortado; al cambiar de método se oculta o muestra al instante.', 'Implementacion'],
+  ['27/02/2026', '15:00', 'Parámetros por defecto sin datos de usuario', 'Si no hay config del usuario: Meses a proyectar 3, Método Promedio recortado, Recorte 20%, Meses de historia 6, % G/P acum. en caución 95%. Aplicado en getProyeccionConfig, getPctCaucion, sync y combos del modal.', 'Implementacion'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -170,6 +171,7 @@ const versiones = [
   ['1.20', '27/02/2026', 'Simplificar etiqueta: Int. por caución pasa a Caución (x% cash) en cabecera de flujo (x = parámetro % G/P); quitar icono % a la izquierda; modales y disclaimer con texto Caución. Despliegue a producción.'],
   ['1.21', '27/02/2026', 'Config por usuario en Supabase: parámetro Meses a proyectar (1-12) en Configuración; tabla config_dashboard (user_id, proyección y caución); sync al cargar y al guardar con Auth anónimo. Despliegue a producción.'],
   ['1.22', '27/02/2026', 'Parámetro Recorte % (cada lado) en Configuración (0-25); visible solo si método es Promedio recortado. Columna proyeccion_recorte en config_dashboard. Despliegue a producción.'],
+  ['1.23', '27/02/2026', 'Valores por defecto sin datos de usuario: Meses a proyectar 3, Método Promedio recortado, Recorte 20%, Meses de historia 6, % G/P en caución 95%. Despliegue a producción.'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];

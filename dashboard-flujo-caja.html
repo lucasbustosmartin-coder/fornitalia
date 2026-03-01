@@ -178,6 +178,14 @@
     .alert-icon-cell { width: 2rem; text-align: center; }
     #modal-alertas .modal-body ul { margin: 0; padding-left: 1.25rem; }
     #modal-alertas .modal-body li { margin-bottom: 0.5rem; }
+    .modal-alertas-subtitulo { font-size: 0.75rem; color: #666; margin: 0.25rem 0 0 0; font-weight: normal; }
+    .modal-alertas-disclaimer { font-size: 0.7rem; color: #888; margin: 0.75rem 0 0 0; padding: 0.5rem 1.25rem; border-top: 1px solid #eee; }
+    .config-alertas-switches { display: flex; flex-direction: column; gap: 0.5rem; }
+    .config-switch-row { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.95rem; }
+    .config-switch-row input[type="checkbox"] { width: 1.1rem; height: 1.1rem; cursor: pointer; accent-color: #1a1a1a; }
+    .config-switch-label { user-select: none; }
+    .alerta-desvio-positivo { color: #0d7d0d; font-weight: 600; }
+    .alerta-desvio-negativo { color: #c0392b; font-weight: 600; }
     .app-footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #eee; font-size: 0.85rem; color: #888; text-align: center; }
     .modal-grafico { max-width: 720px; }
     .modal-grafico-body { min-height: 280px; }
@@ -437,10 +445,14 @@
   <div id="modal-alertas-backdrop" class="modal-backdrop oculto">
     <div class="modal" id="modal-alertas">
       <div class="modal-header" id="modal-alertas-header-drag">
-        <h2 id="modal-alertas-titulo">Alertas del mes</h2>
+        <div>
+          <h2 id="modal-alertas-titulo">Alertas del mes</h2>
+          <p id="modal-alertas-subtitulo" class="modal-alertas-subtitulo"></p>
+        </div>
         <button type="button" class="modal-close" id="modal-alertas-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
       </div>
       <div class="modal-body" id="modal-alertas-body"></div>
+      <p class="modal-alertas-disclaimer">Si querés cambiar el % del desvío, hacelo desde el menú Configuración.</p>
     </div>
   </div>
 
@@ -582,10 +594,10 @@
           <div class="form-group">
             <label for="config-proyeccion-metodo">Método</label>
             <select id="config-proyeccion-metodo" title="Valor típico para proyectar: últimos N meses. Recortado = quita extremos para suavizar picos.">
-              <option value="promedio_ponderado" selected>Promedio ponderado</option>
+              <option value="promedio_ponderado">Promedio ponderado</option>
               <option value="promedio">Promedio</option>
               <option value="mediana">Mediana</option>
-              <option value="promedio_recortado">Promedio recortado (suaviza picos)</option>
+              <option value="promedio_recortado" selected>Promedio recortado (suaviza picos)</option>
             </select>
           </div>
           <div class="form-group" id="config-recorte-wrap" style="display: none;">
@@ -594,8 +606,8 @@
               <option value="0">0 %</option>
               <option value="5">5 %</option>
               <option value="10">10 %</option>
-              <option value="15" selected>15 %</option>
-              <option value="20">20 %</option>
+              <option value="15">15 %</option>
+              <option value="20" selected>20 %</option>
               <option value="25">25 %</option>
             </select>
             <span class="sin-cotizacion-note" style="display:block; margin-top:0.25rem;">Más % = más suavizado (menos peso de picos).</span>
@@ -612,8 +624,8 @@
           <div class="form-group">
             <label for="config-pct-caucion">% G/P acum. en caución</label>
             <select id="config-pct-caucion" title="Qué porcentaje del G/P acumulado se considera invertido en caución; el resto es liquidez que no genera interés">
-              <option value="100" selected>100 %</option>
-              <option value="95">95 %</option>
+              <option value="100">100 %</option>
+              <option value="95" selected>95 %</option>
               <option value="90">90 %</option>
               <option value="85">85 %</option>
               <option value="80">80 %</option>
@@ -636,11 +648,49 @@
             </select>
             <span class="sin-cotizacion-note" style="display:block; margin-top:0.25rem;">Por defecto 100 %. Menor % = más liquidez (menos interés por caución).</span>
           </div>
-          <div class="form-actions">
-            <button type="button" class="btn btn-primary" id="config-guardar"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> Guardar</button>
-            <button type="button" class="btn" id="config-cerrar"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span> Cerrar</button>
+        </section>
+        <section class="config-section">
+          <h3 class="config-section-title">Alertas Mensuales</h3>
+          <p class="sin-cotizacion-note" style="margin-top:0;">Umbrales para las alertas que se muestran por mes. La alerta de desvío de categoría se activa cuando la variación (positiva o negativa) supera el % elegido.</p>
+          <div class="form-group">
+            <label for="config-alerta-desvio-categoria">Desvío % categoría vs mes anterior</label>
+            <select id="config-alerta-desvio-categoria" title="Alerta cuando una categoría varía más de este % respecto del mes anterior (en más o en menos).">
+              <option value="5">5 %</option>
+              <option value="10">10 %</option>
+              <option value="15">15 %</option>
+              <option value="20">20 %</option>
+              <option value="25" selected>25 %</option>
+              <option value="30">30 %</option>
+            </select>
+          </div>
+          <p class="sin-cotizacion-note" style="margin-top:0.75rem; margin-bottom:0.5rem;">Activar o desactivar cada tipo de alerta:</p>
+          <div class="config-alertas-switches">
+            <label class="config-switch-row">
+              <input type="checkbox" id="config-alerta-mes-sin-egresos" checked>
+              <span class="config-switch-label">No hay egresos registrados en el mes</span>
+            </label>
+            <label class="config-switch-row">
+              <input type="checkbox" id="config-alerta-sin-sueldos" checked>
+              <span class="config-switch-label">No hay Sueldos registrados en el mes</span>
+            </label>
+            <label class="config-switch-row">
+              <input type="checkbox" id="config-alerta-sin-comisiones" checked>
+              <span class="config-switch-label">No hay Comisiones registrados en el mes</span>
+            </label>
+            <label class="config-switch-row">
+              <input type="checkbox" id="config-alerta-sin-alquileres" checked>
+              <span class="config-switch-label">No hay Alquileres registrados en el mes</span>
+            </label>
+            <label class="config-switch-row">
+              <input type="checkbox" id="config-alerta-sin-impuestos" checked>
+              <span class="config-switch-label">No hay Impuestos registrados en el mes</span>
+            </label>
           </div>
         </section>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary" id="config-guardar"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> Guardar</button>
+            <button type="button" class="btn" id="config-cerrar"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span> Cerrar</button>
+        </div>
       </div>
     </div>
   </div>
@@ -730,13 +780,19 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.22';
+    const APP_VERSION = '1.23';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
     const PROYECCION_CANTIDAD_KEY = 'fornitalia_proyeccion_cantidad';
     const PROYECCION_RECORTE_KEY = 'fornitalia_proyeccion_recorte';
     const PCT_CAUCION_KEY = 'fornitalia_pct_caucion';
+    const ALERTA_DESVIO_PCT_KEY = 'fornitalia_alerta_desvio_pct';
+    const ALERTA_MES_SIN_EGRESOS_KEY = 'fornitalia_alerta_mes_sin_egresos';
+    const ALERTA_SIN_SUELDOS_KEY = 'fornitalia_alerta_sin_sueldos';
+    const ALERTA_SIN_COMISIONES_KEY = 'fornitalia_alerta_sin_comisiones';
+    const ALERTA_SIN_ALQUILERES_KEY = 'fornitalia_alerta_sin_alquileres';
+    const ALERTA_SIN_IMPUESTOS_KEY = 'fornitalia_alerta_sin_impuestos';
 
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -751,13 +807,19 @@
         }
         const uid = session?.user?.id;
         if (!uid) return;
-        const { data: row, error } = await client.from('config_dashboard').select('proyeccion_metodo,proyeccion_meses,proyeccion_cantidad,proyeccion_recorte,pct_caucion').eq('user_id', uid).maybeSingle();
+        const { data: row, error } = await client.from('config_dashboard').select('proyeccion_metodo,proyeccion_meses,proyeccion_cantidad,proyeccion_recorte,pct_caucion,alerta_desvio_pct,alerta_mes_sin_egresos,alerta_sin_sueldos,alerta_sin_comisiones,alerta_sin_alquileres,alerta_sin_impuestos').eq('user_id', uid).maybeSingle();
         if (error || !row) return;
         if (row.proyeccion_metodo) localStorage.setItem(PROYECCION_METODO_KEY, row.proyeccion_metodo);
         if (row.proyeccion_meses != null) localStorage.setItem(PROYECCION_MESES_KEY, String(row.proyeccion_meses));
         if (row.proyeccion_cantidad != null) localStorage.setItem(PROYECCION_CANTIDAD_KEY, String(row.proyeccion_cantidad));
         if (row.proyeccion_recorte != null) localStorage.setItem(PROYECCION_RECORTE_KEY, String(row.proyeccion_recorte));
         if (row.pct_caucion != null) localStorage.setItem(PCT_CAUCION_KEY, String(row.pct_caucion));
+        if (row.alerta_desvio_pct != null) localStorage.setItem(ALERTA_DESVIO_PCT_KEY, String(row.alerta_desvio_pct));
+        if (row.alerta_mes_sin_egresos !== undefined) localStorage.setItem(ALERTA_MES_SIN_EGRESOS_KEY, row.alerta_mes_sin_egresos ? '1' : '0');
+        if (row.alerta_sin_sueldos !== undefined) localStorage.setItem(ALERTA_SIN_SUELDOS_KEY, row.alerta_sin_sueldos ? '1' : '0');
+        if (row.alerta_sin_comisiones !== undefined) localStorage.setItem(ALERTA_SIN_COMISIONES_KEY, row.alerta_sin_comisiones ? '1' : '0');
+        if (row.alerta_sin_alquileres !== undefined) localStorage.setItem(ALERTA_SIN_ALQUILERES_KEY, row.alerta_sin_alquileres ? '1' : '0');
+        if (row.alerta_sin_impuestos !== undefined) localStorage.setItem(ALERTA_SIN_IMPUESTOS_KEY, row.alerta_sin_impuestos ? '1' : '0');
       } catch (_) { /* mantener localStorage */ }
     }
 
@@ -767,39 +829,57 @@
         const { data: { session } } = await client.auth.getSession();
         if (!session?.user?.id) return;
         const uid = session.user.id;
-        const metodo = localStorage.getItem(PROYECCION_METODO_KEY) || 'promedio_ponderado';
+        const metodo = localStorage.getItem(PROYECCION_METODO_KEY) || 'promedio_recortado';
         const meses = parseInt(localStorage.getItem(PROYECCION_MESES_KEY) || '6', 10) || 6;
         const cantidad = parseInt(localStorage.getItem(PROYECCION_CANTIDAD_KEY) || '3', 10) || 3;
-        const recorte = parseInt(localStorage.getItem(PROYECCION_RECORTE_KEY) || '15', 10);
-        const pct = parseInt(localStorage.getItem(PCT_CAUCION_KEY) || '100', 10);
+        const recorte = parseInt(localStorage.getItem(PROYECCION_RECORTE_KEY) || '20', 10);
+        const pct = parseInt(localStorage.getItem(PCT_CAUCION_KEY) || '95', 10);
+        const alertaDesvio = parseInt(localStorage.getItem(ALERTA_DESVIO_PCT_KEY) || '25', 10);
         await client.from('config_dashboard').upsert({
           user_id: uid,
           proyeccion_metodo: metodo,
           proyeccion_meses: meses,
           proyeccion_cantidad: cantidad,
-          proyeccion_recorte: (recorte >= 0 && recorte <= 25) ? recorte : 15,
-          pct_caucion: (pct >= 0 && pct <= 100) ? pct : 100,
+          proyeccion_recorte: (recorte >= 0 && recorte <= 25) ? recorte : 20,
+          pct_caucion: (pct >= 0 && pct <= 100) ? pct : 95,
+          alerta_desvio_pct: [5, 10, 15, 20, 25, 30].includes(alertaDesvio) ? alertaDesvio : 25,
+          alerta_mes_sin_egresos: localStorage.getItem(ALERTA_MES_SIN_EGRESOS_KEY) !== '0',
+          alerta_sin_sueldos: localStorage.getItem(ALERTA_SIN_SUELDOS_KEY) !== '0',
+          alerta_sin_comisiones: localStorage.getItem(ALERTA_SIN_COMISIONES_KEY) !== '0',
+          alerta_sin_alquileres: localStorage.getItem(ALERTA_SIN_ALQUILERES_KEY) !== '0',
+          alerta_sin_impuestos: localStorage.getItem(ALERTA_SIN_IMPUESTOS_KEY) !== '0',
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
       } catch (_) { /* ya quedó en localStorage */ }
     }
 
     function getProyeccionConfig() {
-      const metodo = localStorage.getItem(PROYECCION_METODO_KEY) || 'promedio_ponderado';
+      const metodo = localStorage.getItem(PROYECCION_METODO_KEY) || 'promedio_recortado';
       const meses = parseInt(localStorage.getItem(PROYECCION_MESES_KEY) || '6', 10) || 6;
       const cantidad = parseInt(localStorage.getItem(PROYECCION_CANTIDAD_KEY) || '3', 10) || 3;
-      const recorte = parseInt(localStorage.getItem(PROYECCION_RECORTE_KEY) || '15', 10);
-      const metodoValido = ['promedio_ponderado', 'promedio', 'mediana', 'promedio_recortado'].includes(metodo) ? metodo : 'promedio_ponderado';
+      const recorte = parseInt(localStorage.getItem(PROYECCION_RECORTE_KEY) || '20', 10);
+      const metodoValido = ['promedio_ponderado', 'promedio', 'mediana', 'promedio_recortado'].includes(metodo) ? metodo : 'promedio_recortado';
       const mesesValido = [3, 6, 12, 24].includes(meses) ? meses : 6;
       const cantidadValido = [1, 2, 3, 4, 5, 6, 12].includes(cantidad) ? cantidad : 3;
-      const recorteValido = [0, 5, 10, 15, 20, 25].includes(recorte) ? recorte : 15;
+      const recorteValido = [0, 5, 10, 15, 20, 25].includes(recorte) ? recorte : 20;
       return { metodo: metodoValido, meses: mesesValido, mesesAProyectar: cantidadValido, recortePct: recorteValido };
     }
 
     function getPctCaucion() {
-      const v = parseInt(localStorage.getItem(PCT_CAUCION_KEY) || '100', 10);
-      return (v >= 0 && v <= 100) ? v : 100;
+      const v = parseInt(localStorage.getItem(PCT_CAUCION_KEY) || '95', 10);
+      return (v >= 0 && v <= 100) ? v : 95;
     }
+
+    function getAlertaDesvioPct() {
+      const v = parseInt(localStorage.getItem(ALERTA_DESVIO_PCT_KEY) || '25', 10);
+      return [5, 10, 15, 20, 25, 30].includes(v) ? v : 25;
+    }
+
+    function getAlertaMesSinEgresos() { return localStorage.getItem(ALERTA_MES_SIN_EGRESOS_KEY) !== '0'; }
+    function getAlertaSinSueldos() { return localStorage.getItem(ALERTA_SIN_SUELDOS_KEY) !== '0'; }
+    function getAlertaSinComisiones() { return localStorage.getItem(ALERTA_SIN_COMISIONES_KEY) !== '0'; }
+    function getAlertaSinAlquileres() { return localStorage.getItem(ALERTA_SIN_ALQUILERES_KEY) !== '0'; }
+    function getAlertaSinImpuestos() { return localStorage.getItem(ALERTA_SIN_IMPUESTOS_KEY) !== '0'; }
 
     function promedioPonderado(arr) {
       const nums = (arr || []).filter(x => typeof x === 'number' && !isNaN(x));
@@ -1288,20 +1368,20 @@
         const trans = cacheTransacciones.filter(r => r.anio === anio && r.mes === mes && !excluirCategoria(r.categoria));
         categoriasEnMes[key] = [...new Set(trans.map(r => getCategoriaDisplayConValidacion(r).categoria))];
       });
-      const UMBRAL_DESVIO_PCT = 25;
+      const umbralDesvioPct = getAlertaDesvioPct();
       const categoriasEsperadas = [
-        { nombre: 'Sueldos', tiene: (arr) => arr.includes('Sueldos') },
-        { nombre: 'Comisiones', tiene: (arr) => arr.includes('Comisiones') },
-        { nombre: 'Alquileres', tiene: (arr) => arr.some(c => (c || '').toLowerCase().includes('alquiler')) },
-        { nombre: 'Impuestos', tiene: (arr) => arr.some(c => (c || '').toLowerCase().includes('impuesto')) }
+        { nombre: 'Sueldos', tiene: (arr) => arr.includes('Sueldos'), activa: getAlertaSinSueldos },
+        { nombre: 'Comisiones', tiene: (arr) => arr.includes('Comisiones'), activa: getAlertaSinComisiones },
+        { nombre: 'Alquileres', tiene: (arr) => arr.some(c => (c || '').toLowerCase().includes('alquiler')), activa: getAlertaSinAlquileres },
+        { nombre: 'Impuestos', tiene: (arr) => arr.some(c => (c || '').toLowerCase().includes('impuesto')), activa: getAlertaSinImpuestos }
       ];
       const alertasPorMes = {};
       ordenados.forEach((key, idx) => {
         const alertas = [];
         const d = porMes[key];
-        if (d.egresos === 0 || (typeof d.egresos === 'number' && d.egresos < 1e-6)) alertas.push('El mes no tiene egresos.');
-        categoriasEsperadas.forEach(({ nombre, tiene }) => {
-          if (!tiene(categoriasEnMes[key] || [])) alertas.push('No hay registros de ' + nombre + ' en el mes.');
+        if (getAlertaMesSinEgresos() && (d.egresos === 0 || (typeof d.egresos === 'number' && d.egresos < 1e-6))) alertas.push('El mes no tiene egresos.');
+        categoriasEsperadas.forEach(({ nombre, tiene, activa }) => {
+          if (activa() && !tiene(categoriasEnMes[key] || [])) alertas.push('No hay registros de ' + nombre + ' en el mes.');
         });
         if (idx > 0) {
           const prevKey = ordenados[idx - 1];
@@ -1310,7 +1390,13 @@
             const anterior = porMesCategoria[prevKey] && porMesCategoria[prevKey][cat] != null ? porMesCategoria[prevKey][cat] : 0;
             if (anterior > 0 && actual >= 0) {
               const desvioPct = Math.abs((actual - anterior) / anterior * 100);
-              if (desvioPct >= UMBRAL_DESVIO_PCT) alertas.push('La categoría "' + cat + '" tiene un desvío de ' + desvioPct.toFixed(1) + '% respecto del mes anterior.');
+              if (desvioPct >= umbralDesvioPct) {
+                const positivo = actual > anterior;
+                const clase = positivo ? 'alerta-desvio-positivo' : 'alerta-desvio-negativo';
+                const signo = positivo ? '+' : '-';
+                const catEsc = (cat || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                alertas.push('La categoría "' + catEsc + '" tiene un desvío de <span class="' + clase + '">' + signo + desvioPct.toFixed(1) + '%</span> respecto del mes anterior.');
+              }
             }
           });
         }
@@ -1331,7 +1417,7 @@
       const configProy = getProyeccionConfig();
       const N = configProy.meses;
       const mesesAProyectar = configProy.mesesAProyectar;
-      const agg = configProy.metodo === 'promedio_ponderado' ? promedioPonderado : (configProy.metodo === 'promedio' ? promedio : (configProy.metodo === 'mediana' ? (arr) => mediana(arr) : (arr) => promedioRecortado(arr, (configProy.recortePct || 15) / 100)));
+      const agg = configProy.metodo === 'promedio_ponderado' ? promedioPonderado : (configProy.metodo === 'promedio' ? promedio : (configProy.metodo === 'mediana' ? (arr) => mediana(arr) : (arr) => promedioRecortado(arr, (configProy.recortePct ?? 20) / 100)));
       function diasEnMes(anio, mes) {
         return new Date(anio, mes, 0).getDate();
       }
@@ -1702,7 +1788,7 @@
       const configProyEv = getProyeccionConfig();
       const NEv = configProyEv.meses;
       const mesesAProyectarEv = configProyEv.mesesAProyectar;
-      const aggEv = configProyEv.metodo === 'promedio_ponderado' ? promedioPonderado : (configProyEv.metodo === 'promedio' ? promedio : (configProyEv.metodo === 'mediana' ? (arr) => mediana(arr) : (arr) => promedioRecortado(arr, (configProyEv.recortePct || 15) / 100)));
+      const aggEv = configProyEv.metodo === 'promedio_ponderado' ? promedioPonderado : (configProyEv.metodo === 'promedio' ? promedio : (configProyEv.metodo === 'mediana' ? (arr) => mediana(arr) : (arr) => promedioRecortado(arr, (configProyEv.recortePct ?? 20) / 100)));
       if (periodo === 'mensual' && columnasOrdenadas.length > 0 && NEv > 0 && mesesAProyectarEv > 0) {
         let keyProy = siguienteMesKey(columnasOrdenadas[columnasOrdenadas.length - 1]);
         const proyKeys = [];
@@ -2876,8 +2962,9 @@
             const alertas = JSON.parse(iconAlert.getAttribute('data-alertas') || '[]');
             const label = iconAlert.getAttribute('data-label') || '';
             document.getElementById('modal-alertas-titulo').textContent = 'Alertas — ' + label;
+            document.getElementById('modal-alertas-subtitulo').textContent = 'Detalle de las variaciones +/- según el % del parámetro (' + getAlertaDesvioPct() + '%).';
             document.getElementById('modal-alertas-body').innerHTML = alertas.length
-              ? '<ul>' + alertas.map(a => '<li>' + (a.replace(/</g, '&lt;')) + '</li>').join('') + '</ul>'
+              ? '<ul>' + alertas.map(a => '<li>' + (a.includes('alerta-desvio-') ? a : (a.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'))) + '</li>').join('') + '</ul>'
               : '<p>No hay alertas.</p>';
             document.getElementById('modal-alertas-backdrop').classList.remove('oculto');
             return;
@@ -2989,6 +3076,18 @@
           const selCantidad = document.getElementById('config-proyeccion-cantidad');
           if (selCantidad) selCantidad.value = String(c.mesesAProyectar);
           if (selPctCaucion) selPctCaucion.value = String(getPctCaucion());
+          const selAlertaDesvio = document.getElementById('config-alerta-desvio-categoria');
+          if (selAlertaDesvio) selAlertaDesvio.value = String(getAlertaDesvioPct());
+          const cbMesSinEgresos = document.getElementById('config-alerta-mes-sin-egresos');
+          if (cbMesSinEgresos) cbMesSinEgresos.checked = getAlertaMesSinEgresos();
+          const cbSinSueldos = document.getElementById('config-alerta-sin-sueldos');
+          if (cbSinSueldos) cbSinSueldos.checked = getAlertaSinSueldos();
+          const cbSinComisiones = document.getElementById('config-alerta-sin-comisiones');
+          if (cbSinComisiones) cbSinComisiones.checked = getAlertaSinComisiones();
+          const cbSinAlquileres = document.getElementById('config-alerta-sin-alquileres');
+          if (cbSinAlquileres) cbSinAlquileres.checked = getAlertaSinAlquileres();
+          const cbSinImpuestos = document.getElementById('config-alerta-sin-impuestos');
+          if (cbSinImpuestos) cbSinImpuestos.checked = getAlertaSinImpuestos();
           const wrapRecorte = document.getElementById('config-recorte-wrap');
           if (wrapRecorte) wrapRecorte.style.display = c.metodo === 'promedio_recortado' ? 'block' : 'none';
           document.getElementById('modal-configuracion-backdrop').classList.remove('oculto');
@@ -3009,6 +3108,18 @@
           const selCantidadSave = document.getElementById('config-proyeccion-cantidad');
           if (selCantidadSave) localStorage.setItem(PROYECCION_CANTIDAD_KEY, selCantidadSave.value);
           if (selPctCaucion) localStorage.setItem(PCT_CAUCION_KEY, selPctCaucion.value);
+          const selAlertaDesvioSave = document.getElementById('config-alerta-desvio-categoria');
+          if (selAlertaDesvioSave) localStorage.setItem(ALERTA_DESVIO_PCT_KEY, selAlertaDesvioSave.value);
+          const cbMesSinEgresosS = document.getElementById('config-alerta-mes-sin-egresos');
+          if (cbMesSinEgresosS) localStorage.setItem(ALERTA_MES_SIN_EGRESOS_KEY, cbMesSinEgresosS.checked ? '1' : '0');
+          const cbSinSueldosS = document.getElementById('config-alerta-sin-sueldos');
+          if (cbSinSueldosS) localStorage.setItem(ALERTA_SIN_SUELDOS_KEY, cbSinSueldosS.checked ? '1' : '0');
+          const cbSinComisionesS = document.getElementById('config-alerta-sin-comisiones');
+          if (cbSinComisionesS) localStorage.setItem(ALERTA_SIN_COMISIONES_KEY, cbSinComisionesS.checked ? '1' : '0');
+          const cbSinAlquileresS = document.getElementById('config-alerta-sin-alquileres');
+          if (cbSinAlquileresS) localStorage.setItem(ALERTA_SIN_ALQUILERES_KEY, cbSinAlquileresS.checked ? '1' : '0');
+          const cbSinImpuestosS = document.getElementById('config-alerta-sin-impuestos');
+          if (cbSinImpuestosS) localStorage.setItem(ALERTA_SIN_IMPUESTOS_KEY, cbSinImpuestosS.checked ? '1' : '0');
           document.getElementById('modal-configuracion-backdrop').classList.add('oculto');
           syncConfigToSupabase();
           recalcular();
