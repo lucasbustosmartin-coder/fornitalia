@@ -565,7 +565,19 @@
       <div class="modal-body" id="modal-configuracion-body">
         <section class="config-section">
           <h3 class="config-section-title">Proyección (Flujo por mes)</h3>
-          <p class="sin-cotizacion-note" style="margin-top:0;">Parámetros para los 3 meses proyectados debajo del total real. Ingresos y egresos usan el valor típico de la historia; Caución se calcula en forma acumulativa.</p>
+          <p class="sin-cotizacion-note" style="margin-top:0;">Parámetros para los meses proyectados debajo del total real. Ingresos y egresos usan el valor típico de la historia; Caución se calcula en forma acumulativa.</p>
+          <div class="form-group">
+            <label for="config-proyeccion-cantidad">Meses a proyectar</label>
+            <select id="config-proyeccion-cantidad" title="Cantidad de meses futuros a mostrar en la proyección">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3" selected>3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="12">12</option>
+            </select>
+          </div>
           <div class="form-group">
             <label for="config-proyeccion-metodo">Método</label>
             <select id="config-proyeccion-metodo" title="Valor típico de los últimos N meses para proyectar">
@@ -704,19 +716,64 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.20';
+    const APP_VERSION = '1.21';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
+    const PROYECCION_CANTIDAD_KEY = 'fornitalia_proyeccion_cantidad';
     const PCT_CAUCION_KEY = 'fornitalia_pct_caucion';
 
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
+    /** Sincroniza config desde Supabase (por usuario) al cargar. Si no hay usuario o falla, se usa localStorage. */
+    async function syncConfigFromSupabase() {
+      try {
+        let { data: { session } } = await client.auth.getSession();
+        if (!session) {
+          const { data: anon, error: errAnon } = await client.auth.signInAnonymously();
+          if (errAnon || !anon?.user) return;
+          session = anon.session;
+        }
+        const uid = session?.user?.id;
+        if (!uid) return;
+        const { data: row, error } = await client.from('config_dashboard').select('proyeccion_metodo,proyeccion_meses,proyeccion_cantidad,pct_caucion').eq('user_id', uid).maybeSingle();
+        if (error || !row) return;
+        if (row.proyeccion_metodo) localStorage.setItem(PROYECCION_METODO_KEY, row.proyeccion_metodo);
+        if (row.proyeccion_meses != null) localStorage.setItem(PROYECCION_MESES_KEY, String(row.proyeccion_meses));
+        if (row.proyeccion_cantidad != null) localStorage.setItem(PROYECCION_CANTIDAD_KEY, String(row.proyeccion_cantidad));
+        if (row.pct_caucion != null) localStorage.setItem(PCT_CAUCION_KEY, String(row.pct_caucion));
+      } catch (_) { /* mantener localStorage */ }
+    }
+
+    /** Guarda la config actual en Supabase para el usuario logueado. Si no hay usuario, solo queda en localStorage. */
+    async function syncConfigToSupabase() {
+      try {
+        const { data: { session } } = await client.auth.getSession();
+        if (!session?.user?.id) return;
+        const uid = session.user.id;
+        const metodo = localStorage.getItem(PROYECCION_METODO_KEY) || 'promedio_ponderado';
+        const meses = parseInt(localStorage.getItem(PROYECCION_MESES_KEY) || '6', 10) || 6;
+        const cantidad = parseInt(localStorage.getItem(PROYECCION_CANTIDAD_KEY) || '3', 10) || 3;
+        const pct = parseInt(localStorage.getItem(PCT_CAUCION_KEY) || '100', 10);
+        await client.from('config_dashboard').upsert({
+          user_id: uid,
+          proyeccion_metodo: metodo,
+          proyeccion_meses: meses,
+          proyeccion_cantidad: cantidad,
+          pct_caucion: (pct >= 0 && pct <= 100) ? pct : 100,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+      } catch (_) { /* ya quedó en localStorage */ }
+    }
+
     function getProyeccionConfig() {
       const metodo = localStorage.getItem(PROYECCION_METODO_KEY) || 'promedio_ponderado';
       const meses = parseInt(localStorage.getItem(PROYECCION_MESES_KEY) || '6', 10) || 6;
+      const cantidad = parseInt(localStorage.getItem(PROYECCION_CANTIDAD_KEY) || '3', 10) || 3;
       const metodoValido = ['promedio_ponderado', 'promedio', 'mediana'].includes(metodo) ? metodo : 'promedio_ponderado';
-      return { metodo: metodoValido, meses: [3,6,12,24].includes(meses) ? meses : 6 };
+      const mesesValido = [3, 6, 12, 24].includes(meses) ? meses : 6;
+      const cantidadValido = [1, 2, 3, 4, 5, 6, 12].includes(cantidad) ? cantidad : 3;
+      return { metodo: metodoValido, meses: mesesValido, mesesAProyectar: cantidadValido };
     }
 
     function getPctCaucion() {
@@ -1242,6 +1299,7 @@
       const tbody = document.getElementById('tbody');
       const configProy = getProyeccionConfig();
       const N = configProy.meses;
+      const mesesAProyectar = configProy.mesesAProyectar;
       const agg = configProy.metodo === 'promedio_ponderado' ? promedioPonderado : (configProy.metodo === 'promedio' ? promedio : (arr) => mediana(arr));
       function diasEnMes(anio, mes) {
         return new Date(anio, mes, 0).getDate();
@@ -1314,15 +1372,14 @@
           Object.keys(porMesCatEgr[k] || {}).forEach(c => categoriasProy.add(c));
         });
         const categoriasList = Array.from(categoriasProy);
-        const proyIng = [0, 0, 0];
-        const proyEgr = [0, 0, 0];
+        const proyIng = Array(mesesAProyectar).fill(0);
+        const proyEgr = Array(mesesAProyectar).fill(0);
         categoriasList.forEach(cat => {
           const valoresIng = ordenados.map(k => (porMesCatIng[k] && porMesCatIng[k][cat]) ? porMesCatIng[k][cat] : 0);
           const valoresEgr = ordenados.map(k => (porMesCatEgr[k] && porMesCatEgr[k][cat]) ? porMesCatEgr[k][cat] : 0);
-          const [p1_ing, p2_ing, p3_ing] = proyeccionDesdeSerie(valoresIng, N, agg);
-          const [p1_egr, p2_egr, p3_egr] = proyeccionDesdeSerie(valoresEgr, N, agg);
-          proyIng[0] += p1_ing; proyIng[1] += p2_ing; proyIng[2] += p3_ing;
-          proyEgr[0] += p1_egr; proyEgr[1] += p2_egr; proyEgr[2] += p3_egr;
+          const pIng = proyeccionDesdeSerie(valoresIng, N, agg, mesesAProyectar);
+          const pEgr = proyeccionDesdeSerie(valoresEgr, N, agg, mesesAProyectar);
+          for (let j = 0; j < mesesAProyectar; j++) { proyIng[j] += pIng[j]; proyEgr[j] += pEgr[j]; }
         });
         const numReal = Math.min(N, listaReal.length);
         const sliceReal = listaReal.slice(-numReal);
@@ -1341,7 +1398,7 @@
         let keyProy = siguienteMesKey(ordenados[ordenados.length - 1]);
         const proys = [];
         let prevRes = null;
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < mesesAProyectar; i++) {
           const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct, egrSinComIngPct, ratioComNum, ratioEgrNum };
           proys.push(proy);
           if (i > 0 && prevRes && prevRes.detalle && prevRes.detalle.length > 0) {
@@ -1394,7 +1451,7 @@
         if (filasProy) {
           const metodoLabel = configProy.metodo === 'promedio_ponderado' ? 'Promedio ponderado' : (configProy.metodo === 'promedio' ? 'Promedio' : 'Mediana');
           const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución). Caución: punto de partida = G/P acumulado + interés acumulado (al cierre del último día real); Int T-1 del primer día = interés acumulado real; tasa = promedio del último mes real; días = días naturales del mes (31 ene, 28/29 feb, etc.).`;
-          tfootHtml += `<tr class="fila-titulo-proyeccion"><td colspan="8">Próximos 3 meses proyectados:</td></tr>${filasProy}<tr class="disclaimer-proyeccion"><td colspan="8">${disclaimer}</td></tr>`;
+          tfootHtml += `<tr class="fila-titulo-proyeccion"><td colspan="8">Próximos ${mesesAProyectar} ${mesesAProyectar === 1 ? 'mes' : 'meses'} proyectados:</td></tr>${filasProy}<tr class="disclaimer-proyeccion"><td colspan="8">${disclaimer}</td></tr>`;
         }
         tfoot.innerHTML = tfootHtml;
       }
@@ -1443,16 +1500,17 @@
       return (mes || '') + '-' + (anio || '');
     }
 
-    function proyeccionDesdeSerie(valores, N, agg) {
+    function proyeccionDesdeSerie(valores, N, agg, cant) {
+      const c = (cant != null && cant >= 1 && cant <= 12) ? cant : 3;
       const n = valores.length;
-      if (n === 0 || N <= 0) return [0, 0, 0];
-      const numReal0 = Math.max(0, Math.min(N, n) - 0);
-      const numReal1 = Math.max(0, Math.min(N - 1, n) - (n <= N - 1 ? 1 : 0));
-      const numReal2 = Math.max(0, Math.min(N - 2, n) - (n <= N - 2 ? 2 : 0));
-      const p1 = numReal0 > 0 ? agg(valores.slice(-numReal0)) : 0;
-      const p2 = (numReal1 + 1) > 0 ? agg(valores.slice(-numReal1).concat([p1])) : p1;
-      const p3 = (numReal2 + 2) > 0 ? agg(valores.slice(-numReal2).concat([p1, p2])) : p2;
-      return [p1, p2, p3];
+      if (n === 0 || N <= 0) return Array(c).fill(0);
+      const res = [];
+      for (let i = 0; i < c; i++) {
+        const numReal = Math.max(0, Math.min(N - i, n));
+        const arr = numReal > 0 ? valores.slice(-numReal).concat(res) : res;
+        res.push(arr.length > 0 ? agg(arr) : (i > 0 ? res[i - 1] : 0));
+      }
+      return res;
     }
 
     function abrirModalEvolucionDetalle(rowKey, colKey) {
@@ -1601,17 +1659,18 @@
       let columnasConProy = columnasOrdenadas.slice();
       const configProyEv = getProyeccionConfig();
       const NEv = configProyEv.meses;
+      const mesesAProyectarEv = configProyEv.mesesAProyectar;
       const aggEv = configProyEv.metodo === 'promedio_ponderado' ? promedioPonderado : (configProyEv.metodo === 'promedio' ? promedio : (arr) => mediana(arr));
-      if (periodo === 'mensual' && columnasOrdenadas.length > 0 && NEv > 0) {
+      if (periodo === 'mensual' && columnasOrdenadas.length > 0 && NEv > 0 && mesesAProyectarEv > 0) {
         let keyProy = siguienteMesKey(columnasOrdenadas[columnasOrdenadas.length - 1]);
         const proyKeys = [];
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < mesesAProyectarEv; i++) {
           proyKeys.push('proy-' + keyProy);
           keyProy = siguienteMesKey(keyProy);
         }
         columnasConProy = columnasOrdenadas.concat(['__total_real__']).concat(proyKeys).concat(['__total_proy__']);
-        const totalProyIng = [0, 0, 0];
-        const totalProyEgr = [0, 0, 0];
+        const totalProyIng = Array(mesesAProyectarEv).fill(0);
+        const totalProyEgr = Array(mesesAProyectarEv).fill(0);
         let keyProyLabel = siguienteMesKey(columnasOrdenadas[columnasOrdenadas.length - 1]);
         rowKeys.forEach(rk => {
           const valores = columnasOrdenadas.map(c => matrix[rk][c] || 0);
@@ -1619,16 +1678,17 @@
           matrix[rk]['__total_real__'] = totalRealFila;
           const valoresIng = columnasOrdenadas.map(c => matrixIng[rk] && matrixIng[rk][c] ? matrixIng[rk][c] : 0);
           const valoresEgr = columnasOrdenadas.map(c => matrixEgr[rk] && matrixEgr[rk][c] ? matrixEgr[rk][c] : 0);
-          const [p1_ing, p2_ing, p3_ing] = proyeccionDesdeSerie(valoresIng, NEv, aggEv);
-          const [p1_egr, p2_egr, p3_egr] = proyeccionDesdeSerie(valoresEgr, NEv, aggEv);
-          totalProyIng[0] += p1_ing; totalProyIng[1] += p2_ing; totalProyIng[2] += p3_ing;
-          totalProyEgr[0] += p1_egr; totalProyEgr[1] += p2_egr; totalProyEgr[2] += p3_egr;
-          matrix[rk][proyKeys[0]] = p1_ing - p1_egr;
-          matrix[rk][proyKeys[1]] = p2_ing - p2_egr;
-          matrix[rk][proyKeys[2]] = p3_ing - p3_egr;
-          matrix[rk]['__total_proy__'] = totalRealFila + (p1_ing - p1_egr) + (p2_ing - p2_egr) + (p3_ing - p3_egr);
+          const pIng = proyeccionDesdeSerie(valoresIng, NEv, aggEv, mesesAProyectarEv);
+          const pEgr = proyeccionDesdeSerie(valoresEgr, NEv, aggEv, mesesAProyectarEv);
+          let sumProy = totalRealFila;
+          for (let j = 0; j < mesesAProyectarEv; j++) {
+            totalProyIng[j] += pIng[j]; totalProyEgr[j] += pEgr[j];
+            matrix[rk][proyKeys[j]] = pIng[j] - pEgr[j];
+            sumProy += pIng[j] - pEgr[j];
+          }
+          matrix[rk]['__total_proy__'] = sumProy;
         });
-        evolucionProyFlujo = [0, 1, 2].map(i => {
+        evolucionProyFlujo = Array.from({ length: mesesAProyectarEv }, (_, i) => {
           const [anioP, mesP] = keyProyLabel.split('-').map(Number);
           const lab = 'Proy. ' + formatoMesAnio(mesP, anioP);
           keyProyLabel = siguienteMesKey(keyProyLabel);
@@ -1783,7 +1843,7 @@
       })).concat(tieneProyExport ? [] : [granTotalExport]);
       rows.push(filaTotalExport);
 
-      if (tieneProyExport && evolucionProyFlujo && evolucionProyFlujo.length === 3) {
+      if (tieneProyExport && evolucionProyFlujo && evolucionProyFlujo.length > 0) {
         rows.push([]);
         rows.push(['Referencia Flujo (proyección): mismos Ingresos, Egresos y G/P que solapa Flujo por mes.']);
         rows.push(['Mes', 'Ingresos', 'Egresos', 'G/P']);
@@ -2711,6 +2771,7 @@
         }
         document.getElementById('menu-home')?.addEventListener('click', (e) => { e.preventDefault(); });
 
+        await syncConfigFromSupabase();
         await cargarDatos();
         filtrosWrap.style.display = 'flex';
         tablaWrap.style.display = 'block';
@@ -2839,6 +2900,8 @@
           const selPctCaucion = document.getElementById('config-pct-caucion');
           if (selMetodo) selMetodo.value = c.metodo;
           if (selMeses) selMeses.value = String(c.meses);
+          const selCantidad = document.getElementById('config-proyeccion-cantidad');
+          if (selCantidad) selCantidad.value = String(c.mesesAProyectar);
           if (selPctCaucion) selPctCaucion.value = String(getPctCaucion());
           document.getElementById('modal-configuracion-backdrop').classList.remove('oculto');
         });
@@ -2848,8 +2911,11 @@
           const selPctCaucion = document.getElementById('config-pct-caucion');
           if (selMetodo) localStorage.setItem(PROYECCION_METODO_KEY, selMetodo.value);
           if (selMeses) localStorage.setItem(PROYECCION_MESES_KEY, selMeses.value);
+          const selCantidadSave = document.getElementById('config-proyeccion-cantidad');
+          if (selCantidadSave) localStorage.setItem(PROYECCION_CANTIDAD_KEY, selCantidadSave.value);
           if (selPctCaucion) localStorage.setItem(PCT_CAUCION_KEY, selPctCaucion.value);
           document.getElementById('modal-configuracion-backdrop').classList.add('oculto');
+          syncConfigToSupabase();
           recalcular();
         });
         document.getElementById('config-cerrar').addEventListener('click', () => document.getElementById('modal-configuracion-backdrop').classList.add('oculto'));
