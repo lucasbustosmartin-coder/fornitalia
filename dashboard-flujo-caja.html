@@ -643,7 +643,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.16';
+    const APP_VERSION = '1.17';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -813,6 +813,7 @@
     let cacheSerieCauciones = {};
     let fechasCaucionOrdenadas = [];
     let detalleIntCaucionPorMes = {};
+    let detalleIntCaucionProy = {};
     let flujoMoneda = 'ARS';
     let flujoSimbolo = '$ ';
 
@@ -1149,20 +1150,29 @@
           comisiones: egr - ing * (ratioEgrNum / 100)
         };
       }
-      function intCaucionProyectadoMes(baseStart, proyGP, tasaDiaria) {
-        const dias = 30;
+      function diasEnMes(anio, mes) {
+        return new Date(anio, mes, 0).getDate();
+      }
+      function intCaucionProyectadoMes(baseStart, proyGP, tasaDiaria, opts) {
+        const intAcumuladoInicial = (opts && opts.intAcumuladoInicial != null) ? opts.intAcumuladoInicial : 0;
+        const gpInicialSolo = (opts && opts.gpInicialSolo != null) ? opts.gpInicialSolo : (baseStart - intAcumuladoInicial);
+        const dias = (opts && opts.dias != null && opts.dias > 0) ? opts.dias : 30;
         const gpDia = proyGP / dias;
-        let gpAcum = baseStart;
-        let intAcum = 0;
+        let gpAcumSolo = gpInicialSolo;
+        let intAcum = intAcumuladoInicial;
         let totalInt = 0;
+        const detalle = [];
         for (let d = 0; d < dias; d++) {
-          gpAcum += gpDia;
-          const base = gpAcum + intAcum;
+          const intAnterior = intAcum;
+          const gpAcumInicioDia = gpAcumSolo;
+          gpAcumSolo += gpDia;
+          const base = gpAcumSolo + intAcum;
           const intDia = base > 0 ? base * tasaDiaria : 0;
           totalInt += intDia;
           intAcum += intDia;
+          detalle.push({ dia: d + 1, gpAcum: gpAcumInicioDia, intAnterior, base, tasa: tasaDiaria, intDia });
         }
-        return { intCaucion: totalInt, baseFin: gpAcum + intAcum };
+        return { intCaucion: totalInt, baseFin: gpAcumSolo + intAcum, detalle, gpAcumSoloFin: gpAcumSolo };
       }
 
       const filasReales = ordenados.map(key => {
@@ -1192,13 +1202,22 @@
 
       let filasProy = '';
       let tasaDiariaProy = 0;
+      detalleIntCaucionProy = {};
       if (ordenados.length > 0 && N > 0) {
-        tasaDiariaProy = fechasOrdenadas.length ? getTasaCaucion(fechasOrdenadas[fechasOrdenadas.length - 1]) : 0;
         const lastKey = ordenados[ordenados.length - 1];
-        const lastMonthGP = (porMes[lastKey].ingresos != null ? porMes[lastKey].ingresos : 0) - (porMes[lastKey].egresos != null ? porMes[lastKey].egresos : 0);
-        const lastMonthInt = porMes[lastKey].intCaucion != null ? porMes[lastKey].intCaucion : 0;
+        const fechasUltimoMes = fechasOrdenadas.filter(f => f.substring(0, 7) === lastKey);
+        if (fechasUltimoMes.length > 0) {
+          let sumaTasa = 0;
+          fechasUltimoMes.forEach(f => { sumaTasa += getTasaCaucion(f); });
+          tasaDiariaProy = sumaTasa / fechasUltimoMes.length;
+        } else {
+          tasaDiariaProy = fechasOrdenadas.length ? getTasaCaucion(fechasOrdenadas[fechasOrdenadas.length - 1]) : 0;
+        }
         const listaReal = ordenados.map(k => aObjetoMes(porMes[k]));
-        let basePartida = lastMonthGP + lastMonthInt;
+        const gpTotalReal = totalIngresos - totalEgresos;
+        let basePartida = gpTotalReal + intAcumuladoAnterior;
+        let intAcumuladoInicial = intAcumuladoAnterior;
+        let gpInicialSolo = gpTotalReal;
         let keyProy = siguienteMesKey(ordenados[ordenados.length - 1]);
         const proys = [];
         for (let i = 0; i < 3; i++) {
@@ -1207,9 +1226,14 @@
           const proy = proyeccionDesdeVentana(ventana);
           proys.push(proy);
           const [anioProy, mesProy] = keyProy.split('-').map(Number);
-          const res = intCaucionProyectadoMes(basePartida, proy.gp, tasaDiariaProy);
+          const diasMes = diasEnMes(anioProy, mesProy);
+          const baseInicio = basePartida;
+          const res = intCaucionProyectadoMes(basePartida, proy.gp, tasaDiariaProy, { dias: diasMes, intAcumuladoInicial, gpInicialSolo });
           const intCaucionProy = res.intCaucion;
           basePartida = proy.gp + intCaucionProy;
+          intAcumuladoInicial = intCaucionProy;
+          gpInicialSolo = res.gpAcumSoloFin;
+          detalleIntCaucionProy[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), basePartida: baseInicio, gpTotalReal: i === 0 ? gpTotalReal : undefined, intAcumuladoInicial: i === 0 ? intAcumuladoAnterior : undefined, proyGP: proy.gp, tasaDiaria: tasaDiariaProy, intCaucion: intCaucionProy, detalle: res.detalle, dias: diasMes };
           filasProy += `<tr class="fila-proyeccion">
             <td>Proy. ${formatoMesAnio(mesProy, anioProy)}</td>
             <td class="ingresos">${simbolo}${formatearNumero(proy.ing, moneda)}</td>
@@ -1217,7 +1241,7 @@
             <td class="balance ${proy.gp >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(proy.gp, moneda)}</td>
             <td>${proy.comVentasPct}</td>
             <td>${proy.egrSinComIngPct}</td>
-            <td class="ingresos">${simbolo}${formatearNumero(intCaucionProy, moneda)}</td>
+            <td class="ingresos int-caucion-cell" data-proy-key="${keyProy}" role="button" tabindex="0" title="Ver marcha de cálculo">${simbolo}${formatearNumero(intCaucionProy, moneda)}</td>
             <td class="alert-icon-cell"></td>
           </tr>`;
           keyProy = siguienteMesKey(keyProy);
@@ -1246,7 +1270,7 @@
         </tr>`;
         if (filasProy) {
           const metodoLabel = configProy.metodo === 'promedio' ? 'Promedio' : 'Mediana';
-          const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses con ventana rodante. Int. por caución: punto de partida = último mes real (G/P + interés), luego se aplica la última tasa conocida en cadena para cada mes proyectado.`;
+          const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses con ventana rodante. Int. por caución: punto de partida = G/P acumulado + interés acumulado (al cierre del último día real); Int T-1 del primer día = interés acumulado real; tasa = promedio del último mes real; días = días naturales del mes (31 ene, 28/29 feb, etc.).`;
           tfootHtml += `<tr class="fila-titulo-proyeccion"><td colspan="8">Próximos 3 meses proyectados:</td></tr>${filasProy}<tr class="disclaimer-proyeccion"><td colspan="8">${disclaimer}</td></tr>`;
         }
         tfoot.innerHTML = tfootHtml;
@@ -1329,6 +1353,35 @@
         tbody.innerHTML = list.map(row => `
           <tr>
             <td>${(row.fecha || '').replace(/</g, '&lt;')}</td>
+            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.gpAcum, flujoMoneda)}</td>
+            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.intAnterior, flujoMoneda)}</td>
+            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.base, flujoMoneda)}</td>
+            <td>${row.tasa != null ? (row.tasa * 100).toFixed(4) + '%' : '—'}</td>
+            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.intDia, flujoMoneda)}</td>
+          </tr>
+        `).join('');
+      }
+      backdrop.classList.remove('oculto');
+    }
+
+    function abrirModalIntCaucionProyectado(keyProy) {
+      const info = detalleIntCaucionProy[keyProy];
+      const backdrop = document.getElementById('modal-int-caucion-backdrop');
+      const titulo = document.getElementById('modal-int-caucion-titulo');
+      const tbody = document.getElementById('tbody-int-caucion');
+      if (!backdrop || !titulo || !tbody || !info) return;
+      titulo.textContent = 'Marcha de cálculo — Int. por caución (proyectado) · ' + info.label;
+      const detalle = info.detalle || [];
+      if (detalle.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">No hay detalle.</td></tr>';
+      } else {
+        const lineaPartida = (info.gpTotalReal != null && info.intAcumuladoInicial != null)
+          ? 'G/P acum (Total real): ' + flujoSimbolo + formatearNumero(info.gpTotalReal, flujoMoneda) + ' &nbsp;+&nbsp; Int. acum: ' + flujoSimbolo + formatearNumero(info.intAcumuladoInicial, flujoMoneda) + ' &nbsp;= Base partida: ' + flujoSimbolo + formatearNumero(info.basePartida, flujoMoneda)
+          : 'Base partida: ' + flujoSimbolo + formatearNumero(info.basePartida, flujoMoneda);
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:left; color:#555; font-size:0.9rem;">' + lineaPartida + ' &nbsp;|&nbsp; G/P mes: ' + flujoSimbolo + formatearNumero(info.proyGP, flujoMoneda) + ' &nbsp;|&nbsp; Tasa diaria: ' + (info.tasaDiaria != null ? (info.tasaDiaria * 100).toFixed(4) + '%' : '—') + '</td></tr>' +
+          detalle.map(row => `
+          <tr>
+            <td>Día ${row.dia}</td>
             <td class="ingresos">${flujoSimbolo}${formatearNumero(row.gpAcum, flujoMoneda)}</td>
             <td class="ingresos">${flujoSimbolo}${formatearNumero(row.intAnterior, flujoMoneda)}</td>
             <td class="ingresos">${flujoSimbolo}${formatearNumero(row.base, flujoMoneda)}</td>
@@ -2507,7 +2560,9 @@
           const cell = e.target.closest('.int-caucion-cell');
           if (!cell) return;
           const keyMes = cell.getAttribute('data-key-mes');
+          const keyProy = cell.getAttribute('data-proy-key');
           if (keyMes) abrirModalIntCaucion(keyMes);
+          else if (keyProy) abrirModalIntCaucionProyectado(keyProy);
         });
         document.getElementById('modal-int-caucion-close').addEventListener('click', () => document.getElementById('modal-int-caucion-backdrop').classList.add('oculto'));
         document.getElementById('modal-int-caucion-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-int-caucion-backdrop') e.target.classList.add('oculto'); });
