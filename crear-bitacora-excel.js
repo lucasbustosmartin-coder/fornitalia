@@ -54,6 +54,7 @@ const datosLog = [
   ['01/03/2026', '09:30', 'Proyección Int. caución: base Total real y marcha', 'Punto de partida = G/P Total real (totalIngresos - totalEgresos) + interés acumulado; tasa = promedio del último mes real; días naturales (31 ene, 28 feb, etc.); Int T-1 día 1 = interés acumulado real; modal marcha proyectado: desglose G/P acum Total real + Int. acum = Base partida; columna G/P acum solo G/P (Día 1 = Total real).', 'Implementacion'],
   ['01/03/2026', '10:00', 'Ventana rodante e Int T-1 y G/P acum inicio día', 'Ventana rodante: numReal hace que mes 2 y 3 proyectados usen menos reales + proyectados (ingresos/egresos distintos). Int T-1 día 1 = (Int T-1 + Int T) del último día del mes anterior (desde detalle real o prevRes). G/P acum en marcha (real y proyectado) = valor al inicio del día, no incluye ese día.', 'Implementacion'],
   ['27/02/2026', '12:00', 'Unificación botones e iconos', 'Mismo estilo en todos los botones: icono SVG + texto. Sidebar (chevron, home, engranaje), tabs con iconos, exportar con icono descarga, modales (Guardar/Cerrar/Excluir/Eliminar con iconos). Iconos solos (cerrar, editar, alerta) en SVG. Escala combo % G/P en caución de 5 en 5.', 'Implementacion'],
+  ['27/02/2026', '12:30', 'Etiqueta Caución (x% cash)', 'Simplificar texto Int. por caución a Caución (x% cash) en cabecera de flujo por mes; x = valor del parámetro % G/P en caución. Quitar icono % a la izquierda. Modales de marcha y disclaimer con Caución.', 'Implementacion'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -114,6 +115,7 @@ const funcionalidades = [
   ['Disclaimer proyección', 'Debajo de las filas proyectadas, texto en letra chica y gris oscuro que explica la metodología: Mediana/Promedio de N meses, ventana rodante, y cálculo de Int. por caución proyectado.'],
   ['Botones e iconos unificados', 'Todos los botones con mismo estilo: icono SVG + texto. Sidebar (chevron, home, engranaje), tabs con iconos, exportar con icono descarga, modales con iconos (Guardar, Cerrar, Excluir, Eliminar). Iconos solos (cerrar, editar, alerta) en SVG.'],
   ['Configuración % G/P en caución', 'Combo "% G/P acum. en caución" en Configuración con escala de 5 en 5 (100, 95, 90… hasta 0). Por defecto 100 %; menor % = más liquidez (menos interés por caución).'],
+  ['Etiqueta Caución (x% cash)', 'Columna en flujo por mes: cabecera "Caución (x% cash)" donde x es el valor del parámetro % G/P; sin icono % a la izquierda. Modales de marcha y disclaimer usan "Caución".'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
@@ -158,6 +160,7 @@ const versiones = [
   ['1.17', '01/03/2026', 'Proyección: punto de partida = G/P Total real (no último mes); tasa = promedio último mes real; días naturales por mes; Int T-1 día 1 = interés acumulado real; modal marcha proyectado con desglose (G/P acum Total real + Int. acum) y columna G/P acum solo G/P (Día 1 = Total real). Despliegue a producción.'],
   ['1.18', '01/03/2026', 'Ventana rodante: ingresos/egresos/G/P distintos por mes (drop real cuando pocos meses). Int T-1 día 1 = (Int T-1 + Int T) último día del mes anterior (real o proyectado). G/P acum en marcha = inicio del día (real y proyectado), no incluye ese día. Despliegue a producción.'],
   ['1.19', '27/02/2026', 'Unificación de botones e iconos: mismo estilo (icono SVG + texto) en sidebar, tabs, exportar, modales; iconos solos (cerrar, editar, alerta) en SVG. Escala combo % G/P en caución de 5 en 5 (100, 95, 90…). Despliegue a producción.'],
+  ['1.20', '27/02/2026', 'Simplificar etiqueta: Int. por caución pasa a Caución (x% cash) en cabecera de flujo (x = parámetro % G/P); quitar icono % a la izquierda; modales y disclaimer con texto Caución. Despliegue a producción.'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];

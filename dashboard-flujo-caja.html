@@ -100,8 +100,6 @@
     #panel-flujo tfoot td:not(:first-child):not(.alert-icon-cell) { text-align: right; }
     .disclaimer-proyeccion { font-size: 0.75rem; color: #555; font-weight: normal; padding: 0.35rem 0.65rem !important; border-top: none !important; background: #fafafa !important; }
     .th-int-caucion { color: #b91c1c; font-weight: 600; }
-    .icon-int-caucion { display: inline-block; margin-right: 0.2em; font-size: 0.95em; font-weight: 700; }
-    .icon-int-caucion::before { content: '%'; color: #b91c1c; }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
     .modal-backdrop.oculto { display: none; }
     .modal { background: #fff; border-radius: 12px; max-width: 640px; width: 100%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
@@ -290,7 +288,7 @@
             <th>G/P</th>
             <th>Comisiones/Ventas %</th>
             <th>Egr s/com. / Ingresos</th>
-            <th class="th-int-caucion" title="Interés acumulado por mes colocando el sobrante de caja a la tasa de la serie de cauciones"><span class="icon-int-caucion" aria-hidden="true"></span> Int. por caución</th>
+            <th class="th-int-caucion" id="th-int-caucion-label" title="Interés acumulado por mes colocando el sobrante de caja a la tasa de la serie de cauciones">Caución (100% cash)</th>
             <th class="alert-icon-cell"></th>
           </tr>
         </thead>
@@ -567,7 +565,7 @@
       <div class="modal-body" id="modal-configuracion-body">
         <section class="config-section">
           <h3 class="config-section-title">Proyección (Flujo por mes)</h3>
-          <p class="sin-cotizacion-note" style="margin-top:0;">Parámetros para los 3 meses proyectados debajo del total real. Ingresos y egresos usan el valor típico de la historia; Int. por caución se calcula en forma acumulativa.</p>
+          <p class="sin-cotizacion-note" style="margin-top:0;">Parámetros para los 3 meses proyectados debajo del total real. Ingresos y egresos usan el valor típico de la historia; Caución se calcula en forma acumulativa.</p>
           <div class="form-group">
             <label for="config-proyeccion-metodo">Método</label>
             <select id="config-proyeccion-metodo" title="Valor típico de los últimos N meses para proyectar">
@@ -675,7 +673,7 @@
   <div id="modal-int-caucion-backdrop" class="modal-backdrop oculto">
     <div class="modal modal-evolucion-detalle-ancho" id="modal-int-caucion">
       <div class="modal-header" id="modal-int-caucion-header-drag">
-        <h2 id="modal-int-caucion-titulo">Marcha de cálculo — Int. por caución</h2>
+        <h2 id="modal-int-caucion-titulo">Marcha de cálculo — Caución</h2>
         <button type="button" class="modal-close" id="modal-int-caucion-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
       </div>
       <div class="modal-body" id="modal-int-caucion-body">
@@ -706,7 +704,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.19';
+    const APP_VERSION = '1.20';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1174,6 +1172,8 @@
       });
       const fechasOrdenadas = Object.keys(deltasPorFecha).sort();
       const pctCaucion = getPctCaucion();
+      const thIntCaucion = document.getElementById('th-int-caucion-label');
+      if (thIntCaucion) thIntCaucion.textContent = 'Caución (' + pctCaucion + '% cash)';
       let gpAcumulado = 0;
       let intAcumuladoAnterior = 0;
       fechasOrdenadas.forEach(fecha => {
@@ -1393,7 +1393,7 @@
         </tr>`;
         if (filasProy) {
           const metodoLabel = configProy.metodo === 'promedio_ponderado' ? 'Promedio ponderado' : (configProy.metodo === 'promedio' ? 'Promedio' : 'Mediana');
-          const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución). Int. por caución: punto de partida = G/P acumulado + interés acumulado (al cierre del último día real); Int T-1 del primer día = interés acumulado real; tasa = promedio del último mes real; días = días naturales del mes (31 ene, 28/29 feb, etc.).`;
+          const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución). Caución: punto de partida = G/P acumulado + interés acumulado (al cierre del último día real); Int T-1 del primer día = interés acumulado real; tasa = promedio del último mes real; días = días naturales del mes (31 ene, 28/29 feb, etc.).`;
           tfootHtml += `<tr class="fila-titulo-proyeccion"><td colspan="8">Próximos 3 meses proyectados:</td></tr>${filasProy}<tr class="disclaimer-proyeccion"><td colspan="8">${disclaimer}</td></tr>`;
         }
         tfoot.innerHTML = tfootHtml;
@@ -1490,7 +1490,7 @@
       if (!backdrop || !titulo || !tbody) return;
       const [anio, mes] = keyMes.split('-');
       const label = formatoMesAnio(parseInt(mes, 10), parseInt(anio, 10));
-      titulo.textContent = 'Marcha de cálculo — Int. por caución · ' + label;
+      titulo.textContent = 'Marcha de cálculo — Caución · ' + label;
       if (!list || list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">No hay datos para este mes.</td></tr>';
       } else {
@@ -1514,7 +1514,7 @@
       const titulo = document.getElementById('modal-int-caucion-titulo');
       const tbody = document.getElementById('tbody-int-caucion');
       if (!backdrop || !titulo || !tbody || !info) return;
-      titulo.textContent = 'Marcha de cálculo — Int. por caución (proyectado) · ' + info.label;
+      titulo.textContent = 'Marcha de cálculo — Caución (proyectado) · ' + info.label;
       const detalle = info.detalle || [];
       if (detalle.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">No hay detalle.</td></tr>';
