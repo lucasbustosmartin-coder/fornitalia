@@ -52,6 +52,7 @@ const datosLog = [
   ['27/02/2026', '14:00', 'Proyección 3 meses e Int. por caución proyectado', 'Configuración (Configuración en menú): método Mediana/Promedio y meses de historia (3, 6, 12, 24). Próximos 3 meses proyectados con ventana rodante. Int. por caución: punto de partida = último mes real (G/P + interés), luego última tasa conocida aplicada en cadena para cada mes proyectado.', 'Implementacion'],
   ['27/02/2026', '14:15', 'Disclaimer bajo proyección', 'Texto en letra chica y gris oscuro bajo la proyección indicando metodología: Mediana/Promedio de N meses, ventana rodante, y cómo se calcula Int. por caución proyectado.', 'Implementacion'],
   ['01/03/2026', '09:30', 'Proyección Int. caución: base Total real y marcha', 'Punto de partida = G/P Total real (totalIngresos - totalEgresos) + interés acumulado; tasa = promedio del último mes real; días naturales (31 ene, 28 feb, etc.); Int T-1 día 1 = interés acumulado real; modal marcha proyectado: desglose G/P acum Total real + Int. acum = Base partida; columna G/P acum solo G/P (Día 1 = Total real).', 'Implementacion'],
+  ['01/03/2026', '10:00', 'Ventana rodante e Int T-1 y G/P acum inicio día', 'Ventana rodante: numReal hace que mes 2 y 3 proyectados usen menos reales + proyectados (ingresos/egresos distintos). Int T-1 día 1 = (Int T-1 + Int T) del último día del mes anterior (desde detalle real o prevRes). G/P acum en marcha (real y proyectado) = valor al inicio del día, no incluye ese día.', 'Implementacion'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -108,7 +109,7 @@ const funcionalidades = [
   ['Todas las transacciones', 'Solapa que lista todas las transacciones con todas las columnas. Filtros por mes y categoría. Botón Editar por registro abre modal de edición completa.'],
   ['Edición completa de registros', 'Modal de edición con todos los campos: fecha, mes, año, tipo movimiento, monto, moneda, status, medio pago, categoría, cuenta contable, origen archivo, descripción, cliente, cat_desc, id_origen, id_operación. Combos para campos normalizados (valores existentes en BD). editado y editado_detalle al guardar.'],
   ['Proyección próximos 3 meses', 'Debajo del total real en Flujo por mes: "Próximos 3 meses proyectados" con ventana rodante. Configuración (sidebar): método (Mediana/Promedio) y meses de historia (3, 6, 12, 24). Ingresos, egresos, G/P y ratios proyectados por mes.'],
-  ['Int. por caución proyectado', 'Punto de partida = G/P Total real (Total de la tabla) + interés acumulado; tasa = promedio del último mes real; días naturales del mes (31 ene, 28/29 feb, etc.); Int T-1 día 1 = interés acumulado real. Modal marcha: desglose G/P acum Total real + Int. acum = Base partida; columna G/P acum muestra solo G/P (Día 1 = Total real).'],
+  ['Int. por caución proyectado', 'Punto de partida = G/P Total real + interés acumulado; tasa = promedio último mes real; días naturales; Int T-1 día 1 = (Int T-1 + Int T) último día del mes anterior. G/P acum en marcha = al inicio de cada día (real y proyectado). Ventana rodante: ingresos/egresos distintos por mes.'],
   ['Disclaimer proyección', 'Debajo de las filas proyectadas, texto en letra chica y gris oscuro que explica la metodología: Mediana/Promedio de N meses, ventana rodante, y cálculo de Int. por caución proyectado.'],
 ];
 
@@ -152,6 +153,7 @@ const versiones = [
   ['1.15', '28/02/2025', 'Filtro Tipo (Ingreso/Egreso) en solapa Todas las transacciones'],
   ['1.16', '27/02/2026', 'Proyección 3 meses: config (mediana/promedio, meses historia), ventana rodante; Int. por caución proyectado con punto de partida = último real (G/P+interés) y última tasa en cadena; disclaimer bajo proyección. Despliegue a producción.'],
   ['1.17', '01/03/2026', 'Proyección: punto de partida = G/P Total real (no último mes); tasa = promedio último mes real; días naturales por mes; Int T-1 día 1 = interés acumulado real; modal marcha proyectado con desglose (G/P acum Total real + Int. acum) y columna G/P acum solo G/P (Día 1 = Total real). Despliegue a producción.'],
+  ['1.18', '01/03/2026', 'Ventana rodante: ingresos/egresos/G/P distintos por mes (drop real cuando pocos meses). Int T-1 día 1 = (Int T-1 + Int T) último día del mes anterior (real o proyectado). G/P acum en marcha = inicio del día (real y proyectado), no incluye ese día. Despliegue a producción.'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];

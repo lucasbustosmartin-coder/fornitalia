@@ -643,7 +643,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.17';
+    const APP_VERSION = '1.18';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1043,6 +1043,7 @@
       let gpAcumulado = 0;
       let intAcumuladoAnterior = 0;
       fechasOrdenadas.forEach(fecha => {
+        const gpAcumInicioDia = gpAcumulado;
         gpAcumulado += deltasPorFecha[fecha];
         const base = gpAcumulado + intAcumuladoAnterior;
         const tasaDiaria = getTasaCaucion(fecha);
@@ -1052,7 +1053,7 @@
           const keyMes = anio + '-' + String(mes).padStart(2, '0');
           if (porMes[keyMes] != null) {
             porMes[keyMes].intCaucion = (porMes[keyMes].intCaucion || 0) + intDia;
-            detalleIntCaucionPorMes[keyMes].push({ fecha, gpAcum: gpAcumulado, intAnterior: intAcumuladoAnterior, base, tasa: tasaDiaria, intDia });
+            detalleIntCaucionPorMes[keyMes].push({ fecha, gpAcum: gpAcumInicioDia, intAnterior: intAcumuladoAnterior, base, tasa: tasaDiaria, intDia });
           }
         }
         intAcumuladoAnterior += intDia;
@@ -1216,12 +1217,19 @@
         const listaReal = ordenados.map(k => aObjetoMes(porMes[k]));
         const gpTotalReal = totalIngresos - totalEgresos;
         let basePartida = gpTotalReal + intAcumuladoAnterior;
-        let intAcumuladoInicial = intAcumuladoAnterior;
+        const detalleUltimoReal = detalleIntCaucionPorMes[lastKey] || [];
+        const ultimaFilaReal = detalleUltimoReal.length > 0 ? detalleUltimoReal[detalleUltimoReal.length - 1] : null;
+        let intAcumuladoInicial = ultimaFilaReal != null ? (ultimaFilaReal.intAnterior || 0) + (ultimaFilaReal.intDia || 0) : intAcumuladoAnterior;
         let gpInicialSolo = gpTotalReal;
         let keyProy = siguienteMesKey(ordenados[ordenados.length - 1]);
         const proys = [];
+        let prevRes = null;
         for (let i = 0; i < 3; i++) {
-          const numReal = Math.max(0, N - i);
+          if (i > 0 && prevRes && prevRes.detalle && prevRes.detalle.length > 0) {
+            const ultima = prevRes.detalle[prevRes.detalle.length - 1];
+            intAcumuladoInicial = (ultima.intAnterior || 0) + (ultima.intDia || 0);
+          }
+          const numReal = Math.max(0, Math.min(N - i, listaReal.length) - (listaReal.length <= N - i ? i : 0));
           const ventana = listaReal.slice(-numReal).concat(proys.map(p => syntheticMes(p.ing, p.egr, p.ratioComNum, p.ratioEgrNum)));
           const proy = proyeccionDesdeVentana(ventana);
           proys.push(proy);
@@ -1229,11 +1237,11 @@
           const diasMes = diasEnMes(anioProy, mesProy);
           const baseInicio = basePartida;
           const res = intCaucionProyectadoMes(basePartida, proy.gp, tasaDiariaProy, { dias: diasMes, intAcumuladoInicial, gpInicialSolo });
+          prevRes = res;
           const intCaucionProy = res.intCaucion;
           basePartida = proy.gp + intCaucionProy;
-          intAcumuladoInicial = intCaucionProy;
           gpInicialSolo = res.gpAcumSoloFin;
-          detalleIntCaucionProy[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), basePartida: baseInicio, gpTotalReal: i === 0 ? gpTotalReal : undefined, intAcumuladoInicial: i === 0 ? intAcumuladoAnterior : undefined, proyGP: proy.gp, tasaDiaria: tasaDiariaProy, intCaucion: intCaucionProy, detalle: res.detalle, dias: diasMes };
+          detalleIntCaucionProy[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), basePartida: baseInicio, gpTotalReal: i === 0 ? gpTotalReal : undefined, intAcumuladoInicial, proyGP: proy.gp, tasaDiaria: tasaDiariaProy, intCaucion: intCaucionProy, detalle: res.detalle, dias: diasMes };
           filasProy += `<tr class="fila-proyeccion">
             <td>Proy. ${formatoMesAnio(mesProy, anioProy)}</td>
             <td class="ingresos">${simbolo}${formatearNumero(proy.ing, moneda)}</td>
@@ -1375,9 +1383,14 @@
       if (detalle.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">No hay detalle.</td></tr>';
       } else {
-        const lineaPartida = (info.gpTotalReal != null && info.intAcumuladoInicial != null)
-          ? 'G/P acum (Total real): ' + flujoSimbolo + formatearNumero(info.gpTotalReal, flujoMoneda) + ' &nbsp;+&nbsp; Int. acum: ' + flujoSimbolo + formatearNumero(info.intAcumuladoInicial, flujoMoneda) + ' &nbsp;= Base partida: ' + flujoSimbolo + formatearNumero(info.basePartida, flujoMoneda)
-          : 'Base partida: ' + flujoSimbolo + formatearNumero(info.basePartida, flujoMoneda);
+        let lineaPartida;
+        if (info.gpTotalReal != null && info.intAcumuladoInicial != null) {
+          lineaPartida = 'G/P acum (Total real): ' + flujoSimbolo + formatearNumero(info.gpTotalReal, flujoMoneda) + ' &nbsp;+&nbsp; Int. acum: ' + flujoSimbolo + formatearNumero(info.intAcumuladoInicial, flujoMoneda) + ' &nbsp;= Base partida: ' + flujoSimbolo + formatearNumero(info.basePartida, flujoMoneda);
+        } else if (info.intAcumuladoInicial != null) {
+          lineaPartida = 'Int T-1 (primer día) = interés cierre mes proyectado anterior: ' + flujoSimbolo + formatearNumero(info.intAcumuladoInicial, flujoMoneda) + ' &nbsp;|&nbsp; Base partida: ' + flujoSimbolo + formatearNumero(info.basePartida, flujoMoneda);
+        } else {
+          lineaPartida = 'Base partida: ' + flujoSimbolo + formatearNumero(info.basePartida, flujoMoneda);
+        }
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:left; color:#555; font-size:0.9rem;">' + lineaPartida + ' &nbsp;|&nbsp; G/P mes: ' + flujoSimbolo + formatearNumero(info.proyGP, flujoMoneda) + ' &nbsp;|&nbsp; Tasa diaria: ' + (info.tasaDiaria != null ? (info.tasaDiaria * 100).toFixed(4) + '%' : '—') + '</td></tr>' +
           detalle.map(row => `
           <tr>
