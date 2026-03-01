@@ -57,6 +57,8 @@ const datosLog = [
   ['27/02/2026', '12:30', 'Etiqueta Caución (x% cash)', 'Simplificar texto Int. por caución a Caución (x% cash) en cabecera de flujo por mes; x = valor del parámetro % G/P en caución. Quitar icono % a la izquierda. Modales de marcha y disclaimer con Caución.', 'Implementacion'],
   ['27/02/2026', '13:00', 'Meses a proyectar en Configuración', 'Nuevo parámetro en Configuración: Meses a proyectar (1, 2, 3, 4, 5, 6, 12). Flujo por mes y Evolución muestran esa cantidad de meses proyectados. proyeccionDesdeSerie generalizada a N meses.', 'Implementacion'],
   ['27/02/2026', '13:15', 'Config dashboard por usuario en Supabase', 'Tabla config_dashboard en Supabase (user_id, proyeccion_metodo, proyeccion_meses, proyeccion_cantidad, pct_caucion). RLS por usuario. Al cargar: sync desde Supabase (Auth anónimo); al guardar: upsert en Supabase. Fallback a localStorage si no hay usuario.', 'Implementacion'],
+  ['27/02/2026', '14:00', 'Recorte % (cada lado) en Configuración', 'Parámetro Recorte % (cada lado) en Configuración (0, 5, 10, 15, 20, 25) para el método Promedio recortado. Persistido en localStorage y columna proyeccion_recorte en config_dashboard (Supabase).', 'Implementacion'],
+  ['27/02/2026', '14:10', 'Recorte % solo si Promedio recortado', 'El campo Recorte % (cada lado) se muestra en Configuración solo cuando el método elegido es Promedio recortado; al cambiar de método se oculta o muestra al instante.', 'Implementacion'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -120,6 +122,7 @@ const funcionalidades = [
   ['Etiqueta Caución (x% cash)', 'Columna en flujo por mes: cabecera "Caución (x% cash)" donde x es el valor del parámetro % G/P; sin icono % a la izquierda. Modales de marcha y disclaimer usan "Caución".'],
   ['Meses a proyectar', 'En Configuración: combo Meses a proyectar (1, 2, 3, 4, 5, 6, 12). Flujo por mes y Evolución muestran esa cantidad de columnas/filas proyectadas.'],
   ['Config por usuario en Supabase', 'Tabla config_dashboard (user_id, proyección y caución). Con Auth anónimo se sincroniza al cargar y al guardar; la config persiste por usuario en la base. Migración: supabase_config_dashboard.sql.'],
+  ['Recorte % (cada lado)', 'En Configuración, combo Recorte % (cada lado) (0, 5, 10, 15, 20, 25) visible solo cuando el método es Promedio recortado. Más % = más suavizado. Persistido en config_dashboard (proyeccion_recorte).'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
@@ -166,6 +169,7 @@ const versiones = [
   ['1.19', '27/02/2026', 'Unificación de botones e iconos: mismo estilo (icono SVG + texto) en sidebar, tabs, exportar, modales; iconos solos (cerrar, editar, alerta) en SVG. Escala combo % G/P en caución de 5 en 5 (100, 95, 90…). Despliegue a producción.'],
   ['1.20', '27/02/2026', 'Simplificar etiqueta: Int. por caución pasa a Caución (x% cash) en cabecera de flujo (x = parámetro % G/P); quitar icono % a la izquierda; modales y disclaimer con texto Caución. Despliegue a producción.'],
   ['1.21', '27/02/2026', 'Config por usuario en Supabase: parámetro Meses a proyectar (1-12) en Configuración; tabla config_dashboard (user_id, proyección y caución); sync al cargar y al guardar con Auth anónimo. Despliegue a producción.'],
+  ['1.22', '27/02/2026', 'Parámetro Recorte % (cada lado) en Configuración (0-25); visible solo si método es Promedio recortado. Columna proyeccion_recorte en config_dashboard. Despliegue a producción.'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];

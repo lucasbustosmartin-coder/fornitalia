@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS public.config_dashboard (
   proyeccion_metodo text NOT NULL DEFAULT 'promedio_ponderado',
   proyeccion_meses int NOT NULL DEFAULT 6,
   proyeccion_cantidad int NOT NULL DEFAULT 3,
+  proyeccion_recorte int NOT NULL DEFAULT 15,
   pct_caucion int NOT NULL DEFAULT 100,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -19,6 +20,7 @@ COMMENT ON TABLE public.config_dashboard IS 'Preferencias de proyección y cauci
 COMMENT ON COLUMN public.config_dashboard.proyeccion_metodo IS 'promedio_ponderado | promedio | mediana';
 COMMENT ON COLUMN public.config_dashboard.proyeccion_meses IS 'Meses de historia para calcular valor típico: 3, 6, 12, 24';
 COMMENT ON COLUMN public.config_dashboard.proyeccion_cantidad IS 'Meses futuros a proyectar: 1 a 12';
+COMMENT ON COLUMN public.config_dashboard.proyeccion_recorte IS 'Recorte % por lado para promedio recortado: 0, 5, 10, 15, 20, 25';
 COMMENT ON COLUMN public.config_dashboard.pct_caucion IS 'Porcentaje G/P acum. en caución (0-100)';
 
 ALTER TABLE public.config_dashboard ENABLE ROW LEVEL SECURITY;
@@ -29,3 +31,7 @@ CREATE POLICY "Usuario ve y edita su config"
   FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- Si la tabla ya existía sin proyeccion_recorte, ejecutar:
+-- ALTER TABLE public.config_dashboard ADD COLUMN IF NOT EXISTS proyeccion_recorte int NOT NULL DEFAULT 15;
+-- COMMENT ON COLUMN public.config_dashboard.proyeccion_recorte IS 'Recorte % por lado para promedio recortado: 0, 5, 10, 15, 20, 25';

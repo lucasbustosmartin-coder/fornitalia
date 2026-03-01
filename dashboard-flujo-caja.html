@@ -71,7 +71,8 @@
     #tabla-todas-transacciones { min-width: max-content; }
     #tabla-todas-transacciones th:nth-child(11),
     #tabla-todas-transacciones td:nth-child(11) { text-align: left; max-width: 200px; }
-    .fila-proyeccion { font-style: italic; color: #555; background: #fafafa; }
+    .fila-proyeccion { font-style: italic; color: #555; background: #fafafa; cursor: pointer; }
+    .fila-proyeccion:hover { background: #f0f0f0; }
     .fila-proyeccion td:first-child { font-weight: 500; }
     .fila-titulo-proyeccion td { font-weight: 600; color: #333; background: #f0f0f0; padding: 0.5rem 0.65rem; border-top: 2px solid #ccc; }
     .fila-total-real { border-top: 2px solid #333; }
@@ -580,11 +581,24 @@
           </div>
           <div class="form-group">
             <label for="config-proyeccion-metodo">Método</label>
-            <select id="config-proyeccion-metodo" title="Valor típico de los últimos N meses para proyectar">
+            <select id="config-proyeccion-metodo" title="Valor típico para proyectar: últimos N meses. Recortado = quita extremos para suavizar picos.">
               <option value="promedio_ponderado" selected>Promedio ponderado</option>
               <option value="promedio">Promedio</option>
               <option value="mediana">Mediana</option>
+              <option value="promedio_recortado">Promedio recortado (suaviza picos)</option>
             </select>
+          </div>
+          <div class="form-group" id="config-recorte-wrap" style="display: none;">
+            <label for="config-proyeccion-recorte">Recorte % (cada lado)</label>
+            <select id="config-proyeccion-recorte" title="Porcentaje a quitar de cada extremo (mínimos y máximos). 0 = no recorta, 25 = más suavizado.">
+              <option value="0">0 %</option>
+              <option value="5">5 %</option>
+              <option value="10">10 %</option>
+              <option value="15" selected>15 %</option>
+              <option value="20">20 %</option>
+              <option value="25">25 %</option>
+            </select>
+            <span class="sin-cotizacion-note" style="display:block; margin-top:0.25rem;">Más % = más suavizado (menos peso de picos).</span>
           </div>
           <div class="form-group">
             <label for="config-proyeccion-meses">Meses de historia</label>
@@ -716,11 +730,12 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.21';
+    const APP_VERSION = '1.22';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
     const PROYECCION_CANTIDAD_KEY = 'fornitalia_proyeccion_cantidad';
+    const PROYECCION_RECORTE_KEY = 'fornitalia_proyeccion_recorte';
     const PCT_CAUCION_KEY = 'fornitalia_pct_caucion';
 
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -736,11 +751,12 @@
         }
         const uid = session?.user?.id;
         if (!uid) return;
-        const { data: row, error } = await client.from('config_dashboard').select('proyeccion_metodo,proyeccion_meses,proyeccion_cantidad,pct_caucion').eq('user_id', uid).maybeSingle();
+        const { data: row, error } = await client.from('config_dashboard').select('proyeccion_metodo,proyeccion_meses,proyeccion_cantidad,proyeccion_recorte,pct_caucion').eq('user_id', uid).maybeSingle();
         if (error || !row) return;
         if (row.proyeccion_metodo) localStorage.setItem(PROYECCION_METODO_KEY, row.proyeccion_metodo);
         if (row.proyeccion_meses != null) localStorage.setItem(PROYECCION_MESES_KEY, String(row.proyeccion_meses));
         if (row.proyeccion_cantidad != null) localStorage.setItem(PROYECCION_CANTIDAD_KEY, String(row.proyeccion_cantidad));
+        if (row.proyeccion_recorte != null) localStorage.setItem(PROYECCION_RECORTE_KEY, String(row.proyeccion_recorte));
         if (row.pct_caucion != null) localStorage.setItem(PCT_CAUCION_KEY, String(row.pct_caucion));
       } catch (_) { /* mantener localStorage */ }
     }
@@ -754,12 +770,14 @@
         const metodo = localStorage.getItem(PROYECCION_METODO_KEY) || 'promedio_ponderado';
         const meses = parseInt(localStorage.getItem(PROYECCION_MESES_KEY) || '6', 10) || 6;
         const cantidad = parseInt(localStorage.getItem(PROYECCION_CANTIDAD_KEY) || '3', 10) || 3;
+        const recorte = parseInt(localStorage.getItem(PROYECCION_RECORTE_KEY) || '15', 10);
         const pct = parseInt(localStorage.getItem(PCT_CAUCION_KEY) || '100', 10);
         await client.from('config_dashboard').upsert({
           user_id: uid,
           proyeccion_metodo: metodo,
           proyeccion_meses: meses,
           proyeccion_cantidad: cantidad,
+          proyeccion_recorte: (recorte >= 0 && recorte <= 25) ? recorte : 15,
           pct_caucion: (pct >= 0 && pct <= 100) ? pct : 100,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
@@ -770,10 +788,12 @@
       const metodo = localStorage.getItem(PROYECCION_METODO_KEY) || 'promedio_ponderado';
       const meses = parseInt(localStorage.getItem(PROYECCION_MESES_KEY) || '6', 10) || 6;
       const cantidad = parseInt(localStorage.getItem(PROYECCION_CANTIDAD_KEY) || '3', 10) || 3;
-      const metodoValido = ['promedio_ponderado', 'promedio', 'mediana'].includes(metodo) ? metodo : 'promedio_ponderado';
+      const recorte = parseInt(localStorage.getItem(PROYECCION_RECORTE_KEY) || '15', 10);
+      const metodoValido = ['promedio_ponderado', 'promedio', 'mediana', 'promedio_recortado'].includes(metodo) ? metodo : 'promedio_ponderado';
       const mesesValido = [3, 6, 12, 24].includes(meses) ? meses : 6;
       const cantidadValido = [1, 2, 3, 4, 5, 6, 12].includes(cantidad) ? cantidad : 3;
-      return { metodo: metodoValido, meses: mesesValido, mesesAProyectar: cantidadValido };
+      const recorteValido = [0, 5, 10, 15, 20, 25].includes(recorte) ? recorte : 15;
+      return { metodo: metodoValido, meses: mesesValido, mesesAProyectar: cantidadValido, recortePct: recorteValido };
     }
 
     function getPctCaucion() {
@@ -806,6 +826,16 @@
       if (!arr || arr.length === 0) return 0;
       const nums = arr.filter(x => typeof x === 'number' && !isNaN(x));
       return nums.length === 0 ? 0 : nums.reduce((s, x) => s + x, 0) / nums.length;
+    }
+
+    /** Promedio recortado: quita un % de los valores más altos y más bajos para suavizar picos. pct = 0.15 → recorta 15 % de cada lado. */
+    function promedioRecortado(arr, pct) {
+      const nums = (arr || []).filter(x => typeof x === 'number' && !isNaN(x));
+      if (nums.length === 0) return 0;
+      const sorted = [...nums].sort((a, b) => a - b);
+      const drop = Math.max(0, Math.floor(sorted.length * (pct || 0.15)));
+      const recortado = sorted.slice(drop, sorted.length - drop);
+      return recortado.length === 0 ? mediana(sorted) : recortado.reduce((s, x) => s + x, 0) / recortado.length;
     }
 
     function siguienteMesKey(key) {
@@ -995,6 +1025,7 @@
     let fechasCaucionOrdenadas = [];
     let detalleIntCaucionPorMes = {};
     let detalleIntCaucionProy = {};
+    let detalleProyeccionPorMes = {};
     let flujoMoneda = 'ARS';
     let flujoSimbolo = '$ ';
 
@@ -1300,7 +1331,7 @@
       const configProy = getProyeccionConfig();
       const N = configProy.meses;
       const mesesAProyectar = configProy.mesesAProyectar;
-      const agg = configProy.metodo === 'promedio_ponderado' ? promedioPonderado : (configProy.metodo === 'promedio' ? promedio : (arr) => mediana(arr));
+      const agg = configProy.metodo === 'promedio_ponderado' ? promedioPonderado : (configProy.metodo === 'promedio' ? promedio : (configProy.metodo === 'mediana' ? (arr) => mediana(arr) : (arr) => promedioRecortado(arr, (configProy.recortePct || 15) / 100)));
       function diasEnMes(anio, mes) {
         return new Date(anio, mes, 0).getDate();
       }
@@ -1355,6 +1386,7 @@
       let filasProy = '';
       let tasaDiariaProy = 0;
       detalleIntCaucionProy = {};
+        detalleProyeccionPorMes = {};
       if (ordenados.length > 0 && N > 0) {
         const lastKey = ordenados[ordenados.length - 1];
         const fechasUltimoMes = fechasOrdenadas.filter(f => f.substring(0, 7) === lastKey);
@@ -1374,21 +1406,28 @@
         const categoriasList = Array.from(categoriasProy);
         const proyIng = Array(mesesAProyectar).fill(0);
         const proyEgr = Array(mesesAProyectar).fill(0);
+        let keyProyList = [];
+        let kp = siguienteMesKey(ordenados[ordenados.length - 1]);
+        for (let j = 0; j < mesesAProyectar; j++) { keyProyList.push(kp); kp = siguienteMesKey(kp); }
+        const proyDetalle = {};
+        keyProyList.forEach(k => { proyDetalle[k] = { ingresoPorCat: {}, egresoPorCat: {} }; });
         categoriasList.forEach(cat => {
           const valoresIng = ordenados.map(k => (porMesCatIng[k] && porMesCatIng[k][cat]) ? porMesCatIng[k][cat] : 0);
           const valoresEgr = ordenados.map(k => (porMesCatEgr[k] && porMesCatEgr[k][cat]) ? porMesCatEgr[k][cat] : 0);
           const pIng = proyeccionDesdeSerie(valoresIng, N, agg, mesesAProyectar);
           const pEgr = proyeccionDesdeSerie(valoresEgr, N, agg, mesesAProyectar);
-          for (let j = 0; j < mesesAProyectar; j++) { proyIng[j] += pIng[j]; proyEgr[j] += pEgr[j]; }
+          for (let j = 0; j < mesesAProyectar; j++) {
+            proyDetalle[keyProyList[j]].ingresoPorCat[cat] = pIng[j];
+            proyDetalle[keyProyList[j]].egresoPorCat[cat] = pEgr[j];
+            proyIng[j] += pIng[j]; proyEgr[j] += pEgr[j];
+          }
         });
-        const numReal = Math.min(N, listaReal.length);
-        const sliceReal = listaReal.slice(-numReal);
-        const ratiosCom = sliceReal.map(d => (d.ventas != null && d.ventas > 0 && d.comisionesParaRatio != null) ? (d.comisionesParaRatio / d.ventas) * 100 : null).filter(x => x != null);
-        const ratiosEgr = sliceReal.map(d => (d.ingresos != null && d.ingresos > 0 && d.egresos != null && d.comisiones != null) ? ((d.egresos - d.comisiones) / d.ingresos) * 100 : null).filter(x => x != null);
-        const ratioComNum = ratiosCom.length ? agg(ratiosCom) : 0;
-        const ratioEgrNum = ratiosEgr.length ? agg(ratiosEgr) : 0;
-        const comVentasPct = ratiosCom.length ? ratioComNum.toFixed(1) + '%' : '–';
-        const egrSinComIngPct = ratiosEgr.length ? ratioEgrNum.toFixed(1) + '%' : '–';
+        const valoresVentas = ordenados.map(k => porMes[k].ventas != null ? porMes[k].ventas : 0);
+        const valoresComisionesParaRatio = ordenados.map(k => porMes[k].comisionesParaRatio != null ? porMes[k].comisionesParaRatio : 0);
+        const valoresComisiones = ordenados.map(k => porMes[k].comisiones != null ? porMes[k].comisiones : 0);
+        const proyVentas = proyeccionDesdeSerie(valoresVentas, N, agg, mesesAProyectar);
+        const proyComisionesParaRatio = proyeccionDesdeSerie(valoresComisionesParaRatio, N, agg, mesesAProyectar);
+        const proyComisiones = proyeccionDesdeSerie(valoresComisiones, N, agg, mesesAProyectar);
         const gpTotalReal = totalIngresos - totalEgresos;
         let basePartida = (gpTotalReal * pctCaucion / 100) + intAcumuladoAnterior;
         const detalleUltimoReal = detalleIntCaucionPorMes[lastKey] || [];
@@ -1399,7 +1438,9 @@
         const proys = [];
         let prevRes = null;
         for (let i = 0; i < mesesAProyectar; i++) {
-          const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct, egrSinComIngPct, ratioComNum, ratioEgrNum };
+          const comVentasPctI = proyVentas[i] > 0 ? ((proyComisionesParaRatio[i] / proyVentas[i]) * 100).toFixed(1) + '%' : '–';
+          const egrSinComIngPctI = proyIng[i] > 0 ? ((proyEgr[i] - proyComisiones[i]) / proyIng[i] * 100).toFixed(1) + '%' : '–';
+          const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct: comVentasPctI, egrSinComIngPct: egrSinComIngPctI };
           proys.push(proy);
           if (i > 0 && prevRes && prevRes.detalle && prevRes.detalle.length > 0) {
             const ultima = prevRes.detalle[prevRes.detalle.length - 1];
@@ -1414,7 +1455,8 @@
           basePartida = proy.gp + intCaucionProy;
           gpInicialSolo = res.gpAcumSoloFin;
           detalleIntCaucionProy[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), basePartida: baseInicio, gpTotalReal: i === 0 ? gpTotalReal : undefined, intAcumuladoInicial, proyGP: proy.gp, tasaDiaria: tasaDiariaProy, intCaucion: intCaucionProy, detalle: res.detalle, dias: diasMes };
-          filasProy += `<tr class="fila-proyeccion">
+          detalleProyeccionPorMes[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), ing: proy.ing, egr: proy.egr, gp: proy.gp, comVentasPct: proy.comVentasPct, egrSinComIngPct: proy.egrSinComIngPct, ingresoPorCat: { ...proyDetalle[keyProy].ingresoPorCat }, egresoPorCat: { ...proyDetalle[keyProy].egresoPorCat } };
+          filasProy += `<tr class="fila-proyeccion" data-proy-key="${keyProy}" role="button" tabindex="0" title="Ver detalle de proyección">
             <td>Proy. ${formatoMesAnio(mesProy, anioProy)}</td>
             <td class="ingresos">${simbolo}${formatearNumero(proy.ing, moneda)}</td>
             <td class="egresos">${simbolo}${formatearNumero(proy.egr, moneda)}</td>
@@ -1449,7 +1491,7 @@
           <td class="alert-icon-cell"></td>
         </tr>`;
         if (filasProy) {
-          const metodoLabel = configProy.metodo === 'promedio_ponderado' ? 'Promedio ponderado' : (configProy.metodo === 'promedio' ? 'Promedio' : 'Mediana');
+          const metodoLabel = configProy.metodo === 'promedio_ponderado' ? 'Promedio ponderado' : (configProy.metodo === 'promedio' ? 'Promedio' : (configProy.metodo === 'promedio_recortado' ? 'Promedio recortado (suaviza picos)' : 'Mediana'));
           const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución). Caución: punto de partida = G/P acumulado + interés acumulado (al cierre del último día real); Int T-1 del primer día = interés acumulado real; tasa = promedio del último mes real; días = días naturales del mes (31 ene, 28/29 feb, etc.).`;
           tfootHtml += `<tr class="fila-titulo-proyeccion"><td colspan="8">Próximos ${mesesAProyectar} ${mesesAProyectar === 1 ? 'mes' : 'meses'} proyectados:</td></tr>${filasProy}<tr class="disclaimer-proyeccion"><td colspan="8">${disclaimer}</td></tr>`;
         }
@@ -1660,7 +1702,7 @@
       const configProyEv = getProyeccionConfig();
       const NEv = configProyEv.meses;
       const mesesAProyectarEv = configProyEv.mesesAProyectar;
-      const aggEv = configProyEv.metodo === 'promedio_ponderado' ? promedioPonderado : (configProyEv.metodo === 'promedio' ? promedio : (arr) => mediana(arr));
+      const aggEv = configProyEv.metodo === 'promedio_ponderado' ? promedioPonderado : (configProyEv.metodo === 'promedio' ? promedio : (configProyEv.metodo === 'mediana' ? (arr) => mediana(arr) : (arr) => promedioRecortado(arr, (configProyEv.recortePct || 15) / 100)));
       if (periodo === 'mensual' && columnasOrdenadas.length > 0 && NEv > 0 && mesesAProyectarEv > 0) {
         let keyProy = siguienteMesKey(columnasOrdenadas[columnasOrdenadas.length - 1]);
         const proyKeys = [];
@@ -2275,6 +2317,41 @@
       document.getElementById('modal-backdrop').classList.remove('oculto');
     }
 
+    function abrirModalProyeccion(keyProy) {
+      const d = detalleProyeccionPorMes[keyProy];
+      if (!d) return;
+      const modal = document.getElementById('modal-caja');
+      if (modal) {
+        modal.style.position = '';
+        modal.style.left = '';
+        modal.style.top = '';
+        modal.style.right = '';
+        modal.style.transform = '';
+      }
+      const simbolo = flujoSimbolo || '$ ';
+      const moneda = flujoMoneda || 'ARS';
+      document.getElementById('modal-titulo').textContent = d.label;
+      const cats = new Set([...Object.keys(d.ingresoPorCat || {}), ...Object.keys(d.egresoPorCat || {})]);
+      const filas = Array.from(cats).sort().map(cat => {
+        const ing = (d.ingresoPorCat && d.ingresoPorCat[cat]) || 0;
+        const egr = (d.egresoPorCat && d.egresoPorCat[cat]) || 0;
+        const gp = ing - egr;
+        return { cat, ing, egr, gp };
+      });
+      const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
+      let html = '<p class="sin-cotizacion-note" style="margin-top:0;">Valores proyectados (sin transacciones reales).</p>';
+      html += '<p><strong>Resumen:</strong> Ingresos ' + simbolo + formatearNumero(d.ing, moneda) + ' · Egresos ' + simbolo + formatearNumero(d.egr, moneda) + ' · G/P ' + simbolo + formatearNumero(d.gp, moneda) + ' · Comisiones/Ventas ' + (d.comVentasPct || '–') + ' · Egr s/com./Ingresos ' + (d.egrSinComIngPct || '–') + '</p>';
+      html += '<table class="modal-tabla"><thead><tr><th>Categoría</th><th>Ingresos</th><th>Egresos</th><th>G/P</th></tr></thead><tbody>';
+      filas.forEach(f => {
+        const cls = f.gp >= 0 ? 'positivo' : 'negativo';
+        html += '<tr><td>' + esc(f.cat) + '</td><td class="ingresos">' + simbolo + formatearNumero(f.ing, moneda) + '</td><td class="egresos">' + simbolo + formatearNumero(f.egr, moneda) + '</td><td class="balance ' + cls + '">' + simbolo + formatearNumero(f.gp, moneda) + '</td></tr>';
+      });
+      html += '<tr style="font-weight:600;"><td>Total</td><td class="ingresos">' + simbolo + formatearNumero(d.ing, moneda) + '</td><td class="egresos">' + simbolo + formatearNumero(d.egr, moneda) + '</td><td class="balance ' + (d.gp >= 0 ? 'positivo' : 'negativo') + '">' + simbolo + formatearNumero(d.gp, moneda) + '</td></tr>';
+      html += '</tbody></table>';
+      document.getElementById('modal-body').innerHTML = html;
+      document.getElementById('modal-backdrop').classList.remove('oculto');
+    }
+
     function getErroresDelMes(anio, mes) {
       const transaccionesMes = cacheTransacciones.filter(r => r.anio === anio && r.mes === mes && !excluirCategoria(r.categoria));
       const erroresClasificacion = [];
@@ -2882,11 +2959,18 @@
         document.getElementById('modal-evolucion-detalle-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-evolucion-detalle-backdrop') e.target.classList.add('oculto'); });
         document.getElementById('panel-flujo').addEventListener('click', (e) => {
           const cell = e.target.closest('.int-caucion-cell');
-          if (!cell) return;
-          const keyMes = cell.getAttribute('data-key-mes');
-          const keyProy = cell.getAttribute('data-proy-key');
-          if (keyMes) abrirModalIntCaucion(keyMes);
-          else if (keyProy) abrirModalIntCaucionProyectado(keyProy);
+          if (cell) {
+            const keyMes = cell.getAttribute('data-key-mes');
+            const keyProy = cell.getAttribute('data-proy-key');
+            if (keyMes) abrirModalIntCaucion(keyMes);
+            else if (keyProy) abrirModalIntCaucionProyectado(keyProy);
+            return;
+          }
+          const trProy = e.target.closest('tr.fila-proyeccion');
+          if (trProy) {
+            const keyProy = trProy.getAttribute('data-proy-key');
+            if (keyProy) abrirModalProyeccion(keyProy);
+          }
         });
         document.getElementById('modal-int-caucion-close').addEventListener('click', () => document.getElementById('modal-int-caucion-backdrop').classList.add('oculto'));
         document.getElementById('modal-int-caucion-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-int-caucion-backdrop') e.target.classList.add('oculto'); });
@@ -2897,20 +2981,31 @@
           const c = getProyeccionConfig();
           const selMetodo = document.getElementById('config-proyeccion-metodo');
           const selMeses = document.getElementById('config-proyeccion-meses');
+          const selRecorte = document.getElementById('config-proyeccion-recorte');
           const selPctCaucion = document.getElementById('config-pct-caucion');
           if (selMetodo) selMetodo.value = c.metodo;
           if (selMeses) selMeses.value = String(c.meses);
+          if (selRecorte) selRecorte.value = String(c.recortePct);
           const selCantidad = document.getElementById('config-proyeccion-cantidad');
           if (selCantidad) selCantidad.value = String(c.mesesAProyectar);
           if (selPctCaucion) selPctCaucion.value = String(getPctCaucion());
+          const wrapRecorte = document.getElementById('config-recorte-wrap');
+          if (wrapRecorte) wrapRecorte.style.display = c.metodo === 'promedio_recortado' ? 'block' : 'none';
           document.getElementById('modal-configuracion-backdrop').classList.remove('oculto');
+        });
+        document.getElementById('config-proyeccion-metodo').addEventListener('change', () => {
+          const wrap = document.getElementById('config-recorte-wrap');
+          const sel = document.getElementById('config-proyeccion-metodo');
+          if (wrap && sel) wrap.style.display = sel.value === 'promedio_recortado' ? 'block' : 'none';
         });
         document.getElementById('config-guardar').addEventListener('click', () => {
           const selMetodo = document.getElementById('config-proyeccion-metodo');
           const selMeses = document.getElementById('config-proyeccion-meses');
+          const selRecorteSave = document.getElementById('config-proyeccion-recorte');
           const selPctCaucion = document.getElementById('config-pct-caucion');
           if (selMetodo) localStorage.setItem(PROYECCION_METODO_KEY, selMetodo.value);
           if (selMeses) localStorage.setItem(PROYECCION_MESES_KEY, selMeses.value);
+          if (selRecorteSave) localStorage.setItem(PROYECCION_RECORTE_KEY, selRecorteSave.value);
           const selCantidadSave = document.getElementById('config-proyeccion-cantidad');
           if (selCantidadSave) localStorage.setItem(PROYECCION_CANTIDAD_KEY, selCantidadSave.value);
           if (selPctCaucion) localStorage.setItem(PCT_CAUCION_KEY, selPctCaucion.value);
