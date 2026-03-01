@@ -17,11 +17,12 @@
     .sidebar-toggle:hover { background: rgba(255,255,255,0.1); }
     .sidebar-toggle .icon-collapse { display: none; }
     .sidebar.expanded .sidebar-toggle .icon-expand { display: none; }
-    .sidebar.expanded .sidebar-toggle .icon-collapse { display: inline; }
+    .sidebar.expanded .sidebar-toggle .icon-collapse { display: inline-flex; }
     .sidebar-nav { padding: 0.5rem 0; }
     .sidebar-nav .menu-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1rem; color: rgba(255,255,255,0.9); text-decoration: none; border: none; background: none; width: 100%; cursor: pointer; font-size: 0.95rem; font-family: inherit; text-align: left; }
     .sidebar-nav .menu-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
-    .sidebar-nav .menu-item .menu-icon { width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+    .sidebar-nav .menu-item .menu-icon { width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .sidebar-nav .menu-item .menu-icon svg { width: 100%; height: 100%; stroke: currentColor; }
     .sidebar-nav .menu-item .menu-label { white-space: nowrap; opacity: 0; width: 0; overflow: hidden; transition: opacity 0.2s, width 0.2s; }
     .sidebar.expanded .sidebar-nav .menu-item .menu-label { opacity: 1; width: auto; }
     .sidebar-version { margin-top: auto; padding: 0.75rem 1rem; font-size: 0.75rem; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
@@ -51,7 +52,9 @@
     .toggle-moneda button { padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; font-size: 1rem; }
     .toggle-moneda button.activo { background: #1a1a1a; color: #fff; font-weight: 600; }
     .tabs { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; }
-    .tabs button { padding: 0.5rem 1rem; border: 1px solid #ccc; background: #fff; border-radius: 6px; cursor: pointer; }
+    .tabs button { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; border: 1px solid #ccc; background: #fff; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 0.9rem; }
+    .tabs button .tab-icon { width: 18px; height: 18px; flex-shrink: 0; }
+    .tabs button .tab-icon svg { width: 100%; height: 100%; stroke: currentColor; }
     .tabs button.activo { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
     .panel { display: none; }
     .panel.activo { display: block; }
@@ -83,6 +86,11 @@
     #tabla-evolucion td.num-evolucion { text-align: right; white-space: nowrap; }
     #tabla-evolucion td.num-evolucion.evolucion-clickable { cursor: pointer; }
     #tabla-evolucion td.num-evolucion.evolucion-clickable:hover { text-decoration: underline; }
+    #tabla-evolucion tr.fila-total-evolucion td { border-top: 2px solid #333; background: #f5f5f5; }
+    #tabla-evolucion th.col-proyeccion-evolucion,
+    #tabla-evolucion td.col-proyeccion-evolucion { background: #e0f2f7; }
+    #tabla-evolucion th.col-total-real-evolucion { border-left: 2px solid #333; }
+    #tabla-evolucion td.col-total-real-evolucion { border-left: 2px solid #333; font-weight: 600; }
     .int-caucion-cell { cursor: pointer; }
     .int-caucion-cell:hover { text-decoration: underline; }
     tr.fila-mes { cursor: pointer; }
@@ -101,7 +109,7 @@
     .modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: move; user-select: none; }
     .modal-header .modal-close { cursor: pointer; }
     .modal-header h2 { margin: 0; font-size: 1.25rem; }
-    .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; line-height: 1; padding: 0 0.25rem; }
+    .modal-close { font-size: inherit; }
     .modal-body { padding: 1rem 1.25rem; overflow-y: auto; }
     .modal-body .modal-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; }
     .modal-body .modal-tabs button { padding: 0.5rem 1rem; border: 1px solid #ccc; background: #fff; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
@@ -165,8 +173,9 @@
     #modal-editar-registro .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.5rem; }
     #modal-editar-registro .form-grid .form-group-full { grid-column: 1 / -1; }
     #modal-editar-registro .modal-body { max-height: 75vh; overflow-y: auto; }
-    .alert-icon { color: #b45309; cursor: pointer; font-size: 1.1rem; padding: 0 0.25rem; vertical-align: middle; }
+    .alert-icon { color: #b45309; cursor: pointer; padding: 0 0.25rem; vertical-align: middle; display: inline-flex; align-items: center; justify-content: center; }
     .alert-icon:hover { opacity: 0.8; }
+    .alert-icon svg { width: 1.1rem; height: 1.1rem; }
     .alert-icon-cell { width: 2rem; text-align: center; }
     #modal-alertas .modal-body ul { margin: 0; padding-left: 1.25rem; }
     #modal-alertas .modal-body li { margin-bottom: 0.5rem; }
@@ -191,21 +200,39 @@
     .btn-exportar-evolucion .icon-excel { width: 20px; height: 20px; flex-shrink: 0; }
     .btn-exportar-evolucion.btn-ver-errores { background: #16a34a; color: #fff; border-color: #16a34a; }
     .btn-exportar-evolucion.btn-ver-errores:hover { background: #15803d; color: #fff; border-color: #15803d; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.9rem; cursor: pointer; border: 1px solid #ccc; background: #fff; font-family: inherit; color: #333; }
+    .btn:hover { background: #f0f0f0; border-color: #999; }
+    .btn .btn-icon { width: 20px; height: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .btn .btn-icon svg { width: 100%; height: 100%; stroke: currentColor; }
+    .btn-primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+    .btn-primary:hover { background: #333; border-color: #333; color: #fff; }
+    .btn-success { background: #16a34a; color: #fff; border-color: #16a34a; }
+    .btn-success:hover { background: #15803d; border-color: #15803d; color: #fff; }
+    .btn-danger { background: #b91c1c; color: #fff; border-color: #b91c1c; }
+    .btn-danger:hover { background: #991b1b; border-color: #991b1b; color: #fff; }
+    .btn-warning { background: #b45309; color: #fff; border-color: #b45309; }
+    .btn-warning:hover { background: #9a4607; border-color: #9a4607; color: #fff; }
+    .modal-close { background: none; border: none; padding: 0.35rem; cursor: pointer; color: #666; line-height: 1; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; }
+    .modal-close:hover { color: #1a1a1a; background: #eee; }
+    .modal-close .icon-close { width: 20px; height: 20px; }
+    .modal-close .icon-close svg { width: 100%; height: 100%; stroke: currentColor; }
+    .icon-only { padding: 0.5rem; }
+    .icon-only .btn-icon { width: 22px; height: 22px; }
   </style>
 </head>
 <body>
   <aside id="sidebar" class="sidebar" aria-label="Menú principal">
-    <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Expandir menú">
-      <span class="icon-expand" aria-hidden="true">▶</span>
-      <span class="icon-collapse" aria-hidden="true">◀</span>
+    <button type="button" class="sidebar-toggle btn icon-only" id="sidebar-toggle" aria-label="Expandir menú">
+      <span class="icon-expand btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span>
+      <span class="icon-collapse btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span>
     </button>
     <nav class="sidebar-nav">
       <a href="#" class="menu-item" id="menu-home" title="Home" aria-label="Home">
-        <span class="menu-icon" aria-hidden="true">⌂</span>
+        <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg></span>
         <span class="menu-label">Home</span>
       </a>
       <button type="button" class="menu-item" id="menu-configuracion" title="Configuración" aria-label="Configuración">
-        <span class="menu-icon" aria-hidden="true">⚙</span>
+        <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
         <span class="menu-label">Configuración</span>
       </button>
     </nav>
@@ -235,8 +262,8 @@
       </select>
     </label>
     <div class="exportar-base-wrap">
-      <button type="button" class="btn-exportar-base export-excel-btn" id="btn-exportar-excel" title="Exportar base de transacciones a Excel" aria-label="Exportar Base Histórica">
-        <svg class="icon-excel icon-document-arrow-down" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg> Exportar Base Histórica
+      <button type="button" class="btn btn-success btn-exportar-base export-excel-btn" id="btn-exportar-excel" title="Exportar base de transacciones a Excel" aria-label="Exportar Base Histórica">
+        <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar Base Histórica
       </button>
     </div>
   </div>
@@ -246,11 +273,11 @@
   <div id="tabla-wrap" style="display:none;">
     <div class="tabs-toolbar">
       <div class="tabs">
-        <button type="button" class="tab activo" data-panel="flujo">Flujo por mes</button>
-        <button type="button" class="tab" data-panel="sin-cotizacion">Sin cotización</button>
-        <button type="button" class="tab" data-panel="errores-global">Errores</button>
-        <button type="button" class="tab" data-panel="todas-transacciones">Todas las transacciones</button>
-        <button type="button" class="tab" data-panel="evolucion">Evolución</button>
+        <button type="button" class="tab activo" data-panel="flujo"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></span>Flujo por mes</button>
+        <button type="button" class="tab" data-panel="sin-cotizacion"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6"/><path d="M9 11h6"/></svg></span>Sin cotización</button>
+        <button type="button" class="tab" data-panel="errores-global"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>Errores</button>
+        <button type="button" class="tab" data-panel="todas-transacciones"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span>Todas las transacciones</button>
+        <button type="button" class="tab" data-panel="evolucion"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Evolución</button>
       </div>
     </div>
     <div id="panel-flujo" class="card panel activo">
@@ -297,7 +324,7 @@
             <option value="duplicado">Potencial registro duplicado</option>
           </select>
         </div>
-        <button type="button" class="btn-ver-errores" id="btn-exportar-errores" title="Exportar lista de errores a Excel">Exportar errores a Excel</button>
+        <button type="button" class="btn btn-success btn-ver-errores" id="btn-exportar-errores" title="Exportar lista de errores a Excel"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar errores a Excel</button>
       </div>
       <div class="errores-table-wrap">
       <table id="tabla-errores-global">
@@ -384,13 +411,21 @@
             <option value="diario">Diario (fecha)</option>
           </select>
         </div>
-        <button type="button" class="btn-ver-errores btn-exportar-evolucion" id="btn-exportar-evolucion" title="Exportar tabla Evolución a Excel"><svg class="icon-excel icon-document-arrow-down" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg> Exportar Evolución a Excel</button>
+        <button type="button" class="btn btn-success btn-ver-errores btn-exportar-evolucion" id="btn-exportar-evolucion" title="Exportar tabla Evolución a Excel"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar Evolución a Excel</button>
       </div>
       <div class="evolucion-table-wrap">
         <table id="tabla-evolucion">
           <thead id="thead-evolucion"></thead>
           <tbody id="tbody-evolucion"></tbody>
         </table>
+      </div>
+      <div id="evolucion-referencia-flujo" class="evolucion-referencia-flujo oculto" style="margin-top:1rem; padding:0.75rem; background:#e8f4f8; border-radius:6px; font-size:0.9rem;">
+        <div style="font-weight:600; margin-bottom:0.5rem; color:#333;">Proyección agregada (suma de ingresos y egresos proyectados por categoría)</div>
+        <table id="tabla-referencia-flujo" style="width:auto; min-width:420px;">
+          <thead><tr><th style="text-align:left; padding:0.25rem 0.5rem;">Mes</th><th style="text-align:right; padding:0.25rem 0.5rem;">Ingresos</th><th style="text-align:right; padding:0.25rem 0.5rem;">Egresos</th><th style="text-align:right; padding:0.25rem 0.5rem;">G/P</th></tr></thead>
+          <tbody id="tbody-referencia-flujo"></tbody>
+        </table>
+        <p style="margin:0.5rem 0 0; color:#555; font-size:0.85rem;">Mismo cálculo que la tabla: la fila «Total» y la solapa Flujo usan esta proyección por categoría.</p>
       </div>
     </div>
   </div>
@@ -404,7 +439,7 @@
     <div class="modal" id="modal-alertas">
       <div class="modal-header" id="modal-alertas-header-drag">
         <h2 id="modal-alertas-titulo">Alertas del mes</h2>
-        <button type="button" class="modal-close" id="modal-alertas-close" aria-label="Cerrar">&times;</button>
+        <button type="button" class="modal-close" id="modal-alertas-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
       </div>
       <div class="modal-body" id="modal-alertas-body"></div>
     </div>
@@ -414,7 +449,7 @@
     <div class="modal" id="modal-caja">
       <div class="modal-header" id="modal-header-drag">
         <h2 id="modal-titulo">Detalle del mes</h2>
-        <button type="button" class="modal-close" id="modal-close" aria-label="Cerrar">&times;</button>
+        <button type="button" class="modal-close" id="modal-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
       </div>
       <div class="modal-body" id="modal-body"></div>
     </div>
@@ -424,7 +459,7 @@
     <div class="modal modal-grafico" id="modal-grafico">
       <div class="modal-header" id="modal-grafico-header-drag">
         <h2 id="modal-grafico-titulo">Serie mensual</h2>
-        <button type="button" class="modal-close" id="modal-grafico-close" aria-label="Cerrar">&times;</button>
+        <button type="button" class="modal-close" id="modal-grafico-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
       </div>
       <div class="modal-body modal-grafico-body">
         <div class="grafico-container"><canvas id="chart-serie-mensual"></canvas></div>
@@ -436,7 +471,7 @@
     <div class="modal modal-errores-ancho" id="modal-errores">
       <div class="modal-header" id="modal-errores-header-drag">
         <h2 id="modal-errores-titulo">Errores de clasificación</h2>
-        <button type="button" class="modal-close" id="modal-errores-close" aria-label="Cerrar">&times;</button>
+        <button type="button" class="modal-close" id="modal-errores-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
       </div>
       <div class="modal-body" id="modal-errores-body"></div>
     </div>
@@ -446,7 +481,7 @@
     <div class="modal modal-evolucion-detalle-ancho" id="modal-editar-registro">
       <div class="modal-header" id="modal-editar-header-drag">
         <h2 id="modal-editar-titulo">Editar registro</h2>
-        <button type="button" class="modal-close" id="modal-editar-close" aria-label="Cerrar">&times;</button>
+        <button type="button" class="modal-close" id="modal-editar-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
       </div>
       <div class="modal-body" id="modal-editar-body">
         <div class="form-grid">
@@ -516,8 +551,8 @@
           </div>
         </div>
         <div class="form-actions">
-          <button type="button" id="edit-guardar">Guardar</button>
-          <button type="button" id="edit-cancelar">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="edit-guardar"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> Guardar</button>
+          <button type="button" class="btn" id="edit-cancelar"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span> Cancelar</button>
         </div>
       </div>
     </div>
@@ -527,7 +562,7 @@
     <div class="modal" id="modal-configuracion">
       <div class="modal-header" id="modal-configuracion-header-drag">
         <h2 id="modal-configuracion-titulo">Configuración</h2>
-        <button type="button" class="modal-close" id="modal-configuracion-close" aria-label="Cerrar">&times;</button>
+        <button type="button" class="modal-close" id="modal-configuracion-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
       </div>
       <div class="modal-body" id="modal-configuracion-body">
         <section class="config-section">
@@ -535,9 +570,10 @@
           <p class="sin-cotizacion-note" style="margin-top:0;">Parámetros para los 3 meses proyectados debajo del total real. Ingresos y egresos usan el valor típico de la historia; Int. por caución se calcula en forma acumulativa.</p>
           <div class="form-group">
             <label for="config-proyeccion-metodo">Método</label>
-            <select id="config-proyeccion-metodo" title="Mediana o promedio de los meses de historia">
-              <option value="mediana">Mediana</option>
+            <select id="config-proyeccion-metodo" title="Valor típico de los últimos N meses para proyectar">
+              <option value="promedio_ponderado" selected>Promedio ponderado</option>
               <option value="promedio">Promedio</option>
+              <option value="mediana">Mediana</option>
             </select>
           </div>
           <div class="form-group">
@@ -549,9 +585,36 @@
               <option value="24">24</option>
             </select>
           </div>
+          <div class="form-group">
+            <label for="config-pct-caucion">% G/P acum. en caución</label>
+            <select id="config-pct-caucion" title="Qué porcentaje del G/P acumulado se considera invertido en caución; el resto es liquidez que no genera interés">
+              <option value="100" selected>100 %</option>
+              <option value="95">95 %</option>
+              <option value="90">90 %</option>
+              <option value="85">85 %</option>
+              <option value="80">80 %</option>
+              <option value="75">75 %</option>
+              <option value="70">70 %</option>
+              <option value="65">65 %</option>
+              <option value="60">60 %</option>
+              <option value="55">55 %</option>
+              <option value="50">50 %</option>
+              <option value="45">45 %</option>
+              <option value="40">40 %</option>
+              <option value="35">35 %</option>
+              <option value="30">30 %</option>
+              <option value="25">25 %</option>
+              <option value="20">20 %</option>
+              <option value="15">15 %</option>
+              <option value="10">10 %</option>
+              <option value="5">5 %</option>
+              <option value="0">0 %</option>
+            </select>
+            <span class="sin-cotizacion-note" style="display:block; margin-top:0.25rem;">Por defecto 100 %. Menor % = más liquidez (menos interés por caución).</span>
+          </div>
           <div class="form-actions">
-            <button type="button" id="config-guardar">Guardar</button>
-            <button type="button" id="config-cerrar">Cerrar</button>
+            <button type="button" class="btn btn-primary" id="config-guardar"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span> Guardar</button>
+            <button type="button" class="btn" id="config-cerrar"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span> Cerrar</button>
           </div>
         </section>
       </div>
@@ -562,7 +625,7 @@
     <div class="modal" id="modal-duplicado">
       <div class="modal-header" id="modal-duplicado-header-drag">
         <h2 id="modal-duplicado-titulo">Posible registro duplicado</h2>
-        <button type="button" class="modal-close" id="modal-duplicado-close" aria-label="Cerrar">&times;</button>
+        <button type="button" class="modal-close" id="modal-duplicado-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
       </div>
       <div class="modal-body" id="modal-duplicado-body">
         <p class="sin-cotizacion-note" style="margin-top:0;">Compará los dos registros. Si confirmás que es duplicado, podés excluir este registro de los cálculos (anular) o eliminarlo.</p>
@@ -577,9 +640,9 @@
           </div>
         </div>
         <div class="form-actions" style="margin-top:1rem;">
-          <button type="button" id="modal-duplicado-excluir" class="btn-excluir-calc">Excluir de cálculos (anular)</button>
-          <button type="button" id="modal-duplicado-eliminar" class="btn-eliminar-reg">Eliminar registro</button>
-          <button type="button" id="modal-duplicado-cerrar">Cerrar</button>
+          <button type="button" class="btn btn-warning btn-excluir-calc" id="modal-duplicado-excluir"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg></span> Excluir de cálculos (anular)</button>
+          <button type="button" class="btn btn-danger btn-eliminar-reg" id="modal-duplicado-eliminar"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M10 11v6M14 11v6"/></svg></span> Eliminar registro</button>
+          <button type="button" class="btn" id="modal-duplicado-cerrar"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span> Cerrar</button>
         </div>
       </div>
     </div>
@@ -589,7 +652,7 @@
     <div class="modal modal-evolucion-detalle-ancho" id="modal-evolucion-detalle">
       <div class="modal-header" id="modal-evolucion-detalle-header-drag">
         <h2 id="modal-evolucion-detalle-titulo">Detalle</h2>
-        <button type="button" class="modal-close" id="modal-evolucion-detalle-close" aria-label="Cerrar">&times;</button>
+        <button type="button" class="modal-close" id="modal-evolucion-detalle-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
       </div>
       <div class="modal-body" id="modal-evolucion-detalle-body">
         <table class="detalle-tabla">
@@ -613,7 +676,7 @@
     <div class="modal modal-evolucion-detalle-ancho" id="modal-int-caucion">
       <div class="modal-header" id="modal-int-caucion-header-drag">
         <h2 id="modal-int-caucion-titulo">Marcha de cálculo — Int. por caución</h2>
-        <button type="button" class="modal-close" id="modal-int-caucion-close" aria-label="Cerrar">&times;</button>
+        <button type="button" class="modal-close" id="modal-int-caucion-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
       </div>
       <div class="modal-body" id="modal-int-caucion-body">
         <table class="detalle-tabla" id="tabla-int-caucion">
@@ -643,17 +706,37 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.18';
+    const APP_VERSION = '1.19';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
+    const PCT_CAUCION_KEY = 'fornitalia_pct_caucion';
 
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
     function getProyeccionConfig() {
-      const metodo = (localStorage.getItem(PROYECCION_METODO_KEY) || 'mediana');
+      const metodo = localStorage.getItem(PROYECCION_METODO_KEY) || 'promedio_ponderado';
       const meses = parseInt(localStorage.getItem(PROYECCION_MESES_KEY) || '6', 10) || 6;
-      return { metodo: metodo === 'promedio' ? 'promedio' : 'mediana', meses: [3,6,12,24].includes(meses) ? meses : 6 };
+      const metodoValido = ['promedio_ponderado', 'promedio', 'mediana'].includes(metodo) ? metodo : 'promedio_ponderado';
+      return { metodo: metodoValido, meses: [3,6,12,24].includes(meses) ? meses : 6 };
+    }
+
+    function getPctCaucion() {
+      const v = parseInt(localStorage.getItem(PCT_CAUCION_KEY) || '100', 10);
+      return (v >= 0 && v <= 100) ? v : 100;
+    }
+
+    function promedioPonderado(arr) {
+      const nums = (arr || []).filter(x => typeof x === 'number' && !isNaN(x));
+      if (nums.length === 0) return 0;
+      let sumaPond = 0;
+      let totalPeso = 0;
+      nums.forEach((x, i) => {
+        const peso = i + 1;
+        sumaPond += x * peso;
+        totalPeso += peso;
+      });
+      return totalPeso > 0 ? sumaPond / totalPeso : 0;
     }
 
     function mediana(arr) {
@@ -674,6 +757,49 @@
       const [anio, mes] = key.split('-').map(Number);
       if (mes >= 12) return (anio + 1) + '-01';
       return anio + '-' + String(mes + 1).padStart(2, '0');
+    }
+
+    function proyeccionDesdeVentana(objetosMes, agg) {
+      if (!objetosMes.length) return { ing: 0, egr: 0, gp: 0, comVentasPct: '–', egrSinComIngPct: '–', ratioComNum: 0, ratioEgrNum: 0 };
+      const ings = objetosMes.map(k => (k.ingresos != null ? k.ingresos : 0));
+      const egrs = objetosMes.map(k => (k.egresos != null ? k.egresos : 0));
+      const ing = agg(ings);
+      const egr = agg(egrs);
+      const gp = ing - egr;
+      const ratiosCom = objetosMes.map(k => {
+        const v = k.ventas != null ? k.ventas : 0;
+        const c = k.comisionesParaRatio != null ? k.comisionesParaRatio : 0;
+        return v > 0 ? (c / v) * 100 : null;
+      }).filter(x => x != null);
+      const ratiosEgr = objetosMes.map(k => {
+        const ing_ = k.ingresos != null ? k.ingresos : 0;
+        const com = k.comisiones != null ? k.comisiones : 0;
+        const egr_ = k.egresos != null ? k.egresos : 0;
+        return ing_ > 0 ? ((egr_ - com) / ing_) * 100 : null;
+      }).filter(x => x != null);
+      const ratioComNum = ratiosCom.length ? agg(ratiosCom) : 0;
+      const ratioEgrNum = ratiosEgr.length ? agg(ratiosEgr) : 0;
+      const comVentasPct = ratiosCom.length ? ratioComNum.toFixed(1) + '%' : '–';
+      const egrSinComIngPct = ratiosEgr.length ? ratioEgrNum.toFixed(1) + '%' : '–';
+      return { ing, egr, gp, comVentasPct, egrSinComIngPct, ratioComNum, ratioEgrNum };
+    }
+    function aObjetoMes(d) {
+      return {
+        ingresos: d.ingresos != null ? d.ingresos : 0,
+        egresos: d.egresos != null ? d.egresos : 0,
+        ventas: d.ventas != null ? d.ventas : 0,
+        comisionesParaRatio: d.comisionesParaRatio != null ? d.comisionesParaRatio : 0,
+        comisiones: d.comisiones != null ? d.comisiones : 0
+      };
+    }
+    function syntheticMes(ing, egr, ratioComNum, ratioEgrNum) {
+      return {
+        ingresos: ing,
+        egresos: egr,
+        ventas: ing,
+        comisionesParaRatio: ing * (ratioComNum / 100),
+        comisiones: egr - ing * (ratioEgrNum / 100)
+      };
     }
 
     function formatoMesAnio(mes, anio) {
@@ -983,6 +1109,8 @@
 
       const porMes = {};
       const porMesCategoria = {};
+      const porMesCatIng = {};
+      const porMesCatEgr = {};
       let totalIngresos = 0, totalEgresos = 0;
       const sinCotizacion = [];
 
@@ -1010,18 +1138,23 @@
 
         const key = `${r.anio}-${String(r.mes).padStart(2,'0')}`;
         const cat = (r.categoria || '').trim() || 'Sin categoría';
+        const catDisplay = getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || 'Sin categoría';
         const catLow = cat.toLowerCase();
         if (!porMes[key]) porMes[key] = { anio: r.anio, mes: r.mes, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0 };
         if (!porMesCategoria[key]) porMesCategoria[key] = {};
         if (!porMesCategoria[key][cat]) porMesCategoria[key][cat] = 0;
         porMesCategoria[key][cat] += montoParaSumar;
+        if (!porMesCatIng[key]) porMesCatIng[key] = {};
+        if (!porMesCatEgr[key]) porMesCatEgr[key] = {};
         if (r.tipo_movimiento === 'Ingreso') {
           porMes[key].ingresos += montoParaSumar;
           totalIngresos += montoParaSumar;
+          porMesCatIng[key][catDisplay] = (porMesCatIng[key][catDisplay] || 0) + montoParaSumar;
           if (catLow.includes('venta')) porMes[key].ventas += montoParaSumar;
         } else if (r.tipo_movimiento === 'Egreso') {
           porMes[key].egresos += montoParaSumar;
           totalEgresos += montoParaSumar;
+          porMesCatEgr[key][catDisplay] = (porMesCatEgr[key][catDisplay] || 0) + montoParaSumar;
           if (catLow === 'comisiones') porMes[key].comisiones += montoParaSumar;
           if (catLow === 'comisiones' || esComisionDentroSueldos(r.categoria, r.descripcion, r.cat_desc)) porMes[key].comisionesParaRatio += montoParaSumar;
         }
@@ -1040,12 +1173,13 @@
         deltasPorFecha[fecha] = (deltasPorFecha[fecha] || 0) + delta;
       });
       const fechasOrdenadas = Object.keys(deltasPorFecha).sort();
+      const pctCaucion = getPctCaucion();
       let gpAcumulado = 0;
       let intAcumuladoAnterior = 0;
       fechasOrdenadas.forEach(fecha => {
         const gpAcumInicioDia = gpAcumulado;
         gpAcumulado += deltasPorFecha[fecha];
-        const base = gpAcumulado + intAcumuladoAnterior;
+        const base = (gpAcumulado * pctCaucion / 100) + intAcumuladoAnterior;
         const tasaDiaria = getTasaCaucion(fecha);
         const intDia = base > 0 ? base * tasaDiaria : 0;
         const [anio, mes] = fecha.split('-').map(Number);
@@ -1108,55 +1242,14 @@
       const tbody = document.getElementById('tbody');
       const configProy = getProyeccionConfig();
       const N = configProy.meses;
-      const agg = configProy.metodo === 'promedio' ? promedio : (arr) => mediana(arr);
-      function proyeccionDesdeVentana(objetosMes) {
-        if (!objetosMes.length) return { ing: 0, egr: 0, gp: 0, comVentasPct: '–', egrSinComIngPct: '–', ratioComNum: 0, ratioEgrNum: 0 };
-        const ings = objetosMes.map(k => (k.ingresos != null ? k.ingresos : 0));
-        const egrs = objetosMes.map(k => (k.egresos != null ? k.egresos : 0));
-        const ing = agg(ings);
-        const egr = agg(egrs);
-        const gp = ing - egr;
-        const ratiosCom = objetosMes.map(k => {
-          const v = k.ventas != null ? k.ventas : 0;
-          const c = k.comisionesParaRatio != null ? k.comisionesParaRatio : 0;
-          return v > 0 ? (c / v) * 100 : null;
-        }).filter(x => x != null);
-        const ratiosEgr = objetosMes.map(k => {
-          const ing_ = k.ingresos != null ? k.ingresos : 0;
-          const com = k.comisiones != null ? k.comisiones : 0;
-          const egr_ = k.egresos != null ? k.egresos : 0;
-          return ing_ > 0 ? ((egr_ - com) / ing_) * 100 : null;
-        }).filter(x => x != null);
-        const ratioComNum = ratiosCom.length ? agg(ratiosCom) : 0;
-        const ratioEgrNum = ratiosEgr.length ? agg(ratiosEgr) : 0;
-        const comVentasPct = ratiosCom.length ? ratioComNum.toFixed(1) + '%' : '–';
-        const egrSinComIngPct = ratiosEgr.length ? ratioEgrNum.toFixed(1) + '%' : '–';
-        return { ing, egr, gp, comVentasPct, egrSinComIngPct, ratioComNum, ratioEgrNum };
-      }
-      function aObjetoMes(d) {
-        return {
-          ingresos: d.ingresos != null ? d.ingresos : 0,
-          egresos: d.egresos != null ? d.egresos : 0,
-          ventas: d.ventas != null ? d.ventas : 0,
-          comisionesParaRatio: d.comisionesParaRatio != null ? d.comisionesParaRatio : 0,
-          comisiones: d.comisiones != null ? d.comisiones : 0
-        };
-      }
-      function syntheticMes(ing, egr, ratioComNum, ratioEgrNum) {
-        return {
-          ingresos: ing,
-          egresos: egr,
-          ventas: ing,
-          comisionesParaRatio: ing * (ratioComNum / 100),
-          comisiones: egr - ing * (ratioEgrNum / 100)
-        };
-      }
+      const agg = configProy.metodo === 'promedio_ponderado' ? promedioPonderado : (configProy.metodo === 'promedio' ? promedio : (arr) => mediana(arr));
       function diasEnMes(anio, mes) {
         return new Date(anio, mes, 0).getDate();
       }
       function intCaucionProyectadoMes(baseStart, proyGP, tasaDiaria, opts) {
         const intAcumuladoInicial = (opts && opts.intAcumuladoInicial != null) ? opts.intAcumuladoInicial : 0;
         const gpInicialSolo = (opts && opts.gpInicialSolo != null) ? opts.gpInicialSolo : (baseStart - intAcumuladoInicial);
+        const pct = (opts && opts.pctCaucion != null && opts.pctCaucion >= 0 && opts.pctCaucion <= 100) ? opts.pctCaucion : 100;
         const dias = (opts && opts.dias != null && opts.dias > 0) ? opts.dias : 30;
         const gpDia = proyGP / dias;
         let gpAcumSolo = gpInicialSolo;
@@ -1167,7 +1260,7 @@
           const intAnterior = intAcum;
           const gpAcumInicioDia = gpAcumSolo;
           gpAcumSolo += gpDia;
-          const base = gpAcumSolo + intAcum;
+          const base = (gpAcumSolo * pct / 100) + intAcum;
           const intDia = base > 0 ? base * tasaDiaria : 0;
           totalInt += intDia;
           intAcum += intDia;
@@ -1188,7 +1281,7 @@
         const egrSinComIngPct = d.ingresos > 0 ? ((egrSinCom / d.ingresos) * 100).toFixed(1) + '%' : '–';
         const alertas = alertasPorMes[key] || [];
         const alertasJson = alertas.length ? JSON.stringify(alertas).replace(/"/g, '&quot;') : '';
-        const iconoAlert = alertas.length ? `<span class="alert-icon" role="button" tabindex="0" data-alertas="${alertasJson}" data-label="${label.replace(/"/g, '&quot;')}" title="Ver alertas">⚠️</span>` : '';
+        const iconoAlert = alertas.length ? `<span class="alert-icon" role="button" tabindex="0" data-alertas="${alertasJson}" data-label="${label.replace(/"/g, '&quot;')}" title="Ver alertas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>` : '';
         return `<tr class="fila-mes" data-anio="${d.anio}" data-mes="${d.mes}">
           <td>${label}</td>
           <td class="ingresos">${simbolo}${formatearNumero(d.ingresos, moneda)}</td>
@@ -1215,28 +1308,50 @@
           tasaDiariaProy = fechasOrdenadas.length ? getTasaCaucion(fechasOrdenadas[fechasOrdenadas.length - 1]) : 0;
         }
         const listaReal = ordenados.map(k => aObjetoMes(porMes[k]));
+        const categoriasProy = new Set();
+        ordenados.forEach(k => {
+          Object.keys(porMesCatIng[k] || {}).forEach(c => categoriasProy.add(c));
+          Object.keys(porMesCatEgr[k] || {}).forEach(c => categoriasProy.add(c));
+        });
+        const categoriasList = Array.from(categoriasProy);
+        const proyIng = [0, 0, 0];
+        const proyEgr = [0, 0, 0];
+        categoriasList.forEach(cat => {
+          const valoresIng = ordenados.map(k => (porMesCatIng[k] && porMesCatIng[k][cat]) ? porMesCatIng[k][cat] : 0);
+          const valoresEgr = ordenados.map(k => (porMesCatEgr[k] && porMesCatEgr[k][cat]) ? porMesCatEgr[k][cat] : 0);
+          const [p1_ing, p2_ing, p3_ing] = proyeccionDesdeSerie(valoresIng, N, agg);
+          const [p1_egr, p2_egr, p3_egr] = proyeccionDesdeSerie(valoresEgr, N, agg);
+          proyIng[0] += p1_ing; proyIng[1] += p2_ing; proyIng[2] += p3_ing;
+          proyEgr[0] += p1_egr; proyEgr[1] += p2_egr; proyEgr[2] += p3_egr;
+        });
+        const numReal = Math.min(N, listaReal.length);
+        const sliceReal = listaReal.slice(-numReal);
+        const ratiosCom = sliceReal.map(d => (d.ventas != null && d.ventas > 0 && d.comisionesParaRatio != null) ? (d.comisionesParaRatio / d.ventas) * 100 : null).filter(x => x != null);
+        const ratiosEgr = sliceReal.map(d => (d.ingresos != null && d.ingresos > 0 && d.egresos != null && d.comisiones != null) ? ((d.egresos - d.comisiones) / d.ingresos) * 100 : null).filter(x => x != null);
+        const ratioComNum = ratiosCom.length ? agg(ratiosCom) : 0;
+        const ratioEgrNum = ratiosEgr.length ? agg(ratiosEgr) : 0;
+        const comVentasPct = ratiosCom.length ? ratioComNum.toFixed(1) + '%' : '–';
+        const egrSinComIngPct = ratiosEgr.length ? ratioEgrNum.toFixed(1) + '%' : '–';
         const gpTotalReal = totalIngresos - totalEgresos;
-        let basePartida = gpTotalReal + intAcumuladoAnterior;
+        let basePartida = (gpTotalReal * pctCaucion / 100) + intAcumuladoAnterior;
         const detalleUltimoReal = detalleIntCaucionPorMes[lastKey] || [];
         const ultimaFilaReal = detalleUltimoReal.length > 0 ? detalleUltimoReal[detalleUltimoReal.length - 1] : null;
         let intAcumuladoInicial = ultimaFilaReal != null ? (ultimaFilaReal.intAnterior || 0) + (ultimaFilaReal.intDia || 0) : intAcumuladoAnterior;
-        let gpInicialSolo = gpTotalReal;
+        let gpInicialSolo = gpTotalReal * pctCaucion / 100;
         let keyProy = siguienteMesKey(ordenados[ordenados.length - 1]);
         const proys = [];
         let prevRes = null;
         for (let i = 0; i < 3; i++) {
+          const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct, egrSinComIngPct, ratioComNum, ratioEgrNum };
+          proys.push(proy);
           if (i > 0 && prevRes && prevRes.detalle && prevRes.detalle.length > 0) {
             const ultima = prevRes.detalle[prevRes.detalle.length - 1];
             intAcumuladoInicial = (ultima.intAnterior || 0) + (ultima.intDia || 0);
           }
-          const numReal = Math.max(0, Math.min(N - i, listaReal.length) - (listaReal.length <= N - i ? i : 0));
-          const ventana = listaReal.slice(-numReal).concat(proys.map(p => syntheticMes(p.ing, p.egr, p.ratioComNum, p.ratioEgrNum)));
-          const proy = proyeccionDesdeVentana(ventana);
-          proys.push(proy);
           const [anioProy, mesProy] = keyProy.split('-').map(Number);
           const diasMes = diasEnMes(anioProy, mesProy);
           const baseInicio = basePartida;
-          const res = intCaucionProyectadoMes(basePartida, proy.gp, tasaDiariaProy, { dias: diasMes, intAcumuladoInicial, gpInicialSolo });
+          const res = intCaucionProyectadoMes(basePartida, proy.gp, tasaDiariaProy, { dias: diasMes, intAcumuladoInicial, gpInicialSolo, pctCaucion });
           prevRes = res;
           const intCaucionProy = res.intCaucion;
           basePartida = proy.gp + intCaucionProy;
@@ -1277,8 +1392,8 @@
           <td class="alert-icon-cell"></td>
         </tr>`;
         if (filasProy) {
-          const metodoLabel = configProy.metodo === 'promedio' ? 'Promedio' : 'Mediana';
-          const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses con ventana rodante. Int. por caución: punto de partida = G/P acumulado + interés acumulado (al cierre del último día real); Int T-1 del primer día = interés acumulado real; tasa = promedio del último mes real; días = días naturales del mes (31 ene, 28/29 feb, etc.).`;
+          const metodoLabel = configProy.metodo === 'promedio_ponderado' ? 'Promedio ponderado' : (configProy.metodo === 'promedio' ? 'Promedio' : 'Mediana');
+          const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución). Int. por caución: punto de partida = G/P acumulado + interés acumulado (al cierre del último día real); Int T-1 del primer día = interés acumulado real; tasa = promedio del último mes real; días = días naturales del mes (31 ene, 28/29 feb, etc.).`;
           tfootHtml += `<tr class="fila-titulo-proyeccion"><td colspan="8">Próximos 3 meses proyectados:</td></tr>${filasProy}<tr class="disclaimer-proyeccion"><td colspan="8">${disclaimer}</td></tr>`;
         }
         tfoot.innerHTML = tfootHtml;
@@ -1304,10 +1419,19 @@
     let evolucionMatrix = {};
     let evolucionColumnasOrdenadas = [];
     let evolucionFilasOrdenadas = [];
+    let evolucionTotalPorColumna = null;
+    let evolucionProyFlujo = null;
     let evolucionMoneda = 'ARS';
     let evolucionSimbolo = '$ ';
 
     function formatearColHeaderEvolucion(key, periodo) {
+      if (key === '__total_real__') return 'Total real';
+      if (key === '__total_proy__') return 'Total + Proyectado';
+      if (String(key).indexOf('proy-') === 0) {
+        const rest = key.replace('proy-', '');
+        const [anio, mes] = rest.split('-');
+        return 'Proy. ' + (mes || '') + '-' + (anio || '');
+      }
       if (periodo === 'diario') {
         if (key.length >= 10) {
           const [y, m, d] = key.split('-');
@@ -1317,6 +1441,18 @@
       }
       const [anio, mes] = key.split('-');
       return (mes || '') + '-' + (anio || '');
+    }
+
+    function proyeccionDesdeSerie(valores, N, agg) {
+      const n = valores.length;
+      if (n === 0 || N <= 0) return [0, 0, 0];
+      const numReal0 = Math.max(0, Math.min(N, n) - 0);
+      const numReal1 = Math.max(0, Math.min(N - 1, n) - (n <= N - 1 ? 1 : 0));
+      const numReal2 = Math.max(0, Math.min(N - 2, n) - (n <= N - 2 ? 2 : 0));
+      const p1 = numReal0 > 0 ? agg(valores.slice(-numReal0)) : 0;
+      const p2 = (numReal1 + 1) > 0 ? agg(valores.slice(-numReal1).concat([p1])) : p1;
+      const p3 = (numReal2 + 2) > 0 ? agg(valores.slice(-numReal2).concat([p1, p2])) : p2;
+      return [p1, p2, p3];
     }
 
     function abrirModalEvolucionDetalle(rowKey, colKey) {
@@ -1418,6 +1554,8 @@
       const tipoDolar = document.getElementById('tipoDolar') ? document.getElementById('tipoDolar').value : 'mep';
 
       const matrix = {};
+      const matrixIng = {};
+      const matrixEgr = {};
       const detalle = {};
       const columnasSet = new Set();
 
@@ -1441,7 +1579,11 @@
         }
         columnasSet.add(colKey);
         if (!matrix[rowKey]) matrix[rowKey] = {};
+        if (!matrixIng[rowKey]) matrixIng[rowKey] = {};
+        if (!matrixEgr[rowKey]) matrixEgr[rowKey] = {};
         matrix[rowKey][colKey] = (matrix[rowKey][colKey] || 0) + valor;
+        if (r.tipo_movimiento === 'Ingreso') matrixIng[rowKey][colKey] = (matrixIng[rowKey][colKey] || 0) + montoConv;
+        else if (r.tipo_movimiento === 'Egreso') matrixEgr[rowKey][colKey] = (matrixEgr[rowKey][colKey] || 0) + montoConv;
         if (!detalle[rowKey]) detalle[rowKey] = {};
         if (!detalle[rowKey][colKey]) detalle[rowKey][colKey] = [];
         detalle[rowKey][colKey].push({
@@ -1456,11 +1598,49 @@
 
       const columnasOrdenadas = Array.from(columnasSet).sort();
       const rowKeys = Object.keys(matrix);
+      let columnasConProy = columnasOrdenadas.slice();
+      const configProyEv = getProyeccionConfig();
+      const NEv = configProyEv.meses;
+      const aggEv = configProyEv.metodo === 'promedio_ponderado' ? promedioPonderado : (configProyEv.metodo === 'promedio' ? promedio : (arr) => mediana(arr));
+      if (periodo === 'mensual' && columnasOrdenadas.length > 0 && NEv > 0) {
+        let keyProy = siguienteMesKey(columnasOrdenadas[columnasOrdenadas.length - 1]);
+        const proyKeys = [];
+        for (let i = 0; i < 3; i++) {
+          proyKeys.push('proy-' + keyProy);
+          keyProy = siguienteMesKey(keyProy);
+        }
+        columnasConProy = columnasOrdenadas.concat(['__total_real__']).concat(proyKeys).concat(['__total_proy__']);
+        const totalProyIng = [0, 0, 0];
+        const totalProyEgr = [0, 0, 0];
+        let keyProyLabel = siguienteMesKey(columnasOrdenadas[columnasOrdenadas.length - 1]);
+        rowKeys.forEach(rk => {
+          const valores = columnasOrdenadas.map(c => matrix[rk][c] || 0);
+          const totalRealFila = valores.reduce((s, x) => s + x, 0);
+          matrix[rk]['__total_real__'] = totalRealFila;
+          const valoresIng = columnasOrdenadas.map(c => matrixIng[rk] && matrixIng[rk][c] ? matrixIng[rk][c] : 0);
+          const valoresEgr = columnasOrdenadas.map(c => matrixEgr[rk] && matrixEgr[rk][c] ? matrixEgr[rk][c] : 0);
+          const [p1_ing, p2_ing, p3_ing] = proyeccionDesdeSerie(valoresIng, NEv, aggEv);
+          const [p1_egr, p2_egr, p3_egr] = proyeccionDesdeSerie(valoresEgr, NEv, aggEv);
+          totalProyIng[0] += p1_ing; totalProyIng[1] += p2_ing; totalProyIng[2] += p3_ing;
+          totalProyEgr[0] += p1_egr; totalProyEgr[1] += p2_egr; totalProyEgr[2] += p3_egr;
+          matrix[rk][proyKeys[0]] = p1_ing - p1_egr;
+          matrix[rk][proyKeys[1]] = p2_ing - p2_egr;
+          matrix[rk][proyKeys[2]] = p3_ing - p3_egr;
+          matrix[rk]['__total_proy__'] = totalRealFila + (p1_ing - p1_egr) + (p2_ing - p2_egr) + (p3_ing - p3_egr);
+        });
+        evolucionProyFlujo = [0, 1, 2].map(i => {
+          const [anioP, mesP] = keyProyLabel.split('-').map(Number);
+          const lab = 'Proy. ' + formatoMesAnio(mesP, anioP);
+          keyProyLabel = siguienteMesKey(keyProyLabel);
+          return { key: proyKeys[i], label: lab, ing: totalProyIng[i], egr: totalProyEgr[i], gp: totalProyIng[i] - totalProyEgr[i] };
+        });
+      } else {
+        evolucionProyFlujo = null;
+      }
       const rowTotals = {};
+      const usarTotalProy = columnasConProy.indexOf('__total_proy__') >= 0;
       rowKeys.forEach(rk => {
-        let t = 0;
-        columnasOrdenadas.forEach(ck => { t += matrix[rk][ck] || 0; });
-        rowTotals[rk] = t;
+        rowTotals[rk] = usarTotalProy ? (matrix[rk]['__total_proy__'] || 0) : columnasConProy.reduce((t, ck) => t + (matrix[rk][ck] || 0), 0);
       });
       const filasOrdenadas = rowKeys.sort((a, b) => {
         const ta = rowTotals[a], tb = rowTotals[b];
@@ -1477,35 +1657,74 @@
       });
       evolucionDetalle = detalle;
       evolucionMatrix = matrix;
-      evolucionColumnasOrdenadas = columnasOrdenadas;
+      evolucionColumnasOrdenadas = columnasConProy;
       evolucionFilasOrdenadas = filasOrdenadas;
+
+      const tieneProy = columnasConProy.indexOf('__total_proy__') >= 0;
+      const totalPorColumna = {};
+      columnasConProy.forEach(ck => { totalPorColumna[ck] = 0; });
+      let granTotal = 0;
+      filasOrdenadas.forEach(rk => {
+        columnasConProy.forEach(ck => {
+          const v = matrix[rk][ck] || 0;
+          totalPorColumna[ck] += v;
+        });
+        granTotal += rowTotals[rk];
+      });
+      evolucionTotalPorColumna = null;
 
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       const simbolo = evolucionSimbolo;
 
       const formatearColHeader = (key) => formatearColHeaderEvolucion(key, periodo);
 
-      thead.innerHTML = '<tr><th>' + esc(agrupar === 'categoria' ? 'Categoría' : 'Cuenta contable') + '</th>' + columnasOrdenadas.map(c => '<th>' + esc(formatearColHeader(c)) + '</th>').join('') + '<th>Total</th></tr>';
+      const thClass = (ck) => {
+        if (ck === '__total_real__') return ' class="col-total-real-evolucion"';
+        if (ck === '__total_proy__' || (String(ck).indexOf('proy-') === 0)) return ' class="col-proyeccion-evolucion"';
+        return '';
+      };
+      thead.innerHTML = '<tr><th>' + esc(agrupar === 'categoria' ? 'Categoría' : 'Cuenta contable') + '</th>' + columnasConProy.map(c => '<th' + thClass(c) + '>' + esc(formatearColHeader(c)) + '</th>').join('') + (tieneProy ? '' : '<th>Total</th>') + '</tr>';
       if (filasOrdenadas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="' + (columnasOrdenadas.length + 2) + '" style="text-align:center; color:#666;">No hay datos para mostrar.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="' + (columnasConProy.length + (tieneProy ? 1 : 2)) + '" style="text-align:center; color:#666;">No hay datos para mostrar.</td></tr>';
         return;
       }
-      tbody.innerHTML = filasOrdenadas.map(rowKey => {
+      const tdClass = (colKey, v) => {
+        let cls = v > 0 ? 'ingresos' : (v < 0 ? 'egresos' : '');
+        if (colKey === '__total_real__') cls += ' col-total-real-evolucion';
+        else if (colKey === '__total_proy__' || String(colKey).indexOf('proy-') === 0) cls += ' col-proyeccion-evolucion';
+        return cls;
+      };
+      const filasHtml = filasOrdenadas.map(rowKey => {
         let totalFila = 0;
-        const celdas = columnasOrdenadas.map(colKey => {
+        const celdas = columnasConProy.map(colKey => {
           const v = matrix[rowKey][colKey] || 0;
           totalFila += v;
-          const cls = v > 0 ? 'ingresos' : (v < 0 ? 'egresos' : '');
+          const cls = tdClass(colKey, v);
           const tieneDetalle = (detalle[rowKey][colKey] || []).length > 0;
           const clickable = tieneDetalle ? ' evolucion-clickable' : '';
           const dataAttrs = tieneDetalle ? ' data-rowkey="' + esc(rowKey).replace(/"/g, '&quot;') + '" data-colkey="' + esc(colKey).replace(/"/g, '&quot;') + '"' : '';
-          return '<td class="num-evolucion ' + cls + clickable + '"' + dataAttrs + '>' + (v !== 0 ? simbolo + formatearNumero(v, moneda) : '—') + '</td>';
+          const esColProy = colKey === '__total_proy__' || String(colKey).indexOf('proy-') === 0;
+          const texto = (v !== 0 || esColProy) ? (simbolo + formatearNumero(v, moneda)) : '—';
+          return '<td class="num-evolucion ' + cls + clickable + '"' + dataAttrs + '>' + texto + '</td>';
         });
+        if (tieneProy) {
+          return '<tr><td>' + esc(rowKey) + '</td>' + celdas.join('') + '</tr>';
+        }
         const totalCls = totalFila >= 0 ? 'balance positivo' : 'balance negativo';
         const totalList = (detalle[rowKey].__total__ || []).length;
         const totalAttrs = totalList > 0 ? ' data-rowkey="' + esc(rowKey).replace(/"/g, '&quot;') + '" data-colkey="__total__" class="num-evolucion ' + totalCls + ' evolucion-clickable"' : ' class="num-evolucion ' + totalCls + '"';
         return '<tr><td>' + esc(rowKey) + '</td>' + celdas.join('') + '<td' + totalAttrs + '>' + simbolo + formatearNumero(totalFila, moneda) + '</td></tr>';
       }).join('');
+      const totalClsFila = granTotal >= 0 ? 'balance positivo' : 'balance negativo';
+      const filaTotalCeldas = columnasConProy.map(ck => {
+        const v = totalPorColumna[ck] || 0;
+        const cls = tdClass(ck, v) + (v !== 0 ? '' : '');
+        const esProy = ck === '__total_proy__' || String(ck).indexOf('proy-') === 0;
+        const textoTotal = (v !== 0 || esProy) ? (simbolo + formatearNumero(v, moneda)) : '—';
+        return '<td class="num-evolucion ' + (v > 0 ? 'ingresos' : (v < 0 ? 'egresos' : '')) + (ck === '__total_real__' ? ' col-total-real-evolucion' : (ck === '__total_proy__' || String(ck).indexOf('proy-') === 0 ? ' col-proyeccion-evolucion' : '')) + '" style="font-weight:600;">' + textoTotal + '</td>';
+      }).join('');
+      const filaTotalHtml = '<tr class="fila-total-evolucion"><td style="font-weight:600;">Total</td>' + filaTotalCeldas + (tieneProy ? '' : '<td class="num-evolucion ' + totalClsFila + '" style="font-weight:600;">' + simbolo + formatearNumero(granTotal, moneda) + '</td>') + '</tr>';
+      tbody.innerHTML = filasHtml + filaTotalHtml;
 
       tbody.querySelectorAll('.evolucion-clickable').forEach(td => {
         td.addEventListener('click', () => {
@@ -1514,6 +1733,18 @@
           if (rk != null && ck != null) abrirModalEvolucionDetalle(rk, ck);
         });
       });
+
+      const refFlujoEl = document.getElementById('evolucion-referencia-flujo');
+      const tbodyRefFlujo = document.getElementById('tbody-referencia-flujo');
+      if (refFlujoEl && tbodyRefFlujo) {
+        if (evolucionProyFlujo && evolucionProyFlujo.length === 3) {
+          refFlujoEl.classList.remove('oculto');
+          tbodyRefFlujo.innerHTML = evolucionProyFlujo.map(p => '<tr><td style="padding:0.25rem 0.5rem;">' + esc(p.label) + '</td><td class="ingresos" style="text-align:right; padding:0.25rem 0.5rem;">' + simbolo + formatearNumero(p.ing, moneda) + '</td><td class="egresos" style="text-align:right; padding:0.25rem 0.5rem;">' + simbolo + formatearNumero(p.egr, moneda) + '</td><td class="balance ' + (p.gp >= 0 ? 'positivo' : 'negativo') + '" style="text-align:right; padding:0.25rem 0.5rem;">' + simbolo + formatearNumero(p.gp, moneda) + '</td></tr>').join('');
+        } else {
+          refFlujoEl.classList.add('oculto');
+          tbodyRefFlujo.innerHTML = '';
+        }
+      }
 
       thead.querySelectorAll('th').forEach((th, i) => { th.style.textAlign = i === 0 ? 'left' : 'right'; });
     }
@@ -1528,17 +1759,36 @@
       const formatearColHeader = (key) => formatearColHeaderEvolucion(key, periodo);
       const monedaExport = getMoneda();
 
-      const headerRow = [agrupar === 'categoria' ? 'Categoría' : 'Cuenta contable'].concat(evolucionColumnasOrdenadas.map(formatearColHeader)).concat(['Total']);
+      const tieneProyExport = evolucionColumnasOrdenadas.indexOf('__total_proy__') >= 0;
+      const headerRow = [agrupar === 'categoria' ? 'Categoría' : 'Cuenta contable'].concat(evolucionColumnasOrdenadas.map(formatearColHeader)).concat(tieneProyExport ? [] : ['Total']);
       const rows = [['Moneda: ' + (monedaExport === 'USD' ? 'USD' : 'ARS') + '.'], headerRow];
+      let totalPorColExport = {};
+      evolucionColumnasOrdenadas.forEach(ck => { totalPorColExport[ck] = 0; });
+      let granTotalExport = 0;
       evolucionFilasOrdenadas.forEach(rowKey => {
         let totalFila = 0;
         const celdas = evolucionColumnasOrdenadas.map(colKey => {
           const v = (evolucionMatrix[rowKey] && evolucionMatrix[rowKey][colKey]) || 0;
           totalFila += v;
-          return v !== 0 ? v : '';
+          totalPorColExport[colKey] = (totalPorColExport[colKey] || 0) + v;
+          return (typeof v === 'number' && !isNaN(v)) ? v : '';
         });
-        rows.push([rowKey].concat(celdas).concat([totalFila]));
+        granTotalExport += totalFila;
+        rows.push([rowKey].concat(celdas).concat(tieneProyExport ? [] : [totalFila]));
       });
+      const totalesParaFila = (tieneProyExport && evolucionTotalPorColumna) ? evolucionTotalPorColumna : totalPorColExport;
+      const filaTotalExport = ['Total'].concat(evolucionColumnasOrdenadas.map(ck => {
+        const x = (totalesParaFila[ck] != null ? totalesParaFila[ck] : totalPorColExport[ck]) || 0;
+        return (typeof x === 'number' && !isNaN(x)) ? x : '';
+      })).concat(tieneProyExport ? [] : [granTotalExport]);
+      rows.push(filaTotalExport);
+
+      if (tieneProyExport && evolucionProyFlujo && evolucionProyFlujo.length === 3) {
+        rows.push([]);
+        rows.push(['Referencia Flujo (proyección): mismos Ingresos, Egresos y G/P que solapa Flujo por mes.']);
+        rows.push(['Mes', 'Ingresos', 'Egresos', 'G/P']);
+        evolucionProyFlujo.forEach(p => rows.push([p.label, p.ing, p.egr, p.gp]));
+      }
 
       const ws = XLSX.utils.aoa_to_sheet(rows);
       const wb = XLSX.utils.book_new();
@@ -1905,7 +2155,7 @@
         : `
           <p><strong>Tipo de Error:</strong> Inconsistencia entre Categoria , Cuenta Contable y Descripcion</p>
           <p><strong>Cantidad de registros con este error:</strong> ${erroresCount}</p>
-          <button type="button" class="btn-ver-errores" data-anio="${anio}" data-mes="${mes}">Ver detalle de errores</button>
+          <button type="button" class="btn btn-ver-errores" data-anio="${anio}" data-mes="${mes}"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span> Ver detalle de errores</button>
         `;
 
       let html = `
@@ -2586,15 +2836,19 @@
           const c = getProyeccionConfig();
           const selMetodo = document.getElementById('config-proyeccion-metodo');
           const selMeses = document.getElementById('config-proyeccion-meses');
+          const selPctCaucion = document.getElementById('config-pct-caucion');
           if (selMetodo) selMetodo.value = c.metodo;
           if (selMeses) selMeses.value = String(c.meses);
+          if (selPctCaucion) selPctCaucion.value = String(getPctCaucion());
           document.getElementById('modal-configuracion-backdrop').classList.remove('oculto');
         });
         document.getElementById('config-guardar').addEventListener('click', () => {
           const selMetodo = document.getElementById('config-proyeccion-metodo');
           const selMeses = document.getElementById('config-proyeccion-meses');
+          const selPctCaucion = document.getElementById('config-pct-caucion');
           if (selMetodo) localStorage.setItem(PROYECCION_METODO_KEY, selMetodo.value);
           if (selMeses) localStorage.setItem(PROYECCION_MESES_KEY, selMeses.value);
+          if (selPctCaucion) localStorage.setItem(PCT_CAUCION_KEY, selPctCaucion.value);
           document.getElementById('modal-configuracion-backdrop').classList.add('oculto');
           recalcular();
         });
