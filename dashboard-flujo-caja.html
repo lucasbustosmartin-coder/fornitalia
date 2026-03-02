@@ -56,6 +56,11 @@
     .tabs button .tab-icon { width: 18px; height: 18px; flex-shrink: 0; }
     .tabs button .tab-icon svg { width: 100%; height: 100%; stroke: currentColor; }
     .tabs button.activo { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+    .th-help { display: inline-flex; align-items: center; vertical-align: middle; margin: 0 0.15rem; color: #666; cursor: pointer; }
+    .th-help:hover { color: #333; }
+    .th-help svg { flex-shrink: 0; }
+    #th-help-popover { position: fixed; z-index: 10000; max-width: 280px; padding: 0.5rem 0.75rem; background: #1a1a1a; color: #fff; font-size: 0.85rem; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none; }
+    #th-help-popover.oculto { display: none; }
     .leyenda-datos-ficticios { font-size: 0.75rem; color: #c00; margin-left: 0.5rem; align-self: center; }
     .panel { display: none; }
     .panel.activo { display: block; }
@@ -297,8 +302,8 @@
             <th>Ingresos</th>
             <th>Egresos</th>
             <th>G/P</th>
-            <th>Comisiones/Ventas %</th>
-            <th>Egr s/com. / Ingresos</th>
+            <th>Comisiones <span class="th-help" data-help="Corresponde solo a las comisiones por venta." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ventas %</th>
+            <th>Egresos <span class="th-help" data-help="Egresos - Comisiones por Venta / Ingresos" role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
             <th class="th-int-caucion" id="th-int-caucion-label" title="Interés acumulado por mes colocando el sobrante de caja a la tasa de la serie de cauciones">Caución (100% cash)</th>
             <th class="alert-icon-cell"></th>
           </tr>
@@ -442,6 +447,7 @@
   <footer class="app-footer">
     © 2025 Developed by L&amp;P Financial Consulting
   </footer>
+  <div id="th-help-popover" class="oculto" role="tooltip"></div>
   </main>
 
   <div id="modal-alertas-backdrop" class="modal-backdrop oculto">
@@ -782,7 +788,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.24';
+    const APP_VERSION = '1.25';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -3046,6 +3052,43 @@
         document.getElementById('btn-exportar-evolucion').addEventListener('click', exportarEvolucionExcel);
         document.getElementById('modal-evolucion-detalle-close').addEventListener('click', () => document.getElementById('modal-evolucion-detalle-backdrop').classList.add('oculto'));
         document.getElementById('modal-evolucion-detalle-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-evolucion-detalle-backdrop') e.target.classList.add('oculto'); });
+        document.addEventListener('click', (e) => {
+          const helpEl = e.target.closest('.th-help');
+          const popover = document.getElementById('th-help-popover');
+          if (helpEl && popover) {
+            e.preventDefault();
+            e.stopPropagation();
+            const text = helpEl.getAttribute('data-help');
+            if (text) {
+              const alreadyOpen = !popover.classList.contains('oculto') && popover._openTrigger === helpEl;
+              if (alreadyOpen) {
+                popover.classList.add('oculto');
+                popover._openTrigger = null;
+                return;
+              }
+              popover.textContent = text;
+              popover._openTrigger = helpEl;
+              const rect = helpEl.getBoundingClientRect();
+              popover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 288)) + 'px';
+              popover.style.top = (rect.bottom + 6) + 'px';
+              popover.classList.remove('oculto');
+            }
+            return;
+          }
+          if (popover && !e.target.closest('#th-help-popover')) {
+            popover.classList.add('oculto');
+            popover._openTrigger = null;
+          }
+        });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            const popover = document.getElementById('th-help-popover');
+            if (popover && !popover.classList.contains('oculto')) {
+              popover.classList.add('oculto');
+              popover._openTrigger = null;
+            }
+          }
+        });
         document.getElementById('panel-flujo').addEventListener('click', (e) => {
           const cell = e.target.closest('.int-caucion-cell');
           if (cell) {

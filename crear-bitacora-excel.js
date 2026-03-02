@@ -60,6 +60,7 @@ const datosLog = [
   ['27/02/2026', '14:00', 'Recorte % (cada lado) en Configuración', 'Parámetro Recorte % (cada lado) en Configuración (0, 5, 10, 15, 20, 25) para el método Promedio recortado. Persistido en localStorage y columna proyeccion_recorte en config_dashboard (Supabase).', 'Implementacion'],
   ['27/02/2026', '14:10', 'Recorte % solo si Promedio recortado', 'El campo Recorte % (cada lado) se muestra en Configuración solo cuando el método elegido es Promedio recortado; al cambiar de método se oculta o muestra al instante.', 'Implementacion'],
   ['27/02/2026', '15:00', 'Parámetros por defecto sin datos de usuario', 'Si no hay config del usuario: Meses a proyectar 3, Método Promedio recortado, Recorte 20%, Meses de historia 6, % G/P acum. en caución 95%. Aplicado en getProyeccionConfig, getPctCaucion, sync y combos del modal.', 'Implementacion'],
+  ['27/02/2026', '16:00', 'Ayuda al clic en columnas flujo y regla bitácora', 'Columnas Comisiones/Ventas y Egresos/Ingresos: icono de ayuda que al clic muestra popover con texto (Comisiones: "Corresponde solo a las comisiones por venta."; Egresos: "Egresos - Comisiones por Venta / Ingresos"). Regla bitácora: sección tecnología e infraestructura y refuerzo para actualizar todas las solapas que correspondan.', 'Implementacion'],
 ];
 
 const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
@@ -78,8 +79,8 @@ const funcionalidades = [
   ['Resumen global', 'Totales: Total ingresos, Total egresos, Balance (en ARS o USD).'],
   ['Moneda', 'Selector ARS / USD; conversión con tipos de cambio desde Supabase. Montos mostrados con $ (pesos) o US$ (dólares) a la izquierda.'],
   ['Tipo de cambio USD', 'Opciones MEP, CCL u Oficial para convertir a dólares.'],
-  ['Comisiones/Ventas %', 'Columna: porcentaje comisiones (egresos comisión desde Sueldos) sobre ventas del mes.'],
-  ['Egr s/com. / Ingresos', 'Columna: porcentaje (egresos sin comisiones) sobre ingresos del mes.'],
+  ['Comisiones/Ventas %', 'Columna: porcentaje comisiones (egresos comisión desde Sueldos) sobre ventas del mes. Icono de ayuda al clic: "Corresponde solo a las comisiones por venta."'],
+  ['Egresos / Ingresos', 'Columna Egresos (icono ayuda) / Ingresos: porcentaje (egresos sin comisiones) sobre ingresos. Ayuda al clic: "Egresos - Comisiones por Venta / Ingresos".'],
   ['Categorías Sueldos y Comisiones', 'Categoría Sueldos partida en dos: Sueldos (solo sueldos) y Comisiones (según descripción/cat_desc). Sin doble imputación.'],
   ['Detección comisiones', 'Incluye variante "Comisones" en descripción para clasificar como Comisiones.'],
   ['Detalle por mes', 'Clic en una fila de mes abre modal con dos solapas: By Categoria y By Cuenta Contable.'],
@@ -173,6 +174,7 @@ const versiones = [
   ['1.22', '27/02/2026', 'Parámetro Recorte % (cada lado) en Configuración (0-25); visible solo si método es Promedio recortado. Columna proyeccion_recorte en config_dashboard. Despliegue a producción.'],
   ['1.23', '27/02/2026', 'Valores por defecto sin datos de usuario: Meses a proyectar 3, Método Promedio recortado, Recorte 20%, Meses de historia 6, % G/P en caución 95%. Despliegue a producción.'],
   ['1.24', '27/02/2026', 'Demo potencial cliente: leyenda roja "Los datos presentados son ficticios..." al costado de Evolución; script SQL transacciones_fornitalia (respaldo) y carga con monto×0,70. Despliegue a producción.'],
+  ['1.25', '27/02/2026', 'Ayuda al clic en columnas Comisiones/Ventas y Egresos/Ingresos (popover con texto explicativo). Regla bitácora: tecnología e infraestructura y actualizar todas las solapas. Despliegue a producción.'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
