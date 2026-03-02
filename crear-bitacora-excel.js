@@ -1,7 +1,26 @@
 const XLSX = require('xlsx');
 const path = require('path');
 
+// Al generar el Excel, __HOY__ y __AHORA__ se reemplazan por fecha y hora en Argentina (America/Argentina/Buenos_Aires)
+const ZONA_ARGENTINA = 'America/Argentina/Buenos_Aires';
+function ahoraFecha() {
+  return new Date().toLocaleDateString('es-AR', { timeZone: ZONA_ARGENTINA, day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+function ahoraHora() {
+  return new Date().toLocaleTimeString('es-AR', { timeZone: ZONA_ARGENTINA, hour: '2-digit', minute: '2-digit', hour12: false });
+}
+function aplicarHoyAhora(rows) {
+  return rows.map(row => Array.isArray(row)
+    ? row.map(cell => {
+        if (cell === '__HOY__') return ahoraFecha();
+        if (cell === '__AHORA__') return ahoraHora();
+        return cell;
+      })
+    : row);
+}
+
 // --- Hoja Log (bitácora de tareas)
+// En nuevas filas se puede usar __HOY__ y __AHORA__; al ejecutar el script se reemplazan por la fecha y hora reales.
 const datosLog = [
   ['Fecha', 'Hora', 'titulo_tarea', 'desc_tarea', 'etapa'],
   ['27/02/2025', '10:00', 'Separar categorías Sueldos y Comisiones', 'Partir la categoría Sueldos en dos: Sueldos (solo sueldos) y Comisiones (registros con descripción/cat_desc que indiquen comisión). Evitar doble imputación con otras categorías.', 'Diagnostico'],
@@ -60,10 +79,12 @@ const datosLog = [
   ['27/02/2026', '14:00', 'Recorte % (cada lado) en Configuración', 'Parámetro Recorte % (cada lado) en Configuración (0, 5, 10, 15, 20, 25) para el método Promedio recortado. Persistido en localStorage y columna proyeccion_recorte en config_dashboard (Supabase).', 'Implementacion'],
   ['27/02/2026', '14:10', 'Recorte % solo si Promedio recortado', 'El campo Recorte % (cada lado) se muestra en Configuración solo cuando el método elegido es Promedio recortado; al cambiar de método se oculta o muestra al instante.', 'Implementacion'],
   ['27/02/2026', '15:00', 'Parámetros por defecto sin datos de usuario', 'Si no hay config del usuario: Meses a proyectar 3, Método Promedio recortado, Recorte 20%, Meses de historia 6, % G/P acum. en caución 95%. Aplicado en getProyeccionConfig, getPctCaucion, sync y combos del modal.', 'Implementacion'],
-  ['27/02/2026', '16:00', 'Ayuda al clic en columnas flujo y regla bitácora', 'Columnas Comisiones/Ventas y Egresos/Ingresos: icono de ayuda que al clic muestra popover con texto (Comisiones: "Corresponde solo a las comisiones por venta."; Egresos: "Egresos - Comisiones por Venta / Ingresos"). Regla bitácora: sección tecnología e infraestructura y refuerzo para actualizar todas las solapas que correspondan.', 'Implementacion'],
+  ['__HOY__', '__AHORA__', 'Ayuda al clic en columnas flujo y regla bitácora', 'Columnas Comisiones/Ventas y Egresos/Ingresos: icono de ayuda que al clic muestra popover con texto (Comisiones: "Corresponde solo a las comisiones por venta."; Egresos: "Egresos - Comisiones por Venta / Ingresos"). Regla bitácora: sección tecnología e infraestructura y refuerzo para actualizar todas las solapas que correspondan.', 'Implementacion'],
+  ['__HOY__', '__AHORA__', 'Alerta desvío: categoría en negrita sin comillas', 'En el mensaje de alerta de desvío de categoría, reemplazar la categoría entre comillas por la categoría en negrita (sin comillas).', 'Implementacion'],
 ];
 
-const wsLog = XLSX.utils.aoa_to_sheet(datosLog);
+const datosLogParaExcel = aplicarHoyAhora(datosLog);
+const wsLog = XLSX.utils.aoa_to_sheet(datosLogParaExcel);
 wsLog['!cols'] = [
   { wch: 12 },
   { wch: 6 },
@@ -174,9 +195,11 @@ const versiones = [
   ['1.22', '27/02/2026', 'Parámetro Recorte % (cada lado) en Configuración (0-25); visible solo si método es Promedio recortado. Columna proyeccion_recorte en config_dashboard. Despliegue a producción.'],
   ['1.23', '27/02/2026', 'Valores por defecto sin datos de usuario: Meses a proyectar 3, Método Promedio recortado, Recorte 20%, Meses de historia 6, % G/P en caución 95%. Despliegue a producción.'],
   ['1.24', '27/02/2026', 'Demo potencial cliente: leyenda roja "Los datos presentados son ficticios..." al costado de Evolución; script SQL transacciones_fornitalia (respaldo) y carga con monto×0,70. Despliegue a producción.'],
-  ['1.25', '27/02/2026', 'Ayuda al clic en columnas Comisiones/Ventas y Egresos/Ingresos (popover con texto explicativo). Regla bitácora: tecnología e infraestructura y actualizar todas las solapas. Despliegue a producción.'],
+  ['1.25', '__HOY__', 'Ayuda al clic en columnas Comisiones/Ventas y Egresos/Ingresos (popover con texto explicativo). Regla bitácora: tecnología e infraestructura y actualizar todas las solapas. Despliegue a producción.'],
+  ['1.26', '__HOY__', 'Mensaje de alerta de desvío: categoría en negrita sin comillas. Despliegue a producción.'],
 ];
-const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
+const versionesParaExcel = aplicarHoyAhora(versiones);
+const wsVersiones = XLSX.utils.aoa_to_sheet(versionesParaExcel);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
 
 // --- Hoja Presupuesto (rubros en USD; HH = estimado tiempo humano; Importe = fórmula C*50 en Excel)
