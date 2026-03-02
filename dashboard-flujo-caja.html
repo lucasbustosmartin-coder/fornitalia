@@ -231,6 +231,12 @@
     .modal-close .icon-close svg { width: 100%; height: 100%; stroke: currentColor; }
     .icon-only { padding: 0.5rem; }
     .icon-only .btn-icon { width: 22px; height: 22px; }
+    .novedades-lista { display: flex; flex-direction: column; gap: 0.75rem; }
+    .novedades-item { padding: 0.75rem 1rem; background: #f8f9fa; border-radius: 8px; border-left: 3px solid #0d2137; }
+    .novedades-item .nombre { font-weight: 600; color: #1a1a1a; margin-bottom: 0.35rem; }
+    .novedades-item .campo { font-size: 0.9rem; color: #555; margin-bottom: 0.2rem; }
+    .novedades-item .campo a { color: #0d2137; text-decoration: none; }
+    .novedades-item .campo a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -244,6 +250,10 @@
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg></span>
         <span class="menu-label">Home</span>
       </a>
+      <button type="button" class="menu-item" id="menu-novedades" title="Novedades del Negocio" aria-label="Novedades del Negocio">
+        <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg></span>
+        <span class="menu-label">Novedades del Negocio</span>
+      </button>
       <button type="button" class="menu-item" id="menu-configuracion" title="Configuración" aria-label="Configuración">
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
         <span class="menu-label">Configuración</span>
@@ -252,6 +262,7 @@
     <div class="sidebar-version" id="sidebar-version" aria-label="Versión"></div>
   </aside>
   <main id="main-content" class="main-content">
+  <div id="view-dashboard">
   <h1>Flujo de caja</h1>
   <p style="color:#666; margin-top:0;">Entradas y salidas por mes. No se incluyen transacciones anuladas. Si no hay cotización para la fecha, se usa la inmediata anterior. Hacé clic en un mes para ver el detalle por categoría.</p>
 
@@ -445,8 +456,31 @@
   </div>
 
   <footer class="app-footer">
-    © 2025 Developed by L&amp;P Financial Consulting
+    © 2026 Developed by L&amp;P Financial Consulting
   </footer>
+  </div>
+  <div id="view-novedades" class="card" style="display:none;">
+    <h1 style="margin-top:0; display:flex; align-items:center; gap:0.5rem;">
+      <span style="display:inline-flex;"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg></span>
+      Novedades del Negocio
+    </h1>
+    <p style="color:#666; margin:0 0 1rem;">Importadores y comercios de hornos en Argentina (Buenos Aires). Información recuperada por IA.</p>
+    <button type="button" class="btn btn-success" id="btn-cargar-novedades" style="margin-bottom:1rem;">
+      <span class="btn-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Cargar novedades
+    </button>
+    <div id="novedades-loading" class="loading" style="display:none;">Buscando importadores y comercios…</div>
+    <div id="novedades-error" class="error" style="display:none;"></div>
+    <div id="novedades-content" style="display:none;">
+      <section style="margin-bottom:1.5rem;">
+        <h2 style="font-size:1.1rem; color:#333; margin:0 0 0.75rem;">Importadores de hornos (Argentina / Buenos Aires)</h2>
+        <div id="novedades-importadores" class="novedades-lista"></div>
+      </section>
+      <section>
+        <h2 style="font-size:1.1rem; color:#333; margin:0 0 0.75rem;">Comercios de venta de hornos (Argentina)</h2>
+        <div id="novedades-comercios" class="novedades-lista"></div>
+      </section>
+    </div>
+  </div>
   <div id="th-help-popover" class="oculto" role="tooltip"></div>
   </main>
 
@@ -788,7 +822,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.26';
+    const APP_VERSION = '1.27';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -2940,7 +2974,16 @@
           });
           sidebarToggle.setAttribute('aria-label', sidebar.classList.contains('expanded') ? 'Contraer menú' : 'Expandir menú');
         }
-        document.getElementById('menu-home')?.addEventListener('click', (e) => { e.preventDefault(); });
+        document.getElementById('menu-home')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          document.getElementById('view-dashboard').style.display = 'block';
+          document.getElementById('view-novedades').style.display = 'none';
+        });
+        document.getElementById('menu-novedades')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          document.getElementById('view-dashboard').style.display = 'none';
+          document.getElementById('view-novedades').style.display = 'block';
+        });
 
         await syncConfigFromSupabase();
         await cargarDatos();
@@ -3107,6 +3150,49 @@
         document.getElementById('modal-int-caucion-close').addEventListener('click', () => document.getElementById('modal-int-caucion-backdrop').classList.add('oculto'));
         document.getElementById('modal-int-caucion-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-int-caucion-backdrop') e.target.classList.add('oculto'); });
         setupModalDrag('modal-int-caucion', 'modal-int-caucion-header-drag', 'modal-int-caucion-close');
+
+        document.getElementById('btn-cargar-novedades').addEventListener('click', async () => {
+          const loading = document.getElementById('novedades-loading');
+          const errEl = document.getElementById('novedades-error');
+          const content = document.getElementById('novedades-content');
+          const btn = document.getElementById('btn-cargar-novedades');
+          const esc = (s) => (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;').replace(/>/g, '&gt;');
+          loading.style.display = 'block';
+          errEl.style.display = 'none';
+          content.style.display = 'none';
+          btn.disabled = true;
+          try {
+            const { data, error } = await client.functions.invoke('get-novedades-negocio');
+            if (error) {
+              const msg = (data && data.error) ? data.error : (error.message || 'Error al cargar');
+              const hint = data && data.hint;
+              throw new Error(hint ? msg + '\n' + hint : msg);
+            }
+            if (data && data.error) throw new Error(data.error + (data.hint ? '\n' + data.hint : ''));
+            const list = (arr, id) => {
+              const el = document.getElementById(id);
+              if (!arr || arr.length === 0) { el.innerHTML = '<p style="color:#666; margin:0;">Sin resultados.</p>'; return; }
+              el.innerHTML = arr.map((r) => {
+                const nombre = (r.nombre || '').trim() || '—';
+                const direccion = (r.direccion || '').trim() ? `<div class="campo">${esc(r.direccion)}</div>` : '';
+                const telefono = (r.telefono || '').trim() ? `<div class="campo">Tel: ${esc(r.telefono)}</div>` : '';
+                const webUrl = (r.web || '').trim();
+                const web = webUrl ? `<div class="campo">Web: <a href="${esc(webUrl.startsWith('http') ? webUrl : 'https://' + webUrl)}" target="_blank" rel="noopener">${esc(webUrl)}</a></div>` : '';
+                return `<div class="novedades-item"><div class="nombre">${esc(nombre)}</div>${direccion}${telefono}${web}</div>`;
+              }).join('');
+            };
+            list(data?.importadores ?? [], 'novedades-importadores');
+            list(data?.comercios ?? [], 'novedades-comercios');
+            content.style.display = 'block';
+          } catch (err) {
+            const msg = (err && err.message) || 'No se pudieron cargar las novedades.';
+            errEl.innerHTML = msg + ' <span style="display:block; margin-top:0.5rem; font-size:0.85em; color:#666;">Revisá en Supabase → Edge Functions → get-novedades-negocio → Logs para ver el error exacto.</span>';
+            errEl.style.display = 'block';
+          } finally {
+            loading.style.display = 'none';
+            btn.disabled = false;
+          }
+        });
 
         document.getElementById('menu-configuracion').addEventListener('click', (e) => {
           e.preventDefault();

@@ -81,6 +81,7 @@ const datosLog = [
   ['27/02/2026', '15:00', 'Parámetros por defecto sin datos de usuario', 'Si no hay config del usuario: Meses a proyectar 3, Método Promedio recortado, Recorte 20%, Meses de historia 6, % G/P acum. en caución 95%. Aplicado en getProyeccionConfig, getPctCaucion, sync y combos del modal.', 'Implementacion'],
   ['__HOY__', '__AHORA__', 'Ayuda al clic en columnas flujo y regla bitácora', 'Columnas Comisiones/Ventas y Egresos/Ingresos: icono de ayuda que al clic muestra popover con texto (Comisiones: "Corresponde solo a las comisiones por venta."; Egresos: "Egresos - Comisiones por Venta / Ingresos"). Regla bitácora: sección tecnología e infraestructura y refuerzo para actualizar todas las solapas que correspondan.', 'Implementacion'],
   ['__HOY__', '__AHORA__', 'Alerta desvío: categoría en negrita sin comillas', 'En el mensaje de alerta de desvío de categoría, reemplazar la categoría entre comillas por la categoría en negrita (sin comillas).', 'Implementacion'],
+  ['__HOY__', '__AHORA__', 'Novedades del Negocio y despliegue v1.27', 'Sección Novedades del Negocio en sidebar: Edge Function get-novedades-negocio (Gemini + google_search) para importadores y comercios de hornos en Argentina. Config GEMINI_API_KEY en Supabase. Despliegue a producción.', 'Implementacion'],
 ];
 
 const datosLogParaExcel = aplicarHoyAhora(datosLog);
@@ -146,6 +147,7 @@ const funcionalidades = [
   ['Meses a proyectar', 'En Configuración: combo Meses a proyectar (1, 2, 3, 4, 5, 6, 12). Flujo por mes y Evolución muestran esa cantidad de columnas/filas proyectadas.'],
   ['Config por usuario en Supabase', 'Tabla config_dashboard (user_id, proyección y caución). Con Auth anónimo se sincroniza al cargar y al guardar; la config persiste por usuario en la base. Migración: supabase_config_dashboard.sql.'],
   ['Recorte % (cada lado)', 'En Configuración, combo Recorte % (cada lado) (0, 5, 10, 15, 20, 25) visible solo cuando el método es Promedio recortado. Más % = más suavizado. Persistido en config_dashboard (proyeccion_recorte).'],
+  ['Novedades del Negocio', 'Ítem en sidebar que abre una vista con importadores de hornos y comercios de venta de hornos en Argentina (Buenos Aires). Datos recuperados por IA (Edge Function con Gemini + google_search). Nombre, dirección, teléfono y web por contacto.'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
@@ -197,15 +199,16 @@ const versiones = [
   ['1.24', '27/02/2026', 'Demo potencial cliente: leyenda roja "Los datos presentados son ficticios..." al costado de Evolución; script SQL transacciones_fornitalia (respaldo) y carga con monto×0,70. Despliegue a producción.'],
   ['1.25', '__HOY__', 'Ayuda al clic en columnas Comisiones/Ventas y Egresos/Ingresos (popover con texto explicativo). Regla bitácora: tecnología e infraestructura y actualizar todas las solapas. Despliegue a producción.'],
   ['1.26', '__HOY__', 'Mensaje de alerta de desvío: categoría en negrita sin comillas. Despliegue a producción.'],
+  ['1.27', '__HOY__', 'Novedades del Negocio: sección en sidebar con importadores y comercios de hornos en Argentina (Edge Function Gemini + google_search). Despliegue a producción.'],
 ];
 const versionesParaExcel = aplicarHoyAhora(versiones);
 const wsVersiones = XLSX.utils.aoa_to_sheet(versionesParaExcel);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
 
-// --- Hoja Presupuesto (rubros en USD; HH = estimado tiempo humano; Importe = fórmula C*50 en Excel)
-const VALOR_HORA_PRESUPUESTO_USD = 50;
+// --- Hoja Presupuesto (HH = estimado tiempo humano; Importe (USD) lo actualiza el usuario a mano)
 const outPath = path.join(__dirname, 'Bitacora_tareas.xlsx');
 let existingHHByGrupo = {};
+let existingImporteByGrupo = {};
 try {
   const wbExisting = XLSX.readFile(outPath);
   const wsP = wbExisting.Sheets['Presupuesto'];
@@ -214,9 +217,13 @@ try {
     for (let r = 1; r < aoa.length; r++) {
       const row = aoa[r];
       if (row && row[0] != null && String(row[0]).trim() !== '') {
-        const val = row[2];
-        if (val !== undefined && val !== '' && val !== null && !Number.isNaN(Number(val))) {
-          existingHHByGrupo[String(row[0]).trim()] = Number(val);
+        const grupo = String(row[0]).trim();
+        const valHH = row[2];
+        if (valHH !== undefined && valHH !== '' && valHH !== null && !Number.isNaN(Number(valHH))) {
+          existingHHByGrupo[grupo] = Number(valHH);
+        }
+        if (row[3] !== undefined && row[3] !== '' && row[3] !== null) {
+          existingImporteByGrupo[grupo] = row[3];
         }
       }
     }
@@ -224,7 +231,7 @@ try {
 } catch (_) { /* no existe aún o no se pudo leer */ }
 
 const presupuestoRaw = [
-  ['Grupo', 'Descripción comercial', 'Horas hombre', 'Importe sugerido (USD)'],
+  ['Grupo', 'Descripción comercial', 'Horas hombre', 'Importe (USD)'],
   ['Normalización de datos', 'Relevamiento, limpieza y normalización de datos históricos de caja (campos de moneda, categorías, cuentas contables, flags de edición). Incluye lógica de excepciones y detección de inconsistencias.', 50],
   ['Dashboard flujo de caja', 'Diseño y desarrollo del dashboard mensual (Flujo por mes, Resumen, alertas, modal By Categoría / By Cuenta, gráficos de serie mensual). Incluye formatos de moneda y visualizaciones.', 100],
   ['Detección de duplicados y gestión de errores', 'Detección de potencial duplicado (fecha, monto, tipo, cliente, descripción similar), tipo de error (inconsistencia / duplicado), filtro por tipo, modal de comparación con id_origen y Cliente, acciones anular o eliminar registro.', 25],
@@ -236,20 +243,29 @@ const presupuestoRaw = [
   ['Integración y despliegue', 'Configuración de repositorio Git/GitHub, flujo de despliegue a Vercel y ajustes de configuración (vercel.json, conexión con Supabase).', 30],
   ['Mantenimiento y soporte inicial', 'Soporte post–implementación, pequeños ajustes funcionales y acompañamiento durante el primer período de uso.', 28],
 ];
-// Solo para registros nuevos se usa HH del script; para el resto se conserva el HH del Excel (ajustes a mano)
+// HH: se conserva el del Excel si existe; si no, el del script. Importe (USD): se conserva el del Excel; si no hay, queda vacío para que lo complete el usuario.
 const presupuestoRows = presupuestoRaw.slice(1).map(row => {
   const grupo = row[0];
   const hhExistente = existingHHByGrupo[grupo];
   const horasHombre = hhExistente !== undefined ? hhExistente : row[2];
-  return [row[0], row[1], horasHombre];
+  const importe = existingImporteByGrupo[grupo] !== undefined ? existingImporteByGrupo[grupo] : '';
+  return [row[0], row[1], horasHombre, importe];
 });
-// Importe = 50 * HH. (Con xlsx@0.18.5 las fórmulas no se persisten al escribir; se escribe el valor.
-// Si en el futuro la librería persiste fórmulas, usar: { t: 'n', f: 'C' + rowNum + '*50' } en la 4ª columna.)
-const presupuesto = [presupuestoRaw[0]].concat(
-  presupuestoRows.map(r => [r[0], r[1], r[2], r[2] * VALOR_HORA_PRESUPUESTO_USD])
-);
+const presupuesto = [presupuestoRaw[0]].concat(presupuestoRows);
 const wsPresupuesto = XLSX.utils.aoa_to_sheet(presupuesto);
 wsPresupuesto['!cols'] = [{ wch: 32 }, { wch: 90 }, { wch: 14 }, { wch: 22 }];
+
+// --- Hoja Tecnología e infraestructura
+const tecnologia = [
+  ['Componente', 'Detalle'],
+  ['Frontend', 'Una sola página dashboard-flujo-caja.html (HTML, CSS, JavaScript en el mismo archivo). Sin framework; llamadas a Supabase desde el cliente.'],
+  ['Datos', 'Supabase (PostgreSQL). Tablas: transacciones, tipo_de_cambio, config_dashboard. Scripts SQL (supabase_*.sql) se ejecutan en Supabase SQL Editor.'],
+  ['Hosting', 'Vercel. App en producción: fornitalia.vercel.app. Despliegue con vercel --prod tras push a main.'],
+  ['Repositorio', 'Git/GitHub, rama main.'],
+  ['Bitácora', 'Node.js + SheetJS (xlsx). Script crear-bitacora-excel.js genera Bitacora_tareas.xlsx con las solapas Log, Resumen, Ref Git y Vercel, Versiones, Presupuesto, Tecnología.'],
+];
+const wsTecnologia = XLSX.utils.aoa_to_sheet(tecnologia);
+wsTecnologia['!cols'] = [{ wch: 18 }, { wch: 95 }];
 
 const wb = XLSX.utils.book_new();
 XLSX.utils.book_append_sheet(wb, wsLog, 'Log');
@@ -257,6 +273,14 @@ XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
 XLSX.utils.book_append_sheet(wb, wsRef, 'Ref Git y Vercel');
 XLSX.utils.book_append_sheet(wb, wsVersiones, 'Versiones');
 XLSX.utils.book_append_sheet(wb, wsPresupuesto, 'Presupuesto');
+XLSX.utils.book_append_sheet(wb, wsTecnologia, 'Tecnología');
 
 XLSX.writeFile(wb, outPath);
 console.log('Creado:', outPath);
+
+const { execSync } = require('child_process');
+try {
+  execSync('node crear-presentacion-propuesta.js', { cwd: __dirname, stdio: 'inherit' });
+} catch (_) {
+  console.warn('No se pudo regenerar la presentación PowerPoint.');
+}
