@@ -82,6 +82,7 @@ const datosLog = [
   ['__HOY__', '__AHORA__', 'Ayuda al clic en columnas flujo y regla bitácora', 'Columnas Comisiones/Ventas y Egresos/Ingresos: icono de ayuda que al clic muestra popover con texto (Comisiones: "Corresponde solo a las comisiones por venta."; Egresos: "Egresos - Comisiones por Venta / Ingresos"). Regla bitácora: sección tecnología e infraestructura y refuerzo para actualizar todas las solapas que correspondan.', 'Implementacion'],
   ['__HOY__', '__AHORA__', 'Alerta desvío: categoría en negrita sin comillas', 'En el mensaje de alerta de desvío de categoría, reemplazar la categoría entre comillas por la categoría en negrita (sin comillas).', 'Implementacion'],
   ['__HOY__', '__AHORA__', 'Novedades del Negocio y despliegue v1.27', 'Sección Novedades del Negocio en sidebar: Edge Function get-novedades-negocio (Gemini + google_search) para importadores y comercios de hornos en Argentina. Config GEMINI_API_KEY en Supabase. Despliegue a producción.', 'Implementacion'],
+  ['__HOY__', '__AHORA__', 'Favicon L&P centrado', 'Ajuste del favicon: letras L y P (P reflejada) centradas en el círculo azul; posición y separación para que ambas se vean bien en pestaña y logo.', 'Implementacion'],
 ];
 
 const datosLogParaExcel = aplicarHoyAhora(datosLog);
@@ -200,6 +201,7 @@ const versiones = [
   ['1.25', '__HOY__', 'Ayuda al clic en columnas Comisiones/Ventas y Egresos/Ingresos (popover con texto explicativo). Regla bitácora: tecnología e infraestructura y actualizar todas las solapas. Despliegue a producción.'],
   ['1.26', '__HOY__', 'Mensaje de alerta de desvío: categoría en negrita sin comillas. Despliegue a producción.'],
   ['1.27', '__HOY__', 'Novedades del Negocio: sección en sidebar con importadores y comercios de hornos en Argentina (Edge Function Gemini + google_search). Despliegue a producción.'],
+  ['1.28', '__HOY__', 'Favicon L&P: L y P dada vuelta centradas en el círculo azul; ajuste de posición y centrado. Despliegue a producción.'],
 ];
 const versionesParaExcel = aplicarHoyAhora(versiones);
 const wsVersiones = XLSX.utils.aoa_to_sheet(versionesParaExcel);
