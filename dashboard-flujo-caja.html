@@ -56,6 +56,7 @@
     .tabs button .tab-icon { width: 18px; height: 18px; flex-shrink: 0; }
     .tabs button .tab-icon svg { width: 100%; height: 100%; stroke: currentColor; }
     .tabs button.activo { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+    .leyenda-datos-ficticios { font-size: 0.75rem; color: #c00; margin-left: 0.5rem; align-self: center; }
     .panel { display: none; }
     .panel.activo { display: block; }
     .sin-cotizacion-note { color: #b45309; font-size: 0.9rem; margin-top: 0.5rem; }
@@ -285,6 +286,7 @@
         <button type="button" class="tab" data-panel="errores-global"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>Errores</button>
         <button type="button" class="tab" data-panel="todas-transacciones"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span>Todas las transacciones</button>
         <button type="button" class="tab" data-panel="evolucion"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Evolución</button>
+        <span class="leyenda-datos-ficticios">Los datos presentados son ficticios solo a modo de demostración del tablero.</span>
       </div>
     </div>
     <div id="panel-flujo" class="card panel activo">
@@ -780,7 +782,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.23';
+    const APP_VERSION = '1.24';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';

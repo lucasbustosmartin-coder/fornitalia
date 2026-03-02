@@ -172,26 +172,59 @@ const versiones = [
   ['1.21', '27/02/2026', 'Config por usuario en Supabase: parámetro Meses a proyectar (1-12) en Configuración; tabla config_dashboard (user_id, proyección y caución); sync al cargar y al guardar con Auth anónimo. Despliegue a producción.'],
   ['1.22', '27/02/2026', 'Parámetro Recorte % (cada lado) en Configuración (0-25); visible solo si método es Promedio recortado. Columna proyeccion_recorte en config_dashboard. Despliegue a producción.'],
   ['1.23', '27/02/2026', 'Valores por defecto sin datos de usuario: Meses a proyectar 3, Método Promedio recortado, Recorte 20%, Meses de historia 6, % G/P en caución 95%. Despliegue a producción.'],
+  ['1.24', '27/02/2026', 'Demo potencial cliente: leyenda roja "Los datos presentados son ficticios..." al costado de Evolución; script SQL transacciones_fornitalia (respaldo) y carga con monto×0,70. Despliegue a producción.'],
 ];
 const wsVersiones = XLSX.utils.aoa_to_sheet(versiones);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
 
-// --- Hoja Presupuesto (rubros comerciales sugeridos)
-const presupuesto = [
-  ['Grupo', 'Descripción comercial', 'Importe sugerido (ARS)'],
-  ['Normalización de datos', 'Relevamiento, limpieza y normalización de datos históricos de caja (campos de moneda, categorías, cuentas contables, flags de edición). Incluye lógica de excepciones y detección de inconsistencias.', 250000],
-  ['Dashboard flujo de caja', 'Diseño y desarrollo del dashboard mensual (Flujo por mes, Resumen, alertas, modal By Categoría / By Cuenta, gráficos de serie mensual). Incluye formatos de moneda y visualizaciones.', 320000],
-  ['Detección de duplicados y gestión de errores', 'Detección de potencial duplicado (fecha, monto, tipo, cliente, descripción similar), tipo de error (inconsistencia / duplicado), filtro por tipo, modal de comparación con id_origen y Cliente, acciones anular o eliminar registro.', 85000],
-  ['Evolución (tabla dinámica)', 'Solapa Evolución: tabla dinámica con filas por Categoría o Cuenta contable y columnas por Período (Diario o Mensual). Neto por celda en moneda seleccionada.', 55000],
-  ['Interés por caución', 'Columna Int. por caución en flujo por mes: cálculo de interés mensual por reinversión del sobrante a un día con tasa de serie de cauciones. Carga de Excel al refrescar, modal de marcha de cálculo (G/P acum, Base, Tasa, Int T). Incluye soporte para múltiples formatos de fecha y columna tasa_diaria.', 50000],
-  ['Proyección de flujo (próximos 3 meses)', 'Proyección de ingresos, egresos, G/P y ratios para los próximos 3 meses con configuración (mediana/promedio, meses de historia 3/6/12/24), ventana rodante; Int. por caución proyectado en cadena desde último real (G/P+interés); disclaimer de metodología bajo la proyección.', 55000],
-  ['Listado y edición completa de transacciones', 'Solapa Todas las transacciones con listado completo, filtros por mes y categoría, y modal de edición con todos los campos y combos para valores normalizados (categoría, cuenta contable, tipo movimiento, status, medio pago, moneda, origen archivo).', 45000],
-  ['Bitácora y documentación', 'Implementación de la bitácora en Excel (Log, Resumen, Versiones, Ref Git y Vercel, Presupuesto) y documentación funcional básica para el uso de la app.', 120000],
-  ['Integración y despliegue', 'Configuración de repositorio Git/GitHub, flujo de despliegue a Vercel y ajustes de configuración (vercel.json, conexión con Supabase).', 90000],
-  ['Mantenimiento y soporte inicial', 'Soporte post–implementación, pequeños ajustes funcionales y acompañamiento durante el primer período de uso.', 80000],
+// --- Hoja Presupuesto (rubros en USD; HH = estimado tiempo humano; Importe = fórmula C*50 en Excel)
+const VALOR_HORA_PRESUPUESTO_USD = 50;
+const outPath = path.join(__dirname, 'Bitacora_tareas.xlsx');
+let existingHHByGrupo = {};
+try {
+  const wbExisting = XLSX.readFile(outPath);
+  const wsP = wbExisting.Sheets['Presupuesto'];
+  if (wsP) {
+    const aoa = XLSX.utils.sheet_to_json(wsP, { header: 1 });
+    for (let r = 1; r < aoa.length; r++) {
+      const row = aoa[r];
+      if (row && row[0] != null && String(row[0]).trim() !== '') {
+        const val = row[2];
+        if (val !== undefined && val !== '' && val !== null && !Number.isNaN(Number(val))) {
+          existingHHByGrupo[String(row[0]).trim()] = Number(val);
+        }
+      }
+    }
+  }
+} catch (_) { /* no existe aún o no se pudo leer */ }
+
+const presupuestoRaw = [
+  ['Grupo', 'Descripción comercial', 'Horas hombre', 'Importe sugerido (USD)'],
+  ['Normalización de datos', 'Relevamiento, limpieza y normalización de datos históricos de caja (campos de moneda, categorías, cuentas contables, flags de edición). Incluye lógica de excepciones y detección de inconsistencias.', 50],
+  ['Dashboard flujo de caja', 'Diseño y desarrollo del dashboard mensual (Flujo por mes, Resumen, alertas, modal By Categoría / By Cuenta, gráficos de serie mensual). Incluye formatos de moneda y visualizaciones.', 100],
+  ['Detección de duplicados y gestión de errores', 'Detección de potencial duplicado (fecha, monto, tipo, cliente, descripción similar), tipo de error (inconsistencia / duplicado), filtro por tipo, modal de comparación con id_origen y Cliente, acciones anular o eliminar registro.', 25],
+  ['Evolución (tabla dinámica)', 'Solapa Evolución: tabla dinámica con filas por Categoría o Cuenta contable y columnas por Período (Diario o Mensual). Neto por celda en moneda seleccionada.', 20],
+  ['Interés por caución', 'Columna Int. por caución en flujo por mes: cálculo de interés mensual por reinversión del sobrante a un día con tasa de serie de cauciones. Carga de Excel al refrescar, modal de marcha de cálculo (G/P acum, Base, Tasa, Int T). Incluye soporte para múltiples formatos de fecha y columna tasa_diaria.', 18],
+  ['Proyección de flujo (próximos 3 meses)', 'Proyección de ingresos, egresos, G/P y ratios para los próximos 3 meses con configuración (mediana/promedio, meses de historia 3/6/12/24), ventana rodante; Int. por caución proyectado en cadena desde último real (G/P+interés); disclaimer de metodología bajo la proyección.', 30],
+  ['Listado y edición completa de transacciones', 'Solapa Todas las transacciones con listado completo, filtros por mes y categoría, y modal de edición con todos los campos y combos para valores normalizados (categoría, cuenta contable, tipo movimiento, status, medio pago, moneda, origen archivo).', 22],
+  ['Bitácora y documentación', 'Implementación de la bitácora en Excel (Log, Resumen, Versiones, Ref Git y Vercel, Presupuesto) y documentación funcional básica para el uso de la app.', 35],
+  ['Integración y despliegue', 'Configuración de repositorio Git/GitHub, flujo de despliegue a Vercel y ajustes de configuración (vercel.json, conexión con Supabase).', 30],
+  ['Mantenimiento y soporte inicial', 'Soporte post–implementación, pequeños ajustes funcionales y acompañamiento durante el primer período de uso.', 28],
 ];
+// Solo para registros nuevos se usa HH del script; para el resto se conserva el HH del Excel (ajustes a mano)
+const presupuestoRows = presupuestoRaw.slice(1).map(row => {
+  const grupo = row[0];
+  const hhExistente = existingHHByGrupo[grupo];
+  const horasHombre = hhExistente !== undefined ? hhExistente : row[2];
+  return [row[0], row[1], horasHombre];
+});
+// Importe = 50 * HH. (Con xlsx@0.18.5 las fórmulas no se persisten al escribir; se escribe el valor.
+// Si en el futuro la librería persiste fórmulas, usar: { t: 'n', f: 'C' + rowNum + '*50' } en la 4ª columna.)
+const presupuesto = [presupuestoRaw[0]].concat(
+  presupuestoRows.map(r => [r[0], r[1], r[2], r[2] * VALOR_HORA_PRESUPUESTO_USD])
+);
 const wsPresupuesto = XLSX.utils.aoa_to_sheet(presupuesto);
-wsPresupuesto['!cols'] = [{ wch: 32 }, { wch: 90 }, { wch: 24 }];
+wsPresupuesto['!cols'] = [{ wch: 32 }, { wch: 90 }, { wch: 14 }, { wch: 22 }];
 
 const wb = XLSX.utils.book_new();
 XLSX.utils.book_append_sheet(wb, wsLog, 'Log');
@@ -200,6 +233,5 @@ XLSX.utils.book_append_sheet(wb, wsRef, 'Ref Git y Vercel');
 XLSX.utils.book_append_sheet(wb, wsVersiones, 'Versiones');
 XLSX.utils.book_append_sheet(wb, wsPresupuesto, 'Presupuesto');
 
-const outPath = path.join(__dirname, 'Bitacora_tareas.xlsx');
 XLSX.writeFile(wb, outPath);
 console.log('Creado:', outPath);
