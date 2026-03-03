@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flujo de caja – Fornitalia</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.28">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -61,7 +61,6 @@
     .th-help svg { flex-shrink: 0; }
     #th-help-popover { position: fixed; z-index: 10000; max-width: 280px; padding: 0.5rem 0.75rem; background: #1a1a1a; color: #fff; font-size: 0.85rem; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none; }
     #th-help-popover.oculto { display: none; }
-    .leyenda-datos-ficticios { font-size: 0.75rem; color: #c00; margin-left: 0.5rem; align-self: center; }
     .panel { display: none; }
     .panel.activo { display: block; }
     .sin-cotizacion-note { color: #b45309; font-size: 0.9rem; margin-top: 0.5rem; }
@@ -72,8 +71,8 @@
     .evolucion-table-wrap { overflow-x: auto; margin-top: 0.5rem; }
     .errores-table-wrap { overflow-x: auto; margin-top: 0.5rem; }
     #tabla-errores-global { min-width: max-content; }
-    #tabla-errores-global th:nth-child(11),
-    #tabla-errores-global td:nth-child(11) { text-align: left; }
+    #tabla-errores-global th:nth-child(12),
+    #tabla-errores-global td:nth-child(12) { text-align: left; }
     #tabla-todas-transacciones { min-width: max-content; }
     #tabla-todas-transacciones th:nth-child(11),
     #tabla-todas-transacciones td:nth-child(11) { text-align: left; max-width: 200px; }
@@ -171,6 +170,8 @@
     #modal-duplicado .btn-excluir-calc:hover { background: #9a4607; }
     #modal-duplicado .btn-eliminar-reg { background: #b91c1c; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
     #modal-duplicado .btn-eliminar-reg:hover { background: #991b1b; }
+    .duplicado-campo-diferente { display: inline-flex; align-items: center; gap: 0.25rem; }
+    .duplicado-campo-diferente .icon-no-coincide { flex-shrink: 0; width: 14px; height: 14px; color: #b45309; vertical-align: middle; }
     #modal-editar-registro .form-group { margin-bottom: 0.75rem; }
     #modal-editar-registro label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; }
     #modal-editar-registro select, #modal-editar-registro input[type="text"], #modal-editar-registro input[type="number"], #modal-editar-registro input[type="date"], #modal-editar-registro textarea { width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
@@ -302,7 +303,6 @@
         <button type="button" class="tab" data-panel="errores-global"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>Errores</button>
         <button type="button" class="tab" data-panel="todas-transacciones"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span>Todas las transacciones</button>
         <button type="button" class="tab" data-panel="evolucion"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Evolución</button>
-        <span class="leyenda-datos-ficticios">Los datos presentados son ficticios solo a modo de demostración del tablero.</span>
       </div>
     </div>
     <div id="panel-flujo" class="card panel activo">
@@ -358,6 +358,7 @@
             <th>Tipo de error</th>
             <th>Fecha</th>
             <th>Id_Origen</th>
+            <th>Id_Operacion</th>
             <th>Tipo</th>
             <th>Categoría orig.</th>
             <th>Categoría mostrada</th>
@@ -822,7 +823,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.28';
+    const APP_VERSION = '1.29';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1116,22 +1117,32 @@
       const montoR = Number(r.monto);
       const tipoR = (r.tipo_movimiento || '').trim();
       const clienteR = (r.cliente || '').trim();
+      const idOrigenR = (r.id_origen || '').toString().trim();
+      const idOperacionR = (r.id_operacion || '').toString().trim();
       if (!fechaR || (montoR !== 0 && !montoR)) return null;
       for (let i = 0; i < lista.length; i++) {
         const s = lista[i];
+        if ((s.status || '').toString().trim() === 'Anulado') continue; // no considerar anulados como duplicado del otro
         if ((s.id || '').toString() === idR) continue;
         if (fechaStr(s.fecha) !== fechaR) continue;
         if (Number(s.monto) !== montoR) continue;
         if ((s.tipo_movimiento || '').trim() !== tipoR) continue;
         if ((s.cliente || '').trim() !== clienteR) continue;
         if (!descripcionSimilar(r.descripcion || r.cliente, s.descripcion || s.cliente)) continue;
+        // Si id_origen es distinto Y id_operacion es distinto (ambas), excluir de duplicados aunque el resto sea igual
+        const idOrigenS = (s.id_origen || '').toString().trim();
+        const idOperacionS = (s.id_operacion || '').toString().trim();
+        if (idOrigenR !== idOrigenS && idOperacionR !== idOperacionS) continue;
+        // Si ambos importes (monto) son 0, excluir de duplicados (p. ej. base simulada)
+        if (montoR === 0 && Number(s.monto) === 0) continue;
         return s;
       }
       return null;
     }
 
     function getErroresDuplicados() {
-      const lista = cacheTransacciones.filter(r => !excluirCategoria(r.categoria));
+      // Excluir anulados: un registro confirmado y otro anulado con los mismos datos no es duplicado
+      const lista = cacheTransacciones.filter(r => !excluirCategoria(r.categoria) && (r.status || '').toString().trim() !== 'Anulado');
       const out = [];
       lista.forEach(r => {
         const otro = getPosibleDuplicado(r, lista);
@@ -2072,7 +2083,7 @@
         alert('No hay registros con error para exportar.');
         return;
       }
-      const headers = ['tipo_error', 'id', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'categoria_original', 'categoria_mostrada', 'cuenta_contable', 'medio_pago', 'moneda', 'monto', 'descripcion', 'cliente', 'cat_desc', 'origen_archivo', 'editado', 'editado_detalle'];
+      const headers = ['tipo_error', 'id', 'id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'categoria_original', 'categoria_mostrada', 'cuenta_contable', 'medio_pago', 'moneda', 'monto', 'descripcion', 'cliente', 'cat_desc', 'origen_archivo', 'editado', 'editado_detalle'];
       const rows = [['Moneda de los montos: ver columna "moneda" (ARS o USD).'], headers];
       lastErroresGlobal.forEach(r => {
         const regIsUSD = esTransaccionUSD(r);
@@ -2081,6 +2092,8 @@
         rows.push([
           (r.tipoError || '').toString(),
           (r.id || '').toString(),
+          (r.id_origen != null && r.id_origen !== '') ? String(r.id_origen) : '',
+          (r.id_operacion != null && r.id_operacion !== '') ? String(r.id_operacion) : '',
           r.fecha != null ? r.fecha : '',
           r.mes != null ? r.mes : '',
           r.anio != null ? r.anio : '',
@@ -2101,7 +2114,7 @@
       });
       const ws = XLSX.utils.aoa_to_sheet(rows);
       ws['!cols'] = [
-        { wch: 48 }, { wch: 36 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 16 },
+        { wch: 48 }, { wch: 36 }, { wch: 24 }, { wch: 24 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 16 },
         { wch: 26 }, { wch: 26 }, { wch: 22 }, { wch: 16 }, { wch: 8 },
         { wch: 16 }, { wch: 40 }, { wch: 22 }, { wch: 22 }, { wch: 18 },
         { wch: 8 }, { wch: 32 }
@@ -2481,7 +2494,7 @@
     }
 
     function getErroresDelMes(anio, mes) {
-      const transaccionesMes = cacheTransacciones.filter(r => r.anio === anio && r.mes === mes && !excluirCategoria(r.categoria));
+      const transaccionesMes = cacheTransacciones.filter(r => r.anio === anio && r.mes === mes && !excluirCategoria(r.categoria) && (r.status || '').toString().trim() !== 'Anulado');
       const erroresClasificacion = [];
       transaccionesMes.forEach(r => {
         const infoCat = getCategoriaDisplayConValidacion(r);
@@ -2504,7 +2517,8 @@
 
     function getErroresGlobal() {
       const erroresClasificacion = [];
-      cacheTransacciones.filter(r => !excluirCategoria(r.categoria)).forEach(r => {
+      // Excluir anulados de la detección de errores de clasificación
+      cacheTransacciones.filter(r => !excluirCategoria(r.categoria) && (r.status || '').toString().trim() !== 'Anulado').forEach(r => {
         const infoCat = getCategoriaDisplayConValidacion(r);
         if (infoCat.esError && r.tipo_movimiento === 'Egreso') {
           erroresClasificacion.push({
@@ -2541,7 +2555,7 @@
       lastErroresGlobal = errores;
       if (!errores.length) {
         const msg = filtro === 'todos' ? 'No hay registros con errores de clasificación.' : 'No hay registros con el tipo de error seleccionado.';
-        tbody.innerHTML = '<tr><td colspan="13" style="text-align:center; color:#666;">' + msg + '</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; color:#666;">' + msg + '</td></tr>';
         return;
       }
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
@@ -2553,6 +2567,7 @@
         const valReg = montoReg != null ? (simboloReg + formatearNumero(montoReg, monedaReg)) : '–';
         const id = (r.id || '').toString().replace(/"/g, '&quot;');
         const idOrigen = (r.id_origen != null && r.id_origen !== '') ? String(r.id_origen) : '';
+        const idOperacion = (r.id_operacion != null && r.id_operacion !== '') ? String(r.id_operacion) : '';
         const esDuplicado = r.tipoError === TIPO_ERROR_DUPLICADO;
         const btnVer = esDuplicado ? `<button type="button" class="ver-duplicado-btn edit-btn edit-btn-global" data-id="${id}" title="Ver posible duplicado" aria-label="Ver posible duplicado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>` : '';
         return `
@@ -2560,6 +2575,7 @@
             <td>${esc(r.tipoError || '')}</td>
             <td>${esc(fechaStr(r.fecha))}</td>
             <td>${esc(idOrigen)}</td>
+            <td>${esc(idOperacion)}</td>
             <td>${esc(r.tipo_movimiento || '')}</td>
             <td>${esc(r.categoriaOriginal || '')}</td>
             <td>${esc(getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || '')}</td>
@@ -2884,23 +2900,53 @@
 
     let currentDuplicadoRecord = null;
 
-    function renderRegistroEnModal(reg) {
+    const ICONO_NO_COINCIDE = '<span class="icon-no-coincide" title="No coincide con el otro registro" aria-label="No coincide"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 5h10M3 11h10M5 4l6 8"/></svg></span>';
+
+    function getValorParaCompararDuplicado(reg, key) {
+      if (!reg) return '';
+      const v = (x) => (x == null || x === '' ? '' : String(x).trim());
+      switch (key) {
+        case 'id_origen': return v(reg.id_origen);
+        case 'id_operacion': return v(reg.id_operacion);
+        case 'Fecha': return fechaStr(reg.fecha) || '';
+        case 'Tipo': return v(reg.tipo_movimiento);
+        case 'Monto': return reg.monto != null && reg.monto !== '' ? String(Number(reg.monto)) : '';
+        case 'Cliente': return v(reg.cliente);
+        case 'Medio de pago': return v(reg.medio_pago);
+        case 'Categoría': return v(reg.categoria);
+        case 'Cuenta contable': return v(reg.cuenta_contable);
+        case 'Descripción': return v(reg.descripcion || reg.cliente).slice(0, 200);
+        case 'Origen': return v(reg.origen_archivo);
+        default: return '';
+      }
+    }
+
+    function camposQueDifierenDuplicado(record, otro) {
+      if (!otro) return [];
+      const keys = ['id_origen', 'id_operacion', 'Fecha', 'Tipo', 'Monto', 'Cliente', 'Medio de pago', 'Categoría', 'Cuenta contable', 'Descripción', 'Origen'];
+      return keys.filter(k => getValorParaCompararDuplicado(record, k) !== getValorParaCompararDuplicado(otro, k));
+    }
+
+    function renderRegistroEnModal(reg, camposDiferentes) {
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       const moneda = esTransaccionUSD(reg) ? 'USD' : 'ARS';
       const sim = esTransaccionUSD(reg) ? 'US$ ' : '$ ';
       const monto = reg.monto != null ? sim + formatearNumero(Number(reg.monto), moneda) : '–';
+      const diff = camposDiferentes || [];
+      const dt = (label) => diff.includes(label) ? `<span class="duplicado-campo-diferente">${label} ${ICONO_NO_COINCIDE}</span>` : label;
       return `
         <dl>
-          <dt>id_origen</dt><dd>${esc(reg.id_origen)}</dd>
-          <dt>Fecha</dt><dd>${esc(fechaStr(reg.fecha))}</dd>
-          <dt>Tipo</dt><dd>${esc(reg.tipo_movimiento)}</dd>
-          <dt>Monto</dt><dd>${esc(monto)}</dd>
-          <dt>Cliente</dt><dd>${esc(reg.cliente || '—')}</dd>
-          <dt>Medio de pago</dt><dd>${esc(reg.medio_pago)}</dd>
-          <dt>Categoría</dt><dd>${esc(reg.categoria)}</dd>
-          <dt>Cuenta contable</dt><dd>${esc(reg.cuenta_contable)}</dd>
-          <dt>Descripción</dt><dd>${esc((reg.descripcion || reg.cliente || '–').slice(0, 200))}</dd>
-          <dt>Origen</dt><dd>${esc(reg.origen_archivo || '—')}</dd>
+          <dt>${dt('id_origen')}</dt><dd>${esc(reg.id_origen)}</dd>
+          <dt>${dt('id_operacion')}</dt><dd>${esc(reg.id_operacion)}</dd>
+          <dt>${dt('Fecha')}</dt><dd>${esc(fechaStr(reg.fecha))}</dd>
+          <dt>${dt('Tipo')}</dt><dd>${esc(reg.tipo_movimiento)}</dd>
+          <dt>${dt('Monto')}</dt><dd>${esc(monto)}</dd>
+          <dt>${dt('Cliente')}</dt><dd>${esc(reg.cliente || '—')}</dd>
+          <dt>${dt('Medio de pago')}</dt><dd>${esc(reg.medio_pago)}</dd>
+          <dt>${dt('Categoría')}</dt><dd>${esc(reg.categoria)}</dd>
+          <dt>${dt('Cuenta contable')}</dt><dd>${esc(reg.cuenta_contable)}</dd>
+          <dt>${dt('Descripción')}</dt><dd>${esc((reg.descripcion || reg.cliente || '–').slice(0, 200))}</dd>
+          <dt>${dt('Origen')}</dt><dd>${esc(reg.origen_archivo || '—')}</dd>
         </dl>
       `;
     }
@@ -2912,8 +2958,9 @@
       if (!backdrop || !bodyEste || !bodyOtro) return;
       currentDuplicadoRecord = record;
       const otro = record.registroPosibleDuplicado;
-      bodyEste.innerHTML = renderRegistroEnModal(record);
-      bodyOtro.innerHTML = otro ? renderRegistroEnModal(otro) : '<p class="muted">—</p>';
+      const camposDiferentes = otro ? camposQueDifierenDuplicado(record, otro) : [];
+      bodyEste.innerHTML = renderRegistroEnModal(record, camposDiferentes);
+      bodyOtro.innerHTML = otro ? renderRegistroEnModal(otro, camposDiferentes) : '<p class="muted">—</p>';
 
       const btnCerrar = document.getElementById('modal-duplicado-close');
       const btnExcluir = document.getElementById('modal-duplicado-excluir');
