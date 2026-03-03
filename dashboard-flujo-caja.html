@@ -348,6 +348,14 @@
             <option value="inconsistencia">Inconsistencia (categoría / cuenta / descripción)</option>
             <option value="duplicado">Potencial registro duplicado</option>
           </select>
+          <label for="filtro-categoria-orig">Categoría orig.:</label>
+          <select id="filtro-categoria-orig" title="Filtrar por categoría original">
+            <option value="">Todas</option>
+          </select>
+          <label for="filtro-categoria-mostrada">Categoría mostrada:</label>
+          <select id="filtro-categoria-mostrada" title="Filtrar por categoría mostrada">
+            <option value="">Todas</option>
+          </select>
         </div>
         <button type="button" class="btn btn-success btn-ver-errores" id="btn-exportar-errores" title="Exportar lista de errores a Excel"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar errores a Excel</button>
       </div>
@@ -823,7 +831,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.29';
+    const APP_VERSION = '1.30';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1333,7 +1341,7 @@
       let totalIngresos = 0, totalEgresos = 0;
       const sinCotizacion = [];
 
-      rows.filter(r => !excluirCategoria(r.categoria)).forEach(r => {
+      rows.filter(r => !excluirCategoria(r.categoria) && (r.status || '').toString().trim() !== 'Anulado').forEach(r => {
         const montoOrig = Number(r.monto) || 0;
         const fecha = fechaStr(r.fecha);
         let tasa = (cacheTC[fecha] && cacheTC[fecha][tipoDolar] != null && cacheTC[fecha][tipoDolar] > 0) ? cacheTC[fecha][tipoDolar] : getTasaAnterior(fecha, tipoDolar);
@@ -1383,7 +1391,7 @@
       detalleIntCaucionPorMes = {};
       Object.keys(porMes).forEach(k => { detalleIntCaucionPorMes[k] = []; });
       const deltasPorFecha = {};
-      rows.filter(r => !excluirCategoria(r.categoria)).forEach(r => {
+      rows.filter(r => !excluirCategoria(r.categoria) && (r.status || '').toString().trim() !== 'Anulado').forEach(r => {
         const fecha = fechaStr(r.fecha);
         if (!fecha) return;
         const m = montoConvertido(r, moneda, tipoDolar);
@@ -1418,7 +1426,7 @@
       const categoriasEnMes = {};
       ordenados.forEach(key => {
         const [anio, mes] = [parseInt(key.slice(0, 4), 10), parseInt(key.slice(5), 10)];
-        const trans = cacheTransacciones.filter(r => r.anio === anio && r.mes === mes && !excluirCategoria(r.categoria));
+        const trans = cacheTransacciones.filter(r => r.anio === anio && r.mes === mes && !excluirCategoria(r.categoria) && (r.status || '').toString().trim() !== 'Anulado');
         categoriasEnMes[key] = [...new Set(trans.map(r => getCategoriaDisplayConValidacion(r).categoria))];
       });
       const umbralDesvioPct = getAlertaDesvioPct();
@@ -2044,9 +2052,17 @@
         if (!cacheTransacciones.length) alert('No hay transacciones cargadas para exportar.');
         return;
       }
-      const headers = ['id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'editado', 'editado_detalle'];
-      const rows = [['Exportado: Base histórica. Moneda de cada monto: ver columna "moneda" (ARS o USD).'], headers];
+      const tipoDolar = document.getElementById('tipoDolar') && document.getElementById('tipoDolar').value ? document.getElementById('tipoDolar').value : 'mep';
+      const headers = ['id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'Tipo_Cambio', 'Monto_ARS', 'Monto_USD', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'editado', 'editado_detalle'];
+      const rows = [['Exportado: Base histórica. Tipo_Cambio según selector de tipo de dólar (MEP/CCL/Oficial). Monto_ARS y Monto_USD son las conversiones aplicadas.'], headers];
       cacheTransacciones.forEach(r => {
+        const montoOrig = (r.monto != null && r.monto !== '') ? Number(r.monto) : 0;
+        const fecha = fechaStr(r.fecha);
+        const tasa = (fecha && cacheTC[fecha] && cacheTC[fecha][tipoDolar] != null && cacheTC[fecha][tipoDolar] > 0) ? cacheTC[fecha][tipoDolar] : (fecha ? getTasaAnterior(fecha, tipoDolar) : null);
+        const esUSD = esTransaccionUSD(r);
+        const tipoCambioNum = (tasa != null && tasa > 0) ? tasa : '';
+        const montoARS = esUSD ? (tasa != null && tasa > 0 ? montoOrig * tasa : '') : montoOrig;
+        const montoUSD = esUSD ? montoOrig : (tasa != null && tasa > 0 ? montoOrig / tasa : '');
         const montoNum = (r.monto != null && r.monto !== '') ? Number(r.monto) : '';
         rows.push([
           (r.id_origen != null && r.id_origen !== '') ? String(r.id_origen) : '',
@@ -2059,6 +2075,9 @@
           (r.status || '').toString(),
           (r.medio_pago || '').toString(),
           (r.moneda != null && r.moneda !== '' ? (r.moneda || '').toString().trim().toUpperCase() : ''),
+          typeof tipoCambioNum === 'number' ? tipoCambioNum : '',
+          typeof montoARS === 'number' ? montoARS : '',
+          typeof montoUSD === 'number' ? montoUSD : '',
           (r.descripcion || '').toString(),
           (r.cliente || '').toString(),
           (r.categoria || '').toString(),
@@ -2070,7 +2089,7 @@
         ]);
       });
       const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }, { wch: 6 }, { wch: 32 }];
+      ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }, { wch: 6 }, { wch: 32 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Transacciones');
       const hoy = new Date();
@@ -2544,13 +2563,37 @@
 
     function renderErroresGlobal() {
       const tbody = document.getElementById('tbody-errores-global');
+      const selCatOrig = document.getElementById('filtro-categoria-orig');
+      const selCatMostrada = document.getElementById('filtro-categoria-mostrada');
       if (!tbody) return;
       const todos = getErroresGlobal();
       const filtro = getFiltroTipoError();
-      const errores = filtro === 'todos' ? todos : todos.filter(r => {
+      let errores = filtro === 'todos' ? todos : todos.filter(r => {
         if (filtro === 'inconsistencia') return r.tipoError === TIPO_ERROR_INCONSISTENCIA;
         if (filtro === 'duplicado') return r.tipoError === TIPO_ERROR_DUPLICADO;
         return true;
+      });
+      function catMostrada(r) { return (r.categoriaDisplay || getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || '').trim(); }
+      const catOrigUnicas = [...new Set(errores.map(r => (r.categoriaOriginal || '').trim()).filter(Boolean))].sort();
+      const catMostradaUnicas = [...new Set(errores.map(r => catMostrada(r)).filter(Boolean))].sort();
+      if (selCatOrig) {
+        const valOrig = selCatOrig.value;
+        selCatOrig.innerHTML = '<option value="">Todas</option>' + catOrigUnicas.map(c => '<option value="' + (c.replace(/"/g, '&quot;')) + '">' + (c.replace(/</g, '&lt;')) + '</option>').join('');
+        if (valOrig && catOrigUnicas.includes(valOrig)) selCatOrig.value = valOrig;
+      }
+      if (selCatMostrada) {
+        const valMost = selCatMostrada.value;
+        selCatMostrada.innerHTML = '<option value="">Todas</option>' + catMostradaUnicas.map(c => '<option value="' + (c.replace(/"/g, '&quot;')) + '">' + (c.replace(/</g, '&lt;')) + '</option>').join('');
+        if (valMost && catMostradaUnicas.includes(valMost)) selCatMostrada.value = valMost;
+      }
+      const filtroCatOrig = selCatOrig && selCatOrig.value ? selCatOrig.value : '';
+      const filtroCatMostrada = selCatMostrada && selCatMostrada.value ? selCatMostrada.value : '';
+      if (filtroCatOrig) errores = errores.filter(r => (r.categoriaOriginal || '').trim() === filtroCatOrig);
+      if (filtroCatMostrada) errores = errores.filter(r => catMostrada(r) === filtroCatMostrada);
+      errores = errores.slice().sort((a, b) => {
+        const byTipo = (a.tipoError || '').localeCompare(b.tipoError || '');
+        if (byTipo !== 0) return byTipo;
+        return (Number(b.monto) || 0) - (Number(a.monto) || 0);
       });
       lastErroresGlobal = errores;
       if (!errores.length) {
@@ -2711,16 +2754,22 @@
       const body = document.getElementById('modal-errores-body');
       const titulo = document.getElementById('modal-errores-titulo');
       if (!backdrop || !body || !titulo) return;
-      currentErroresList = errores || [];
       currentErroresLabel = labelMes || '';
       currentErroresAnio = anio != null ? anio : null;
       currentErroresMes = mes != null ? mes : null;
       titulo.textContent = 'Errores — ' + (labelMes || '');
       if (!errores || errores.length === 0) {
+        currentErroresList = [];
         body.innerHTML = '<p class="muted">No hay registros con errores de clasificación para este mes.</p>';
       } else {
+        const ordenados = errores.slice().sort((a, b) => {
+          const byTipo = (a.tipoError || '').localeCompare(b.tipoError || '');
+          if (byTipo !== 0) return byTipo;
+          return (Number(b.monto) || 0) - (Number(a.monto) || 0);
+        });
+        currentErroresList = ordenados;
         const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
-        const rows = errores.map(r => {
+        const rows = ordenados.map(r => {
           const id = (r.id || '').toString().replace(/"/g, '&quot;');
           const esDup = r.tipoError === TIPO_ERROR_DUPLICADO;
           const btnVer = esDup ? `<button type="button" class="ver-duplicado-btn-modal edit-btn" data-id="${id}" title="Ver posible duplicado" aria-label="Ver posible duplicado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>` : '';
@@ -3050,6 +3099,10 @@
         document.getElementById('btn-exportar-excel').addEventListener('click', exportarAExcel);
         document.getElementById('btn-exportar-errores').addEventListener('click', exportarErroresExcel);
         document.getElementById('filtro-tipo-error').addEventListener('change', renderErroresGlobal);
+        const filtroCatOrigEl = document.getElementById('filtro-categoria-orig');
+        const filtroCatMostradaEl = document.getElementById('filtro-categoria-mostrada');
+        if (filtroCatOrigEl) filtroCatOrigEl.addEventListener('change', renderErroresGlobal);
+        if (filtroCatMostradaEl) filtroCatMostradaEl.addEventListener('change', renderErroresGlobal);
         labelTipoDolar.style.display = getMoneda() === 'USD' ? 'flex' : 'none';
         recalcular();
 

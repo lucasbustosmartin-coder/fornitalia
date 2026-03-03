@@ -84,6 +84,7 @@ const datosLog = [
   ['__HOY__', '__AHORA__', 'Novedades del Negocio y despliegue v1.27', 'Sección Novedades del Negocio en sidebar: Edge Function get-novedades-negocio (Gemini + google_search) para importadores y comercios de hornos en Argentina. Config GEMINI_API_KEY en Supabase. Despliegue a producción.', 'Implementacion'],
   ['__HOY__', '__AHORA__', 'Favicon L&P centrado', 'Ajuste del favicon: letras L y P (P reflejada) centradas en el círculo azul; posición y separación para que ambas se vean bien en pestaña y logo.', 'Implementacion'],
   ['__HOY__', '__AHORA__', 'Despliegue v1.29', 'Errores: id_origen/id_operacion en export y listado; modal duplicado con icono en campos distintos. Exclusiones duplicados (anulados, id_origen e id_operacion ambos distintos, montos 0). Sin disclaimer ficticios; repoblar desde Excel.', 'Implementacion'],
+  ['__HOY__', '__AHORA__', 'Despliegue v1.30', 'Errores: orden tipo y monto; filtros categoría orig. y mostrada. Flujo filtro Anulado. Export Base con Tipo_Cambio, Monto_ARS, Monto_USD.', 'Implementacion'],
 ];
 
 const datosLogParaExcel = aplicarHoyAhora(datosLog);
@@ -204,6 +205,7 @@ const versiones = [
   ['1.27', '__HOY__', 'Novedades del Negocio: sección en sidebar con importadores y comercios de hornos en Argentina (Edge Function Gemini + google_search). Despliegue a producción.'],
   ['1.28', '__HOY__', 'Favicon L&P: L y P dada vuelta centradas en el círculo azul; ajuste de posición y centrado. Despliegue a producción.'],
   ['1.29', '__HOY__', 'Errores: export y listado con id_origen e id_operacion; modal duplicado con id_operacion e icono en campos que no coinciden. Exclusiones duplicados: anulados, id_origen e id_operacion ambos distintos, ambos montos 0. Quitar disclaimer datos ficticios; scripts e instrucciones para repoblar transacciones desde Excel. Despliegue a producción.'],
+  ['1.30', '__HOY__', 'Errores: orden por tipo y monto descendente; filtros por categoría original y categoría mostrada. Flujo: filtro explícito status Anulado. Export Base Histórica: columnas Tipo_Cambio, Monto_ARS, Monto_USD con conversiones. Despliegue a producción.'],
 ];
 const versionesParaExcel = aplicarHoyAhora(versiones);
 const wsVersiones = XLSX.utils.aoa_to_sheet(versionesParaExcel);
