@@ -1,28 +1,43 @@
 ---
-description: Actualizar bitácora Excel (Log y Resumen) al completar tareas; flujo de despliegue y versionado
+description: Actualizar bitácora Excel (Log, Resumen, Presupuesto, Versiones) al completar tareas; flujo de despliegue y versionado; tecnología e infraestructura de la app
 alwaysApply: true
 ---
 
 # Bitácora de tareas – Fornitalia
 
-**Por defecto:** siempre actualizar la bitácora al completar una tarea. **Actualizar todas las solapas que sean necesarias** (Log, Resumen, Presupuesto, Versiones al desplegar). No saltear salvo que el usuario lo indique explícitamente (por ejemplo: "esto no agregarlo a la bitácora", "no lo registres").
+## Tecnología e infraestructura (referencia)
 
-Al completar una tarea relevante en este proyecto:
+- **Frontend:** una sola página `dashboard-flujo-caja.html` (HTML, CSS, JavaScript en el mismo archivo). Sin framework; llamadas a Supabase desde el cliente.
+- **Datos:** Supabase (PostgreSQL). Tablas relevantes: `transacciones`, `tipo_de_cambio`, `config_dashboard`. Scripts SQL en carpeta `sql/` se ejecutan en Supabase SQL Editor.
+- **Hosting:** Vercel. App en producción: fornitalia.vercel.app. Despliegue con `vercel --prod` tras push a `main`.
+- **Repositorio:** Git/GitHub (rama `main`). Estructura ordenada: `sql/`, `scripts/`, `docs/` (ver regla estructura-proyecto).
+- **Bitácora:** Node.js + SheetJS (xlsx). Script `scripts/crear-bitacora-excel.js` genera `Bitacora_tareas.xlsx` (en raíz) con las solapas Log, Resumen, Ref Git y Vercel, Versiones, Presupuesto, Tecnología.
+
+---
+
+**Por defecto:** siempre actualizar la bitácora al completar una tarea. **Actualizar todas las solapas que correspondan** en cada caso (ver abajo); no saltear ninguna salvo que el usuario lo indique explícitamente (ej.: "esto no agregarlo a la bitácora", "no lo registres"). Después de cada cambio en `scripts/crear-bitacora-excel.js`, ejecutar `node scripts/crear-bitacora-excel.js` (o desde raíz) para regenerar el Excel con **todas** las solapas al día.
+
+Al completar una tarea relevante en este proyecto, revisar **cada** solapa y actualizar las que correspondan:
 
 1. **Solapa Log**  
    Agregar una fila en el array `datosLog` de `crear-bitacora-excel.js` con: Fecha, Hora, titulo_tarea, desc_tarea, etapa.  
-   Usar cuando la tarea sea un trabajo realizado (cambio, feature, corrección).
+   **Fecha y hora:** usar siempre la **fecha y hora actual en Argentina** (timezone America/Argentina/Buenos_Aires). Al agregar la entrada, usar esa referencia o los placeholders `__HOY__` y `__AHORA__` (el script los reemplaza por la fecha/hora en Argentina al ejecutar `node crear-bitacora-excel.js`).  
+   **Cuándo:** siempre que la tarea sea un trabajo realizado (cambio, feature, corrección, script SQL, regla, etc.).
 
 2. **Solapa Resumen**  
-   Si la tarea agrega o cambia una **funcionalidad de la app** (dashboard, flujo de caja, etc.), agregar (o actualizar) la fila correspondiente en el array `funcionalidades` de `crear-bitacora-excel.js` con: Funcionalidad, Descripción.
+   Si la tarea agrega o cambia una **funcionalidad de la app** (dashboard, flujo de caja, solapas, modales, exportaciones, etc.), agregar o actualizar la fila correspondiente en el array `funcionalidades` con: Funcionalidad, Descripción.
 
 3. **Solapa Presupuesto**  
-   Si la tarea agrega o cambia un **entregable o rubro comercial** (nueva funcionalidad facturable, ampliación de alcance), agregar o actualizar el array `presupuesto` de `crear-bitacora-excel.js` con filas de la forma: Grupo, Descripción comercial, Importe sugerido (ARS). También cuando el usuario pida explícitamente ajustar o ampliar el presupuesto. Los importes son orientativos para Argentina.
+   Si la tarea agrega o cambia un **entregable o rubro comercial** (nueva funcionalidad facturable, ampliación de alcance), agregar o actualizar el array `presupuesto` con filas: Grupo, Descripción comercial, **Horas hombre**. La columna **Importe (USD)** no se actualiza por script: la actualiza el usuario a mano en el Excel. Horas hombre = estimación de tiempo humano; no existe fila "Referencia".
 
-4. **Regenerar Excel**  
-   Después de editar el script, ejecutar:  
-   `node crear-bitacora-excel.js`  
-   para que `Bitacora_tareas.xlsx` tenga actualizadas **todas** las solapas modificadas (Log, Resumen, Presupuesto, Versiones).
+4. **Solapa Ref Git y Vercel**  
+   Solo si cambian URLs o datos de referencia del repo/Vercel; en general se mantiene estable.
+
+5. **Solapa Versiones**  
+   Solo se actualiza en el **flujo de despliegue** (cuando el usuario pide desplegar); no en tareas intermedias.
+
+6. **Regenerar Excel y presentación**  
+   Después de **cualquier** edición en `crear-bitacora-excel.js`, ejecutar `node crear-bitacora-excel.js`. Eso genera `Bitacora_tareas.xlsx` con **todas** las solapas y, a continuación, regenera la presentación comercial `Propuesta_Dashboard_Flujo_Caja.pptx` (que toma el presupuesto tal cual de la hoja Presupuesto, incluyendo Horas hombre). Forma parte del flujo de implementación hasta que el usuario indique lo contrario.
 
 Archivo a editar: `crear-bitacora-excel.js`.  
 Salida: `Bitacora_tareas.xlsx`.
@@ -31,18 +46,24 @@ Salida: `Bitacora_tareas.xlsx`.
 
 # Flujo cuando el usuario indique desplegar (versionado y despliegue)
 
-Cuando el usuario diga que desplegar (ej. "desplegar", "listo desplegar", "OK desplegar"):
+Cuando el usuario diga que desplegar (ej. "desplegar", "listo desplegar", "OK desplegar"), aplicar **siempre** los siguientes pasos en este orden:
 
 1. **Incrementar versión en el dashboard**  
-   En `dashboard-flujo-caja.html`, actualizar la constante `APP_VERSION` (buscar `const APP_VERSION = 'X.Y'`) al **siguiente número de versión** (ej. 1.9 → 1.10). Esa versión se muestra abajo en el sidebar; el asistente la incrementa siempre que el usuario indique despliegue.
+   En `dashboard-flujo-caja.html`, actualizar la constante `APP_VERSION` (buscar `const APP_VERSION = 'X.Y'`) al **siguiente número de versión** (ej. 1.9 → 1.10). Esa versión se muestra abajo en el sidebar.
 
-2. **Registrar versión en la bitácora**  
-   En `crear-bitacora-excel.js`: agregar una fila en el array `versiones` con (Versión, Fecha, Descripción del despliegue). Usar la misma versión que `APP_VERSION` (ej. 1.10). Incluir en la descripción los cambios principales del despliegue. Si hubo tareas en la sesión, agregar también la entrada correspondiente en `datosLog` (y en `funcionalidades` si aplica).
+2. **Actualizar todas las solapas de la bitácora que correspondan** en `crear-bitacora-excel.js` (revisar las cuatro y no omitir ninguna):
+   - **Versiones:** siempre en despliegue. Agregar una fila en el array `versiones` con (Versión, Fecha, Descripción del despliegue). Usar la misma versión que `APP_VERSION`. **Fecha:** usar la fecha actual en Argentina; se puede usar `__HOY__` (el script la reemplaza por la fecha en Argentina al generar el Excel). Incluir los cambios principales.
+   - **Log:** si hubo tareas en la sesión, agregar las entradas en `datosLog` (Fecha, Hora, titulo_tarea, desc_tarea, etapa).
+   - **Resumen:** si los cambios agregan o modifican funcionalidad de la app, agregar o actualizar las filas en `funcionalidades`.
+   - **Presupuesto:** si los cambios del despliegue agregan o modifican un entregable comercial, agregar o actualizar la fila en `presupuesto` (Grupo, Descripción comercial, Horas hombre). La columna Importe (USD) la actualiza el usuario a mano. Revisar en cada despliegue si aplica.
 
-3. **Regenerar Excel**  
-   Ejecutar `node crear-bitacora-excel.js` para actualizar `Bitacora_tareas.xlsx`.
+3. **Regenerar Excel y presentación**  
+   Ejecutar `node crear-bitacora-excel.js` para actualizar `Bitacora_tareas.xlsx` y la presentación `Propuesta_Dashboard_Flujo_Caja.pptx` (esta última usa el presupuesto de la bitácora, columna Horas hombre incluida).
 
 4. **Commit y push**  
    Incluir en el commit: `dashboard-flujo-caja.html` (con `APP_VERSION` actualizado), `crear-bitacora-excel.js`, `Bitacora_tareas.xlsx`. Mensaje de commit: `vX.Y: descripción breve`. Ejecutar `git add`, `git commit`, `git push origin main`. Si el push falla por credenciales, indicar al usuario que ejecute `git push origin main` en su máquina.
 
-No hacer push / no asumir despliegue hasta que el usuario lo indique explícitamente.
+5. **Desplegar a producción**  
+   Ejecutar `vercel --prod` (o el comando equivalente) para que la versión desplegada sea la de producción (fornitalia.vercel.app).
+
+No hacer push ni desplegar hasta que el usuario lo indique explícitamente.

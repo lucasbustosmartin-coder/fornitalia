@@ -88,7 +88,7 @@ Tienes dos opciones:
 
 **Opción A – Desde el dashboard (recomendado la primera vez)**  
 1. En Supabase: **SQL Editor**.  
-2. Pega y ejecuta el contenido del archivo `supabase_transacciones.sql` que está en este proyecto.  
+2. Pega y ejecuta el contenido del archivo `sql/supabase_transacciones.sql` que está en este proyecto.  
 3. Eso crea la tabla `transacciones` con todas las columnas y tipos correctos.
 
 **Opción B – Dejar que el script cree la tabla**  
@@ -101,8 +101,8 @@ El script de migración puede ejecutar el mismo SQL si le indicas que cree la ta
 1. Crear proyecto en [Supabase](https://supabase.com) si aún no lo tienes.
 2. Copiar **Project URL** y **service_role key**.
 3. Crear `.env` con `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`.
-4. Ejecutar `supabase_transacciones.sql` en el SQL Editor de Supabase (o usar la opción del script que crea la tabla).
+4. Ejecutar `sql/supabase_transacciones.sql` en el SQL Editor de Supabase (o usar la opción del script que crea la tabla).
 5. Instalar dependencias: `pip install openpyxl pandas python-dotenv supabase`.
-6. Ejecutar el script de migración desde la raíz del proyecto (por ejemplo: `python migrate_caja_to_supabase.py`).
+6. Ejecutar el script de migración desde la raíz del proyecto (por ejemplo: `python scripts/migrate_caja_to_supabase.py`).
 
 Cuando tengas la URL y la clave en el `.env`, podrás ejecutar la migración y cargar todas las filas de los 6 Excel en la tabla **transacciones**.

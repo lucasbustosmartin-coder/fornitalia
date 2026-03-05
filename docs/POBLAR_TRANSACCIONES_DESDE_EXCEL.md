@@ -15,24 +15,24 @@ Si la base quedó con datos incorrectos o querés repoblar desde los archivos Ex
 
 En el **SQL Editor** de Supabase, ejecutá el contenido de:
 
-**`supabase_vaciar_transacciones.sql`**
+**`sql/supabase_vaciar_transacciones.sql`**
 
 (Trunca la tabla `transacciones`. Si falla por restricciones, usá `DELETE FROM public.transacciones;` en su lugar.)
 
 ### 2. Cargar desde cada Excel
 
-Abrí la terminal y **entrá a la carpeta del proyecto Fornitalia** (donde están `migrate_caja_to_supabase.py`, la carpeta `Caja/` y `requirements-migracion.txt`). Luego ejecutá:
+Abrí la terminal y **entrá a la carpeta del proyecto Fornitalia** (donde están la carpeta `scripts/`, la carpeta `Caja/` y `requirements-migracion.txt`). Luego ejecutá:
 
 ```bash
 cd "/Users/lucasb/Escritorio - MacBook Air de Lucas/Fornitalia"
 pip install -r requirements-migracion.txt
-python migrate_caja_to_supabase.py
+python scripts/migrate_caja_to_supabase.py
 ```
 
-(Si ya estás en la carpeta Fornitalia, solo hace falta el `pip install` y el `python migrate_caja_to_supabase.py`.)
+(Si ya estás en la carpeta Fornitalia, solo hace falta el `pip install` y el `python scripts/migrate_caja_to_supabase.py`.)
 
 El script lee todos los `.xlsx` de `Caja/`, mapea las columnas al esquema de `transacciones` e inserta en Supabase por lotes.
 
 ---
 
-**Resumen:** 1) Ejecutar `supabase_vaciar_transacciones.sql` en Supabase. 2) Ejecutar `python migrate_caja_to_supabase.py` con los Excel en `Caja/`.
+**Resumen:** 1) Ejecutar `sql/supabase_vaciar_transacciones.sql` en Supabase. 2) Ejecutar `python scripts/migrate_caja_to_supabase.py` con los Excel en `Caja/`.

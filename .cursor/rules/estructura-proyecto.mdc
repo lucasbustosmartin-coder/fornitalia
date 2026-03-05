@@ -1,0 +1,31 @@
+---
+description: Mantener estructura ordenada del repo: sql/, scripts/, docs/; dónde colocar archivos nuevos y cómo referenciar rutas
+alwaysApply: true
+---
+
+# Estructura del proyecto – regla de trabajo
+
+Mantener siempre esta organización para que sea **simple y eficiente** encontrar archivos.
+
+## Carpetas
+
+| Carpeta | Contenido | Ejemplos |
+|---------|-----------|----------|
+| **`sql/`** | Todo lo SQL (Supabase): tablas, RLS, migraciones, respaldos, scripts de datos. | `supabase_transacciones.sql`, `supabase_rls_*.sql` |
+| **`scripts/`** | Scripts de utilidad: **Python** (migración, Excel, análisis) y **Node.js** (consolidar, bitácora, presentación, serie cauciones). | `migrate_caja_to_supabase.py`, `consolidar-estado-resultados.js` |
+| **`docs/`** | Documentación en Markdown: requisitos, advertencias, guías de uso, README de features. | `SUPABASE_REQUISITOS.md`, `POBLAR_TRANSACCIONES_DESDE_EXCEL.md` |
+| **Raíz** | Solo lo esencial: app principal (`dashboard-flujo-caja.html`), config (`package.json`, `.env.example`), assets (`favicon.svg`), y carpetas de datos/salida (`Estados_Resultado/`, `Caja/`). Los archivos generados (Excel, PPT, JSON de datos) pueden quedar en raíz. | |
+
+## Al agregar archivos nuevos
+
+- **Nuevo script SQL** → siempre en `sql/` (nombre descriptivo, ej. `supabase_*` si es para Supabase).
+- **Nuevo script Python o Node.js** de utilidad → en `scripts/`. Si lee/escribe archivos en la raíz, usar `path.join(__dirname, '..', 'nombre_archivo')` (o equivalente en Python con `Path(__file__).resolve().parent.parent`).
+- **Nueva documentación** (.md de guías, requisitos, advertencias) → en `docs/`. No crear README adicionales en subcarpetas salvo que sea necesario (ej. `Estados_Resultado/COMO_EJECUTAR.txt`).
+- **Referencias en docs o en código** a archivos movidos: usar rutas relativas a la raíz (`sql/...`, `scripts/...`, `docs/...`).
+
+## Comandos y rutas
+
+- Scripts npm en `package.json` invocan scripts en `scripts/`: `node scripts/nombre.js`, `python scripts/nombre.py`.
+- En documentación, indicar rutas como `sql/archivo.sql` y `scripts/archivo.py` (o `.js`), no como si estuvieran en la raíz.
+
+Respetar esta estructura en cada cambio (nuevos archivos, refactors, documentación) para mantener el repo ordenado y fácil de navegar.

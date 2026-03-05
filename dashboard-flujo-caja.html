@@ -68,7 +68,7 @@
     .errores-filtros { display: flex; align-items: center; gap: 0.5rem; }
     .errores-filtros label { font-size: 0.9rem; color: #555; white-space: nowrap; }
     .errores-filtros select { padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; min-width: 200px; }
-    .evolucion-table-wrap { overflow-x: auto; margin-top: 0.5rem; }
+    .evolucion-table-wrap { overflow: auto; margin-top: 0.5rem; max-height: 70vh; }
     .errores-table-wrap { overflow-x: auto; margin-top: 0.5rem; }
     #tabla-errores-global { min-width: max-content; }
     #tabla-errores-global th:nth-child(12),
@@ -86,9 +86,16 @@
     #modal-configuracion .form-group { margin-bottom: 0.75rem; }
     #modal-configuracion label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; }
     #modal-configuracion select { width: 100%; max-width: 200px; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; }
-    #tabla-evolucion { min-width: 100%; }
+    #tabla-evolucion { min-width: 100%; border-collapse: collapse; }
     #tabla-evolucion th, #tabla-evolucion td { padding: 0.45rem 0.65rem; white-space: nowrap; }
     #tabla-evolucion th { background: #f2f3f5; font-weight: 600; color: #555; }
+    /* Encabezado fijo al desplazarse hacia abajo */
+    #tabla-evolucion thead th { position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 0 #ddd; }
+    /* Primera columna fija al desplazarse hacia la derecha */
+    #tabla-evolucion th:first-child, #tabla-evolucion td:first-child { position: sticky; left: 0; z-index: 1; background: #f2f3f5; box-shadow: 2px 0 4px rgba(0,0,0,0.06); }
+    #tabla-evolucion tbody td:first-child { background: #fff; }
+    #tabla-evolucion tr.fila-total-evolucion td:first-child { background: #f5f5f5; }
+    #tabla-evolucion thead th:first-child { z-index: 3; }
     #tabla-evolucion td.num-evolucion { text-align: right; white-space: nowrap; }
     #tabla-evolucion td.num-evolucion.evolucion-clickable { cursor: pointer; }
     #tabla-evolucion td.num-evolucion.evolucion-clickable:hover { text-decoration: underline; }
@@ -137,6 +144,8 @@
     .modal-tabla .detalle-tabla td.monto-vista { white-space: nowrap; }
     .modal-tabla .detalle-tabla td.desc { color: #333; }
     .modal-tabla .detalle-tabla .muted { color: #777; }
+    .modal-tabla .detalle-tabla tbody tr.fila-transaccion-ver { cursor: pointer; }
+    .modal-tabla .detalle-tabla tbody tr.fila-transaccion-ver:hover { background: #f0f4f8; }
     .modal-tabla .btn-ver-errores,
     .btn-ver-errores {
       padding: 0.35rem 0.75rem;
@@ -299,7 +308,6 @@
     <div class="tabs-toolbar">
       <div class="tabs">
         <button type="button" class="tab activo" data-panel="flujo"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></span>Flujo por mes</button>
-        <button type="button" class="tab" data-panel="sin-cotizacion"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6"/><path d="M9 11h6"/></svg></span>Sin cotización</button>
         <button type="button" class="tab" data-panel="errores-global"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>Errores</button>
         <button type="button" class="tab" data-panel="todas-transacciones"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span>Todas las transacciones</button>
         <button type="button" class="tab" data-panel="evolucion"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Evolución</button>
@@ -321,21 +329,6 @@
         </thead>
         <tbody id="tbody"></tbody>
         <tfoot id="tfoot-flujo"></tfoot>
-      </table>
-    </div>
-    <div id="panel-sin-cotizacion" class="card panel">
-      <p class="sin-cotizacion-note">Transacciones sin tipo de cambio (ni fecha exacta ni anterior). Excluidas del resumen y del flujo por mes.</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Tipo</th>
-            <th>Medio</th>
-            <th>Descripción</th>
-            <th>Monto orig.</th>
-          </tr>
-        </thead>
-        <tbody id="tbody-sin-cotizacion"></tbody>
       </table>
     </div>
     <div id="panel-errores-global" class="card panel">
@@ -399,6 +392,8 @@
           <select id="filtro-todas-tipo" title="Filtrar por tipo (Ingreso/Egreso)">
             <option value="todos">Todos</option>
           </select>
+          <label for="filtro-todas-id-operacion" style="margin-left:0.75rem;">Id operación:</label>
+          <input type="text" id="filtro-todas-id-operacion" placeholder="Buscar por id operación" title="Filtrar por id operación (coincidencia parcial)" style="padding:0.35rem 0.6rem; border-radius:6px; border:1px solid #ccc; font-size:0.9rem; min-width:140px;">
         </div>
       </div>
       <div class="errores-table-wrap">
@@ -831,7 +826,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.30';
+    const APP_VERSION = '1.31';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1039,12 +1034,22 @@
       return esMonedaUSD(r.medio_pago);
     }
 
+    /** Fecha como YYYY-MM-DD (solo día, sin hora). Proyecto Argentina: se evita usar Date para no depender de la franja horaria del navegador. */
     function fechaStr(f) {
       if (!f) return '';
       if (typeof f === 'string') return f.slice(0, 10);
       if (typeof f === 'object' && f instanceof Date) return f.toISOString().slice(0, 10);
       if (typeof f === 'object' && f.toISOString) return f.toISOString().slice(0, 10);
       return String(f).slice(0, 10);
+    }
+
+    /** Extrae año y mes desde una fecha (string YYYY-MM-DD o valor parseable) sin usar zona horaria. Para Argentina. */
+    function anioMesDesdeFecha(f) {
+      const s = fechaStr(f);
+      if (!s || s.length < 7) return { anio: null, mes: null };
+      const anio = parseInt(s.slice(0, 4), 10);
+      const mes = parseInt(s.slice(5, 7), 10);
+      return { anio: isNaN(anio) ? null : anio, mes: isNaN(mes) ? null : mes };
     }
 
     function excluirCategoria(c) {
@@ -1202,6 +1207,7 @@
 
     async function cargarDatos() {
       const txPromise = client.from('transacciones').select('id, id_origen, id_operacion, fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, editado, editado_detalle').neq('status', 'Anulado');
+      // Tipo de cambio: sin filtro por fecha; Supabase devuelve date como "YYYY-MM-DD". Las claves del cache son siempre YYYY-MM-DD (Argentina, sin depender de franja horaria).
       const tcPromise = client.from('tipo_de_cambio').select('fecha, usd_mep, usd_ccl, usd_oficial');
       const [txRes, tcRes] = await withTimeout(
         Promise.all([txPromise, tcPromise]),
@@ -1339,8 +1345,6 @@
       const porMesCatIng = {};
       const porMesCatEgr = {};
       let totalIngresos = 0, totalEgresos = 0;
-      const sinCotizacion = [];
-
       rows.filter(r => !excluirCategoria(r.categoria) && (r.status || '').toString().trim() !== 'Anulado').forEach(r => {
         const montoOrig = Number(r.monto) || 0;
         const fecha = fechaStr(r.fecha);
@@ -1353,12 +1357,12 @@
           if (esUSD) {
             montoParaSumar = montoOrig;
           } else {
-            if (tasa == null) { sinCotizacion.push(r); return; }
+            if (tasa == null) return;
             montoParaSumar = montoOrig / tasa;
           }
         } else {
           if (esUSD) {
-            if (tasa == null) { sinCotizacion.push(r); return; }
+            if (tasa == null) return;
             montoParaSumar = montoOrig * tasa;
           }
         }
@@ -1645,18 +1649,6 @@
         tfoot.innerHTML = tfootHtml;
       }
 
-      document.getElementById('tbody-sin-cotizacion').innerHTML = sinCotizacion.length === 0
-        ? '<tr><td colspan="5" style="text-align:center; color:#666;">No hay transacciones sin cotización.</td></tr>'
-        : sinCotizacion.map(r => `
-          <tr>
-            <td>${fechaStr(r.fecha)}</td>
-            <td>${(r.tipo_movimiento || '').replace(/</g,'&lt;')}</td>
-            <td>${(r.medio_pago || '').replace(/</g,'&lt;')}</td>
-            <td>${(r.descripcion || r.cliente || '–').slice(0, 60).replace(/</g,'&lt;')}</td>
-            <td>${formatearNumero(r.monto)}</td>
-          </tr>
-        `).join('');
-
       renderErroresGlobal();
       renderEvolucion();
     }
@@ -1819,8 +1811,9 @@
           colKey = fechaStr(r.fecha);
           if (!colKey) return;
         } else {
-          const anio = r.anio != null ? r.anio : (r.fecha ? new Date(r.fecha).getFullYear() : null);
-          const mes = r.mes != null ? r.mes : (r.fecha ? new Date(r.fecha).getMonth() + 1 : null);
+          const { anio: anioF, mes: mesF } = anioMesDesdeFecha(r.fecha);
+          const anio = r.anio != null ? r.anio : anioF;
+          const mes = r.mes != null ? r.mes : mesF;
           if (anio == null || mes == null) return;
           colKey = anio + '-' + String(mes).padStart(2, '0');
         }
@@ -2328,8 +2321,9 @@
               : '<span class="muted">sin cot.</span>');
           const desc = (i.descripcion || i.cliente || '–').slice(0, 120);
           const origen = (i.origen_archivo || '').trim();
+          const idReg = (i.id || '').toString().replace(/"/g, '&quot;');
           return `
-            <tr>
+            <tr class="fila-transaccion-ver" data-transaccion-id="${idReg}" role="button" tabindex="0" title="Ver detalle de la transacción">
               <td>${esc(fechaStr(i.fecha))}</td>
               <td>${esc(i.tipo_movimiento || '')}</td>
               <td>${esc(i.medio_pago || '')}</td>
@@ -2464,6 +2458,16 @@
           const mesSel = btn.getAttribute('data-mes');
           openGraficoModal(btn.getAttribute('data-tipo'), btn.getAttribute('data-nombre'), anioSel ? parseInt(anioSel, 10) : null, mesSel ? parseInt(mesSel, 10) : null);
         });
+      });
+
+      body.addEventListener('click', (e) => {
+        const tr = e.target.closest('.fila-transaccion-ver');
+        if (!tr) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const id = tr.getAttribute('data-transaccion-id');
+        const record = cacheTransacciones.find(r => (r.id || '').toString() === id);
+        if (record) abrirModalEditar(record);
       });
 
       const btnVerErrores = body.querySelector('.btn-ver-errores');
@@ -2668,6 +2672,7 @@
       const selMes = document.getElementById('filtro-todas-mes');
       const selCat = document.getElementById('filtro-todas-categoria');
       const selTipo = document.getElementById('filtro-todas-tipo');
+      const inputIdOperacion = document.getElementById('filtro-todas-id-operacion');
       if (!tbody || !selMes || !selCat || !selTipo) return;
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       if (cacheTransacciones.length === 0) {
@@ -2702,6 +2707,11 @@
       }
       if (valorTipo !== 'todos') {
         list = list.filter(r => (r.tipo_movimiento || '').trim() === valorTipo);
+      }
+      const valorIdOperacion = (inputIdOperacion && inputIdOperacion.value) ? String(inputIdOperacion.value).trim() : '';
+      if (valorIdOperacion) {
+        const busqueda = valorIdOperacion.toLowerCase();
+        list = list.filter(r => ((r.id_operacion || '').toString().toLowerCase()).includes(busqueda));
       }
       currentTodasTransaccionesList = list;
       if (!list.length) {
@@ -3190,6 +3200,8 @@
         document.getElementById('filtro-todas-mes').addEventListener('change', renderTodasTransacciones);
         document.getElementById('filtro-todas-categoria').addEventListener('change', renderTodasTransacciones);
         document.getElementById('filtro-todas-tipo').addEventListener('change', renderTodasTransacciones);
+        const filtroIdOperacionEl = document.getElementById('filtro-todas-id-operacion');
+        if (filtroIdOperacionEl) filtroIdOperacionEl.addEventListener('input', renderTodasTransacciones);
         document.getElementById('evolucion-agrupar').addEventListener('change', renderEvolucion);
         document.getElementById('evolucion-periodo').addEventListener('change', renderEvolucion);
         document.getElementById('btn-exportar-evolucion').addEventListener('click', exportarEvolucionExcel);

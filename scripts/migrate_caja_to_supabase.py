@@ -2,6 +2,8 @@
 """
 Migra todos los Excel de la carpeta Caja a la tabla transacciones en Supabase.
 Requiere: .env con SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY
+
+Los archivos deben tener la misma estructura que los reportes de Caja (columnas *_MC, etc.).
 """
 import os
 from pathlib import Path
@@ -47,7 +49,6 @@ def normalizar_valor(val):
     """Convierte NaN, NaT, "-", etc. a None para JSON/Supabase. Fechas/horas a string ISO."""
     if val is None or (isinstance(val, float) and pd.isna(val)):
         return None
-    # Excel suele usar "-" en celdas vacías; las columnas numeric en DB no lo aceptan
     if isinstance(val, str):
         s = val.strip()
         if s == "" or s == "-":
@@ -75,7 +76,6 @@ def excel_a_filas(archivo: Path) -> list[dict]:
             df = pd.read_excel(archivo, sheet_name=sheet_name)
             if df.empty or len(df.columns) < 5:
                 continue
-            # Normalizar nombres de columnas por si acaso
             df = df.rename(columns=lambda c: c.strip() if isinstance(c, str) else c)
             for _, row in df.iterrows():
                 rec = {"origen_archivo": nombre_archivo}
@@ -85,6 +85,7 @@ def excel_a_filas(archivo: Path) -> list[dict]:
                         continue
                     val = row.get(col_excel)
                     rec[col_db] = normalizar_valor(val)
+                rec["moneda"] = "USD" if "DOLAR" in nombre_archivo.upper() else "ARS"
                 filas.append(rec)
     except Exception as e:
         print(f"  Error leyendo {nombre_archivo}: {e}")
@@ -109,7 +110,11 @@ def main():
 
     client = create_client(url, key)
 
-    archivos = sorted(CAJA.glob("*.xlsx"))
+    if not CAJA.exists():
+        print("No existe la carpeta:", CAJA)
+        return 1
+
+    archivos = [f for f in sorted(CAJA.glob("*.xlsx")) if not f.name.startswith("~$")]
     if not archivos:
         print("No se encontraron archivos .xlsx en", CAJA)
         return 1
@@ -121,7 +126,6 @@ def main():
         if not filas:
             print("  Sin filas.")
             continue
-        # Supabase insert acepta hasta 1000 por lote
         batch = 500
         for i in range(0, len(filas), batch):
             chunk = filas[i : i + batch]
@@ -130,7 +134,7 @@ def main():
                 total_insertadas += len(chunk)
             except Exception as e:
                 print(f"  Error insertando lote: {e}")
-                for j, row in enumerate(chunk):
+                for row in chunk:
                     try:
                         client.table("transacciones").insert(row).execute()
                         total_insertadas += 1

@@ -16,3 +16,5 @@ env/
 
 # Excel generado (opcional: si quieres versionarlo, borra esta línea)
 # Bitacora_tareas.xlsx
+.vercel
+.env*.local
