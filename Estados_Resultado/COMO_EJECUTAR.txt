@@ -1,0 +1,73 @@
+================================================================================
+  CONSOLIDAR ESTADO DE RESULTADOS — CÓMO VOLVER A EJECUTARLO
+================================================================================
+
+Qué hace este proceso
+---------------------
+Lee todos los archivos Excel de Estado de Resultados que estén dentro de las
+carpetas por año (2024, 2025, 2026, etc.) dentro de "Estados_Resultado".
+De cada Excel usa solo la PRIMERA solapa.
+Extrae de cada hoja: columna A = Concepto, columna B = Importe.
+Genera un único Excel consolidado con:
+  - Filas: cada ítem/concepto (una sola fila por concepto).
+  - Columnas: Concepto + una columna por mes (ene-24, feb-24, ... dic-24,
+    ene-25, ... dic-26, etc.).
+  - El archivo generado se guarda en esta misma carpeta con el nombre:
+    Estado_Resultados_Consolidado.xlsx
+
+
+Requisitos
+----------
+- Tener Node.js instalado.
+- En la raíz del proyecto Fornitalia tener instaladas las dependencias:
+    npm install
+  (ya incluye la librería "xlsx" que usa el script).
+
+
+Dónde ejecutar
+--------------
+Abrir una terminal y ubicarse en la carpeta raíz del proyecto Fornitalia, por ejemplo:
+  cd "/Users/lucasb/Escritorio - MacBook Air de Lucas/Fornitalia"
+
+
+Comando para ejecutar
+---------------------
+  node scripts/consolidar-estado-resultados.js
+
+O usando npm (desde la raíz del proyecto):
+  npm run consolidar-estados
+
+
+Estructura de carpetas esperada
+------------------------------
+  Fornitalia/
+    Estados_Resultado/
+      2024/     <- aquí los Excel de 2024 (ej. Estado de Resultados 2024 04 Abr.xlsx)
+      2025/     <- aquí los Excel de 2025 (ej. 01 ESTADO DE RESULTADOS ARG ENERO 2025.xlsx)
+      2026/     <- aquí los Excel de 2026
+      ...
+    scripts/
+      consolidar-estado-resultados.js   <- script
+
+
+Si agregás más años
+-------------------
+Solo creá una nueva carpeta con el año (ej. 2027) dentro de Estados_Resultado
+y dejá ahí los Excel de Estado de Resultados (primera solapa con Concepto en A
+e importe en B). Volvé a ejecutar el mismo comando y el consolidado incluirá
+los nuevos meses (ene-27, feb-27, ...).
+
+
+Si algo falla
+-------------
+- Si dice "No existe la carpeta": asegurate de estar en la raíz del proyecto
+  (donde están las carpetas scripts/ y Estados_Resultado/) y de que exista
+  Estados_Resultado con subcarpetas 2024, 2025, 2026.
+- Si algún archivo se omite: el nombre debe contener "Estado de Resultados"
+  o empezar con número de mes (01, 02, ...) o tener formato "04 Abr", etc.
+  Los archivos temporales que empiezan con ~$ se ignoran.
+- Si un mes no aparece: el script deduce el mes por el nombre del archivo;
+  si el nombre no sigue los formatos conocidos, ese archivo se omite (en consola
+  verás "Omitido (mes no determinado): ...").
+
+================================================================================
