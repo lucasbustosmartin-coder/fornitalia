@@ -86,6 +86,7 @@ const datosLog = [
   ['__HOY__', '__AHORA__', 'Despliegue v1.29', 'Errores: id_origen/id_operacion en export y listado; modal duplicado con icono en campos distintos. Exclusiones duplicados (anulados, id_origen e id_operacion ambos distintos, montos 0). Sin disclaimer ficticios; repoblar desde Excel.', 'Implementacion'],
   ['__HOY__', '__AHORA__', 'Despliegue v1.30', 'Errores: orden tipo y monto; filtros categoría orig. y mostrada. Flujo filtro Anulado. Export Base con Tipo_Cambio, Monto_ARS, Monto_USD.', 'Implementacion'],
   ['__HOY__', '__AHORA__', 'Despliegue v1.31', 'Estructura ordenada: sql/, scripts/, docs/. Regla estructura-proyecto. Bitácora y docs con rutas actualizadas.', 'Implementacion'],
+  ['__HOY__', '__AHORA__', 'Despliegue v1.32', 'Modales: no cerrar al elegir opción de select (mousedown+click en backdrop). Helper setupBackdropCloseOnlyOnRealClick en todos los modales.', 'Despliegue'],
 ];
 
 const datosLogParaExcel = aplicarHoyAhora(datosLog);
@@ -208,6 +209,7 @@ const versiones = [
   ['1.29', '__HOY__', 'Errores: export y listado con id_origen e id_operacion; modal duplicado con id_operacion e icono en campos que no coinciden. Exclusiones duplicados: anulados, id_origen e id_operacion ambos distintos, ambos montos 0. Quitar disclaimer datos ficticios; scripts e instrucciones para repoblar transacciones desde Excel. Despliegue a producción.'],
   ['1.30', '__HOY__', 'Errores: orden por tipo y monto descendente; filtros por categoría original y categoría mostrada. Flujo: filtro explícito status Anulado. Export Base Histórica: columnas Tipo_Cambio, Monto_ARS, Monto_USD con conversiones. Despliegue a producción.'],
   ['1.31', '__HOY__', 'Estructura ordenada del repo: sql/, scripts/, docs/. Regla estructura-proyecto (mantener carpetas y rutas). Referencias en bitácora y docs actualizadas. Despliegue a producción.'],
+  ['1.32', '__HOY__', 'Modales: no cerrar al elegir opción de select (mousedown+click en backdrop). Helper setupBackdropCloseOnlyOnRealClick en todos los modales.'],
 ];
 const versionesParaExcel = aplicarHoyAhora(versiones);
 const wsVersiones = XLSX.utils.aoa_to_sheet(versionesParaExcel);

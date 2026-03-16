@@ -826,7 +826,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.31';
+    const APP_VERSION = '1.32';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -3134,24 +3134,32 @@
           if (tr) abrirModal(parseInt(tr.dataset.anio, 10), parseInt(tr.dataset.mes, 10));
         });
 
+        /** Cierra el modal solo cuando el usuario hizo clic realmente en el backdrop (mousedown + click en backdrop). Evita cerrar al elegir una opción de un select. */
+        function setupBackdropCloseOnlyOnRealClick(backdrop, onClose) {
+          if (!backdrop || typeof onClose !== 'function') return;
+          let mousedownOnBackdrop = false;
+          backdrop.addEventListener('mousedown', (e) => { mousedownOnBackdrop = (e.target === backdrop); }, true);
+          backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop && mousedownOnBackdrop) onClose();
+            mousedownOnBackdrop = false;
+          }, true);
+        }
         document.getElementById('modal-close').addEventListener('click', () => document.getElementById('modal-backdrop').classList.add('oculto'));
-        document.getElementById('modal-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-backdrop') e.target.classList.add('oculto'); });
+        setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-backdrop'), () => document.getElementById('modal-backdrop').classList.add('oculto'));
         document.getElementById('modal-alertas-close').addEventListener('click', () => document.getElementById('modal-alertas-backdrop').classList.add('oculto'));
-        document.getElementById('modal-alertas-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-alertas-backdrop') e.target.classList.add('oculto'); });
+        setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-alertas-backdrop'), () => document.getElementById('modal-alertas-backdrop').classList.add('oculto'));
         document.getElementById('modal-grafico-close').addEventListener('click', () => {
           document.getElementById('modal-grafico-backdrop').classList.add('oculto');
           if (chartSerieMensual) { chartSerieMensual.destroy(); chartSerieMensual = null; }
         });
-        document.getElementById('modal-grafico-backdrop').addEventListener('click', (e) => {
-          if (e.target.id === 'modal-grafico-backdrop') {
-            e.target.classList.add('oculto');
-            if (chartSerieMensual) { chartSerieMensual.destroy(); chartSerieMensual = null; }
-          }
+        setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-grafico-backdrop'), () => {
+          document.getElementById('modal-grafico-backdrop').classList.add('oculto');
+          if (chartSerieMensual) { chartSerieMensual.destroy(); chartSerieMensual = null; }
         });
         document.getElementById('modal-errores-close').addEventListener('click', () => document.getElementById('modal-errores-backdrop').classList.add('oculto'));
-        document.getElementById('modal-errores-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-errores-backdrop') e.target.classList.add('oculto'); });
+        setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-errores-backdrop'), () => document.getElementById('modal-errores-backdrop').classList.add('oculto'));
         document.getElementById('modal-editar-close').addEventListener('click', () => document.getElementById('modal-editar-backdrop').classList.add('oculto'));
-        document.getElementById('modal-editar-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-editar-backdrop') e.target.classList.add('oculto'); });
+        setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-editar-backdrop'), () => document.getElementById('modal-editar-backdrop').classList.add('oculto'));
 
         function setupModalDrag(modalId, headerId, closeBtnId) {
           const modal = document.getElementById(modalId);
@@ -3206,7 +3214,7 @@
         document.getElementById('evolucion-periodo').addEventListener('change', renderEvolucion);
         document.getElementById('btn-exportar-evolucion').addEventListener('click', exportarEvolucionExcel);
         document.getElementById('modal-evolucion-detalle-close').addEventListener('click', () => document.getElementById('modal-evolucion-detalle-backdrop').classList.add('oculto'));
-        document.getElementById('modal-evolucion-detalle-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-evolucion-detalle-backdrop') e.target.classList.add('oculto'); });
+        setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-evolucion-detalle-backdrop'), () => document.getElementById('modal-evolucion-detalle-backdrop').classList.add('oculto'));
         document.addEventListener('click', (e) => {
           const helpEl = e.target.closest('.th-help');
           const popover = document.getElementById('th-help-popover');
@@ -3260,7 +3268,7 @@
           }
         });
         document.getElementById('modal-int-caucion-close').addEventListener('click', () => document.getElementById('modal-int-caucion-backdrop').classList.add('oculto'));
-        document.getElementById('modal-int-caucion-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-int-caucion-backdrop') e.target.classList.add('oculto'); });
+        setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-int-caucion-backdrop'), () => document.getElementById('modal-int-caucion-backdrop').classList.add('oculto'));
         setupModalDrag('modal-int-caucion', 'modal-int-caucion-header-drag', 'modal-int-caucion-close');
 
         document.getElementById('btn-cargar-novedades').addEventListener('click', async () => {
@@ -3369,7 +3377,7 @@
         });
         document.getElementById('config-cerrar').addEventListener('click', () => document.getElementById('modal-configuracion-backdrop').classList.add('oculto'));
         document.getElementById('modal-configuracion-close').addEventListener('click', () => document.getElementById('modal-configuracion-backdrop').classList.add('oculto'));
-        document.getElementById('modal-configuracion-backdrop').addEventListener('click', (e) => { if (e.target.id === 'modal-configuracion-backdrop') e.target.classList.add('oculto'); });
+        setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-configuracion-backdrop'), () => document.getElementById('modal-configuracion-backdrop').classList.add('oculto'));
         setupModalDrag('modal-configuracion', 'modal-configuracion-header-drag', 'modal-configuracion-close');
       } catch (e) {
         errorEl.textContent = 'Error: ' + (e.message || String(e));
