@@ -5,10 +5,14 @@
     "dev": "live-server . --open=dashboard-flujo-caja.html --port=3000",
     "presentacion": "node scripts/crear-presentacion-propuesta.js",
     "consolidar-2025": "node scripts/consolidar-estado-resultados-2025.js",
-    "consolidar-estados": "node scripts/consolidar-estado-resultados.js"
+    "consolidar-estados": "node scripts/consolidar-estado-resultados.js",
+    "informe-normalizacion-html": "node scripts/md-informe-a-html.js",
+    "informe-normalizacion-pdf": "node scripts/md-informe-a-html.js && node scripts/informe-html-a-pdf.js",
+    "playwright:install": "playwright install chromium"
   },
   "devDependencies": {
     "live-server": "^1.2.2",
+    "playwright": "^1.49.0",
     "pptxgenjs": "^3.12.0",
     "xlsx": "^0.18.5"
   }

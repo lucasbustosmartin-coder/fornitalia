@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Análisis normalización datos legacy — Fornitalia</title>
+  <style>
+    @page { size: A4; margin: 16mm 14mm; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; font-size: 10pt; line-height: 1.35; color: #1a1a1a; max-width: 210mm; margin: 0 auto; padding: 12px; }
+    h1 { font-size: 1.35rem; margin: 0 0 0.75rem 0; }
+    h2 { font-size: 1.1rem; margin: 1.25rem 0 0.5rem 0; border-bottom: 1px solid #ccc; padding-bottom: 0.25rem; }
+    h3 { font-size: 1rem; margin: 1rem 0 0.35rem 0; }
+    p { margin: 0.35rem 0; }
+    p.meta { font-size: 0.9rem; color: #444; }
+    p.sp { height: 0.25rem; margin: 0; }
+    hr { border: none; border-top: 1px solid #ddd; margin: 1rem 0; }
+    ol { margin: 0.5rem 0 1rem 1.25rem; padding-left: 1rem; }
+    li { margin: 0.3rem 0; }
+    table { width: 100%; border-collapse: collapse; margin: 0.5rem 0 1rem 0; font-size: 8.5pt; }
+    th, td { border: 1px solid #ccc; padding: 5px 6px; text-align: left; vertical-align: top; }
+    th { background: #f0f0f0; font-weight: 600; }
+    tr:nth-child(even) td { background: #fafafa; }
+    @media print {
+      body { padding: 0; }
+      h2 { break-after: avoid; }
+      table { break-inside: auto; }
+      tr { break-inside: avoid; break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+<h1>Análisis de inconsistencias y sugerencias de normalización — Datos legacy (Fornitalia)</h1>
+<p class="sp"></p>
+<p><strong>Propósito:</strong> Este documento resume hallazgos sobre la calidad y coherencia de los datos de caja (origen: extracto / sistema legacy del cliente) y las <strong>acciones recomendables en la base de datos de origen</strong> antes o durante la migración definitiva.</p>
+<p class="sp"></p>
+<p><strong>Alcance del análisis:</strong> Archivo <strong>`docs/Extracto-Fornitalia.xlsx`</strong>, hoja <strong>Movimientos</strong>. <strong>Total de registros analizados: 3.008.</strong> Los mismos criterios aplican a la base operativa del cliente si conserva los mismos campos (`Categoría`, `Cuenta Contable`, `Medio de Pago`, descripciones, etc.).</p>
+<p class="sp"></p>
+<p><strong>Mensaje para el cliente:</strong> Lo que sigue son <strong>deudas de datos</strong> que conviene resolver <strong>en su sistema o planilla maestra</strong>, no solo al importar: así se evitan errores de clasificación, reportes engañosos y trabajo manual repetido.</p>
+<p class="sp"></p>
+<p><strong>Nota:</strong> La columna <strong>Cant.</strong> indica cantidad de <strong>filas del extracto</strong> que caen en esa condición (salvo donde se indica otro criterio).</p>
+<p class="sp"></p>
+<hr/>
+<p class="sp"></p>
+<h2>1. Categorías ambiguas o duplicadas en el significado</h2>
+<p class="sp"></p>
+<table><thead><tr>
+<th>Inconsistencia</th>
+<th>Cant.</th>
+<th>Evidencia / riesgo</th>
+<th>Recomendación</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>Alquiler</strong> vs <strong>Alquileres y Servicios</strong></td>
+<td>3 vs 98</td>
+<td>Coexisten; el volumen mayor está en “Alquileres y Servicios”. Riesgo de partir el mismo concepto.</td>
+<td>Definir <strong>una categoría canónica</strong>; migrar la minoría al criterio acordado o unificar en un solo valor.</td>
+</tr>
+<tr>
+<td><strong>Logistica</strong> vs <strong>Flete</strong></td>
+<td>37 vs 1</td>
+<td>“Logistica” concentra casi todo; “Flete” casi no se usa.</td>
+<td>Unificar criterio o una sola categoría (<strong>Logística y fletes</strong>). Corregir ortografía: <strong>Logística</strong>.</td>
+</tr>
+<tr>
+<td><strong>Transferencia</strong> (categoría)</td>
+<td>38</td>
+<td>Coincide con 38 movimientos con cuenta “Transferencia entre Cuentas”: <strong>movimiento interno</strong>, no gasto/ingreso operativo típico.</td>
+<td>Categoría propia (“Traspasos / internos”) o <strong>exclusión del análisis de resultado</strong>; no mezclar con gastos reales.</td>
+</tr>
+<tr>
+<td><strong>Otros Servicios</strong></td>
+<td>81</td>
+<td>Categoría residual con cuentas muy heterogéneas.</td>
+<td><strong>Redistribuir</strong> a categorías específicas o crear <strong>subrubros</strong> en origen.</td>
+</tr>
+<tr>
+<td><strong>Deposito</strong> (categoría)</td>
+<td>40</td>
+<td>Los 40 con cuenta “Deposito entre Cuentas”; sin tilde en “Depósito”.</td>
+<td>Alinear ortografía y criterio con <strong>Transferencia entre cuentas</strong> si es el mismo hecho.</td>
+</tr>
+<tr>
+<td><strong>Activos</strong></td>
+<td>27</td>
+<td>Inversión en bienes mezclada con lógica de gastos del mes; 16 de ellos con cuenta <strong>Hornos</strong>.</td>
+<td>Acordar reporting: <strong>CAPEX vs resultado</strong> / flujo operativo.</td>
+</tr>
+<tr>
+<td><strong>Anulación</strong> (categoría)</td>
+<td>2</td>
+<td>Puede duplicar lógica de anulación por <strong>estado</strong> del movimiento.</td>
+<td>Una sola forma de anular (categoría vs flag `Estado`/`Anulado`).</td>
+</tr>
+<tr>
+<td><strong>Apertura</strong> / <strong>Cierre</strong> (categoría)</td>
+<td>50 / 47</td>
+<td>Movimientos de caja no operativos; suelen ir con cuenta <strong>“-”</strong>.</td>
+<td>Política explícita en origen (código de cuenta o exclusión de reportes de gestión).</td>
+</tr>
+</tbody></table>
+<p class="sp"></p>
+<hr/>
+<p class="sp"></p>
+<h2>2. Cuentas contables: errores de carga, tipeo y duplicados “fantasma”</h2>
+<p class="sp"></p>
+<table><thead><tr>
+<th>Inconsistencia</th>
+<th>Cant.</th>
+<th>Evidencia / riesgo</th>
+<th>Recomendación</th>
+</tr></thead><tbody>
+<tr>
+<td>Cuenta <strong>Comisones Ventas</strong></td>
+<td>31</td>
+<td>Typo (“Comisones”).</td>
+<td>Corregir a <strong>Comisiones Ventas</strong> en maestro e histórico.</td>
+</tr>
+<tr>
+<td>Cuenta <strong>Comsiones Distribuidores</strong></td>
+<td>1</td>
+<td>Typo (“Comsiones”).</td>
+<td>Corregir a <strong>Comisiones Distribuidores</strong>.</td>
+</tr>
+<tr>
+<td>Categoría <strong>Manteniemiento</strong> vs <strong>Mantenimiento</strong></td>
+<td>9 vs 38</td>
+<td>Dos grafías para el mismo concepto.</td>
+<td>Unificar a <strong>Mantenimiento</strong>.</td>
+</tr>
+<tr>
+<td>Cuenta <strong>Telefonía</strong> vs <strong>Telefonia</strong></td>
+<td>4 vs 1</td>
+<td>Variante sin tilde.</td>
+<td>Una forma oficial en plan de cuentas.</td>
+</tr>
+<tr>
+<td>Cuenta <strong>SIRCREB</strong> vs <strong>Sircreb</strong></td>
+<td>299 vs 4</td>
+<td>Misma obligación, distinta capitalización.</td>
+<td>Criterio único (p. ej. todo mayúsculas).</td>
+</tr>
+<tr>
+<td>Cuenta contable <strong>&quot;-&quot;</strong> (guión)</td>
+<td>233</td>
+<td>Alto volumen; asociado a aperturas, cierres e impuestos sin cuenta detallada.</td>
+<td>Sustituir por valor <strong>explícito</strong> contable; el guion bloquea validaciones automáticas.</td>
+</tr>
+<tr>
+<td><strong>Categoría vacía</strong></td>
+<td>24</td>
+<td>Sin categoría informada.</td>
+<td>Obligatoriedad o flujo de excepción aprobado.</td>
+</tr>
+<tr>
+<td><strong>Cuenta contable vacía</strong></td>
+<td>26</td>
+<td>Sin cuenta informada.</td>
+<td>Igual que arriba.</td>
+</tr>
+<tr>
+<td><strong>Categoría y cuenta vacías</strong> (ambas)</td>
+<td>24</td>
+<td>Sin clasificación contable completa.</td>
+<td>No permitir guardar sin completar o regla de negocio documentada.</td>
+</tr>
+</tbody></table>
+<p class="sp"></p>
+<hr/>
+<p class="sp"></p>
+<h2>3. Relación categoría ↔ cuenta contable poco clara o inconsistente</h2>
+<p class="sp"></p>
+<table><thead><tr>
+<th>Inconsistencia</th>
+<th>Cant.</th>
+<th>Evidencia / riesgo</th>
+<th>Recomendación</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>Sueldos</strong> + cuenta <strong>Comisones Ventas</strong></td>
+<td>31</td>
+<td>Comisiones imputadas como sueldos en categoría.</td>
+<td>Definir si deben ir bajo <strong>Comisiones</strong>; matriz categoría ↔ cuenta.</td>
+</tr>
+<tr>
+<td><strong>Impuestos</strong> (total categoría)</td>
+<td>1.477</td>
+<td>~49% del extracto; muchas cuentas distintas (esperable).</td>
+<td><strong>Agrupadores</strong> de tipo impositivo para reporting.</td>
+</tr>
+<tr>
+<td><strong>Comisiones Bancarias</strong> + <strong>Gastos Bancarios</strong></td>
+<td>157</td>
+<td>Par frecuente y coherente.</td>
+<td>Documentar como <strong>modelo</strong> de par válido.</td>
+</tr>
+<tr>
+<td><strong>Impuestos</strong> + medio <strong>MercadoPago</strong></td>
+<td>98</td>
+<td>Medio no “dice” impuesto en el nombre.</td>
+<td>Refuerzo en descripción/observaciones o código de imputación en origen.</td>
+</tr>
+<tr>
+<td><strong>Impuestos</strong> + medio <strong>Transferencia Morba</strong></td>
+<td>56</td>
+<td>Idem.</td>
+<td>Idem.</td>
+</tr>
+<tr>
+<td><strong>Alquileres y Servicios</strong> + cuenta <strong>Alquiler</strong></td>
+<td>29</td>
+<td>Par coherente (referencia de buen uso).</td>
+<td>Usar como <strong>modelo</strong> para otros pares categoría–cuenta.</td>
+</tr>
+<tr>
+<td><strong>Alquiler</strong> (categoría) + cuenta <strong>Alquiler</strong></td>
+<td>0</td>
+<td>Las 3 filas “Alquiler” no usan cuenta “Alquiler” en este extracto.</td>
+<td>Revisar criterio de imputación en origen.</td>
+</tr>
+</tbody></table>
+<p class="sp"></p>
+<hr/>
+<p class="sp"></p>
+<h2>4. Medios de pago: variedad y normalización</h2>
+<p class="sp"></p>
+<table><thead><tr>
+<th>Medio de pago (valor en extracto)</th>
+<th>Cant.</th>
+<th>Observación</th>
+<th>Recomendación</th>
+</tr></thead><tbody>
+<tr>
+<td>Transferencia Galicia</td>
+<td>2.004</td>
+<td>Dominante.</td>
+<td>Catálogo cerrado; formato uniforme `Transferencia - Galicia`.</td>
+</tr>
+<tr>
+<td>MercadoPago</td>
+<td>304</td>
+<td>—</td>
+<td>Etiqueta única oficial en base del cliente.</td>
+</tr>
+<tr>
+<td>Efectivo Pesos</td>
+<td>299</td>
+<td>—</td>
+<td>Mantener coherencia con moneda ARS.</td>
+</tr>
+<tr>
+<td>Transferencia Galicia Dolar</td>
+<td>201</td>
+<td>—</td>
+<td>Distinguir bien de pesos en reporting y reglas de moneda.</td>
+</tr>
+<tr>
+<td>Transferencia Morba</td>
+<td>119</td>
+<td>—</td>
+<td>Ya acordado negocio: tratamiento ARS.</td>
+</tr>
+<tr>
+<td>Efectivo Dolar</td>
+<td>63</td>
+<td>—</td>
+<td>Coherente con USD.</td>
+</tr>
+<tr>
+<td>Transferencia Credicoop</td>
+<td>6</td>
+<td>—</td>
+<td>Misma familia que otras transferencias.</td>
+</tr>
+<tr>
+<td>Medio <strong>&quot;-&quot;</strong> (guión)</td>
+<td>12</td>
+<td>Dato faltante.</td>
+<td>Completar o valor “No informado” trazable.</td>
+</tr>
+</tbody></table>
+<p class="sp"></p>
+<p><strong>Recomendación general:</strong> catálogo maestro de medios y reglas de moneda por medio.</p>
+<p class="sp"></p>
+<hr/>
+<p class="sp"></p>
+<h2>5. Campos de texto (descripción, observaciones, cliente)</h2>
+<p class="sp"></p>
+<table><thead><tr>
+<th>Inconsistencia</th>
+<th>Cant.</th>
+<th>Evidencia / riesgo</th>
+<th>Recomendación</th>
+</tr></thead><tbody>
+<tr>
+<td>Descripción con typo <strong>“comisones”</strong> (o similar)</td>
+<td>27</td>
+<td>Alineado con errores en cuentas.</td>
+<td>Corrección en origen / reemplazo controlado en históricos.</td>
+</tr>
+<tr>
+<td>Información solo en <strong>observaciones</strong> vs <strong>descripción</strong></td>
+<td>—</td>
+<td>Cualitativo: afecta validaciones automáticas aunque el asiento sea correcto.</td>
+<td>Criterio de uso de campos o <strong>texto consolidado</strong> en export.</td>
+</tr>
+</tbody></table>
+<p class="sp"></p>
+<hr/>
+<p class="sp"></p>
+<h2>6. Resumen ejecutivo — Qué debe resolver el cliente en su base</h2>
+<p class="sp"></p>
+<ol>
+<li><strong>Plan de cuentas y categorías:</strong> unificar duplicados semánticos (Alquiler / Alquileres y Servicios, Logística/Flete, Mantenimiento, comisiones mal escritas, SIRCREB, telefonía).</li>
+<li><strong>233 movimientos</strong> con cuenta <strong>&quot;-&quot;</strong> y <strong>12</strong> con medio <strong>&quot;-&quot;</strong>: reemplazar por valores explícitos.</li>
+<li><strong>81</strong> registros en <strong>Otros Servicios</strong>: redistribuir o subrubrificar.</li>
+<li><strong>Política</strong> para <strong>38</strong> transferencias internas (categoría Transferencia) y <strong>27</strong> en <strong>Activos</strong> (CAPEX vs operativo).</li>
+<li><strong>Matriz oficial categoría ↔ cuentas permitidas</strong> (o típicas).</li>
+<li><strong>Catálogo cerrado</strong> de medios de pago (7 valores principales + guiones ya cuantificados).</li>
+<li><strong>24–26</strong> filas sin categoría o sin cuenta: reglas de obligatoriedad al cargar.</li>
+</ol>
+<p class="sp"></p>
+<hr/>
+<p class="sp"></p>
+<h2>7. Nota técnica (referencia interna)</h2>
+<p class="sp"></p>
+<p>El dashboard Fornitalia aplica reglas propias (visualización de categorías, validación egreso categoría/cuenta/descripción, excepciones en código). <strong>Eso no sustituye</strong> la corrección en la base del cliente.</p>
+<p class="sp"></p>
+<hr/>
+<p class="sp"></p>
+<p class="meta">Documento para etapa de análisis y reunión con el cliente. Conteos referidos al extracto `docs/Extracto-Fornitalia.xlsx`, hoja Movimientos (3.008 filas). Actualizar si el maestro de datos o el archivo cambian.</p>
+<p class="sp"></p>
+<p><strong>Formatos entregables:</strong> el mismo contenido está en `ANALISIS_NORMALIZACION_DATOS_LEGACY_FORNITALIA.md` (fuente), `.html` y `.pdf` en la misma carpeta `docs/`.</p>
+<p class="sp"></p>
+<p><strong>Regenerar tras editar el `.md`:</strong> en la raíz del repo Fornitalia:</p>
+<p>- `npm run informe-normalizacion-html` → solo HTML.</p>
+<p>- `npm run informe-normalizacion-pdf` → HTML + PDF (usa <strong>Playwright</strong> + Chromium, igual que el stack del proyecto <strong>Pandi</strong>). La primera vez en una máquina: `npm install` y `npx playwright install chromium`.</p>
+<p class="sp"></p>
+<p><strong>Alternativa sin Playwright:</strong> abrir el `.html` en Chrome/Safari → Imprimir → Guardar como PDF.</p>
+<p class="sp"></p>
+</body>
+</html>

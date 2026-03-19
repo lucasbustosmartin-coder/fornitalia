@@ -14,6 +14,10 @@ env/
 # macOS
 .DS_Store
 
+# Archivos temporales de Excel (bloqueo al tener el libro abierto)
+docs/~$*.xlsx
+**/~$*.xlsx
+
 # Excel generado (opcional: si quieres versionarlo, borra esta línea)
 # Bitacora_tareas.xlsx
 .vercel

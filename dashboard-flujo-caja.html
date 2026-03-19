@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flujo de caja – Fornitalia</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.28">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.33">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -215,9 +215,58 @@
     .export-excel-btn.icon-btn svg { width: 22px; height: 22px; }
     .export-excel-btn .icon-excel { width: 20px; height: 20px; flex-shrink: 0; }
     .exportar-base-wrap { margin-left: auto; }
+    .acciones-base-wrap { margin-left: auto; display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
     .btn-exportar-base { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #16a34a; background: #16a34a; cursor: pointer; font-size: 0.9rem; color: #fff; }
     .btn-exportar-base:hover { background: #15803d; border-color: #15803d; color: #fff; }
     .btn-exportar-base .icon-excel { width: 20px; height: 20px; color: inherit; }
+    .btn-actualizar-base { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #b45309; background: #b45309; cursor: pointer; font-size: 0.9rem; color: #fff; }
+    .btn-actualizar-base:hover { background: #9a4607; border-color: #9a4607; color: #fff; }
+    .btn-actualizar-base:disabled,
+    .btn-actualizar-base[disabled] {
+      opacity: 0.55;
+      cursor: not-allowed;
+      filter: grayscale(20%);
+    }
+    .modal-upload .upload-zone { border: 2px dashed #ccc; border-radius: 8px; padding: 1rem; text-align: center; margin: 0.75rem 0; background: #fafafa; }
+    .modal-upload .upload-progress {
+      margin: 0.75rem 0 0.35rem;
+      font-size: 0.92rem;
+      color: #1f2937;
+      white-space: pre-wrap;
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      border-radius: 8px;
+      padding: 0.55rem 0.65rem;
+      min-height: 56px;
+      font-weight: 600;
+    }
+    .modal-upload .upload-progress:empty {
+      background: #f8fafc;
+      border-color: #e5e7eb;
+      color: #6b7280;
+      font-weight: 500;
+    }
+    .modal-upload .upload-progressbar-wrap {
+      width: 100%;
+      height: 10px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid #d1d5db;
+      margin-bottom: 0.65rem;
+    }
+    .modal-upload .upload-progressbar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #16a34a, #22c55e);
+      transition: width 0.2s ease;
+    }
+    .modal-upload .upload-error { color: #b91c1c; margin-top: 0.5rem; white-space: pre-wrap; }
+    .modal-upload .upload-ok { color: #0d7d3d; margin-top: 0.5rem; white-space: pre-wrap; }
+    .modal-upload .upload-preview { margin-top: 0.5rem; font-size: 0.88rem; color: #444; background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.6rem 0.75rem; white-space: pre-wrap; }
+    .modal-upload .upload-confirm-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .modal-upload .upload-confirm-row input[type="text"] { padding: 0.45rem 0.6rem; border-radius: 6px; border: 1px solid #ccc; min-width: 170px; }
+    .modal-upload .form-actions { margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
     .icon-document-arrow-down { flex-shrink: 0; }
     .btn-exportar-evolucion { display: inline-flex; align-items: center; gap: 0.4rem; }
     .btn-exportar-evolucion .icon-excel { width: 20px; height: 20px; flex-shrink: 0; }
@@ -295,7 +344,10 @@
         <option value="oficial">Oficial</option>
       </select>
     </label>
-    <div class="exportar-base-wrap">
+    <div class="acciones-base-wrap">
+      <button type="button" class="btn btn-warning btn-actualizar-base" id="btn-upload-normalizado" title="Cargar extracto normalizado y reemplazar base" aria-label="Actualizar base desde extracto normalizado">
+        <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span> Actualizar base desde normalizado
+      </button>
       <button type="button" class="btn btn-success btn-exportar-base export-excel-btn" id="btn-exportar-excel" title="Exportar base de transacciones a Excel" aria-label="Exportar Base Histórica">
         <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar Base Histórica
       </button>
@@ -311,6 +363,7 @@
         <button type="button" class="tab" data-panel="errores-global"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>Errores</button>
         <button type="button" class="tab" data-panel="todas-transacciones"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span>Todas las transacciones</button>
         <button type="button" class="tab" data-panel="evolucion"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Evolución</button>
+        <button type="button" class="tab" data-panel="excluidos-upload"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18A2 2 0 0 0 3.53 21h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></span>Excluidos upload</button>
       </div>
     </div>
     <div id="panel-flujo" class="card panel activo">
@@ -455,6 +508,29 @@
           <tbody id="tbody-referencia-flujo"></tbody>
         </table>
         <p style="margin:0.5rem 0 0; color:#555; font-size:0.85rem;">Mismo cálculo que la tabla: la fila «Total» y la solapa Flujo usan esta proyección por categoría.</p>
+      </div>
+    </div>
+    <div id="panel-excluidos-upload" class="card panel">
+      <div class="errores-panel-toolbar">
+        <p class="sin-cotizacion-note" style="margin:0;">Log de registros excluidos durante cargas de extracto normalizado (errores de validación o Apertura/Cierre de Caja).</p>
+        <button type="button" class="btn" id="btn-recargar-excluidos-upload"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10"/><path d="M20.49 15A9 9 0 0 1 6.36 18.36L1 14"/></svg></span> Recargar</button>
+      </div>
+      <div class="errores-table-wrap">
+        <table id="tabla-excluidos-upload">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Archivo</th>
+              <th>Fila Excel</th>
+              <th>Motivo</th>
+              <th>Tipo</th>
+              <th>Moneda</th>
+              <th>Monto</th>
+              <th>Descripción</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-excluidos-upload"></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -741,6 +817,33 @@
     </div>
   </div>
 
+  <div id="modal-upload-normalizado-backdrop" class="modal-backdrop oculto">
+    <div class="modal modal-upload" id="modal-upload-normalizado" style="max-width:620px;">
+      <div class="modal-header" id="modal-upload-normalizado-header-drag">
+        <h2>Cargar Extracto Normalizado</h2>
+        <button type="button" class="modal-close" id="modal-upload-normalizado-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
+      </div>
+      <div class="modal-body">
+        <p style="margin:0 0 0.6rem 0; font-size:0.93rem; color:#555;">Este proceso reemplaza toda la tabla <code>transacciones</code> por el contenido de la hoja <code>Normalizado</code>. Se valida estructura y tipos antes de insertar.</p>
+        <div class="upload-zone">
+          <input type="file" id="upload-normalizado-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+          <p id="upload-normalizado-file-name" style="margin:0.45rem 0 0; font-size:0.9rem; color:#666;"></p>
+        </div>
+        <div id="upload-normalizado-progress" class="upload-progress">Esperando archivo para validar...</div>
+        <div class="upload-progressbar-wrap" aria-hidden="true">
+          <div id="upload-normalizado-progressbar-fill" class="upload-progressbar-fill"></div>
+        </div>
+        <div id="upload-normalizado-preview" class="upload-preview" style="display:none;"></div>
+        <div id="upload-normalizado-error" class="upload-error"></div>
+        <div id="upload-normalizado-ok" class="upload-ok"></div>
+        <div class="form-actions">
+          <button type="button" id="upload-normalizado-btn-confirm" class="btn-actualizar-base" disabled>Continuar y actualizar</button>
+          <button type="button" id="upload-normalizado-btn-cancel" class="btn">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="modal-duplicado-backdrop" class="modal-backdrop oculto">
     <div class="modal" id="modal-duplicado">
       <div class="modal-header" id="modal-duplicado-header-drag">
@@ -826,7 +929,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.32';
+    const APP_VERSION = '1.33';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1028,6 +1131,7 @@
 
     /** Moneda de la transacción: prioriza campo moneda en BD; si no existe, infiere desde medio_pago. */
     function esTransaccionUSD(r) {
+      if (reglaNegocioMonedaSiempreARS(r.medio_pago, r.descripcion, r.cat_desc, r.cuenta_contable, r.categoria)) return false;
       const m = (r.moneda || '').toString().trim().toUpperCase();
       if (m === 'USD') return true;
       if (m === 'ARS') return false;
@@ -1172,6 +1276,7 @@
     let detalleIntCaucionPorMes = {};
     let detalleIntCaucionProy = {};
     let detalleProyeccionPorMes = {};
+    let cacheExcluidosUpload = [];
     let flujoMoneda = 'ARS';
     let flujoSimbolo = '$ ';
 
@@ -1197,6 +1302,8 @@
     }
 
     const CARGA_TIMEOUT_MS = 25000;
+    /** PostgREST/Supabase suele limitar a 1000 filas por request; sin paginar, Flujo por mes y totales quedan incompletos. */
+    const SUPABASE_PAGE_SIZE = 1000;
 
     function withTimeout(promise, ms, msg) {
       return Promise.race([
@@ -1205,19 +1312,66 @@
       ]);
     }
 
+    async function fetchAllTransaccionesNoAnuladas() {
+      const cols = 'id, id_origen, id_operacion, fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, editado, editado_detalle';
+      const all = [];
+      let offset = 0;
+      for (;;) {
+        const { data, error } = await client
+          .from('transacciones')
+          .select(cols)
+          .neq('status', 'Anulado')
+          .order('id', { ascending: true })
+          .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+        if (error) throw error;
+        const chunk = data || [];
+        all.push(...chunk);
+        if (chunk.length < SUPABASE_PAGE_SIZE) break;
+        offset += SUPABASE_PAGE_SIZE;
+      }
+      return all;
+    }
+
+    async function fetchAllTipoDeCambio() {
+      const all = [];
+      let offset = 0;
+      for (;;) {
+        const { data, error } = await client
+          .from('tipo_de_cambio')
+          .select('fecha, usd_mep, usd_ccl, usd_oficial')
+          .order('fecha', { ascending: true })
+          .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+        if (error) throw error;
+        const chunk = data || [];
+        all.push(...chunk);
+        if (chunk.length < SUPABASE_PAGE_SIZE) break;
+        offset += SUPABASE_PAGE_SIZE;
+      }
+      return all;
+    }
+
     async function cargarDatos() {
-      const txPromise = client.from('transacciones').select('id, id_origen, id_operacion, fecha, mes, anio, tipo_movimiento, monto, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, editado, editado_detalle').neq('status', 'Anulado');
-      // Tipo de cambio: sin filtro por fecha; Supabase devuelve date como "YYYY-MM-DD". Las claves del cache son siempre YYYY-MM-DD (Argentina, sin depender de franja horaria).
-      const tcPromise = client.from('tipo_de_cambio').select('fecha, usd_mep, usd_ccl, usd_oficial');
-      const [txRes, tcRes] = await withTimeout(
-        Promise.all([txPromise, tcPromise]),
+      const [txRows, tcRows] = await withTimeout(
+        Promise.all([fetchAllTransaccionesNoAnuladas(), fetchAllTipoDeCambio()]),
         CARGA_TIMEOUT_MS,
         'La carga de datos tardó demasiado. Revisá la conexión o intentá de nuevo.'
       );
-      if (txRes.error) throw txRes.error;
-      if (tcRes.error) throw tcRes.error;
-      cacheTransacciones = txRes.data || [];
-      const tcs = tcRes.data || [];
+      cacheTransacciones = (txRows || []).map(r => {
+        const f = fechaStr(r.fecha);
+        let mesNum = r.mes != null && r.mes !== '' ? Number(r.mes) : null;
+        let anioNum = r.anio != null && r.anio !== '' ? Number(r.anio) : null;
+        if ((!mesNum || !anioNum) && f && /^\d{4}-\d{2}-\d{2}$/.test(f)) {
+          anioNum = Number(f.slice(0, 4));
+          mesNum = Number(f.slice(5, 7));
+        }
+        return {
+          ...r,
+          mes: Number.isFinite(mesNum) ? mesNum : null,
+          anio: Number.isFinite(anioNum) ? anioNum : null,
+          status: (r.status == null ? '' : String(r.status)).trim()
+        };
+      });
+      const tcs = tcRows || [];
       const map = {};
       tcs.forEach(r => {
         const f = fechaStr(r.fecha);
@@ -1328,6 +1482,20 @@
           }
         }
       } catch (e) { /* serie cauciones opcional: Excel o JSON */ }
+      try {
+        const exRes = await client
+          .from('transacciones_upload_excluidos')
+          .select('created_at, run_ref, archivo, fila_excel, motivo, tipo_movimiento, moneda, monto, descripcion')
+          .order('created_at', { ascending: false })
+          .limit(500);
+        if (!exRes.error) {
+          const rowsEx = exRes.data || [];
+          const latestRun = rowsEx.find(r => r.run_ref != null && String(r.run_ref).trim() !== '');
+          cacheExcluidosUpload = latestRun
+            ? rowsEx.filter(r => String(r.run_ref) === String(latestRun.run_ref))
+            : rowsEx;
+        }
+      } catch (_) { /* tabla opcional */ }
       return { transacciones: cacheTransacciones, tcMap: cacheTC };
     }
 
@@ -2040,6 +2208,27 @@
       XLSX.writeFile(wb, 'Evolucion_Fornitalia_' + fecha + '.xlsx');
     }
 
+    function renderExcluidosUpload() {
+      const tbody = document.getElementById('tbody-excluidos-upload');
+      if (!tbody) return;
+      const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+      if (!cacheExcluidosUpload.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:left; color:#666;">Sin registros excluidos para mostrar.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = cacheExcluidosUpload.map(r => {
+        const fecha = (r.created_at || '').toString().slice(0, 19).replace('T', ' ') || '—';
+        const archivo = esc(r.archivo || '—');
+        const fila = r.fila_excel != null ? r.fila_excel : '—';
+        const motivo = esc(r.motivo || '—');
+        const tipo = esc(r.tipo_movimiento || '—');
+        const moneda = esc((r.moneda || '').toString().toUpperCase() || '—');
+        const monto = (r.monto == null || r.monto === '') ? '—' : formatearNumero(Number(r.monto), 'ARS');
+        const desc = esc(r.descripcion || '—');
+        return `<tr><td>${esc(fecha)}</td><td>${archivo}</td><td>${fila}</td><td style="text-align:left;">${motivo}</td><td>${tipo}</td><td>${moneda}</td><td>${monto}</td><td style="text-align:left;">${desc}</td></tr>`;
+      }).join('');
+    }
+
     function exportarAExcel() {
       if (!window.XLSX || !cacheTransacciones.length) {
         if (!cacheTransacciones.length) alert('No hay transacciones cargadas para exportar.');
@@ -2088,6 +2277,199 @@
       const hoy = new Date();
       const fecha = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
       XLSX.writeFile(wb, 'Transacciones_Fornitalia_' + fecha + '.xlsx');
+    }
+
+    function normalizarString(v) {
+      return (v == null ? '' : String(v)).trim();
+    }
+
+    function toNumOrNull(value) {
+      if (value == null || value === '') return null;
+      if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+      const s = String(value).trim();
+      if (!s) return null;
+      const n = Number(s.replace(/\./g, '').replace(',', '.'));
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function parseISODate(value) {
+      const s = normalizarString(value);
+      if (!s) return null;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+      const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+      return null;
+    }
+
+    function normalizarTipoMovimiento(value) {
+      const raw = normalizarString(value).toLowerCase();
+      if (!raw) return null;
+      if (raw === 'ingreso' || raw === 'ingresos' || raw === 'entrada' || raw === 'entradas') return 'Ingreso';
+      if (raw === 'egreso' || raw === 'egresos' || raw === 'salida' || raw === 'salidas') return 'Egreso';
+      return null;
+    }
+
+    function esAperturaOCierreCaja(row) {
+      const tipo = normalizarString(row.tipo_movimiento).toLowerCase();
+      const desc = normalizarString(row.descripcion).toLowerCase();
+      const cat = normalizarString(row.categoria).toLowerCase();
+      const cuenta = normalizarString(row.cuenta_contable).toLowerCase();
+      return tipo.includes('apertura de caja') ||
+        tipo.includes('cierre de caja') ||
+        desc.includes('apertura de caja') ||
+        desc.includes('cierre de caja') ||
+        cat === 'apertura de caja' ||
+        cat === 'cierre de caja' ||
+        cuenta === 'apertura de caja' ||
+        cuenta === 'cierre de caja';
+    }
+
+    /** Mercado Pago y Transferencia Morba (extracto real; “morba” con b) siempre ARS; también “morva” por typo. */
+    function reglaNegocioMonedaSiempreARS(medioPago, descripcion, observaciones, cuenta, categoria) {
+      const medio = normalizarString(medioPago).toLowerCase();
+      const medioC = medio.replace(/\s+/g, '');
+      const blob = [medioPago, descripcion, observaciones, cuenta, categoria].map(normalizarString).join(' ').toLowerCase();
+      const blobC = blob.replace(/\s+/g, '');
+      if (medioC.includes('mercadopago') || (medio.includes('mercado') && medio.includes('pago'))) return true;
+      if (medio.includes('morba') || medio.includes('morva')) return true;
+      if (blobC.includes('mercadopago') || /\bmercado\s+pago\b/.test(blob)) return true;
+      if (blob.includes('morba') || blob.includes('morva')) return true;
+      return false;
+    }
+
+    function inferMonedaDesdeTextos(medioPago, descripcion, observaciones, cuenta, categoria) {
+      if (reglaNegocioMonedaSiempreARS(medioPago, descripcion, observaciones, cuenta, categoria)) return 'ARS';
+      const blob = [medioPago, descripcion, observaciones, cuenta, categoria].map(normalizarString).join(' ').toLowerCase();
+      if (/\b(u\$s|usd|us\$|dolar|dólar)\b/.test(blob)) return 'USD';
+      return 'ARS';
+    }
+
+    function hashString32(input) {
+      let h = 5381;
+      const str = String(input || '');
+      for (let i = 0; i < str.length; i++) h = ((h << 5) + h) + str.charCodeAt(i);
+      return (h >>> 0);
+    }
+
+    function mapearFilasNormalizadoAFilasTransacciones(rows, fileName) {
+      const errores = [];
+      const out = [];
+      let excluidasAperturaCierre = 0;
+      const excluidosDetalle = [];
+      const stampSec = Math.floor(Date.now() / 1000);
+      const normFile = normalizarString(fileName) || 'upload_normalizado.xlsx';
+      rows.forEach((r, idx) => {
+        const rowNum = idx + 2;
+        if (esAperturaOCierreCaja(r)) {
+          excluidasAperturaCierre += 1;
+          return;
+        }
+        const fechaIso = parseISODate(r.fecha_iso || r.fecha_original);
+        if (!fechaIso) {
+          errores.push(`Fila ${rowNum}: fecha inválida (fecha_iso/fecha_original).`);
+          excluidosDetalle.push({
+            fila_excel: rowNum,
+            motivo: 'Fecha inválida',
+            tipo_movimiento: normalizarString(r.tipo_movimiento) || null,
+            moneda: normalizarString(r.moneda).toUpperCase() || null,
+            monto: toNumOrNull(r.monto_original),
+            descripcion: normalizarString(r.descripcion) || null
+          });
+          return;
+        }
+        const tipo = normalizarTipoMovimiento(r.tipo_movimiento);
+        if (!tipo) {
+          const valorTipo = normalizarString(r.tipo_movimiento) || '(vacío)';
+          errores.push(`Fila ${rowNum}: tipo_movimiento inválido (${valorTipo}). Debe ser Ingreso o Egreso.`);
+          excluidosDetalle.push({
+            fila_excel: rowNum,
+            motivo: `Tipo movimiento inválido: ${valorTipo}`,
+            tipo_movimiento: normalizarString(r.tipo_movimiento) || null,
+            moneda: normalizarString(r.moneda).toUpperCase() || null,
+            monto: toNumOrNull(r.monto_original),
+            descripcion: normalizarString(r.descripcion) || null
+          });
+          return;
+        }
+        const montoOriginal = toNumOrNull(r.monto_original);
+        if (montoOriginal == null) {
+          errores.push(`Fila ${rowNum}: monto_original inválido o vacío.`);
+          excluidosDetalle.push({
+            fila_excel: rowNum,
+            motivo: 'Monto inválido o vacío',
+            tipo_movimiento: tipo,
+            moneda: normalizarString(r.moneda).toUpperCase() || null,
+            monto: null,
+            descripcion: normalizarString(r.descripcion) || null
+          });
+          return;
+        }
+        let moneda = normalizarString(r.moneda).toUpperCase();
+        if (moneda !== 'ARS' && moneda !== 'USD') {
+          moneda = inferMonedaDesdeTextos(r.medio_pago, r.descripcion, r.observaciones, r.cuenta_contable, r.categoria);
+        }
+        if (reglaNegocioMonedaSiempreARS(r.medio_pago, r.descripcion, r.observaciones, r.cuenta_contable, r.categoria)) {
+          moneda = 'ARS';
+        }
+        const mes = Number(fechaIso.slice(5, 7));
+        const anio = Number(fechaIso.slice(0, 4));
+        const hora = normalizarString(r.hora);
+        const horaFmt = /^\d{2}:\d{2}(:\d{2})?$/.test(hora) ? (hora.length === 5 ? `${hora}:00` : hora) : null;
+        const idOperacionRaw = normalizarString(r.nro_operacion);
+        const idOperacion = (idOperacionRaw && idOperacionRaw !== '-') ? idOperacionRaw : null;
+        const hashFuente = hashString32([
+          fechaIso,
+          tipo,
+          normalizarString(r.medio_pago),
+          montoOriginal,
+          normalizarString(r.descripcion),
+          normalizarString(r.cliente),
+          normalizarString(r.categoria),
+          normalizarString(r.cuenta_contable),
+          idx + 1
+        ].join('|'));
+        const idOrigen = stampSec * 100000 + (idx + 1);
+        out.push({
+          titulo: 'Extracto normalizado',
+          id_origen: idOrigen,
+          id_cierre_caja: null,
+          id_operacion: idOperacion,
+          id_comprobante_pago: null,
+          id_impuesto: null,
+          cliente: normalizarString(r.cliente) || null,
+          tipo_movimiento: tipo,
+          medio_pago: normalizarString(r.medio_pago) || null,
+          descripcion: normalizarString(r.descripcion) || null,
+          cat_desc: normalizarString(r.observaciones) || null,
+          observaciones: `hash_fuente:${hashFuente}`,
+          categoria: normalizarString(r.categoria) || 'Sin categoría',
+          cuenta_contable: normalizarString(r.cuenta_contable) || null,
+          monto: montoOriginal,
+          tipo_cambio: toNumOrNull(r.tipo_cambio),
+          monto_cambio: toNumOrNull(r.monto_ars),
+          fecha: fechaIso,
+          mes,
+          mes_anio: `${anio}-${String(mes).padStart(2, '0')}-01`,
+          anio,
+          hora: horaFmt,
+          usuario_app: normalizarString(r.usuario) || null,
+          status: normalizarString(r.estado) || 'Pendiente',
+          creacion_manual: 'Upload normalizado app',
+          origen_archivo: `Normalizado|${normFile}`,
+          moneda,
+          editado: false,
+          editado_detalle: null
+        });
+      });
+      return { filas: out, errores, excluidasAperturaCierre, excluidosDetalle };
+    }
+
+    function leerNormalizadoDesdeWorkbook(workbook) {
+      const sheetName = workbook.Sheets['Normalizado'] ? 'Normalizado' : workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      if (!sheet) return { rows: [], sheetName };
+      const rows = XLSX.utils.sheet_to_json(sheet, { raw: true, defval: null });
+      return { rows, sheetName };
     }
 
     function exportarErroresExcel() {
@@ -3203,6 +3585,7 @@
             if (id) document.getElementById('panel-' + id).classList.add('activo');
             if (id === 'evolucion') renderEvolucion();
             if (id === 'todas-transacciones') renderTodasTransacciones();
+              if (id === 'excluidos-upload') renderExcluidosUpload();
           });
         });
         document.getElementById('filtro-todas-mes').addEventListener('change', renderTodasTransacciones);
@@ -3213,6 +3596,11 @@
         document.getElementById('evolucion-agrupar').addEventListener('change', renderEvolucion);
         document.getElementById('evolucion-periodo').addEventListener('change', renderEvolucion);
         document.getElementById('btn-exportar-evolucion').addEventListener('click', exportarEvolucionExcel);
+        const btnRecargarExcluidos = document.getElementById('btn-recargar-excluidos-upload');
+        if (btnRecargarExcluidos) btnRecargarExcluidos.addEventListener('click', async () => {
+          await cargarDatos();
+          renderExcluidosUpload();
+        });
         document.getElementById('modal-evolucion-detalle-close').addEventListener('click', () => document.getElementById('modal-evolucion-detalle-backdrop').classList.add('oculto'));
         setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-evolucion-detalle-backdrop'), () => document.getElementById('modal-evolucion-detalle-backdrop').classList.add('oculto'));
         document.addEventListener('click', (e) => {
@@ -3379,6 +3767,255 @@
         document.getElementById('modal-configuracion-close').addEventListener('click', () => document.getElementById('modal-configuracion-backdrop').classList.add('oculto'));
         setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-configuracion-backdrop'), () => document.getElementById('modal-configuracion-backdrop').classList.add('oculto'));
         setupModalDrag('modal-configuracion', 'modal-configuracion-header-drag', 'modal-configuracion-close');
+
+        (function setupModalUploadNormalizado() {
+          const backdrop = document.getElementById('modal-upload-normalizado-backdrop');
+          const btnOpen = document.getElementById('btn-upload-normalizado');
+          const btnClose = document.getElementById('modal-upload-normalizado-close');
+          const btnCancel = document.getElementById('upload-normalizado-btn-cancel');
+          const fileInput = document.getElementById('upload-normalizado-file');
+          const fileNameEl = document.getElementById('upload-normalizado-file-name');
+          const btnConfirm = document.getElementById('upload-normalizado-btn-confirm');
+          const progressEl = document.getElementById('upload-normalizado-progress');
+          const progressBarFillEl = document.getElementById('upload-normalizado-progressbar-fill');
+          const errorEl = document.getElementById('upload-normalizado-error');
+          const okEl = document.getElementById('upload-normalizado-ok');
+          const previewEl = document.getElementById('upload-normalizado-preview');
+          if (!backdrop || !btnOpen) return;
+
+          let filasPreparadas = [];
+          let erroresPreparacion = [];
+          let excluidosPreparacion = [];
+          let uploadEnCurso = false;
+
+          function setUploadUIBusy(isBusy) {
+            uploadEnCurso = !!isBusy;
+            fileInput.disabled = uploadEnCurso;
+            btnCancel.disabled = uploadEnCurso;
+            btnClose.disabled = uploadEnCurso;
+            btnOpen.disabled = uploadEnCurso;
+            refreshSubmitState();
+          }
+
+          function updateProgress(accion, actual, total) {
+            const safeTotal = Number(total) || 0;
+            const safeActual = Math.min(Number(actual) || 0, safeTotal);
+            const pct = safeTotal > 0 ? Math.round((safeActual / safeTotal) * 100) : 100;
+            progressEl.textContent = `${accion}\n${safeActual} / ${safeTotal} (${pct}%)`;
+            if (progressBarFillEl) progressBarFillEl.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+          }
+
+          function canSubmit() {
+            const hasFile = fileInput.files && fileInput.files[0];
+            return !!hasFile && filasPreparadas.length > 0;
+          }
+
+          function refreshSubmitState() {
+            btnConfirm.disabled = uploadEnCurso || !canSubmit();
+            if (uploadEnCurso) {
+              btnConfirm.title = 'Procesando actualización...';
+              return;
+            }
+            if (!fileInput.files || !fileInput.files[0]) {
+              btnConfirm.title = 'Seleccioná un archivo .xlsx.';
+            } else if (!filasPreparadas.length) {
+              btnConfirm.title = 'No hay filas válidas para insertar.';
+            } else {
+              btnConfirm.title = erroresPreparacion.length > 0
+                ? `Listo para actualizar (se excluirán ${erroresPreparacion.length} filas con error).`
+                : 'Listo para actualizar.';
+            }
+          }
+
+          function resetModal() {
+            fileInput.value = '';
+            fileNameEl.textContent = '';
+            progressEl.textContent = '';
+            if (progressBarFillEl) progressBarFillEl.style.width = '0%';
+            errorEl.textContent = '';
+            okEl.textContent = '';
+            previewEl.style.display = 'none';
+            previewEl.textContent = '';
+            filasPreparadas = [];
+            erroresPreparacion = [];
+            excluidosPreparacion = [];
+            refreshSubmitState();
+          }
+
+          async function prepararArchivo(file) {
+            filasPreparadas = [];
+            erroresPreparacion = [];
+            excluidosPreparacion = [];
+            previewEl.style.display = 'none';
+            previewEl.textContent = '';
+            errorEl.textContent = '';
+            okEl.textContent = '';
+            progressEl.textContent = 'Validando archivo...';
+            if (progressBarFillEl) progressBarFillEl.style.width = '5%';
+            const ab = await file.arrayBuffer();
+            const wb = XLSX.read(ab, { type: 'array' });
+            const { rows, sheetName } = leerNormalizadoDesdeWorkbook(wb);
+            if (!rows || rows.length === 0) throw new Error(`La hoja "${sheetName}" no tiene filas de datos.`);
+            const mapped = mapearFilasNormalizadoAFilasTransacciones(rows, file.name);
+            filasPreparadas = mapped.filas;
+            erroresPreparacion = mapped.errores;
+            excluidosPreparacion = mapped.excluidosDetalle || [];
+            const resumen = [
+              `Hoja detectada: ${sheetName}`,
+              `Filas leídas: ${rows.length}`,
+              `Excluidas por definición (Apertura/Cierre de Caja): ${mapped.excluidasAperturaCierre || 0}`,
+              `Filas válidas: ${filasPreparadas.length}`,
+              `Errores (informativo): ${erroresPreparacion.length}`
+            ];
+            previewEl.textContent = resumen.join('\n');
+            previewEl.style.display = 'block';
+            if (erroresPreparacion.length > 0) {
+              errorEl.textContent = `Errores de validación informativos (primeros 8). Estas filas se excluirán de la carga:\n- ${erroresPreparacion.slice(0, 8).join('\n- ')}`;
+            } else {
+              okEl.textContent = 'Validación OK. Ya podés ejecutar la actualización.';
+            }
+            progressEl.textContent = '';
+            if (progressBarFillEl) progressBarFillEl.style.width = '0%';
+            refreshSubmitState();
+          }
+
+          async function vaciarTransaccionesPorLotes(batchSize) {
+            const ids = [];
+            const take = 1000;
+            let offset = 0;
+            while (true) {
+              progressEl.textContent = `Listando registros actuales...\n${ids.length} encontrados`;
+              if (progressBarFillEl) progressBarFillEl.style.width = '10%';
+              const { data, error } = await client.from('transacciones').select('id').range(offset, offset + take - 1);
+              if (error) throw error;
+              const chunk = data || [];
+              chunk.forEach(r => ids.push(r.id));
+              if (chunk.length < take) break;
+              offset += take;
+            }
+            if (!ids.length) return 0;
+            for (let i = 0; i < ids.length; i += batchSize) {
+              const block = ids.slice(i, i + batchSize);
+              const { error } = await client.from('transacciones').delete().in('id', block);
+              if (error) throw error;
+              updateProgress('Eliminando registros actuales...', Math.min(i + block.length, ids.length), ids.length);
+            }
+            return ids.length;
+          }
+
+          async function insertarTransaccionesPorLotes(filas, batchSize) {
+            let inserted = 0;
+            for (let i = 0; i < filas.length; i += batchSize) {
+              const chunk = filas.slice(i, i + batchSize);
+              const { error } = await client.from('transacciones').insert(chunk);
+              if (error) throw error;
+              inserted += chunk.length;
+              updateProgress('Insertando filas normalizadas...', inserted, filas.length);
+            }
+            return inserted;
+          }
+
+          btnOpen.addEventListener('click', () => {
+            resetModal();
+            backdrop.classList.remove('oculto');
+          });
+          btnClose.addEventListener('click', () => backdrop.classList.add('oculto'));
+          btnCancel.addEventListener('click', () => backdrop.classList.add('oculto'));
+          setupBackdropCloseOnlyOnRealClick(backdrop, () => {
+            if (!uploadEnCurso) backdrop.classList.add('oculto');
+          });
+          setupModalDrag('modal-upload-normalizado', 'modal-upload-normalizado-header-drag', 'modal-upload-normalizado-close');
+
+          fileInput.addEventListener('change', async () => {
+            const file = fileInput.files && fileInput.files[0];
+            fileNameEl.textContent = file ? file.name : '';
+            if (!file) {
+              filasPreparadas = [];
+              erroresPreparacion = [];
+              previewEl.style.display = 'none';
+              progressEl.textContent = '';
+              errorEl.textContent = '';
+              okEl.textContent = '';
+              refreshSubmitState();
+              return;
+            }
+            try {
+              await prepararArchivo(file);
+            } catch (err) {
+              progressEl.textContent = '';
+              errorEl.textContent = 'Error al validar: ' + (err.message || String(err));
+              filasPreparadas = [];
+              erroresPreparacion = [];
+              excluidosPreparacion = [];
+              refreshSubmitState();
+            }
+          });
+
+          btnConfirm.addEventListener('click', async () => {
+            if (!canSubmit()) return;
+            setUploadUIBusy(true);
+            errorEl.textContent = '';
+            okEl.textContent = '';
+            try {
+              progressEl.textContent = 'Iniciando reemplazo total...\n0 / 0 (0%)';
+              if (progressBarFillEl) progressBarFillEl.style.width = '2%';
+              const deleted = await vaciarTransaccionesPorLotes(200);
+              progressEl.textContent = `Eliminación completada.\n${deleted} / ${deleted} (100%)`;
+              if (progressBarFillEl) progressBarFillEl.style.width = '55%';
+              const inserted = await insertarTransaccionesPorLotes(filasPreparadas, 200);
+              try {
+                await client.from('transacciones_upload_excluidos').delete().not('id', 'is', null);
+              } catch (_) { /* tabla opcional */ }
+              if (excluidosPreparacion.length > 0) {
+                const archivoNombre = (fileInput.files && fileInput.files[0] && fileInput.files[0].name) ? fileInput.files[0].name : null;
+                const runRef = `run_${Date.now()}`;
+                for (let i = 0; i < excluidosPreparacion.length; i += 200) {
+                  const chunk = excluidosPreparacion.slice(i, i + 200).map(x => ({
+                    run_ref: runRef,
+                    archivo: archivoNombre,
+                    fila_excel: x.fila_excel,
+                    motivo: x.motivo,
+                    tipo_movimiento: x.tipo_movimiento,
+                    moneda: x.moneda,
+                    monto: x.monto,
+                    descripcion: x.descripcion,
+                    raw_payload: x
+                  }));
+                  try {
+                    await client.from('transacciones_upload_excluidos').insert(chunk);
+                  } catch (_) { /* tabla opcional */ }
+                }
+              }
+              try {
+                const archivo = (fileInput.files && fileInput.files[0] && fileInput.files[0].name) ? fileInput.files[0].name : null;
+                await client.rpc('log_upload_normalizado', {
+                  p_filas_insertadas: inserted,
+                  p_archivo: archivo,
+                  p_detalle: `Carga desde modal de upload normalizado. Excluidos: ${excluidosPreparacion.length}`
+                });
+              } catch (_) { /* rpc opcional */ }
+              progressEl.textContent = 'Recargando vista...\n100%';
+              if (progressBarFillEl) progressBarFillEl.style.width = '95%';
+              await cargarDatos();
+              recalcular();
+              renderErroresGlobal();
+              renderTodasTransacciones();
+              renderExcluidosUpload();
+              okEl.textContent = `Actualización completada. Filas insertadas: ${inserted}. Excluidas/logueadas: ${excluidosPreparacion.length}.`;
+              if (progressBarFillEl) progressBarFillEl.style.width = '100%';
+              setTimeout(() => {
+                backdrop.classList.add('oculto');
+                resetModal();
+              }, 1300);
+            } catch (err) {
+              progressEl.textContent = '';
+              if (progressBarFillEl) progressBarFillEl.style.width = '0%';
+              errorEl.textContent = 'Error durante la actualización: ' + (err.message || String(err));
+            } finally {
+              setUploadUIBusy(false);
+            }
+          });
+        })();
       } catch (e) {
         errorEl.textContent = 'Error: ' + (e.message || String(e));
         errorEl.style.display = 'block';
