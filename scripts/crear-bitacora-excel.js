@@ -99,6 +99,18 @@ const datosLog = [
   ['__HOY__', '__AHORA__', 'Informe normalización: cantidades por fila y PDF/HTML', 'Tablas del análisis con columna Cant. (extracto Movimientos, N=3008). Salidas docs/ANALISIS_*.html y .pdf; scripts md-informe-a-html.js e informe-html-a-pdf.js; npm run informe-normalizacion-pdf con Playwright (devDependency como en Pandi).', 'Diagnostico'],
   ['__HOY__', '__AHORA__', 'Playwright en todos los repos LyP', 'Everfit, Fornitalia, MiGusto, Pandi y Sistema-Contable: devDependency playwright ^1.49.0 y script npm run playwright:install (chromium). Raíz LyP: README-Playwright.md.', 'Implementacion'],
   ['__HOY__', '__AHORA__', 'Despliegue v1.33 producción', 'Push a main y vercel --prod: paginación Supabase, reglas moneda MP/Morba, informe normalización y herramientas PDF; package.json playwright.', 'Despliegue'],
+  ['__HOY__', '__AHORA__', 'Análisis normalización: propuesta recategorización categoría–cuenta', 'Sección 8 en ANALISIS_NORMALIZACION_DATOS_LEGACY_FORNITALIA.md: modelo (catálogo, plan de cuentas, matriz permitida, validación al cargar, histórico) y tabla de beneficios (calidad, reporting, automatización, auditoría, evolución). Regenerar HTML/PDF con npm run informe-normalizacion-pdf si se entregan esos formatos.', 'Diagnostico'],
+  ['__HOY__', '__AHORA__', 'Análisis normalización: matriz concreta Ord. n y acción Editar/Nueva/Eliminar', 'Sección 8.3: tabla valor actual vs propuesto (categoría y cuenta contable), columna Acción (Editar, Nueva, Eliminar) y Ord. n para priorizar; filas ejemplo alineadas a §1–§3.', 'Diagnostico'],
+  ['__HOY__', '__AHORA__', 'Rubros IGJ/FACPCE y balance: doc de referencia', 'Nuevo docs/RUBROS_CONTABILIDAD_ARGENTINA_REFERENCIA.md: marco local (RT/IGJ), ejemplo importación mercaderías/hornos, asientos tránsito/CMV/IVA/ajuste inflación; §8.4 en ANALISIS enlaza rubro patrimonial con matriz y proyección de balance.', 'Diagnostico'],
+  ['__HOY__', '__AHORA__', 'Matriz borrador categoría–cuenta–rubro (Argentina)', 'docs/MATRIZ_CATEGORIA_CUENTA_RUBRO_BORRADOR.md: tabla sugerida BC/ER/TES con rubros tipo presentación IGJ; celdas a definir donde falta criterio contable; enlaces desde ANALISIS §8.4 y RUBROS_CONTABILIDAD.', 'Diagnostico'],
+  ['__HOY__', '__AHORA__', 'Análisis: §8.4 borrador rubro dentro del MD principal', 'Tabla categoría/cuenta/rubro incorporada en ANALISIS_NORMALIZACION tras §8.3; ex §8.4 pasa a §8.5; MATRIZ_CATEGORIA_CUENTA_RUBRO_BORRADOR.md como espejo alineado.', 'Diagnostico'],
+  ['__HOY__', '__AHORA__', 'Borrador rubro: excluir Apertura/Cierre de caja', '§8.4 y MATRIZ: filas Apertura/Cierre eliminadas; párrafo y notas indican exclusión por definición (alineado a upload).', 'Diagnostico'],
+  ['__HOY__', '__AHORA__', 'Análisis financiero extracto → HTML/PDF', 'scripts/generar-analisis-financiero-pdf.js: métricas desde Extracto-Fornitalia.xlsx (resumen, mensual, estacionalidad/IQR, medios, calidad datos, cash management). Salida docs/ANALISIS_FINANCIERO_EXTRACTO_FORNITALIA.*; npm run analisis-financiero-pdf; fallback Chrome headless si Playwright sin Chromium.', 'Diagnostico'],
+  ['__HOY__', '__AHORA__', 'Dashboard v1.34: excluir traspasos internos del flujo', 'excluirCategoria amplía a Transferencia y Deposito/Depósito (misma regla que informe financiero); nota en panel Flujo por mes; APP_VERSION 1.34. Base histórica export sigue completa.', 'Implementacion'],
+  ['__HOY__', '__AHORA__', 'Informe financiero PDF: MEP desde docs y textos', 'generar-analisis-financiero-pdf.js: carga usd_mep desde docs/tipos_cambio_global_rows.sql (o CSV docs/raíz); conversión USD alineada al dashboard; filas sin ARS excluidas de totales con conteo en meta y advertencias en HTML. README ANALISIS_FINANCIERO_EXTRACTO_README.md actualizado.', 'Diagnostico'],
+  ['__HOY__', '__AHORA__', 'Dashboard v1.35: flujo alineado al informe PDF + solapa traspasos', 'Tarjetas y tabla Flujo por mes: totales extracto (con traspasos) vs G/P operativo; columnas Neto bruto y G/P operativo. excluirFilaFlujoOperativo (Anulado, apertura/cierre heurística, Transferencia/Depósito). Evolución y duplicados con la misma base. Solapa Traspasos internos con listado. APP_VERSION 1.35.', 'Implementacion'],
+  ['__HOY__', '__AHORA__', 'Dashboard v1.36: ARS con monto_cambio y tipo_cambio (concilia PDF)', 'fetch transacciones incluye tipo_cambio y monto_cambio. montoConvertido en ARS prioriza monto_cambio (Monto en $), luego TC fila, luego tabla (como generar-analisis-financiero-pdf.js). Flujo por mes usa montoConvertido unificado. Nota en panel Flujo. APP_VERSION 1.36.', 'Implementacion'],
+  ['__HOY__', '__AHORA__', 'Despliegue v1.37 producción', 'Push a main y Vercel --prod: versiones 1.34–1.37 en bitácora; APP_VERSION 1.37; flujo bruto/operativo, Traspasos internos, conciliación monto_cambio con informe PDF; script informe financiero MEP en docs.', 'Despliegue'],
 ];
 
 const datosLogParaExcel = aplicarHoyAhora(datosLog);
@@ -114,9 +126,9 @@ wsLog['!cols'] = [
 // --- Hoja Resumen (funcionalidades de la app)
 const funcionalidades = [
   ['Funcionalidad', 'Descripción'],
-  ['Flujo de caja por mes', 'Tabla con ingresos, egresos y balance por mes/año.'],
-  ['Resumen global', 'Totales: Total ingresos, Total egresos, Balance (en ARS o USD).'],
-  ['Moneda', 'Selector ARS / USD; conversión con tipos de cambio desde Supabase. Montos mostrados con $ (pesos) o US$ (dólares) a la izquierda.'],
+  ['Flujo de caja por mes', 'Tabla alineada al informe financiero PDF: columnas Ingresos y Egresos = totales del extracto (incluyen traspasos entre cuentas); Neto bruto; G/P operativo sin Transferencia/Depósito ni Apertura/Cierre; ratios y Caución sobre operativo. Proyección solo sobre operativo.'],
+  ['Resumen global', 'Cuatro tarjetas: Ingresos totales y Egresos totales del extracto (con traspasos), Neto caja (bruto) y G/P operativo (sin traspasos internos), en ARS o USD según selector.'],
+  ['Moneda', 'Selector ARS / USD. En ARS: prioridad monto_cambio (Monto en $ del extracto en BD), tipo_cambio por fila y tabla tipo_de_cambio (MEP/CCL/Oficial); con MEP y datos cargados coincide con el informe PDF.'],
   ['Tipo de cambio USD', 'Opciones MEP, CCL u Oficial para convertir a dólares.'],
   ['Comisiones/Ventas %', 'Columna: porcentaje comisiones (egresos comisión desde Sueldos) sobre ventas del mes. Icono de ayuda al clic: "Corresponde solo a las comisiones por venta."'],
   ['Egresos / Ingresos', 'Columna Egresos (icono ayuda) / Ingresos: porcentaje (egresos sin comisiones) sobre ingresos. Ayuda al clic: "Egresos - Comisiones por Venta / Ingresos".'],
@@ -132,7 +144,8 @@ const funcionalidades = [
   ['Detalle transacciones (tipo de cambio)', 'En el detalle expandido del modal mensual, se muestra la columna TC (según MEP/CCL/Oficial) cuando hay conversión entre moneda registración y moneda vista; si no aplica muestra — y si falta cotización muestra sin cot.'],
   ['Alertas por mes', 'Avisos: mes sin egresos; sin registros de Sueldos, Comisiones, Alquileres o Impuestos; desvío % de categoría vs mes anterior.'],
   ['Sin cotización', 'Pestaña con transacciones que no tienen tipo de cambio (excluidas del resumen).'],
-  ['Exclusiones', 'No se incluyen transacciones anuladas ni categorías Apertura y Cierre.'],
+  ['Exclusiones (flujo operativo)', 'No se incluyen en G/P operativo, Evolución ni Caución: anulados; apertura/cierre (categoría o heurística en fila); Transferencia ni Deposito/Depósito. Los traspasos se listan en la solapa Traspasos internos. Base histórica y Todas las transacciones siguen completas.'],
+  ['Traspasos internos (solapa)', 'Listado de movimientos categoría Transferencia o Deposito/Depósito (no anulados), con monto de registro y equivalente en moneda de vista.'],
   ['Datos', 'Transacciones y tipo de cambio desde Supabase (carga paginada de a 1000 filas por request para no truncar resultados). Cotización faltante: se usa la fecha anterior disponible.'],
   ['Menú lateral', 'Sidebar izquierdo colapsable/expandible; botón toggle (▶/◀); ítem Home por ahora; estado persistido en localStorage. Listo para ampliar con más ítems.'],
   ['Repositorio Git (GitHub)', 'Repo: https://github.com/lucasbustosmartin-coder/fornitalia. Rama main. .gitignore excluye node_modules, .venv, .env. Para actualizar: git add . ; git commit -m "mensaje" ; git push origin main.'],
@@ -169,6 +182,7 @@ const funcionalidades = [
   ['Informe inconsistencias datos legacy (cliente)', 'Documento docs/ANALISIS_NORMALIZACION_DATOS_LEGACY_FORNITALIA.md con tablas Cant./recomendaciones; .html y .pdf en docs/. Regenerar: npm run informe-normalizacion-html o npm run informe-normalizacion-pdf (Playwright+Chromium, alineado a stack Pandi); primera vez: npx playwright install chromium.'],
   ['Upload de extracto normalizado', 'Botón en la app para reemplazar transacciones desde un Excel normalizado (hoja Normalizado), con validación previa, confirmación de seguridad, generación de id_origen técnico y carga en lotes.'],
   ['Log de excluidos en upload', 'Nueva solapa Excluidos upload con registros no insertados por error o por regla de negocio (Apertura/Cierre de Caja), persistidos en Supabase para auditoría.'],
+  ['Análisis financiero extracto (PDF)', 'npm run analisis-financiero-pdf: métricas desde docs/Extracto-Fornitalia.xlsx; ARS vía Monto en $, TC por fila o MEP (docs/tipos_cambio_global_rows.sql o CSV); exclusiones y conteo de USD sin conversión en el informe. Ver docs/ANALISIS_FINANCIERO_EXTRACTO_README.md.'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
@@ -227,6 +241,10 @@ const versiones = [
   ['1.31', '__HOY__', 'Estructura ordenada del repo: sql/, scripts/, docs/. Regla estructura-proyecto (mantener carpetas y rutas). Referencias en bitácora y docs actualizadas. Despliegue a producción.'],
   ['1.32', '__HOY__', 'Modales: no cerrar al elegir opción de select (mousedown+click en backdrop). Helper setupBackdropCloseOnlyOnRealClick en todos los modales.'],
   ['1.33', '__HOY__', 'Carga paginada transacciones y tipo_de_cambio (límite PostgREST). Reglas ARS Mercado Pago y Transferencia Morba en normalizador, upload y esTransaccionUSD. Upload excluidos: filtro última corrida; SQL DELETE en transacciones_upload_excluidos. Informe análisis normalización (docs MD/HTML/PDF) y scripts Playwright. DevDependency playwright y npm run playwright:install.'],
+  ['1.34', '__HOY__', 'Flujo operativo sin traspasos internos (Transferencia y Depósito); misma regla que informe PDF; nota en panel.'],
+  ['1.35', '__HOY__', 'Flujo por mes alineado al PDF: ingresos/egresos brutos extracto, Neto bruto, G/P operativo; solapa Traspasos internos; excluirFilaFlujoOperativo y Evolución con misma base.'],
+  ['1.36', '__HOY__', 'Select tipo_cambio y monto_cambio en transacciones; montoConvertido en ARS prioriza monto_cambio y TC de fila (concilia con informe PDF al centavo).'],
+  ['1.37', '__HOY__', 'Despliegue a producción Vercel: informe financiero PDF con MEP desde docs; dashboard v1.37 con conciliación extracto.'],
 ];
 const versionesParaExcel = aplicarHoyAhora(versiones);
 const wsVersiones = XLSX.utils.aoa_to_sheet(versionesParaExcel);
