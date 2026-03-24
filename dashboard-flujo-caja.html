@@ -10,7 +10,77 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f5f5f5; display: flex; min-height: 100vh; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f5f5f5; display: flex; flex-direction: column; min-height: 100vh; }
+    .fornitalia-app-shell { display: none; flex: 1; min-height: 0; width: 100%; flex-direction: row; align-items: stretch; }
+    .fornitalia-app-shell.fornitalia-app-visible { display: flex; }
+    .fornitalia-login-screen {
+      display: none; position: fixed; inset: 0; z-index: 30000; background: #f0f2f5;
+      align-items: center; justify-content: center; padding: 1.5rem;
+    }
+    .fornitalia-login-screen.fornitalia-login-visible { display: flex; }
+    .fornitalia-login-card {
+      width: 100%; max-width: 400px; background: #fff; border-radius: 12px; padding: 1.75rem;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08); border: 1px solid #e5e7eb;
+    }
+    .fornitalia-login-card h1 { margin: 0 0 0.25rem 0; font-size: 1.35rem; color: #1a1a1a; }
+    .fornitalia-login-card p.sub { margin: 0 0 1.25rem 0; color: #666; font-size: 0.9rem; }
+    .fornitalia-login-card .form-group { margin-bottom: 1rem; }
+    .fornitalia-login-card label { display: block; font-weight: 600; margin-bottom: 0.35rem; font-size: 0.9rem; color: #333; }
+    .fornitalia-login-card input[type="email"], .fornitalia-login-card input[type="password"] {
+      width: 100%; padding: 0.55rem 0.65rem; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box;
+    }
+    .fornitalia-login-card .login-error { color: #b91c1c; font-size: 0.875rem; margin: 0.5rem 0 0 0; min-height: 1.25rem; }
+    .fornitalia-login-card .login-password-hint { margin: 0.35rem 0 0 0; font-size: 0.8rem; color: #666; line-height: 1.35; }
+    .fornitalia-login-card .login-password-hint code { font-size: 0.78rem; background: #f3f4f6; padding: 0.1rem 0.25rem; border-radius: 4px; }
+    .fornitalia-login-card .login-actions { display: flex; flex-direction: column; gap: 0.65rem; margin-top: 1rem; }
+    .fornitalia-login-card .login-links { margin-top: 1rem; font-size: 0.9rem; color: #555; display: flex; flex-direction: column; gap: 0.35rem; }
+    .fornitalia-login-card .login-links button.link-like {
+      background: none; border: none; padding: 0; color: #0d2137; cursor: pointer; text-decoration: underline; font-size: inherit; font-family: inherit; text-align: left;
+    }
+    .panel-seguridad { max-width: 100%; }
+    .panel-seguridad table { margin-top: 0.75rem; width: 100%; border-collapse: collapse; }
+    .panel-seguridad thead th {
+      position: sticky; top: 0; z-index: 2; background: #1a1a1a; color: #fff; text-align: left;
+      padding: 0.5rem 0.65rem; font-size: 0.9rem; box-shadow: 0 1px 0 #333;
+      background-clip: padding-box;
+    }
+    .panel-seguridad td { padding: 0.5rem 0.65rem; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+    .panel-seguridad select { padding: 0.35rem 0.5rem; border-radius: 8px; border: 1px solid #ccc; min-width: 8rem; }
+    .panel-seguridad .btn-guardar-rol {
+      padding: 0.35rem 0.6rem; font-size: 0.85rem; background: #0d7d3d; color: #fff; border: none; border-radius: 8px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 0.45rem; min-height: 2.25rem; box-sizing: border-box;
+    }
+    .panel-seguridad .btn-guardar-rol:hover { background: #0a5c2e; }
+    .panel-seguridad .seguridad-loading { color: #666; }
+    .seguridad-tabla-wrap { max-height: 50vh; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; border: 1px solid #e5e7eb; border-radius: 8px; }
+    .tabs-toolbar.solo-flujo .tabs { display: none; }
+    .seguridad-permisos-grid-wrap { display: flex; flex-direction: column; gap: 0.75rem; }
+    .seguridad-permisos-rol { border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; background: #fafafa; }
+    .seguridad-permisos-rol-header {
+      width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 1rem;
+      border: none; background: #f3f4f6; font-weight: 600; cursor: pointer; font-family: inherit; font-size: 0.95rem; text-align: left;
+    }
+    .seguridad-permisos-rol-body { display: none; padding: 0.75rem 1rem 1rem; background: #fff; }
+    .seguridad-permisos-rol.expanded .seguridad-permisos-rol-body { display: block; }
+    .seguridad-permisos-menu-colapsable { border: 1px solid #eee; border-radius: 8px; margin-bottom: 0.5rem; overflow: hidden; }
+    .seguridad-permisos-menu-header {
+      width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem;
+      border: none; background: #f9fafb; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; text-align: left;
+    }
+    .seguridad-permisos-menu-body { padding: 0.5rem 0.75rem 0.75rem; }
+    .seguridad-permisos-menu-colapsable.collapsed .seguridad-permisos-menu-body { display: none; }
+    .seguridad-perm-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.35rem 0; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; }
+    .seguridad-perm-row:last-child { border-bottom: none; }
+    .panel-seguridad .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+    .panel-seguridad .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .panel-seguridad .toggle-switch .slider {
+      position: absolute; cursor: pointer; inset: 0; background: #ccc; border-radius: 24px; transition: 0.2s;
+    }
+    .panel-seguridad .toggle-switch .slider:before {
+      position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s;
+    }
+    .panel-seguridad .toggle-switch input:checked + .slider { background: #0d7d3d; }
+    .panel-seguridad .toggle-switch input:checked + .slider:before { transform: translateX(20px); }
     .sidebar { width: 56px; min-width: 56px; background: #1a1a1a; color: #fff; transition: width 0.25s ease; overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
     .sidebar.expanded { width: 220px; }
     .sidebar-toggle { display: flex; align-items: center; justify-content: center; width: 56px; height: 52px; border: none; background: transparent; color: #fff; cursor: pointer; font-size: 1.25rem; flex-shrink: 0; }
@@ -21,6 +91,7 @@
     .sidebar-nav { padding: 0.5rem 0; }
     .sidebar-nav .menu-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 1rem; color: rgba(255,255,255,0.9); text-decoration: none; border: none; background: none; width: 100%; cursor: pointer; font-size: 0.95rem; font-family: inherit; text-align: left; }
     .sidebar-nav .menu-item:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .sidebar-nav .menu-item.menu-item-active { background: rgba(255,255,255,0.18); color: #fff; }
     .sidebar-nav .menu-item .menu-icon { width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .sidebar-nav .menu-item .menu-icon svg { width: 100%; height: 100%; stroke: currentColor; }
     .sidebar-nav .menu-item .menu-label { white-space: nowrap; opacity: 0; width: 0; overflow: hidden; transition: opacity 0.2s, width 0.2s; }
@@ -68,8 +139,32 @@
     .errores-filtros { display: flex; align-items: center; gap: 0.5rem; }
     .errores-filtros label { font-size: 0.9rem; color: #555; white-space: nowrap; }
     .errores-filtros select { padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; min-width: 200px; }
-    .evolucion-table-wrap { overflow: auto; margin-top: 0.5rem; max-height: 70vh; }
-    .errores-table-wrap { overflow-x: auto; margin-top: 0.5rem; }
+    /* LyP — thead sticky; scroll vertical = página (evita quedar “atascado” al final por overscroll-behavior + doble scroll).
+       Solo scroll horizontal si la tabla desborda. El párrafo informativo queda fuera: no recorta la tabla. */
+    .flujo-table-wrap {
+      overflow-x: auto;
+      overflow-y: visible;
+      margin-top: 0.35rem;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+      border-radius: 6px;
+      border: 1px solid #eee;
+    }
+    .evolucion-table-wrap {
+      overflow: auto;
+      margin-top: 0.5rem;
+      max-height: 70vh;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+      overscroll-behavior-y: auto;
+    }
+    .errores-table-wrap {
+      overflow-x: auto;
+      overflow-y: visible;
+      margin-top: 0.5rem;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+    }
     #tabla-errores-global { min-width: max-content; }
     #tabla-errores-global th:nth-child(12),
     #tabla-errores-global td:nth-child(12) { text-align: left; }
@@ -90,16 +185,53 @@
     #tabla-evolucion th, #tabla-evolucion td { padding: 0.45rem 0.65rem; white-space: nowrap; }
     #tabla-evolucion th { background: #f2f3f5; font-weight: 600; color: #555; }
     /* Encabezado fijo al desplazarse hacia abajo */
-    #tabla-evolucion thead th { position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 0 #ddd; }
+    #tabla-evolucion thead th {
+      position: sticky; top: 0; z-index: 2;
+      background: #f2f3f5;
+      background-clip: padding-box;
+      box-shadow: 0 1px 0 0 #ddd;
+    }
     /* Primera columna fija al desplazarse hacia la derecha */
     #tabla-evolucion th:first-child, #tabla-evolucion td:first-child { position: sticky; left: 0; z-index: 1; background: #f2f3f5; box-shadow: 2px 0 4px rgba(0,0,0,0.06); }
     #tabla-evolucion tbody td:first-child { background: #fff; }
     #tabla-evolucion tr.fila-total-evolucion td:first-child { background: #f5f5f5; }
-    #tabla-evolucion thead th:first-child { z-index: 3; }
+    /* Esquina: primera columna sticky horizontal + thead */
+    #tabla-evolucion thead th:first-child { z-index: 4; }
     #tabla-evolucion td.num-evolucion { text-align: right; white-space: nowrap; }
     #tabla-evolucion td.num-evolucion.evolucion-clickable { cursor: pointer; }
     #tabla-evolucion td.num-evolucion.evolucion-clickable:hover { text-decoration: underline; }
     #tabla-evolucion tr.fila-total-evolucion td { border-top: 2px solid #333; background: #f5f5f5; }
+
+    #panel-flujo .flujo-table-wrap table thead th,
+    #tabla-errores-global thead th,
+    #tabla-todas-transacciones thead th,
+    #tabla-traspasos-internos thead th,
+    #tabla-excluidos-upload thead th,
+    #tabla-referencia-flujo thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #fff;
+      background-clip: padding-box;
+      box-shadow: 0 1px 0 0 #e8e8e8;
+    }
+    .modal-body table.modal-tabla > thead > tr > th,
+    .modal-body .detalle-tabla thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f2f3f5;
+      background-clip: padding-box;
+      box-shadow: 0 1px 0 0 #ddd;
+    }
+    .modal-tabla .detalle-tabla thead th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: #f2f3f5;
+      background-clip: padding-box;
+      box-shadow: 0 1px 0 0 #ccc;
+    }
     #tabla-evolucion th.col-proyeccion-evolucion,
     #tabla-evolucion td.col-proyeccion-evolucion { background: #e0f2f7; }
     #tabla-evolucion th.col-total-real-evolucion { border-left: 2px solid #333; }
@@ -300,6 +432,60 @@
   </style>
 </head>
 <body>
+  <div id="login-screen" class="fornitalia-login-screen" aria-hidden="true">
+    <div class="fornitalia-login-card">
+      <h1>Flujo de caja – Fornitalia</h1>
+      <p class="sub">Iniciá sesión para acceder según tu rol, o continuá como invitado (solo lectura acotada).</p>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" name="email" autocomplete="email" required />
+        </div>
+        <div class="form-group">
+          <label for="login-password">Contraseña</label>
+          <input type="password" id="login-password" name="password" autocomplete="current-password" required />
+        </div>
+        <p id="login-error" class="login-error" role="alert"></p>
+        <div class="login-actions">
+          <button type="submit" class="btn btn-primary" style="width:100%; min-height:2.25rem; border-radius:8px;">
+            <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg></span>
+            Ingresar
+          </button>
+        </div>
+      </form>
+      <div class="login-links">
+        <button type="button" class="link-like" id="link-registro">Crear cuenta</button>
+        <button type="button" class="link-like" id="link-invitado">Continuar como invitado (visor)</button>
+      </div>
+    </div>
+    <div id="register-card" class="fornitalia-login-card" style="display:none;">
+      <h1>Registro</h1>
+      <p class="sub">Te asignará el perfil <strong>Visor</strong> por defecto; un administrador puede cambiar tu rol.</p>
+      <form id="register-form">
+        <div class="form-group">
+          <label for="register-email">Email</label>
+          <input type="email" id="register-email" name="email" autocomplete="email" required />
+        </div>
+        <div class="form-group">
+          <label for="register-password">Contraseña</label>
+          <input type="password" id="register-password" name="password" autocomplete="new-password" required minlength="8" />
+          <p class="login-password-hint">Mínimo 8 caracteres. Evitá contraseñas muy comunes (ej. <code>password123</code>): Supabase las bloquea por seguridad. Mezclá mayúsculas, minúsculas, números y símbolos.</p>
+        </div>
+        <p id="register-error" class="login-error" role="alert"></p>
+        <div class="login-actions">
+          <button type="submit" class="btn btn-primary" style="width:100%; min-height:2.25rem; border-radius:8px;">
+            <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></span>
+            Registrarme
+          </button>
+        </div>
+      </form>
+      <div class="login-links">
+        <button type="button" class="link-like" id="link-login">Ya tengo cuenta</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="fornitalia-app-shell" class="fornitalia-app-shell">
   <aside id="sidebar" class="sidebar" aria-label="Menú principal">
     <button type="button" class="sidebar-toggle btn icon-only" id="sidebar-toggle" aria-label="Expandir menú">
       <span class="icon-expand btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></span>
@@ -317,6 +503,14 @@
       <button type="button" class="menu-item" id="menu-configuracion" title="Configuración" aria-label="Configuración">
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span>
         <span class="menu-label">Configuración</span>
+      </button>
+      <button type="button" class="menu-item" id="menu-seguridad" title="Seguridad" aria-label="Seguridad" style="display:none;">
+        <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+        <span class="menu-label">Seguridad</span>
+      </button>
+      <button type="button" class="menu-item" id="menu-cerrar-sesion" title="Cerrar sesión" aria-label="Cerrar sesión" style="display:none;">
+        <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>
+        <span class="menu-label">Cerrar sesión</span>
       </button>
     </nav>
     <div class="sidebar-version" id="sidebar-version" aria-label="Versión"></div>
@@ -370,6 +564,7 @@
     </div>
     <div id="panel-flujo" class="card panel activo">
       <p class="sin-cotizacion-note" style="margin:0 0 0.65rem 0;">Alineado al <strong>informe financiero PDF</strong>: en <strong>ARS</strong> se prioriza <strong>monto_cambio</strong> en BD (= “Monto en $” del extracto), luego <strong>tipo_cambio</strong> por fila y recién la tabla de cotización (elegí <strong>MEP</strong> para igualar al PDF cuando falte monto en pesos en BD). Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = totales extracto (con traspasos); <strong>Neto bruto</strong> = ing − egr. <strong>G/P operativo</strong>, ratios y <strong>Caución</strong> excluyen apertura/cierre y <strong>Transferencia</strong> / <strong>Deposito/Depósito</strong> (ver <strong>Traspasos internos</strong>).</p>
+      <div class="flujo-table-wrap">
       <table>
         <thead>
           <tr>
@@ -387,6 +582,7 @@
         <tbody id="tbody"></tbody>
         <tfoot id="tfoot-flujo"></tfoot>
       </table>
+      </div>
     </div>
     <div id="panel-errores-global" class="card panel">
       <div class="errores-panel-toolbar">
@@ -589,8 +785,30 @@
       </section>
     </div>
   </div>
+
+  <div id="view-seguridad" class="card panel-seguridad" style="display:none;">
+    <h1 style="margin-top:0; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; font-size:1.25rem;">
+      <span style="width:28px; height:28px; color:#555; flex-shrink:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+      Seguridad – Usuarios y roles
+    </h1>
+    <p style="color:#666; margin:0 0 1rem 0; font-size:0.95rem;">Asigná el rol (Admin, Encargado, Visor) a cada usuario. Los permisos por rol definen qué ve cada perfil en el dashboard (visor: solo Flujo por mes y exportar base histórica).</p>
+    <div id="seguridad-loading" class="seguridad-loading">Cargando usuarios…</div>
+    <div id="seguridad-tabla-wrap" class="seguridad-tabla-wrap" style="display:none;">
+      <table id="seguridad-tabla">
+        <thead><tr><th>Email</th><th>Rol</th><th>Acción</th></tr></thead>
+        <tbody id="seguridad-tbody"></tbody>
+      </table>
+    </div>
+    <div id="seguridad-permisos-wrap" style="margin-top:1.5rem; display:none;">
+      <h2 style="margin:0 0 0.75rem 0; font-size:1.05rem;">Permisos por rol</h2>
+      <p style="color:#666; font-size:0.9rem; margin:0 0 1rem 0;">Activá o desactivá permisos para cada rol. Los cambios aplican a todos los usuarios con ese rol.</p>
+      <div id="seguridad-permisos-grid"></div>
+    </div>
+  </div>
+
   <div id="th-help-popover" class="oculto" role="tooltip"></div>
   </main>
+  </div>
 
   <div id="modal-alertas-backdrop" class="modal-backdrop oculto">
     <div class="modal" id="modal-alertas">
@@ -957,7 +1175,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.37';
+    const APP_VERSION = '1.43';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -973,15 +1191,432 @@
 
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
+    const PERM_EXPORTAR_BASE = 'exportar_base_historica';
+    const PERM_DASHBOARD_OPERADOR = 'dashboard_operador';
+    const PERM_ASSIGN_ROLES = 'assign_roles';
+
+    let userPermissions = [];
+    /** true si respondió get_my_permissions (SQL de seguridad desplegado). Si false, modo compatibilidad = acceso completo al dashboard. */
+    let fornitaliaSecurityRpcOk = false;
+    let fornitaliaDashboardInited = false;
+
+    function securityModuleActive() {
+      return fornitaliaSecurityRpcOk === true;
+    }
+
+    function puedeOperarDashboard() {
+      return !securityModuleActive() || userPermissions.includes(PERM_DASHBOARD_OPERADOR);
+    }
+
+    function puedeExportarBaseHistorica() {
+      return !securityModuleActive() || userPermissions.includes(PERM_EXPORTAR_BASE);
+    }
+
+    function puedeAssignRoles() {
+      return securityModuleActive() && userPermissions.includes(PERM_ASSIGN_ROLES);
+    }
+
+    function escapeHtmlSeg(s) {
+      if (s == null) return '';
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function showLoginScreen() {
+      const el = document.getElementById('login-screen');
+      const shell = document.getElementById('fornitalia-app-shell');
+      if (el) {
+        el.classList.add('fornitalia-login-visible');
+        el.setAttribute('aria-hidden', 'false');
+      }
+      if (shell) shell.classList.remove('fornitalia-app-visible');
+      const reg = document.getElementById('register-card');
+      const card = el && el.querySelector('.fornitalia-login-card:not(#register-card)');
+      if (reg && card) {
+        reg.style.display = 'none';
+        card.style.display = 'block';
+      }
+    }
+
+    function hideLoginScreen() {
+      const el = document.getElementById('login-screen');
+      const shell = document.getElementById('fornitalia-app-shell');
+      if (el) {
+        el.classList.remove('fornitalia-login-visible');
+        el.setAttribute('aria-hidden', 'true');
+      }
+      if (shell) shell.classList.add('fornitalia-app-visible');
+    }
+
+    function ensureProfile(session) {
+      if (!session?.user?.id) return Promise.resolve();
+      return client
+        .from('user_profiles')
+        .upsert({ id: session.user.id, email: session.user.email || '' }, { onConflict: 'id' })
+        .then(() => client.from('app_user_profile').select('role').eq('user_id', session.user.id).maybeSingle())
+        .then((res) => {
+          if (res.data === null) {
+            return client.from('app_user_profile').insert({ user_id: session.user.id, role: 'visor' });
+          }
+          return Promise.resolve();
+        });
+    }
+
+    async function refreshUserPermissions() {
+      const rpcRes = await client.rpc('get_my_permissions');
+      if (!rpcRes.error && Array.isArray(rpcRes.data)) {
+        fornitaliaSecurityRpcOk = true;
+        userPermissions = rpcRes.data;
+      } else {
+        fornitaliaSecurityRpcOk = false;
+        userPermissions = [];
+      }
+      applySecurityUI();
+    }
+
+    function applySecurityUI() {
+      const op = puedeOperarDashboard();
+      const exp = puedeExportarBaseHistorica();
+      const sec = puedeAssignRoles();
+
+      const setVis = (id, visible) => {
+        const n = document.getElementById(id);
+        if (n) n.style.display = visible ? '' : 'none';
+      };
+      setVis('menu-novedades', op);
+      setVis('menu-configuracion', op);
+      setVis('menu-seguridad', sec);
+      setVis('menu-cerrar-sesion', true);
+
+      const btnUp = document.getElementById('btn-upload-normalizado');
+      if (btnUp) btnUp.style.display = op ? '' : 'none';
+
+      const btnEx = document.getElementById('btn-exportar-excel');
+      if (btnEx) btnEx.style.display = exp ? '' : 'none';
+
+      const tt = document.querySelector('.tabs-toolbar');
+      if (tt) tt.classList.toggle('solo-flujo', !op);
+
+      document.querySelectorAll('.tabs-toolbar .tab[data-panel]').forEach((tab) => {
+        const panel = tab.getAttribute('data-panel');
+        const show = panel === 'flujo' || op;
+        tab.style.display = show ? '' : 'none';
+        if (!show && tab.classList.contains('activo')) {
+          tab.classList.remove('activo');
+          const flujoTab = document.querySelector('.tabs-toolbar .tab[data-panel="flujo"]');
+          if (flujoTab) flujoTab.classList.add('activo');
+          document.querySelectorAll('.panel').forEach((p) => p.classList.remove('activo'));
+          const pFlujo = document.getElementById('panel-flujo');
+          if (pFlujo) pFlujo.classList.add('activo');
+        }
+      });
+
+      if (!op) {
+        document.querySelectorAll('.tabs-toolbar .tab[data-panel="flujo"]').forEach((t) => t.classList.add('activo'));
+        const pFlujo = document.getElementById('panel-flujo');
+        if (pFlujo) {
+          document.querySelectorAll('#tabla-wrap .panel').forEach((p) => p.classList.remove('activo'));
+          pFlujo.classList.add('activo');
+        }
+      }
+
+      const vSeg = document.getElementById('view-seguridad');
+      if (vSeg && vSeg.style.display === 'block' && !sec) {
+        vSeg.style.display = 'none';
+        const vd = document.getElementById('view-dashboard');
+        if (vd) vd.style.display = 'block';
+        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+        document.getElementById('menu-home')?.classList.add('menu-item-active');
+      }
+    }
+
+    const FORNITALIA_PERMISOS_MENU = [
+      { id: 'exportar', titulo: 'Exportar Base Histórica', operar: ['exportar_base_historica'] },
+      { id: 'operador', titulo: 'Panel operador (solapas, novedades, configuración, carga, edición)', operar: ['dashboard_operador'] },
+      { id: 'admin', titulo: 'Asignar roles y permisos', operar: ['assign_roles'] },
+    ];
+
+    function loadSeguridadForfitalia() {
+      const loadingEl = document.getElementById('seguridad-loading');
+      const wrapEl = document.getElementById('seguridad-tabla-wrap');
+      const tbody = document.getElementById('seguridad-tbody');
+      const permisosWrap = document.getElementById('seguridad-permisos-wrap');
+      const permisosGrid = document.getElementById('seguridad-permisos-grid');
+      if (!loadingEl || !wrapEl || !tbody) return;
+
+      if (!puedeAssignRoles()) {
+        loadingEl.style.display = 'none';
+        wrapEl.style.display = 'block';
+        tbody.innerHTML = '<tr><td colspan="3">No tenés permiso para gestionar usuarios y roles. Solo un administrador puede asignar roles.</td></tr>';
+        if (permisosWrap) permisosWrap.style.display = 'none';
+        return;
+      }
+
+      loadingEl.style.display = 'block';
+      wrapEl.style.display = 'none';
+      tbody.innerHTML = '';
+      if (permisosWrap) permisosWrap.style.display = 'none';
+      if (permisosGrid) permisosGrid.innerHTML = '';
+
+      Promise.all([
+        client.rpc('get_users_for_admin'),
+        client.from('app_role').select('role, label').order('role'),
+        client.from('app_permission').select('permission, description').order('permission'),
+        client.from('app_role_permission').select('role, permission'),
+      ]).then(([rUsers, rRoles, rPerms, rRolePerms]) => {
+        loadingEl.style.display = 'none';
+
+        const usersRaw = rUsers.data || [];
+        const users = usersRaw.filter((u) => u && (u.email != null && String(u.email).trim() !== ''));
+        const roles = (rRoles.data || []).slice();
+
+        if (rUsers.error || users.length === 0) {
+          if (rUsers.error) tbody.innerHTML = '<tr><td colspan="3">Error: ' + escapeHtmlSeg(rUsers.error.message || '') + '</td></tr>';
+          else if (usersRaw.length > 0 && users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3">Solo se listan cuentas con email. Las sesiones invitado (anónimas) no tienen correo: si ves filas vacías desde otro cliente, ejecutá en Supabase <strong>migracion_seguridad_listar_solo_usuarios_con_email.sql</strong>.</td></tr>';
+          } else tbody.innerHTML = '<tr><td colspan="3">No hay usuarios.</td></tr>';
+          wrapEl.style.display = 'block';
+        } else {
+          tbody.innerHTML = users
+            .map((u) => {
+              const uid = u.user_id;
+              const email = escapeHtmlSeg(u.email || '');
+              const role = u.role || 'visor';
+              const optionsWithSelected = roles.map((r) =>
+                `<option value="${escapeHtmlSeg(r.role)}"${role === r.role ? ' selected' : ''}>${escapeHtmlSeg(r.label || r.role)}</option>`
+              ).join('');
+              return `<tr data-user-id="${uid}">
+                <td>${email}</td>
+                <td><select class="seguridad-rol" data-user-id="${uid}" aria-label="Rol">${optionsWithSelected}</select></td>
+                <td><button type="button" class="btn-guardar-rol btn-primary" data-user-id="${uid}"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></span>Guardar</button></td>
+              </tr>`;
+            })
+            .join('');
+
+          tbody.querySelectorAll('.btn-guardar-rol').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const uid = btn.getAttribute('data-user-id');
+              const row = btn.closest('tr');
+              const sel = row && row.querySelector('.seguridad-rol');
+              const newRole = sel ? sel.value : '';
+              client.rpc('set_user_role', { p_user_id: uid, p_role: newRole }).then((r) => {
+                if (r.error) alert('Error: ' + (r.error.message || 'No se pudo guardar.'));
+              });
+            });
+          });
+          wrapEl.style.display = 'block';
+        }
+
+        const allPerms = rPerms.data || [];
+        const permMap = {};
+        allPerms.forEach((p) => { permMap[p.permission] = p.description || p.permission; });
+        const rolePermList = rRolePerms.data || [];
+        const rolePermSet = new Set(rolePermList.map((r) => r.role + '|' + r.permission));
+
+        if (permisosGrid && roles.length > 0 && allPerms.length > 0) {
+          permisosGrid.innerHTML = roles
+            .map((r) => {
+              const roleKey = r.role;
+              const label = escapeHtmlSeg(r.label || roleKey);
+              let blocks = FORNITALIA_PERMISOS_MENU.map((menu) => {
+                const operarPerms = (menu.operar || []).filter((p) => permMap[p]);
+                if (operarPerms.length === 0) return '';
+                let bodyHtml = '';
+                operarPerms.forEach((p) => {
+                  const desc = escapeHtmlSeg(permMap[p] || p);
+                  const checked = rolePermSet.has(roleKey + '|' + p);
+                  const id = 'perm-' + roleKey + '-' + p.replace(/_/g, '-');
+                  bodyHtml += `<div class="seguridad-perm-row"><label for="${id}">${desc}</label><span class="toggle-switch"><input type="checkbox" id="${id}" class="seguridad-perm-toggle" data-role="${escapeHtmlSeg(roleKey)}" data-permission="${escapeHtmlSeg(p)}"${checked ? ' checked' : ''} /><span class="slider"></span></span></div>`;
+                });
+                return `<div class="seguridad-permisos-menu-colapsable collapsed" data-menu="${escapeHtmlSeg(menu.id)}">
+                  <button type="button" class="seguridad-permisos-menu-header" aria-expanded="false">${escapeHtmlSeg(menu.titulo)}</button>
+                  <div class="seguridad-permisos-menu-body">${bodyHtml}</div>
+                </div>`;
+              }).join('');
+
+              return `<div class="seguridad-permisos-rol" data-role="${escapeHtmlSeg(roleKey)}">
+                <button type="button" class="seguridad-permisos-rol-header" aria-expanded="false">${label}</button>
+                <div class="seguridad-permisos-rol-body seguridad-permisos-grid-wrap">${blocks}</div>
+              </div>`;
+            })
+            .join('');
+
+          permisosGrid.querySelectorAll('.seguridad-permisos-rol-header').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const card = btn.closest('.seguridad-permisos-rol');
+              if (!card) return;
+              card.classList.toggle('expanded');
+            });
+          });
+          permisosGrid.querySelectorAll('.seguridad-permisos-menu-header').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const block = btn.closest('.seguridad-permisos-menu-colapsable');
+              if (!block) return;
+              block.classList.toggle('collapsed');
+            });
+          });
+          permisosGrid.querySelectorAll('.seguridad-perm-toggle').forEach((chk) => {
+            chk.addEventListener('change', function () {
+              const role = this.getAttribute('data-role');
+              const permission = this.getAttribute('data-permission');
+              const enable = this.checked;
+              if (enable) {
+                client.from('app_role_permission').insert({ role, permission }).then((res) => {
+                  if (res.error) {
+                    alert('Error: ' + (res.error.message || 'No se pudo guardar.'));
+                    this.checked = false;
+                  }
+                });
+              } else {
+                client.from('app_role_permission').delete().eq('role', role).eq('permission', permission).then((res) => {
+                  if (res.error) {
+                    alert('Error: ' + (res.error.message || 'No se pudo guardar.'));
+                    this.checked = true;
+                  }
+                });
+              }
+            });
+          });
+          if (permisosWrap) permisosWrap.style.display = 'block';
+        }
+      }).catch(() => {
+        loadingEl.style.display = 'none';
+        tbody.innerHTML = '<tr><td colspan="3">Error al cargar seguridad.</td></tr>';
+        wrapEl.style.display = 'block';
+      });
+    }
+
+    /** Traduce o aclara mensajes típicos de Supabase Auth (inglés) para el usuario. */
+    function mensajeErrorAuthSupabase(msg) {
+      if (msg == null || String(msg).trim() === '') return 'Error de autenticación. Intentá de nuevo.';
+      const m = String(msg);
+      if (/weak and easy to guess|password is known to be weak|known to be weak/i.test(m)) {
+        return 'La contraseña es demasiado débil o muy usada; Supabase no la acepta. Elegí una más larga y poco predecible: mezclá mayúsculas, minúsculas, números y símbolos (por ejemplo una frase con signos), sin datos personales obvios ni secuencias tipo 123456.';
+      }
+      if (/password.*at least|minimum.*characters|at least \d+ char/i.test(m)) {
+        return 'La contraseña no cumple la longitud mínima que exige el proyecto en Supabase. ' + m;
+      }
+      if (/already registered|already been registered|User already exists/i.test(m)) {
+        return 'Ese email ya está registrado. Probá iniciar sesión o recuperar contraseña desde Supabase.';
+      }
+      return m;
+    }
+
+    function setupAuthForms() {
+      const loginForm = document.getElementById('login-form');
+      const registerForm = document.getElementById('register-form');
+      const loginError = document.getElementById('login-error');
+      const registerError = document.getElementById('register-error');
+      const linkReg = document.getElementById('link-registro');
+      const linkLogin = document.getElementById('link-login');
+      const linkInv = document.getElementById('link-invitado');
+      const loginCard = document.querySelector('#login-screen .fornitalia-login-card:not(#register-card)');
+      const registerCard = document.getElementById('register-card');
+
+      if (linkReg && registerCard && loginCard) {
+        linkReg.addEventListener('click', (e) => {
+          e.preventDefault();
+          loginCard.style.display = 'none';
+          registerCard.style.display = 'block';
+          if (loginError) loginError.textContent = '';
+          if (registerError) registerError.textContent = '';
+        });
+      }
+      if (linkLogin && registerCard && loginCard) {
+        linkLogin.addEventListener('click', (e) => {
+          e.preventDefault();
+          registerCard.style.display = 'none';
+          loginCard.style.display = 'block';
+          if (loginError) loginError.textContent = '';
+          if (registerError) registerError.textContent = '';
+        });
+      }
+
+      if (loginForm) {
+        loginForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          if (loginError) loginError.textContent = '';
+          const email = (document.getElementById('login-email') && document.getElementById('login-email').value || '').trim();
+          const password = document.getElementById('login-password') ? document.getElementById('login-password').value : '';
+          client.auth.signInWithPassword({ email, password }).then((res) => {
+            if (res.error) {
+              if (loginError) loginError.textContent = mensajeErrorAuthSupabase(res.error.message);
+              return;
+            }
+            if (res.data && res.data.session) finalizeSessionAndStartDashboard(res.data.session);
+          }).catch((err) => {
+            if (loginError) loginError.textContent = mensajeErrorAuthSupabase(err && err.message);
+          });
+        });
+      }
+
+      if (registerForm) {
+        registerForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          if (registerError) registerError.textContent = '';
+          const email = (document.getElementById('register-email') && document.getElementById('register-email').value || '').trim();
+          const password = document.getElementById('register-password') ? document.getElementById('register-password').value : '';
+          client.auth.signUp({ email, password }).then((res) => {
+            if (res.error) {
+              if (registerError) registerError.textContent = mensajeErrorAuthSupabase(res.error.message);
+              return;
+            }
+            if (res.data && res.data.session) finalizeSessionAndStartDashboard(res.data.session);
+            else if (registerError) registerError.textContent = 'Revisá tu email para confirmar la cuenta y luego iniciá sesión.';
+          }).catch((err) => {
+            if (registerError) registerError.textContent = mensajeErrorAuthSupabase(err && err.message);
+          });
+        });
+      }
+
+      if (linkInv) {
+        linkInv.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (loginError) loginError.textContent = '';
+          client.auth.signInAnonymously().then((res) => {
+            if (res.error) {
+              if (loginError) loginError.textContent = res.error.message || 'No se pudo continuar como invitado. Habilitá Anonymous en Supabase Auth.';
+              return;
+            }
+            if (res.data && res.data.session) finalizeSessionAndStartDashboard(res.data.session);
+          });
+        });
+      }
+
+      const btnOut = document.getElementById('menu-cerrar-sesion');
+      if (btnOut) {
+        btnOut.addEventListener('click', () => {
+          client.auth.signOut().then(() => { window.location.reload(); });
+        });
+      }
+    }
+
+    async function finalizeSessionAndStartDashboard(session) {
+      await ensureProfile(session);
+      await refreshUserPermissions();
+      hideLoginScreen();
+      if (!fornitaliaDashboardInited) {
+        fornitaliaDashboardInited = true;
+        await init();
+      } else {
+        applySecurityUI();
+      }
+    }
+
+    async function bootstrapFornitalia() {
+      setupAuthForms();
+      const { data: { session } } = await client.auth.getSession();
+      if (session && session.user) {
+        await finalizeSessionAndStartDashboard(session);
+      } else {
+        showLoginScreen();
+      }
+    }
+
     /** Sincroniza config desde Supabase (por usuario) al cargar. Si no hay usuario o falla, se usa localStorage. */
     async function syncConfigFromSupabase() {
       try {
-        let { data: { session } } = await client.auth.getSession();
-        if (!session) {
-          const { data: anon, error: errAnon } = await client.auth.signInAnonymously();
-          if (errAnon || !anon?.user) return;
-          session = anon.session;
-        }
+        const { data: { session } } = await client.auth.getSession();
+        if (!session?.user?.id) return;
         const uid = session?.user?.id;
         if (!uid) return;
         const { data: row, error } = await client.from('config_dashboard').select('proyeccion_metodo,proyeccion_meses,proyeccion_cantidad,proyeccion_recorte,pct_caucion,alerta_desvio_pct,alerta_mes_sin_egresos,alerta_sin_sueldos,alerta_sin_comisiones,alerta_sin_alquileres,alerta_sin_impuestos').eq('user_id', uid).maybeSingle();
@@ -2349,6 +2984,10 @@
     }
 
     function exportarAExcel() {
+      if (securityModuleActive() && !puedeExportarBaseHistorica()) {
+        alert('No tenés permiso para exportar la base histórica.');
+        return;
+      }
       if (!window.XLSX || !cacheTransacciones.length) {
         if (!cacheTransacciones.length) alert('No hay transacciones cargadas para exportar.');
         return;
@@ -2784,6 +3423,7 @@
     }
 
     function abrirModal(anio, mes) {
+      const puedeEditarFilas = puedeOperarDashboard();
       const modal = document.getElementById('modal-caja');
       if (modal) {
         modal.style.position = '';
@@ -2842,8 +3482,9 @@
           const desc = (i.descripcion || i.cliente || '–').slice(0, 120);
           const origen = (i.origen_archivo || '').trim();
           const idReg = (i.id || '').toString().replace(/"/g, '&quot;');
+          const rowInteractive = puedeEditarFilas ? ' role="button" tabindex="0" title="Ver detalle de la transacción"' : ' title="Solo lectura"';
           return `
-            <tr class="fila-transaccion-ver" data-transaccion-id="${idReg}" role="button" tabindex="0" title="Ver detalle de la transacción">
+            <tr class="fila-transaccion-ver" data-transaccion-id="${idReg}"${rowInteractive}>
               <td>${esc(fechaStr(i.fecha))}</td>
               <td>${esc(i.tipo_movimiento || '')}</td>
               <td>${esc(i.medio_pago || '')}</td>
@@ -2934,15 +3575,21 @@
           <button type="button" class="btn btn-ver-errores" data-anio="${anio}" data-mes="${mes}"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span> Ver detalle de errores</button>
         `;
 
+      const tabErrores = puedeOperarDashboard()
+        ? `<button type="button" class="modal-tab" data-panel="errores" role="tab">Errores (${erroresCount})</button>`
+        : '';
+      const panelErrores = puedeOperarDashboard()
+        ? `<div id="modal-panel-errores" class="modal-panel">${erroresResumenHtml}</div>`
+        : '';
       let html = `
         <div class="modal-tabs" role="tablist">
           <button type="button" class="modal-tab activo" data-panel="categoria" role="tab">By Categoria</button>
           <button type="button" class="modal-tab" data-panel="cuenta" role="tab">By Cuenta Contable</button>
-          <button type="button" class="modal-tab" data-panel="errores" role="tab">Errores (${erroresCount})</button>
+          ${tabErrores}
         </div>
         <div id="modal-panel-categoria" class="modal-panel activo">${buildTabla(filasModal, 'modal-detalle-cat', 'Categoría', 'categoria', anio, mes)}</div>
         <div id="modal-panel-cuenta" class="modal-panel">${buildTabla(filasModalCuenta, 'modal-detalle-cuenta', 'Cuenta contable', 'cuenta', anio, mes)}</div>
-        <div id="modal-panel-errores" class="modal-panel">${erroresResumenHtml}</div>
+        ${panelErrores}
       `;
       body.innerHTML = html;
 
@@ -2981,6 +3628,7 @@
       });
 
       body.addEventListener('click', (e) => {
+        if (!puedeEditarFilas) return;
         const tr = e.target.closest('.fila-transaccion-ver');
         if (!tr) return;
         e.preventDefault();
@@ -3366,6 +4014,7 @@
     }
 
     function abrirModalEditar(record) {
+      if (!puedeOperarDashboard()) return;
       const backdrop = document.getElementById('modal-editar-backdrop');
       const titulo = document.getElementById('modal-editar-titulo');
       if (!backdrop) return;
@@ -3531,6 +4180,7 @@
     }
 
     function abrirModalDuplicado(record) {
+      if (!puedeOperarDashboard()) return;
       const backdrop = document.getElementById('modal-duplicado-backdrop');
       const bodyEste = document.getElementById('modal-duplicado-este');
       const bodyOtro = document.getElementById('modal-duplicado-otro');
@@ -3600,15 +4250,38 @@
           });
           sidebarToggle.setAttribute('aria-label', sidebar.classList.contains('expanded') ? 'Contraer menú' : 'Expandir menú');
         }
+        document.getElementById('menu-home')?.classList.add('menu-item-active');
         document.getElementById('menu-home')?.addEventListener('click', (e) => {
           e.preventDefault();
           document.getElementById('view-dashboard').style.display = 'block';
           document.getElementById('view-novedades').style.display = 'none';
+          const vs = document.getElementById('view-seguridad');
+          if (vs) vs.style.display = 'none';
+          document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+          document.getElementById('menu-home')?.classList.add('menu-item-active');
         });
         document.getElementById('menu-novedades')?.addEventListener('click', (e) => {
           e.preventDefault();
+          if (!puedeOperarDashboard()) return;
           document.getElementById('view-dashboard').style.display = 'none';
           document.getElementById('view-novedades').style.display = 'block';
+          const vs = document.getElementById('view-seguridad');
+          if (vs) vs.style.display = 'none';
+          document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+          document.getElementById('menu-novedades')?.classList.add('menu-item-active');
+        });
+        document.getElementById('menu-seguridad')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (!puedeAssignRoles()) return;
+          document.getElementById('view-dashboard').style.display = 'none';
+          document.getElementById('view-novedades').style.display = 'none';
+          const vs = document.getElementById('view-seguridad');
+          if (vs) {
+            vs.style.display = 'block';
+            loadSeguridadForfitalia();
+          }
+          document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+          document.getElementById('menu-seguridad')?.classList.add('menu-item-active');
         });
 
         await syncConfigFromSupabase();
@@ -3716,10 +4389,11 @@
 
         document.querySelectorAll('.tab').forEach(btn => {
           btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-panel');
+            if (securityModuleActive() && !puedeOperarDashboard() && id && id !== 'flujo') return;
             document.querySelectorAll('.tab').forEach(b => b.classList.remove('activo'));
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('activo'));
             btn.classList.add('activo');
-            const id = btn.getAttribute('data-panel');
             if (id) document.getElementById('panel-' + id).classList.add('activo');
             if (id === 'evolucion') renderEvolucion();
             if (id === 'todas-transacciones') renderTodasTransacciones();
@@ -3843,6 +4517,7 @@
 
         document.getElementById('menu-configuracion').addEventListener('click', (e) => {
           e.preventDefault();
+          if (!puedeOperarDashboard()) return;
           const c = getProyeccionConfig();
           const selMetodo = document.getElementById('config-proyeccion-metodo');
           const selMeses = document.getElementById('config-proyeccion-meses');
@@ -4163,7 +4838,7 @@
       }
     }
 
-    init();
+    bootstrapFornitalia();
   </script>
 </body>
 </html>
