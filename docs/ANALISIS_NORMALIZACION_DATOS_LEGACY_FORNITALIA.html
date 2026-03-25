@@ -34,11 +34,68 @@
 <p class="sp"></p>
 <p><strong>Propósito:</strong> Este documento resume hallazgos sobre la calidad y coherencia de los datos de caja (origen: extracto / sistema legacy del cliente) y las <strong>acciones recomendables en la base de datos de origen</strong> antes o durante la migración definitiva.</p>
 <p class="sp"></p>
-<p><strong>Alcance del análisis:</strong> Archivo <strong>`docs/Extracto-Fornitalia.xlsx`</strong>, hoja <strong>Movimientos</strong>. <strong>Total de registros analizados: 3.008.</strong> Los mismos criterios aplican a la base operativa del cliente si conserva los mismos campos (`Categoría`, `Cuenta Contable`, `Medio de Pago`, descripciones, etc.).</p>
+<p><strong>Alcance del análisis:</strong> Universo de <strong>movimientos de caja</strong> equivalente al histórico analizado: <strong>3.008</strong> filas en hoja <strong>Movimientos</strong>.</p>
+<p class="sp"></p>
+<p>- <strong>Fuente canónica actual (repo LyP):</strong> <strong>`docs/Fornitalia_Movimientos.xlsx`</strong> — export del sistema con columnas técnicas (`TipoMovimiento`, `MedioPago`, `CuentaContable`, `MontoCambio`, `MesAnio`, `UsuarioApp`, `Status`, e identificadores `IDCierreCaja`, `IDOperacion`, `IDComprobantePago`, `IDImpuesto`, `CatDesc`, etc.).</p>
+<p>- <strong>Extracto legado (convivencia):</strong> <strong>`docs/Extracto-Fornitalia.xlsx`</strong> — mismos hechos con nombres “legibles” (`Tipo`, `Medio de Pago`, `Cuenta Contable`, `Monto en $`, `Mes/Año`, `Usuario`, `Estado`, `N° Operación`, …). Si falta el archivo nuevo, los scripts usan el legado.</p>
+<p class="sp"></p>
+<p>Los <strong>conteos y tablas</strong> de las secciones 1–6 se elaboraron sobre ese universo de 3.008 filas (extracto legado en su momento); al <strong>migrar al export `Fornitalia_Movimientos`</strong> los totales por categoría/cuenta/medio deben <strong>mantenerse</strong> salvo correcciones en origen. La capa <strong>`scripts/lib/fornitalia-movimiento-row-canon.js`</strong> unifica ambos formatos a la forma “extracto” para informes y scripts.</p>
+<p class="sp"></p>
+<p><strong>Pipeline hacia el dashboard:</strong> `npm run normalizar-extracto` genera <strong>`docs/Extracto-Fornitalia-Normalizado.xlsx`</strong> (hoja <strong>Normalizado</strong>) con `fecha_iso`, montos numéricos, moneda inferida, más <strong>`id_cierre_caja`</strong>, <strong>`id_comprobante_pago`</strong>, <strong>`id_impuesto`</strong>, <strong>`cat_desc`</strong> cuando vienen del export. Ese archivo es el que se <strong>importa</strong> en la app para reemplazar `transacciones` en Supabase.</p>
 <p class="sp"></p>
 <p><strong>Mensaje para el cliente:</strong> Lo que sigue son <strong>deudas de datos</strong> que conviene resolver <strong>en su sistema o planilla maestra</strong>, no solo al importar: así se evitan errores de clasificación, reportes engañosos y trabajo manual repetido.</p>
 <p class="sp"></p>
-<p><strong>Nota:</strong> La columna <strong>Cant.</strong> indica cantidad de <strong>filas del extracto</strong> que caen en esa condición (salvo donde se indica otro criterio).</p>
+<p><strong>Nota:</strong> La columna <strong>Cant.</strong> indica cantidad de <strong>filas</strong> que caen en esa condición en el universo analizado (salvo donde se indica otro criterio).</p>
+<p class="sp"></p>
+<hr/>
+<p class="sp"></p>
+<h2>0. Validaciones a futuro (IDs, CatDesc y calidad)</h2>
+<p class="sp"></p>
+<p>Con el export <strong>`Fornitalia_Movimientos`</strong>, el sistema puede <strong>reforzar gobierno de datos</strong> más allá de categoría/cuenta:</p>
+<p class="sp"></p>
+<table><thead><tr>
+<th>Ámbito</th>
+<th>Qué validar o explotar</th>
+<th>Comentario</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>`IDComprobantePago`</strong></td>
+<td>Unicidad por comprobante; cruce con compras, facturas o Power Apps</td>
+<td>Detecta duplicados de carga y habilita conciliación automática cuando exista la contrapartida.</td>
+</tr>
+<tr>
+<td><strong>`IDImpuesto`</strong></td>
+<td>Agrupar líneas del mismo obligación / liquidación</td>
+<td>Mejora trazabilidad impositiva sin depender solo de texto en descripción.</td>
+</tr>
+<tr>
+<td><strong>`IDCierreCaja`</strong></td>
+<td>Cuadratura por cierre; auditoría de lotes</td>
+<td>Todo movimiento operativo debería asociarse a un cierre cuando el proceso lo exige.</td>
+</tr>
+<tr>
+<td><strong>`IDOperacion`</strong></td>
+<td>Trazabilidad vs. duplicados aparentes</td>
+<td>Sustituye al uso ambiguo de `N° Operación` = &quot;-&quot; en parte del histórico; conviene exigir ID en origen para movimientos nuevos.</td>
+</tr>
+<tr>
+<td><strong>`CatDesc`</strong></td>
+<td>Subetiqueta bajo <strong>Categoría</strong></td>
+<td>Evita mezclar en “Otros Servicios” realidades distintas; reglas tipo “si CatDesc = X entonces categoría debe ser Y”.</td>
+</tr>
+<tr>
+<td><strong>`Status`</strong> (`Confirmado` / `Pendiente` / `Anulado`)</td>
+<td>Coherencia con categoría “Anulación” y con reportes</td>
+<td>Una sola fuente de verdad: estado operativo vs. categoría duplicada (§1).</td>
+</tr>
+<tr>
+<td><strong>Regeneración del plan GS</strong></td>
+<td>Tras cada `normalizar-extracto`, ejecutar `npm run plan-normalizacion-excel`</td>
+<td>Mantiene <strong>`Extracto-Fornitalia-Plan-Normalizacion-GS.xlsx`</strong> alineado al normalizado y a este documento.</td>
+</tr>
+</tbody></table>
+<p class="sp"></p>
+<p><strong>Índices SQL opcionales</strong> en Supabase para consultas por ID: `sql/supabase_indices_transacciones_id_lookup.sql`.</p>
 <p class="sp"></p>
 <hr/>
 <p class="sp"></p>
@@ -89,8 +146,8 @@
 <tr>
 <td><strong>Anulación</strong> (categoría)</td>
 <td>2</td>
-<td>Puede duplicar lógica de anulación por <strong>estado</strong> del movimiento.</td>
-<td>Una sola forma de anular (categoría vs flag `Estado`/`Anulado`).</td>
+<td>Puede duplicar lógica de anulación por <strong>estado</strong> (`Estado` en extracto legado, `Status` en `Fornitalia_Movimientos`).</td>
+<td>Una sola forma de anular (categoría vs estado <strong>Anulado</strong>); ver §0.</td>
 </tr>
 <tr>
 <td><strong>Apertura</strong> / <strong>Cierre</strong> (categoría)</td>
@@ -304,6 +361,12 @@
 <td>Cualitativo: afecta validaciones automáticas aunque el asiento sea correcto.</td>
 <td>Criterio de uso de campos o <strong>texto consolidado</strong> en export.</td>
 </tr>
+<tr>
+<td>Campo <strong>`CatDesc`</strong> (export `Fornitalia_Movimientos`)</td>
+<td>~25 % de filas con valor en muestra de 3.008 (orden de magnitud)</td>
+<td>Subetiqueta de negocio bajo <strong>Categoría</strong>; mejora reporting sin depender solo de descripción libre.</td>
+<td>Reglas en origen: obligatoriedad por categoría, catálogo de valores permitidos; ver §0.</td>
+</tr>
 </tbody></table>
 <p class="sp"></p>
 <hr/>
@@ -326,9 +389,469 @@
 <p class="sp"></p>
 <p>El dashboard Fornitalia aplica reglas propias (visualización de categorías, validación egreso categoría/cuenta/descripción, excepciones en código). <strong>Eso no sustituye</strong> la corrección en la base del cliente.</p>
 <p class="sp"></p>
+<p>El Excel <strong>`Extracto-Fornitalia-Plan-Normalizacion-GS.xlsx`</strong> (recomendaciones por fila para Gerencia de Sistemas) se genera con <strong>`npm run plan-normalizacion-excel`</strong>, leyendo la hoja <strong>Normalizado</strong> del archivo generado por <strong>`npm run normalizar-extracto`</strong> (misma fuente que el upload a Supabase). Conviene regenerarlo tras cambios en el libro de movimientos o en las reglas del script `generar-excel-plan-normalizacion-desde-normalizado.js`.</p>
+<p class="sp"></p>
+<p>Documentación cruzada del cambio de fuente: <strong>`docs/DIAGNOSTICO_FORNITALIA_MOVIMIENTOS_VS_EXTRACTO.md`</strong>.</p>
+<p class="sp"></p>
 <hr/>
 <p class="sp"></p>
-<p class="meta">Documento para etapa de análisis y reunión con el cliente. Conteos referidos al extracto `docs/Extracto-Fornitalia.xlsx`, hoja Movimientos (3.008 filas). Actualizar si el maestro de datos o el archivo cambian.</p>
+<h2>8. Propuesta de recategorización: relación categoría ↔ cuenta contable</h2>
+<p class="sp"></p>
+<p>Hoy la relación entre <strong>categoría de gestión</strong> y <strong>cuenta contable</strong> es en buena parte <strong>implícita</strong> (lo que el usuario elige al cargar) y <strong>heterogénea</strong> en el histórico (§1–§3). La propuesta es <strong>formalizar</strong> esa relación en el sistema o planilla maestra del cliente, no solo corregir tipeos.</p>
+<p class="sp"></p>
+<h3>8.1. Modelo sugerido</h3>
+<p class="sp"></p>
+<ol>
+<li><strong>Catálogo cerrado de categorías</strong></li>
+</ol>
+<p>   Valores únicos, sin duplicados semánticos (ej. una sola familia “Alquileres y servicios”, “Logística y fletes”). Cada categoría tiene <strong>definición corta</strong> de qué movimientos debe agrupar.</p>
+<p class="sp"></p>
+<ol>
+<li><strong>Plan de cuentas único</strong></li>
+</ol>
+<p>   Cuentas con nombre/código oficial; sin variantes por mayúsculas ni typos (“Comisiones”, “SIRCREB”, etc.). Prohibido usar <strong>“-”</strong> como cuenta definitiva: reservado solo a borradores o reemplazado por cuenta real o código de excepción documentado.</p>
+<p class="sp"></p>
+<ol>
+<li><strong>Matriz categoría → cuentas permitidas</strong></li>
+</ol>
+<p>   Para cada categoría, lista de <strong>cuentas válidas</strong> (o una <strong>cuenta por defecto</strong> más cuentas alternativas justificadas). Ejemplos de reglas: *Sueldos* no puede cerrarse contra *Comisiones Ventas* salvo política explícita; *Impuestos* puede mapear a varias cuentas pero agrupadas en reporting.</p>
+<p class="sp"></p>
+<ol>
+<li><strong>Validación al cargar</strong></li>
+</ol>
+<p>   El sistema de origen rechaza o alerta si el par categoría–cuenta <strong>no está</strong> en la matriz (con flujo de excepción para casos puntuales y trazabilidad).</p>
+<p class="sp"></p>
+<ol>
+<li><strong>Histórico</strong></li>
+</ol>
+<p>   Tabla o hoja de <strong>equivalencias</strong> (valor viejo → valor nuevo) para migraciones y para no perder trazabilidad en años anteriores.</p>
+<p class="sp"></p>
+<h3>8.2. Mejoras y beneficios (resumen)</h3>
+<p class="sp"></p>
+<table><thead><tr>
+<th>Ámbito</th>
+<th>Beneficio breve</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>Calidad de datos</strong></td>
+<td>Menos pares incoherentes (ej. categoría vs cuenta contable); caída de correcciones manuales y de reglas “parche” en reportes.</td>
+</tr>
+<tr>
+<td><strong>Reporting</strong></td>
+<td>P&amp;L, flujo de caja e impuestos alineados: la categoría explica la gestión y la cuenta el asiento; los agrupadores (ej. impuestos) son predecibles.</td>
+</tr>
+<tr>
+<td><strong>Automatización</strong></td>
+<td>Validaciones y exportaciones (extracto, ERP, dashboard) con <strong>reglas claras</strong>; más fácil detectar outliers en lugar de interpretar cada fila.</td>
+</tr>
+<tr>
+<td><strong>Operación y auditoría</strong></td>
+<td>Criterio documentado para quien carga; revisiones y auditorías con <strong>matriz verificable</strong> en lugar de convenciones orales.</td>
+</tr>
+<tr>
+<td><strong>Evolución</strong></td>
+<td>Altas de categorías o cuentas pasan por el maestro y la matriz; se evita la proliferación de “Otros” sin control.</td>
+</tr>
+</tbody></table>
+<p class="sp"></p>
+<p>Esta recategorización es <strong>complementaria</strong> al resumen ejecutivo (§6): convierte las recomendaciones puntuales en un <strong>diseño de gobierno de datos</strong> sobre el par categoría–cuenta.</p>
+<p class="sp"></p>
+<h3>8.3. Matriz concreta (borrador para maestro del cliente)</h3>
+<p class="sp"></p>
+<p>Tabla tipo <strong>hoja de trabajo</strong> para cargar en Excel o en el sistema: cada fila es un cambio o una regla nueva sobre el par <strong>categoría ↔ cuenta contable</strong>. La columna <strong>Acción</strong> indica el tratamiento: <strong>Editar</strong> (reemplazar el par actual por el propuesto en histórico y reglas), <strong>Nueva</strong> (alta explícita en la matriz de pares permitidos; el “actual” puede repetir el propuesto si solo se formaliza), <strong>Eliminar</strong> (el par actual <strong>no</strong> debe seguir existiendo en la matriz ni como opción válida al cargar; migrar a la fila propuesta o a otra fila <strong>Editar</strong>).</p>
+<p class="sp"></p>
+<table><thead><tr>
+<th>Ord. *n*</th>
+<th>Categoría (actual)</th>
+<th>Cuenta contable (actual)</th>
+<th>Categoría (propuesta)</th>
+<th>Cuenta contable (propuesta)</th>
+<th>Acción</th>
+<th>Ejemplo / criterio</th>
+</tr></thead><tbody>
+<tr>
+<td>1</td>
+<td>Alquiler</td>
+<td>*(distintas en extracto)*</td>
+<td>Alquileres y Servicios</td>
+<td>Alquiler (u otra cuenta acordada del rubro)</td>
+<td>Editar</td>
+<td>Unificar categoría; 3 filas hoy en “Alquiler”.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Sueldos</td>
+<td>Comisones Ventas</td>
+<td>Comisiones</td>
+<td>Comisiones Ventas</td>
+<td>Editar</td>
+<td>Corregir imputación y typo en cuenta (§3).</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Logistica</td>
+<td>*(según caso)*</td>
+<td>Logística y fletes</td>
+<td>*(misma cuenta operativa)*</td>
+<td>Editar</td>
+<td>Unificar grafía y criterio con “Flete” (§1).</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Manteniemiento</td>
+<td>*(según caso)*</td>
+<td>Mantenimiento</td>
+<td>*(sin cambio de cuenta salvo typo)*</td>
+<td>Editar</td>
+<td>Solo categoría: typo “Manteniemiento” (§2).</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Transferencia</td>
+<td>Transferencia entre Cuentas</td>
+<td>Traspasos / internos</td>
+<td>Transferencia entre Cuentas</td>
+<td>Editar</td>
+<td>Dejar claro que no es gasto operativo (§1).</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Deposito</td>
+<td>Deposito entre Cuentas</td>
+<td>Traspasos / internos</td>
+<td>Depósito entre cuentas</td>
+<td>Editar</td>
+<td>Alineación ortográfica y criterio con traspasos (§1).</td>
+</tr>
+<tr>
+<td>7</td>
+<td>*(cualquiera)*</td>
+<td>Comisones Ventas</td>
+<td>*(misma categoría si aplica)*</td>
+<td>Comisiones Ventas</td>
+<td>Editar</td>
+<td>Typo en plan de cuentas (§2).</td>
+</tr>
+<tr>
+<td>8</td>
+<td>*(cualquiera)*</td>
+<td>Comsiones Distribuidores</td>
+<td>*(idem)*</td>
+<td>Comisiones Distribuidores</td>
+<td>Editar</td>
+<td>Typo en plan de cuentas (§2).</td>
+</tr>
+<tr>
+<td>9</td>
+<td>*(cualquiera)*</td>
+<td>Sircreb</td>
+<td>*(idem)*</td>
+<td>SIRCREB</td>
+<td>Editar</td>
+<td>Criterio único de capitalización (§2).</td>
+</tr>
+<tr>
+<td>10</td>
+<td>*(cualquiera)*</td>
+<td>Telefonia</td>
+<td>*(idem)*</td>
+<td>Telefonía</td>
+<td>Editar</td>
+<td>Una forma oficial en plan de cuentas (§2).</td>
+</tr>
+<tr>
+<td>11</td>
+<td>*(cualquiera)*</td>
+<td>-</td>
+<td>*(según hecho económico)*</td>
+<td>*(cuenta real)*</td>
+<td>Editar</td>
+<td>Sustituir guion por cuenta explícita (§2).</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Comisiones Bancarias</td>
+<td>Gastos Bancarios</td>
+<td>Comisiones Bancarias</td>
+<td>Gastos Bancarios</td>
+<td>Nueva</td>
+<td>Documentar en matriz como par <strong>válido</strong> (ya usado en dashboard).</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Alquileres y Servicios</td>
+<td>Alquiler</td>
+<td>Alquileres y Servicios</td>
+<td>Alquiler</td>
+<td>Nueva</td>
+<td>Referencia de buen uso; registro explícito en matriz (§3).</td>
+</tr>
+<tr>
+<td>14</td>
+<td>Otros Servicios</td>
+<td>*(cuenta heterogénea)*</td>
+<td>*(categoría específica)*</td>
+<td>*(cuenta alineada al rubro)*</td>
+<td>Eliminar</td>
+<td>Redistribuir: el par genérico no queda como permitido por defecto (§1).</td>
+</tr>
+</tbody></table>
+<p class="sp"></p>
+<p><strong>Uso:</strong> el cliente puede duplicar la tabla, completar celdas “*(según caso)*” con valores reales del maestro y añadir filas. <strong>Ord. *n</strong>* sirve para priorizar implementación (1 = primero) o para ordenar en reuniones.</p>
+<p class="sp"></p>
+<h3>8.4. Borrador categoría · cuenta contable · rubro contable (Argentina)</h3>
+<p class="sp"></p>
+<p>Primer trabajo sugerido para revisión con <strong>contador</strong> y cliente. Cruza <strong>categoría de gestión</strong> y <strong>cuenta del plan</strong> con un <strong>rubro de presentación</strong> alineado a estados tipo <strong>IGJ</strong> y práctica <strong>FACPCE</strong> (RT 8, 9, 17 y modelos vigentes al cierre). <strong>No</strong> sustituye asesoramiento legal ni contable definitivo. *(Copia editable también en `docs/MATRIZ_CATEGORIA_CUENTA_RUBRO_BORRADOR.md`.)*</p>
+<p class="sp"></p>
+<p><strong>Leyenda rápida</strong></p>
+<p class="sp"></p>
+<table><thead><tr>
+<th>Prefijo</th>
+<th>Significado</th>
+</tr></thead><tbody>
+<tr>
+<td><strong>BC</strong></td>
+<td>Balance general (estructura patrimonial)</td>
+</tr>
+<tr>
+<td><strong>ER</strong></td>
+<td>Estado de resultados (ingresos, costos y gastos del ejercicio)</td>
+</tr>
+<tr>
+<td><strong>TES</strong></td>
+<td>Movimiento de tesorería / sin impacto directo en resultado en este pasaje</td>
+</tr>
+<tr>
+<td><strong>—</strong></td>
+<td>Sin clasificar hasta definir política</td>
+</tr>
+</tbody></table>
+<p class="sp"></p>
+<p>Donde la celda diga <strong>a definir</strong>, debe resolverse con el plan de cuentas oficial y el tipo societario.</p>
+<p class="sp"></p>
+<p><strong>Excluidas por definición de este borrador:</strong> las categorías <strong>Apertura de Caja</strong> y <strong>Cierre de Caja</strong> (movimientos de caja no operativos; no forman parte de la matriz categoría–cuenta–rubro para gestión ni reporting de estados — coherente con la exclusión en carga/upload del sistema).</p>
+<p class="sp"></p>
+<table><thead><tr>
+<th>Categoría (sugerida / actual)</th>
+<th>Cuenta contable (ejemplo o propuesta)</th>
+<th>Rubro contable (presentación sugerida)</th>
+<th>Dudas / pendiente</th>
+</tr></thead><tbody>
+<tr>
+<td>Activos</td>
+<td>Hornos</td>
+<td>BC — Activo — <strong>a definir</strong> (No corriente: bienes de uso *vs* Corriente: bienes de cambio)</td>
+<td><strong>a definir</strong> si son mercadería, muebles y útiles o inmovilizado</td>
+</tr>
+<tr>
+<td>Activos</td>
+<td>*(otras cuentas del extracto)*</td>
+<td>BC — Activo — <strong>a definir</strong></td>
+<td><strong>a definir</strong> por hecho económico real</td>
+</tr>
+<tr>
+<td>Alquiler</td>
+<td>Alquiler *(u otra)*</td>
+<td>ER — Gastos — Locaciones, alquileres y expensas</td>
+<td>Confirmar si 100 % deducible / prorrateos</td>
+</tr>
+<tr>
+<td>Alquileres y Servicios</td>
+<td>Alquiler</td>
+<td>ER — Gastos — Locaciones, alquileres y expensas</td>
+<td>OK referencia; validar subcuentas</td>
+</tr>
+<tr>
+<td>Alquileres y Servicios</td>
+<td>*(cuenta distinta de Alquiler)*</td>
+<td>ER — Gastos — <strong>a definir</strong> (servicios de terceros / otros)</td>
+<td><strong>a definir</strong> según naturaleza del gasto</td>
+</tr>
+<tr>
+<td>Anulación</td>
+<td>*(no aplica cuenta única)*</td>
+<td>—</td>
+<td><strong>a definir</strong>; tratar por estado del asiento, no por categoría</td>
+</tr>
+<tr>
+<td>Comisiones</td>
+<td>Comisiones Ventas</td>
+<td>ER — Gastos — Comisiones sobre ventas *(o ER — Costo de ventas — <strong>a definir</strong>)*</td>
+<td><strong>a definir</strong> política: gasto vs costo de venta</td>
+</tr>
+<tr>
+<td>Comisiones</td>
+<td>Comisiones Distribuidores</td>
+<td>Idem</td>
+<td>Idem</td>
+</tr>
+<tr>
+<td>Comisiones Bancarias</td>
+<td>Gastos Bancarios</td>
+<td>ER — Resultados — Gastos financieros y bancarios</td>
+<td>Documentar par como válido</td>
+</tr>
+<tr>
+<td>Deposito / Depósito</td>
+<td>Deposito entre Cuentas</td>
+<td>TES — Movimientos entre cuentas propias</td>
+<td>No es rubro de resultado</td>
+</tr>
+<tr>
+<td>Impuestos</td>
+<td>SIRCREB</td>
+<td>ER — Gastos — Impuestos, tasas y contribuciones *(salvo tratamiento especial)*</td>
+<td><strong>a definir</strong> si parte va a crédito / pasivo</td>
+</tr>
+<tr>
+<td>Impuestos</td>
+<td>Sircreb</td>
+<td>Idem (unificar nombre)</td>
+<td>Idem</td>
+</tr>
+<tr>
+<td>Impuestos</td>
+<td>IVA Crédito Fiscal *(si en plan)*</td>
+<td>BC — Activo corriente — Créditos fiscales / IVA</td>
+<td><strong>a definir</strong> según saldo y ejercicio</td>
+</tr>
+<tr>
+<td>Impuestos</td>
+<td>IVA a pagar / Impuestos a pagar *(si en plan)*</td>
+<td>BC — Pasivo corriente — Impuestos a pagar</td>
+<td><strong>a definir</strong></td>
+</tr>
+<tr>
+<td>Impuestos</td>
+<td>Percepciones / Retenciones *(según cuenta)*</td>
+<td>BC — Activo / Pasivo — <strong>a definir</strong></td>
+<td><strong>a definir</strong> por tipo de obligación</td>
+</tr>
+<tr>
+<td>Impuestos</td>
+<td>*(resto de cuentas impositivas del extracto)*</td>
+<td>ER o BC — <strong>a definir</strong></td>
+<td>Mapeo <strong>cuenta por cuenta</strong> en plan maestro</td>
+</tr>
+<tr>
+<td>Logística y fletes</td>
+<td>Flete</td>
+<td>ER — Gastos — Fletes, fletes internos y logística</td>
+<td>Unificar con “Logistica”</td>
+</tr>
+<tr>
+<td>Logistica</td>
+<td>*(cuenta operativa)*</td>
+<td>ER — Gastos — Fletes y logística</td>
+<td>Corregir ortografía categoría</td>
+</tr>
+<tr>
+<td>Mantenimiento</td>
+<td>Mantenimiento / reparaciones</td>
+<td>ER — Gastos — Mantenimiento y reparaciones</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Manteniemiento</td>
+<td>*(misma lógica)*</td>
+<td>Idem</td>
+<td>Unificar categoría a <strong>Mantenimiento</strong></td>
+</tr>
+<tr>
+<td>Otros Servicios</td>
+<td>*(heterogéneo)*</td>
+<td>ER — Gastos — Otros gastos / Servicios de terceros</td>
+<td><strong>a definir</strong> redistribución por fila</td>
+</tr>
+<tr>
+<td>Sueldos</td>
+<td>Sueldos y cargas sociales *(nombre plan)*</td>
+<td>ER — Gastos — Remuneraciones y cargas sociales</td>
+<td>Validar cargas en cuenta separada o agrupada</td>
+</tr>
+<tr>
+<td>Sueldos</td>
+<td>Comisones Ventas *(error histórico)*</td>
+<td>→ migrar a <strong>Comisiones</strong> + <strong>Comisiones Ventas</strong></td>
+<td><strong>a definir</strong> ER gasto vs costo</td>
+</tr>
+<tr>
+<td>Telefonía</td>
+<td>Telefonía</td>
+<td>ER — Gastos — Comunicaciones y conectividad</td>
+<td>Unificar grafía</td>
+</tr>
+<tr>
+<td>Telefonia</td>
+<td>Telefonia</td>
+<td>Idem</td>
+<td>Unificar a <strong>Telefonía</strong></td>
+</tr>
+<tr>
+<td>Transferencia</td>
+<td>Transferencia entre Cuentas</td>
+<td>TES — Traspasos internos</td>
+<td>Excluir de ER operativo</td>
+</tr>
+<tr>
+<td>Ventas</td>
+<td>Ventas</td>
+<td>ER — Ingresos — Ventas de bienes / servicios</td>
+<td><strong>a definir</strong> desglose IVA en presentación</td>
+</tr>
+<tr>
+<td>Ventas</td>
+<td>IVA Débito Fiscal *(si figura en plan)*</td>
+<td>BC — Pasivo — IVA débito / ER según criterio</td>
+<td><strong>a definir</strong> con contador</td>
+</tr>
+<tr>
+<td>*(categoría vacía)*</td>
+<td>*(cuenta informada)*</td>
+<td><strong>a definir</strong></td>
+<td>Completar categoría</td>
+</tr>
+<tr>
+<td>*(categoría informada)*</td>
+<td>- *(guión)*</td>
+<td><strong>a definir</strong></td>
+<td>Sustituir cuenta guion</td>
+</tr>
+<tr>
+<td>Compras / Mercaderías *(si se agrega categoría)*</td>
+<td>Mercaderías / Mercaderías en tránsito</td>
+<td>BC — Activo corriente — <strong>Bienes de cambio</strong></td>
+<td>Ver `RUBROS_CONTABILIDAD_ARGENTINA_REFERENCIA.md`</td>
+</tr>
+<tr>
+<td>Compras / Mercaderías</td>
+<td>Proveedores exterior</td>
+<td>BC — Pasivo corriente — Proveedores</td>
+<td>Importaciones</td>
+</tr>
+<tr>
+<td>Costo de ventas *(si se registra en caja)*</td>
+<td>CMV</td>
+<td>ER — Costo de ventas — Costo de mercaderías vendidas</td>
+<td><strong>a definir</strong> si el extracto lleva CMV o solo caja</td>
+</tr>
+</tbody></table>
+<p class="sp"></p>
+<p><strong>Notas para la reunión:</strong> (1) El <strong>rubro</strong> mezcla cuentas de balance (BC) y naturaleza en ER: en el maestro pueden ser <strong>dos columnas</strong> (“Rubro balance” y “Rubro resultado”) donde aplique. (2) <strong>Impuestos</strong> (~49 % del extracto): no reemplaza un mapeo <strong>cuenta por cuenta</strong>; mantener <strong>a definir</strong> hasta el plan detallado. (3) <strong>Hornos / Activos:</strong> decisión crítica entre bienes de cambio, inmovilizado u otro; documentar. (4) <strong>Traspasos:</strong> suelen ser <strong>TES</strong> para no distorsionar gastos. (5) <strong>Apertura / Cierre de Caja</strong> no se listan en la tabla: quedan <strong>excluidas por definición</strong> (ver párrafo previo). (6) Actualizar tras normas vigentes (p. ej. <strong>RG IGJ</strong> y <strong>RT</strong> del ejercicio).</p>
+<p class="sp"></p>
+<h3>8.5. Rubro contable (Argentina) y proyección del balance desde el sistema</h3>
+<p class="sp"></p>
+<p><strong>Idea de diseño:</strong> además del par categoría ↔ cuenta contable, conviene que el maestro incorpore un <strong>rubro / clasificación patrimonial</strong> alineado con la práctica y presentación de estados en Argentina (p. ej. criterios tipo <strong>IGJ</strong>, referencias <strong>FACPCE</strong> como RT 8, 9, 17, según use el contador). Así cada cuenta (o cada par permitido) puede <strong>mapearse</strong> a Activo / Pasivo / Patrimonio / Resultado y, dentro del activo, a <strong>Bienes de cambio</strong>, etc., lo que <strong>facilita proyectar</strong> un balance o borradores de estados <strong>desde</strong> los datos del sistema y exportaciones, sin reemplazar el asiento formal ni el cierre.</p>
+<p class="sp"></p>
+<p><strong>¿Es buena idea?</strong> En general <strong>sí</strong>: da un <strong>lenguaje común</strong> con el contador y reduce trabajo manual al armar reportes patrimoniales; el matiz es que el <strong>flujo de caja</strong> y el extracto <strong>no bastan solos</strong> para un balance completo (stock, devengados, depreciaciones, ajuste por inflación al cierre, etc.). La proyección será tan buena como los <strong>datos y reglas</strong> que se carguen fuera del puro movimiento de caja.</p>
+<p class="sp"></p>
+<p><strong>Documento detallado para revisión:</strong> en `docs/RUBROS_CONTABILIDAD_ARGENTINA_REFERENCIA.md` está incorporado un desarrollo concreto (ejemplo <strong>importación de bienes de cambio</strong> — hornos —: mercaderías en tránsito, gastos activables, IVA y percepciones como crédito fiscal, <strong>venta + CMV</strong>, y nota sobre <strong>ajuste por inflación</strong> al cierre). Sirve para revisión con el contador y para decidir columnas extra en la matriz (<strong>Rubro IGJ / patrimonial</strong>, naturaleza del saldo, observaciones).</p>
+<p class="sp"></p>
+<p><strong>Archivo espejo</strong> (misma tabla para editar aparte): `docs/MATRIZ_CATEGORIA_CUENTA_RUBRO_BORRADOR.md` — conviene mantenerlo alineado con §8.4.</p>
+<p class="sp"></p>
+<hr/>
+<p class="sp"></p>
+<p class="meta">Documento para etapa de análisis y reunión con el cliente. Conteos referidos al universo de <strong>3.008</strong> movimientos (análisis original sobre extracto legado; equivalente a `docs/Fornitalia_Movimientos.xlsx` / `docs/Extracto-Fornitalia.xlsx`, hoja <strong>Movimientos</strong>). Tras editar el `.md`, regenerar HTML/PDF (comandos abajo). Si el maestro de datos o los volcados cambian materialmente, conviene <strong>recalcular conteos</strong> con scripts de auditoría o pivot sobre el normalizado.</p>
 <p class="sp"></p>
 <p><strong>Formatos entregables:</strong> el mismo contenido está en `ANALISIS_NORMALIZACION_DATOS_LEGACY_FORNITALIA.md` (fuente), `.html` y `.pdf` en la misma carpeta `docs/`.</p>
 <p class="sp"></p>

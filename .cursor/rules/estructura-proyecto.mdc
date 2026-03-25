@@ -16,6 +16,10 @@ Mantener siempre esta organización para que sea **simple y eficiente** encontra
 | **`docs/`** | Documentación en Markdown: requisitos, advertencias, guías de uso, README de features. | `SUPABASE_REQUISITOS.md`, `POBLAR_TRANSACCIONES_DESDE_EXCEL.md` |
 | **Raíz** | Solo lo esencial: app principal (`dashboard-flujo-caja.html`), config (`package.json`, `.env.example`), assets (`favicon.svg`), y carpetas de datos/salida (`Estados_Resultado/`, `Caja/`). Los archivos generados (Excel, PPT, JSON de datos) pueden quedar en raíz. | |
 
+## Estándares LyP (todos los repos raíz)
+
+- **Tablas y móvil:** encabezados sticky y responsividad obligatoria. Ver **tablas-y-movil-lyp** en `.cursor/rules/`.
+
 ## Al agregar archivos nuevos
 
 - **Nuevo script SQL** → siempre en `sql/` (nombre descriptivo, ej. `supabase_*` si es para Supabase).

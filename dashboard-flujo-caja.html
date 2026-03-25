@@ -518,7 +518,7 @@
   <main id="main-content" class="main-content">
   <div id="view-dashboard">
   <h1>Flujo de caja</h1>
-  <p style="color:#666; margin-top:0;">Entradas y salidas por mes. No se incluyen transacciones anuladas. Si no hay cotización para la fecha, se usa la inmediata anterior. Hacé clic en un mes para ver el detalle por categoría.</p>
+  <p style="color:#666; margin-top:0;">Entradas y salidas por mes. No se incluyen transacciones anuladas ni movimientos de <strong>marzo 2026</strong> (mes no cerrado), para alinear con informes a mes cerrado. Si no hay cotización para la fecha, se usa la inmediata anterior. Hacé clic en un mes para ver el detalle por categoría.</p>
 
   <div id="loading" class="card loading">Cargando transacciones y tipos de cambio…</div>
   <div id="error" class="card error" style="display:none;"></div>
@@ -563,7 +563,7 @@
       </div>
     </div>
     <div id="panel-flujo" class="card panel activo">
-      <p class="sin-cotizacion-note" style="margin:0 0 0.65rem 0;">Alineado al <strong>informe financiero PDF</strong>: en <strong>ARS</strong> se prioriza <strong>monto_cambio</strong> en BD (= “Monto en $” del extracto), luego <strong>tipo_cambio</strong> por fila y recién la tabla de cotización (elegí <strong>MEP</strong> para igualar al PDF cuando falte monto en pesos en BD). Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = totales extracto (con traspasos); <strong>Neto bruto</strong> = ing − egr. <strong>G/P operativo</strong>, ratios y <strong>Caución</strong> excluyen apertura/cierre y <strong>Transferencia</strong> / <strong>Deposito/Depósito</strong> (ver <strong>Traspasos internos</strong>).</p>
+      <p class="sin-cotizacion-note" style="margin:0 0 0.65rem 0;">Alineado al <strong>informe financiero PDF</strong>: en <strong>ARS</strong> se prioriza <strong>monto_cambio</strong> en BD (= “Monto en $” del extracto), luego <strong>tipo_cambio</strong> por fila y recién la tabla de cotización (elegí <strong>MEP</strong> para igualar al PDF cuando falte monto en pesos en BD). Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = totales extracto (con traspasos); <strong>Neto bruto</strong> = ing − egr. <strong>G/P operativo</strong> y ratios excluyen apertura/cierre y <strong>Transferencia</strong> / <strong>Deposito/Depósito</strong>. <strong>Caución</strong> además usa <strong>solo movimientos en moneda de origen ARS</strong> y montos en <strong>pesos</strong> (la tasa de la serie es en ARS), aunque el selector muestre USD en el resto de la tabla.</p>
       <div class="flujo-table-wrap">
       <table>
         <thead>
@@ -712,7 +712,7 @@
     </div>
     <div id="panel-traspasos-internos" class="card panel">
       <div class="errores-panel-toolbar">
-        <p class="sin-cotizacion-note" style="margin:0;">Registros con categoría <strong>Transferencia</strong> o <strong>Deposito/Depósito</strong>: traspasos entre cuentas propias. <strong>No entran</strong> en G/P operativo, ratios ni Caución (igual que el informe financiero). Monto en la moneda de vista actual (ARS/USD y tipo de cambio seleccionado).</p>
+        <p class="sin-cotizacion-note" style="margin:0;">Registros con categoría <strong>Transferencia</strong> o <strong>Deposito/Depósito</strong>: traspasos entre cuentas propias. <strong>No entran</strong> en G/P operativo ni ratios. <strong>Caución</strong> tampoco incluye esos traspasos ni movimientos en <strong>USD</strong> de origen; sus importes se muestran en <strong>ARS</strong> en la columna Caución.</p>
       </div>
       <div class="errores-table-wrap">
         <table id="tabla-traspasos-internos">
@@ -1070,7 +1070,7 @@
         <button type="button" class="modal-close" id="modal-upload-normalizado-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
       </div>
       <div class="modal-body">
-        <p style="margin:0 0 0.6rem 0; font-size:0.93rem; color:#555;">Este proceso reemplaza toda la tabla <code>transacciones</code> por el contenido de la hoja <code>Normalizado</code>. Se valida estructura y tipos antes de insertar.</p>
+        <p style="margin:0 0 0.6rem 0; font-size:0.93rem; color:#555;">Este proceso reemplaza toda la tabla <code>transacciones</code> por el contenido de la hoja <code>Normalizado</code> (generada con <code>npm run normalizar-extracto</code> desde <code>docs/Fornitalia_Movimientos.xlsx</code>, que incluye IDs y <code>cat_desc</code> cuando existen). Se valida estructura y tipos antes de insertar.</p>
         <div class="upload-zone">
           <input type="file" id="upload-normalizado-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
           <p id="upload-normalizado-file-name" style="margin:0.45rem 0 0; font-size:0.9rem; color:#666;"></p>
@@ -1175,7 +1175,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.43';
+    const APP_VERSION = '1.49';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1792,13 +1792,18 @@
       return (medioPago || '').toLowerCase().indexOf('dolar') !== -1;
     }
 
-    /** Moneda de la transacción: prioriza campo moneda en BD; si no existe, infiere desde medio_pago. */
+    /** Moneda de la transacción: maestro caja→moneda primero; luego reglas e inferencia. */
     function esTransaccionUSD(r) {
+      const porMedio = monedaPorMedioFornitaliaTabla(r.medio_pago);
+      if (porMedio === 'USD') return true;
+      if (porMedio === 'ARS') return false;
       if (reglaNegocioMonedaSiempreARS(r.medio_pago, r.descripcion, r.cat_desc, r.cuenta_contable, r.categoria)) return false;
       const m = (r.moneda || '').toString().trim().toUpperCase();
       if (m === 'USD') return true;
       if (m === 'ARS') return false;
-      return esMonedaUSD(r.medio_pago);
+      const obs = [r.observaciones, r.cat_desc].filter(Boolean).join(' ') || '';
+      return inferMonedaDesdeTextos(r.medio_pago, r.descripcion, obs, r.cuenta_contable, r.categoria) === 'USD'
+        || esMonedaUSD(r.medio_pago);
     }
 
     /** Fecha como YYYY-MM-DD (solo día, sin hora). Proyecto Argentina: se evita usar Date para no depender de la franja horaria del navegador. */
@@ -1817,6 +1822,19 @@
       const anio = parseInt(s.slice(0, 4), 10);
       const mes = parseInt(s.slice(5, 7), 10);
       return { anio: isNaN(anio) ? null : anio, mes: isNaN(mes) ? null : mes };
+    }
+
+    /**
+     * Mes abierto / no cerrado: fuera de flujo, totales, solapas y export (coherencia con informes).
+     * Lista ampliable; al cerrar el mes en origen, quitar o ajustar aquí y en generar-analisis-financiero-pdf.js.
+     */
+    function esTransaccionMesNoCerradoExcluida(r) {
+      const a = r.anio != null ? Number(r.anio) : null;
+      const m = r.mes != null ? Number(r.mes) : null;
+      if (Number.isFinite(a) && Number.isFinite(m) && a === 2026 && m === 3) return true;
+      const f = fechaStr(r.fecha);
+      if (f && /^2026-03-\d{2}$/.test(f)) return true;
+      return false;
     }
 
     /** Normaliza para comparar categorías con/sin tildes (ej. Depósito / Deposito). */
@@ -1975,13 +1993,20 @@
     let flujoMoneda = 'ARS';
     let flujoSimbolo = '$ ';
 
+    /** Coherente con `normalizeTasaCaucionDiariaPdf` en el informe: JSON legado con TNA%/365 sin ÷100. */
+    function normalizeTasaCaucionDiaria(t) {
+      if (typeof t !== 'number' || !Number.isFinite(t) || t < 0) return 0;
+      return t > 0.02 ? t / 100 : t;
+    }
+
     function getTasaCaucion(fecha) {
       if (!fecha || fechasCaucionOrdenadas.length === 0) return 0;
       const idx = fechasCaucionOrdenadas.findIndex(d => d > fecha);
       const i = idx === -1 ? fechasCaucionOrdenadas.length - 1 : (idx === 0 ? -1 : idx - 1);
       if (i < 0) return 0;
       const t = cacheSerieCauciones[fechasCaucionOrdenadas[i]];
-      return typeof t === 'number' && t >= 0 ? t : 0;
+      if (typeof t !== 'number' || t < 0) return 0;
+      return normalizeTasaCaucionDiaria(t);
     }
 
     function getTasaAnterior(fecha, rateKey) {
@@ -2065,7 +2090,7 @@
           anio: Number.isFinite(anioNum) ? anioNum : null,
           status: (r.status == null ? '' : String(r.status)).trim()
         };
-      });
+      }).filter((r) => !esTransaccionMesNoCerradoExcluida(r));
       const tcs = tcRows || [];
       const map = {};
       tcs.forEach(r => {
@@ -2204,6 +2229,7 @@
       const rows = cacheTransacciones;
 
       const porMes = {};
+      const porMesArs = {};
       const porMesBruto = {};
       const porMesCategoria = {};
       const porMesCatIng = {};
@@ -2228,6 +2254,15 @@
         }
 
         if (esTraspasoInternoCategoria(r.categoria)) return;
+
+        if (!esTransaccionUSD(r)) {
+          const mArs = montoConvertido(r, 'ARS', tipoDolar);
+          if (mArs != null && Number.isFinite(mArs)) {
+            if (!porMesArs[key]) porMesArs[key] = { ingresos: 0, egresos: 0 };
+            if (r.tipo_movimiento === 'Ingreso') porMesArs[key].ingresos += mArs;
+            else if (r.tipo_movimiento === 'Egreso') porMesArs[key].egresos += mArs;
+          }
+        }
 
         const cat = (r.categoria || '').trim() || 'Sin categoría';
         const catDisplay = getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || 'Sin categoría';
@@ -2256,18 +2291,21 @@
       detalleIntCaucionPorMes = {};
       Object.keys(porMes).forEach(k => { detalleIntCaucionPorMes[k] = []; });
       const deltasPorFecha = {};
-      rows.filter(r => !excluirFilaFlujoOperativo(r)).forEach(r => {
+      rows.filter(r => !excluirFilaFlujoOperativo(r) && !esTransaccionUSD(r)).forEach(r => {
         const fecha = fechaStr(r.fecha);
         if (!fecha) return;
-        const m = montoConvertido(r, moneda, tipoDolar);
-        if (m == null) return;
+        const m = montoConvertido(r, 'ARS', tipoDolar);
+        if (m == null || !Number.isFinite(m)) return;
         const delta = r.tipo_movimiento === 'Ingreso' ? m : -m;
         deltasPorFecha[fecha] = (deltasPorFecha[fecha] || 0) + delta;
       });
       const fechasOrdenadas = Object.keys(deltasPorFecha).sort();
       const pctCaucion = getPctCaucion();
       const thIntCaucion = document.getElementById('th-int-caucion-label');
-      if (thIntCaucion) thIntCaucion.textContent = 'Caución (' + pctCaucion + '% cash)';
+      if (thIntCaucion) {
+        thIntCaucion.textContent = 'Caución (' + pctCaucion + '% cash, ARS)';
+        thIntCaucion.title = 'Solo movimientos con moneda de origen ARS; montos en pesos. La tasa de la serie es en ARS. No incluye flujos en USD aunque la vista sea en dólares.';
+      }
       let gpAcumulado = 0;
       let intAcumuladoAnterior = 0;
       fechasOrdenadas.forEach(fecha => {
@@ -2400,7 +2438,7 @@
           <td class="balance ${balance >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balance, moneda)}</td>
           <td>${comVentasPct}</td>
           <td>${egrSinComIngPct}</td>
-          <td class="ingresos int-caucion-cell" data-key-mes="${key}" role="button" tabindex="0" title="Ver marcha de cálculo">${simbolo}${formatearNumero((d.intCaucion != null ? d.intCaucion : 0), moneda)}</td>
+          <td class="ingresos int-caucion-cell" data-key-mes="${key}" role="button" tabindex="0" title="Ver marcha de cálculo (en pesos ARS)">$ ${formatearNumero((d.intCaucion != null ? d.intCaucion : 0), 'ARS')}</td>
           <td class="alert-icon-cell">${iconoAlert}</td>
         </tr>`;
       });
@@ -2450,12 +2488,18 @@
         const proyVentas = proyeccionDesdeSerie(valoresVentas, N, agg, mesesAProyectar);
         const proyComisionesParaRatio = proyeccionDesdeSerie(valoresComisionesParaRatio, N, agg, mesesAProyectar);
         const proyComisiones = proyeccionDesdeSerie(valoresComisiones, N, agg, mesesAProyectar);
-        const gpTotalReal = totalIngresos - totalEgresos;
-        let basePartida = (gpTotalReal * pctCaucion / 100) + intAcumuladoAnterior;
+        const valoresIngArsCaucion = ordenados.map(k => (porMesArs[k] ? porMesArs[k].ingresos : 0));
+        const valoresEgrArsCaucion = ordenados.map(k => (porMesArs[k] ? porMesArs[k].egresos : 0));
+        const proyIngArsCaucion = proyeccionDesdeSerie(valoresIngArsCaucion, N, agg, mesesAProyectar);
+        const proyEgrArsCaucion = proyeccionDesdeSerie(valoresEgrArsCaucion, N, agg, mesesAProyectar);
+        const totalIngArsCaucion = valoresIngArsCaucion.reduce((s, v) => s + v, 0);
+        const totalEgrArsCaucion = valoresEgrArsCaucion.reduce((s, v) => s + v, 0);
+        const gpTotalRealArsCaucion = totalIngArsCaucion - totalEgrArsCaucion;
+        let basePartida = (gpTotalRealArsCaucion * pctCaucion / 100) + intAcumuladoAnterior;
         const detalleUltimoReal = detalleIntCaucionPorMes[lastKey] || [];
         const ultimaFilaReal = detalleUltimoReal.length > 0 ? detalleUltimoReal[detalleUltimoReal.length - 1] : null;
         let intAcumuladoInicial = ultimaFilaReal != null ? (ultimaFilaReal.intAnterior || 0) + (ultimaFilaReal.intDia || 0) : intAcumuladoAnterior;
-        let gpInicialSolo = gpTotalReal * pctCaucion / 100;
+        let gpInicialSolo = gpTotalRealArsCaucion * pctCaucion / 100;
         let keyProy = siguienteMesKey(ordenados[ordenados.length - 1]);
         const proys = [];
         let prevRes = null;
@@ -2471,12 +2515,13 @@
           const [anioProy, mesProy] = keyProy.split('-').map(Number);
           const diasMes = diasEnMes(anioProy, mesProy);
           const baseInicio = basePartida;
-          const res = intCaucionProyectadoMes(basePartida, proy.gp, tasaDiariaProy, { dias: diasMes, intAcumuladoInicial, gpInicialSolo, pctCaucion });
+          const proyGpArs = proyIngArsCaucion[i] - proyEgrArsCaucion[i];
+          const res = intCaucionProyectadoMes(basePartida, proyGpArs, tasaDiariaProy, { dias: diasMes, intAcumuladoInicial, gpInicialSolo, pctCaucion });
           prevRes = res;
           const intCaucionProy = res.intCaucion;
-          basePartida = proy.gp + intCaucionProy;
+          basePartida = proyGpArs + intCaucionProy;
           gpInicialSolo = res.gpAcumSoloFin;
-          detalleIntCaucionProy[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), basePartida: baseInicio, gpTotalReal: i === 0 ? gpTotalReal : undefined, intAcumuladoInicial, proyGP: proy.gp, tasaDiaria: tasaDiariaProy, intCaucion: intCaucionProy, detalle: res.detalle, dias: diasMes };
+          detalleIntCaucionProy[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), basePartida: baseInicio, gpTotalReal: i === 0 ? gpTotalRealArsCaucion : undefined, intAcumuladoInicial, proyGP: proyGpArs, tasaDiaria: tasaDiariaProy, intCaucion: intCaucionProy, detalle: res.detalle, dias: diasMes };
           detalleProyeccionPorMes[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), ing: proy.ing, egr: proy.egr, gp: proy.gp, comVentasPct: proy.comVentasPct, egrSinComIngPct: proy.egrSinComIngPct, ingresoPorCat: { ...proyDetalle[keyProy].ingresoPorCat }, egresoPorCat: { ...proyDetalle[keyProy].egresoPorCat } };
           filasProy += `<tr class="fila-proyeccion" data-proy-key="${keyProy}" role="button" tabindex="0" title="Ver detalle de proyección">
             <td>Proy. ${formatoMesAnio(mesProy, anioProy)}</td>
@@ -2486,7 +2531,7 @@
             <td class="balance ${proy.gp >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(proy.gp, moneda)}</td>
             <td>${proy.comVentasPct}</td>
             <td>${proy.egrSinComIngPct}</td>
-            <td class="ingresos int-caucion-cell" data-proy-key="${keyProy}" role="button" tabindex="0" title="Ver marcha de cálculo">${simbolo}${formatearNumero(intCaucionProy, moneda)}</td>
+            <td class="ingresos int-caucion-cell" data-proy-key="${keyProy}" role="button" tabindex="0" title="Ver marcha de cálculo (en pesos ARS)">$ ${formatearNumero(intCaucionProy, 'ARS')}</td>
             <td class="alert-icon-cell"></td>
           </tr>`;
           keyProy = siguienteMesKey(keyProy);
@@ -2523,13 +2568,13 @@
           <td class="balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</td>
           <td>${comVentasPctTotal}</td>
           <td>${egrSinComIngPctTotal}</td>
-          <td class="ingresos">${simbolo}${formatearNumero(totalIntCaucion, moneda)}</td>
+          <td class="ingresos" title="Caución acumulada en pesos ARS (solo origen ARS)">$ ${formatearNumero(totalIntCaucion, 'ARS')}</td>
           <td class="alert-icon-cell"></td>
         </tr>`;
         if (ordenados.length === 0) tfootHtml = '';
         if (filasProy) {
           const metodoLabel = configProy.metodo === 'promedio_ponderado' ? 'Promedio ponderado' : (configProy.metodo === 'promedio' ? 'Promedio' : (configProy.metodo === 'promedio_recortado' ? 'Promedio recortado (suaviza picos)' : 'Mediana'));
-          const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución). Caución: punto de partida = G/P acumulado + interés acumulado (al cierre del último día real); Int T-1 del primer día = interés acumulado real; tasa = promedio del último mes real; días = días naturales del mes (31 ene, 28/29 feb, etc.).`;
+          const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución). Caución proyectada: solo serie <strong>ARS</strong> (origen pesos), misma marcha que el real; punto de partida = G/P operativo ARS acumulado histórico × % + interés acumulado real; tasa = promedio último mes real; días naturales del mes.`;
           tfootHtml += `<tr class="fila-titulo-proyeccion"><td colspan="9">Próximos ${mesesAProyectar} ${mesesAProyectar === 1 ? 'mes' : 'meses'} proyectados:</td></tr>${filasProy}<tr class="disclaimer-proyeccion"><td colspan="9">${disclaimer}</td></tr>`;
         }
         tfoot.innerHTML = tfootHtml;
@@ -2651,18 +2696,18 @@
       if (!backdrop || !titulo || !tbody) return;
       const [anio, mes] = keyMes.split('-');
       const label = formatoMesAnio(parseInt(mes, 10), parseInt(anio, 10));
-      titulo.textContent = 'Marcha de cálculo — Caución · ' + label;
+      titulo.textContent = 'Marcha de cálculo — Caución (ARS) · ' + label;
       if (!list || list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">No hay datos para este mes.</td></tr>';
       } else {
         tbody.innerHTML = list.map(row => `
           <tr>
             <td>${(row.fecha || '').replace(/</g, '&lt;')}</td>
-            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.gpAcum, flujoMoneda)}</td>
-            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.intAnterior, flujoMoneda)}</td>
-            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.base, flujoMoneda)}</td>
+            <td class="ingresos">$ ${formatearNumero(row.gpAcum, 'ARS')}</td>
+            <td class="ingresos">$ ${formatearNumero(row.intAnterior, 'ARS')}</td>
+            <td class="ingresos">$ ${formatearNumero(row.base, 'ARS')}</td>
             <td>${row.tasa != null ? (row.tasa * 100).toFixed(4) + '%' : '—'}</td>
-            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.intDia, flujoMoneda)}</td>
+            <td class="ingresos">$ ${formatearNumero(row.intDia, 'ARS')}</td>
           </tr>
         `).join('');
       }
@@ -2675,28 +2720,28 @@
       const titulo = document.getElementById('modal-int-caucion-titulo');
       const tbody = document.getElementById('tbody-int-caucion');
       if (!backdrop || !titulo || !tbody || !info) return;
-      titulo.textContent = 'Marcha de cálculo — Caución (proyectado) · ' + info.label;
+      titulo.textContent = 'Marcha de cálculo — Caución proyectada (ARS) · ' + info.label;
       const detalle = info.detalle || [];
       if (detalle.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">No hay detalle.</td></tr>';
       } else {
         let lineaPartida;
         if (info.gpTotalReal != null && info.intAcumuladoInicial != null) {
-          lineaPartida = 'G/P acum (Total real): ' + flujoSimbolo + formatearNumero(info.gpTotalReal, flujoMoneda) + ' &nbsp;+&nbsp; Int. acum: ' + flujoSimbolo + formatearNumero(info.intAcumuladoInicial, flujoMoneda) + ' &nbsp;= Base partida: ' + flujoSimbolo + formatearNumero(info.basePartida, flujoMoneda);
+          lineaPartida = 'G/P acum (real, solo ARS): $ ' + formatearNumero(info.gpTotalReal, 'ARS') + ' &nbsp;+&nbsp; Int. acum: $ ' + formatearNumero(info.intAcumuladoInicial, 'ARS') + ' &nbsp;= Base partida: $ ' + formatearNumero(info.basePartida, 'ARS');
         } else if (info.intAcumuladoInicial != null) {
-          lineaPartida = 'Int T-1 (primer día) = interés cierre mes proyectado anterior: ' + flujoSimbolo + formatearNumero(info.intAcumuladoInicial, flujoMoneda) + ' &nbsp;|&nbsp; Base partida: ' + flujoSimbolo + formatearNumero(info.basePartida, flujoMoneda);
+          lineaPartida = 'Int T-1 (primer día) = interés cierre mes proyectado anterior: $ ' + formatearNumero(info.intAcumuladoInicial, 'ARS') + ' &nbsp;|&nbsp; Base partida: $ ' + formatearNumero(info.basePartida, 'ARS');
         } else {
-          lineaPartida = 'Base partida: ' + flujoSimbolo + formatearNumero(info.basePartida, flujoMoneda);
+          lineaPartida = 'Base partida: $ ' + formatearNumero(info.basePartida, 'ARS');
         }
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:left; color:#555; font-size:0.9rem;">' + lineaPartida + ' &nbsp;|&nbsp; G/P mes: ' + flujoSimbolo + formatearNumero(info.proyGP, flujoMoneda) + ' &nbsp;|&nbsp; Tasa diaria: ' + (info.tasaDiaria != null ? (info.tasaDiaria * 100).toFixed(4) + '%' : '—') + '</td></tr>' +
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:left; color:#555; font-size:0.9rem;">' + lineaPartida + ' &nbsp;|&nbsp; G/P mes (ARS): $ ' + formatearNumero(info.proyGP, 'ARS') + ' &nbsp;|&nbsp; Tasa diaria: ' + (info.tasaDiaria != null ? (info.tasaDiaria * 100).toFixed(4) + '%' : '—') + '</td></tr>' +
           detalle.map(row => `
           <tr>
             <td>Día ${row.dia}</td>
-            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.gpAcum, flujoMoneda)}</td>
-            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.intAnterior, flujoMoneda)}</td>
-            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.base, flujoMoneda)}</td>
+            <td class="ingresos">$ ${formatearNumero(row.gpAcum, 'ARS')}</td>
+            <td class="ingresos">$ ${formatearNumero(row.intAnterior, 'ARS')}</td>
+            <td class="ingresos">$ ${formatearNumero(row.base, 'ARS')}</td>
             <td>${row.tasa != null ? (row.tasa * 100).toFixed(4) + '%' : '—'}</td>
-            <td class="ingresos">${flujoSimbolo}${formatearNumero(row.intDia, flujoMoneda)}</td>
+            <td class="ingresos">$ ${formatearNumero(row.intDia, 'ARS')}</td>
           </tr>
         `).join('');
       }
@@ -3084,6 +3129,48 @@
         cuenta === 'cierre de caja';
     }
 
+    /**
+     * Maestro: la caja (medio) determina la moneda. Mantener igual a scripts/lib/fornitalia-moneda-por-medio.js
+     */
+    const MEDIO_MONEDA_FORNITALIA_TABLA = [
+      ['Transferencia Galicia Dolar', 'USD'],
+      ['Efectivo Dolar', 'USD'],
+      ['Transferencia Credicoop', 'ARS'],
+      ['Transferencia Galicia', 'ARS'],
+      ['Transferencia Morba', 'ARS'],
+      ['Transferencia Morva', 'ARS'],
+      ['Efectivo Pesos', 'ARS'],
+      ['MercadoPago', 'ARS'],
+      ['Mercado Pago', 'ARS'],
+      ['-', 'ARS']
+    ];
+    let _lookupMedioMonedaFornitalia = null;
+    function normKeyMedioFornitalia(medioRaw) {
+      const t = (medioRaw == null ? '' : String(medioRaw)).trim();
+      if (t === '' || t === '\u2014' || t === '\u2013') return '';
+      if (t === '-') return '-';
+      return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
+    }
+    function getLookupMedioMonedaFornitalia() {
+      if (_lookupMedioMonedaFornitalia) return _lookupMedioMonedaFornitalia;
+      const map = new Map();
+      MEDIO_MONEDA_FORNITALIA_TABLA.forEach(([label, mon]) => {
+        const key = label === '-' ? '-' : normKeyMedioFornitalia(label);
+        if (key !== '' || label === '-') map.set(label === '-' ? '-' : key, mon);
+      });
+      _lookupMedioMonedaFornitalia = [...map.entries()].sort((a, b) => b[0].length - a[0].length);
+      return _lookupMedioMonedaFornitalia;
+    }
+    /** @returns {'ARS'|'USD'|null} */
+    function monedaPorMedioFornitaliaTabla(medioPago) {
+      const k = normKeyMedioFornitalia(medioPago);
+      if (k === '') return null;
+      for (const [key, mon] of getLookupMedioMonedaFornitalia()) {
+        if (k === key) return mon;
+      }
+      return null;
+    }
+
     /** Mercado Pago y Transferencia Morba (extracto real; “morba” con b) siempre ARS; también “morva” por typo. */
     function reglaNegocioMonedaSiempreARS(medioPago, descripcion, observaciones, cuenta, categoria) {
       const medio = normalizarString(medioPago).toLowerCase();
@@ -3165,11 +3252,16 @@
           return;
         }
         let moneda = normalizarString(r.moneda).toUpperCase();
-        if (moneda !== 'ARS' && moneda !== 'USD') {
-          moneda = inferMonedaDesdeTextos(r.medio_pago, r.descripcion, r.observaciones, r.cuenta_contable, r.categoria);
-        }
-        if (reglaNegocioMonedaSiempreARS(r.medio_pago, r.descripcion, r.observaciones, r.cuenta_contable, r.categoria)) {
-          moneda = 'ARS';
+        const porMedioTabla = monedaPorMedioFornitaliaTabla(r.medio_pago);
+        if (porMedioTabla) {
+          moneda = porMedioTabla;
+        } else {
+          if (moneda !== 'ARS' && moneda !== 'USD') {
+            moneda = inferMonedaDesdeTextos(r.medio_pago, r.descripcion, r.observaciones, r.cuenta_contable, r.categoria);
+          }
+          if (reglaNegocioMonedaSiempreARS(r.medio_pago, r.descripcion, r.observaciones, r.cuenta_contable, r.categoria)) {
+            moneda = 'ARS';
+          }
         }
         const mes = Number(fechaIso.slice(5, 7));
         const anio = Number(fechaIso.slice(0, 4));
@@ -3177,6 +3269,13 @@
         const horaFmt = /^\d{2}:\d{2}(:\d{2})?$/.test(hora) ? (hora.length === 5 ? `${hora}:00` : hora) : null;
         const idOperacionRaw = normalizarString(r.nro_operacion);
         const idOperacion = (idOperacionRaw && idOperacionRaw !== '-') ? idOperacionRaw : null;
+        const idCierreRaw = normalizarString(r.id_cierre_caja);
+        const idCierreCaja = idCierreRaw || null;
+        const idCompPago = toNumOrNull(r.id_comprobante_pago);
+        const idImp = toNumOrNull(r.id_impuesto);
+        const catDescNorm = normalizarString(r.cat_desc);
+        const obsNorm = normalizarString(r.observaciones);
+        const catDescInsert = catDescNorm || obsNorm || null;
         const hashFuente = hashString32([
           fechaIso,
           tipo,
@@ -3192,15 +3291,15 @@
         out.push({
           titulo: 'Extracto normalizado',
           id_origen: idOrigen,
-          id_cierre_caja: null,
+          id_cierre_caja: idCierreCaja,
           id_operacion: idOperacion,
-          id_comprobante_pago: null,
-          id_impuesto: null,
+          id_comprobante_pago: idCompPago,
+          id_impuesto: idImp,
           cliente: normalizarString(r.cliente) || null,
           tipo_movimiento: tipo,
           medio_pago: normalizarString(r.medio_pago) || null,
           descripcion: normalizarString(r.descripcion) || null,
-          cat_desc: normalizarString(r.observaciones) || null,
+          cat_desc: catDescInsert,
           observaciones: `hash_fuente:${hashFuente}`,
           categoria: normalizarString(r.categoria) || 'Sin categoría',
           cuenta_contable: normalizarString(r.cuenta_contable) || null,
