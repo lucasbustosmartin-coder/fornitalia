@@ -130,13 +130,44 @@
     .th-help { display: inline-flex; align-items: center; vertical-align: middle; margin: 0 0.15rem; color: #666; cursor: pointer; }
     .th-help:hover { color: #333; }
     .th-help svg { flex-shrink: 0; }
+    .flujo-panel-help-row { margin: 0 0 0.45rem 0; min-height: 1.1rem; }
+    button.th-help.th-help--inline {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px;
+      margin: 0;
+      border: none;
+      background: transparent;
+      color: #9ca3af;
+      cursor: pointer;
+      border-radius: 999px;
+      line-height: 0;
+    }
+    button.th-help.th-help--inline:hover { color: #4b5563; }
+    button.th-help.th-help--inline:focus-visible { outline: 2px solid #374151; outline-offset: 2px; }
     #th-help-popover { position: fixed; z-index: 10000; max-width: 280px; padding: 0.5rem 0.75rem; background: #1a1a1a; color: #fff; font-size: 0.85rem; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none; }
+    #th-help-popover.th-help-popover-rich {
+      max-width: min(440px, calc(100vw - 16px));
+      padding: 0.65rem 0.85rem;
+      pointer-events: auto;
+    }
+    #th-help-popover.th-help-popover-rich .th-help-rich-content { font-size: 0.82rem; line-height: 1.45; }
+    #th-help-popover.th-help-popover-rich .th-help-rich-content p { margin: 0 0 0.5rem 0; }
+    #th-help-popover.th-help-popover-rich .th-help-rich-content p:last-child { margin-bottom: 0; }
+    #th-help-popover.th-help-popover-rich code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.88em;
+      background: rgba(255,255,255,0.14);
+      padding: 0.08em 0.32em;
+      border-radius: 3px;
+    }
     #th-help-popover.oculto { display: none; }
     .panel { display: none; }
     .panel.activo { display: block; }
     .sin-cotizacion-note { color: #b45309; font-size: 0.9rem; margin-top: 0.5rem; }
     .errores-panel-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem; }
-    .errores-filtros { display: flex; align-items: center; gap: 0.5rem; }
+    .errores-filtros { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
     .errores-filtros label { font-size: 0.9rem; color: #555; white-space: nowrap; }
     .errores-filtros select { padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; min-width: 200px; }
     /* LyP — thead sticky; scroll vertical = página (evita quedar “atascado” al final por overscroll-behavior + doble scroll).
@@ -181,6 +212,9 @@
     #modal-configuracion .form-group { margin-bottom: 0.75rem; }
     #modal-configuracion label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; }
     #modal-configuracion select { width: 100%; max-width: 200px; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; }
+    #modal-configuracion .config-meses-inclusion-grid { display: flex; flex-direction: column; gap: 0.35rem; max-height: 280px; overflow-y: auto; padding: 0.35rem 0; border: 1px solid #e5e5e5; border-radius: 8px; background: #fafafa; }
+    #modal-configuracion .config-meses-inclusion-grid .config-switch-row { margin: 0; padding: 0.35rem 0.65rem; border-radius: 6px; }
+    #modal-configuracion .config-meses-inclusion-grid .config-switch-row:hover { background: #f0f0f0; }
     #tabla-evolucion { min-width: 100%; border-collapse: collapse; }
     #tabla-evolucion th, #tabla-evolucion td { padding: 0.45rem 0.65rem; white-space: nowrap; }
     #tabla-evolucion th { background: #f2f3f5; font-weight: 600; color: #555; }
@@ -262,6 +296,29 @@
     .modal-body .modal-panel.activo { display: block; }
     .modal-tabla { margin-top: 0.5rem; }
     .modal-tabla th, .modal-tabla td { padding: 0.5rem 0.75rem; }
+    .modal-tabla tr.modal-grupo-seccion td {
+      background: #eef1f4;
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: #333;
+      padding-top: 0.65rem;
+      padding-bottom: 0.35rem;
+      border-top: 1px solid #dde2e8;
+    }
+    .modal-tabla tbody tr.modal-grupo-seccion:first-child td { border-top: none; }
+    .modal-tabla tr.modal-grupo-total td {
+      font-weight: 700;
+      font-size: 1.08rem;
+      border-top: 1px solid #ccd3db;
+      padding-top: 0.55rem;
+      padding-bottom: 0.6rem;
+      vertical-align: middle;
+    }
+    .modal-tabla tr.modal-grupo-total td.modal-grupo-total-label {
+      text-align: right;
+      padding-right: 0.5rem;
+      color: #333;
+    }
     .modal-tabla .ver-btn, .modal-tabla .grafico-btn { background: none; border: none; cursor: pointer; color: #444; padding: 0.35rem; display: inline-flex; align-items: center; justify-content: center; margin-left: 0.25rem; }
     .modal-tabla .ver-btn:hover, .modal-tabla .grafico-btn:hover { color: #1a1a1a; }
     .modal-tabla tr.detalle-cat td { background: #f8f9fa; padding-left: 1.5rem; vertical-align: top; }
@@ -518,7 +575,8 @@
   <main id="main-content" class="main-content">
   <div id="view-dashboard">
   <h1>Flujo de caja</h1>
-  <p style="color:#666; margin-top:0;">Entradas y salidas por mes. No se incluyen transacciones anuladas ni movimientos de <strong>marzo 2026</strong> (mes no cerrado), para alinear con informes a mes cerrado. Si no hay cotización para la fecha, se usa la inmediata anterior. Hacé clic en un mes para ver el detalle por categoría.</p>
+  <p style="color:#666; margin-top:0;">Entradas y salidas por mes. No se incluyen transacciones anuladas. Los meses que desactives en <strong>Configuración → Inclusión por mes</strong> quedan fuera de totales, tabla de flujo, Evolución, Caución y exportaciones agregadas; <strong>Todas las transacciones</strong> y la exportación de base histórica siguen mostrando el extracto completo. Si no hay cotización para la fecha, se usa la inmediata anterior. Hacé clic en un mes para ver el detalle por categoría.</p>
+  <p id="flujo-nota-meses-excluidos" style="color:#555; margin-top:0.35rem; font-size:0.88rem;"></p>
 
   <div id="loading" class="card loading">Cargando transacciones y tipos de cambio…</div>
   <div id="error" class="card error" style="display:none;"></div>
@@ -563,7 +621,19 @@
       </div>
     </div>
     <div id="panel-flujo" class="card panel activo">
-      <p class="sin-cotizacion-note" style="margin:0 0 0.65rem 0;">Alineado al <strong>informe financiero PDF</strong>: en <strong>ARS</strong> se prioriza <strong>monto_cambio</strong> en BD (= “Monto en $” del extracto), luego <strong>tipo_cambio</strong> por fila y recién la tabla de cotización (elegí <strong>MEP</strong> para igualar al PDF cuando falte monto en pesos en BD). Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = totales extracto (con traspasos); <strong>Neto bruto</strong> = ing − egr. <strong>G/P operativo</strong> y ratios excluyen apertura/cierre y <strong>Transferencia</strong> / <strong>Deposito/Depósito</strong>. <strong>Caución</strong> además usa <strong>solo movimientos en moneda de origen ARS</strong> y montos en <strong>pesos</strong> (la tasa de la serie es en ARS), aunque el selector muestre USD en el resto de la tabla.</p>
+      <template id="template-flujo-informe-pdf">
+        <div class="th-help-rich-content">
+          <p>Alineado al <strong>informe financiero PDF</strong>: en <strong>ARS</strong> se prioriza <strong>monto_cambio</strong> en BD (= “Monto en $” del extracto), luego <strong>tipo_cambio</strong> por fila y recién la tabla de cotización (elegí <strong>MEP</strong> para igualar al PDF cuando falte monto en pesos en BD).</p>
+          <p>Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = totales extracto (con traspasos); <strong>Neto bruto</strong> = ing − egr. <strong>G/P operativo</strong> y ratios excluyen apertura/cierre y <strong>Transferencia</strong> / <strong>Deposito/Depósito</strong>.</p>
+          <p><strong>Costo directo / Ingresos</strong> y <strong>Costo indirecto / Ingresos</strong> = egresos operativos con <code>costo_directo</code> o <code>costo_indirecto</code> = Y, respectivamente, divididos por ingresos operativos del mes (sin restar comisiones: quedan clasificados por esas banderas).</p>
+          <p><strong>Caución</strong> además usa <strong>solo movimientos en moneda de origen ARS</strong> y montos en <strong>pesos</strong> (la tasa de la serie es en ARS), aunque el selector muestre USD en el resto de la tabla.</p>
+        </div>
+      </template>
+      <div class="flujo-panel-help-row">
+        <button type="button" class="th-help th-help--inline" data-help-template="template-flujo-informe-pdf" aria-label="Ayuda: criterios alineados al informe PDF" title="Criterios de la tabla (informe PDF)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        </button>
+      </div>
       <div class="flujo-table-wrap">
       <table>
         <thead>
@@ -574,7 +644,8 @@
             <th>Neto bruto</th>
             <th>G/P operativo</th>
             <th>Comisiones <span class="th-help" data-help="Corresponde solo a las comisiones por venta." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ventas %</th>
-            <th>Egresos <span class="th-help" data-help="Egresos - Comisiones por Venta / Ingresos" role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
+            <th>Costo dir. <span class="th-help" data-help="Egresos operativos con costo_directo = Y, divididos por ingresos operativos del mes. No se restan comisiones aparte." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
+            <th>Costo ind. <span class="th-help" data-help="Egresos operativos con costo_indirecto = Y (y sin prioridad de directo), divididos por ingresos operativos. No se restan comisiones aparte." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
             <th class="th-int-caucion" id="th-int-caucion-label" title="Interés acumulado por mes colocando el sobrante de caja a la tasa de la serie de cauciones">Caución (100% cash)</th>
             <th class="alert-icon-cell"></th>
           </tr>
@@ -586,7 +657,7 @@
     </div>
     <div id="panel-errores-global" class="card panel">
       <div class="errores-panel-toolbar">
-        <p class="sin-cotizacion-note" style="margin:0;">Registros de egresos con posibles inconsistencias entre categoría, cuenta contable y descripción. Pueden corregirse desde el icono de edición.</p>
+        <p class="sin-cotizacion-note" style="margin:0;">Registros de egresos con posibles inconsistencias entre categoría, cuenta contable y descripción del extracto (validación). Pueden corregirse desde el icono de edición. El filtro <strong>Categoría (matriz)</strong> usa <code>nueva_categoria</code> o el mismo fallback que Evolución.</p>
         <div class="errores-filtros">
           <label for="filtro-tipo-error">Tipo de error:</label>
           <select id="filtro-tipo-error" title="Filtrar por tipo de error">
@@ -598,8 +669,8 @@
           <select id="filtro-categoria-orig" title="Filtrar por categoría original">
             <option value="">Todas</option>
           </select>
-          <label for="filtro-categoria-mostrada">Categoría mostrada:</label>
-          <select id="filtro-categoria-mostrada" title="Filtrar por categoría mostrada">
+          <label for="filtro-categoria-mostrada">Categoría (matriz):</label>
+          <select id="filtro-categoria-mostrada" title="Filtrar por categoría de matriz (nueva en BD o fallback)">
             <option value="">Todas</option>
           </select>
         </div>
@@ -615,8 +686,8 @@
             <th>Id_Operacion</th>
             <th>Tipo</th>
             <th>Categoría orig.</th>
-            <th>Categoría mostrada</th>
-            <th>Cuenta contable</th>
+            <th>Categoría (matriz)</th>
+            <th>Cuenta (matriz)</th>
             <th>Medio</th>
             <th>Monto</th>
             <th>Moneda</th>
@@ -631,14 +702,18 @@
     </div>
     <div id="panel-todas-transacciones" class="card panel">
       <div class="errores-panel-toolbar">
-        <p class="sin-cotizacion-note" style="margin:0;">Listado de todas las transacciones. Podés filtrar por mes y categoría, y editar cada registro (categoría, cuenta contable, descripción); al guardar se marca como editado.</p>
+        <p class="sin-cotizacion-note" style="margin:0;">Listado de todas las transacciones. Podés filtrar por mes, <strong>categoría y cuenta (matriz)</strong> —prioriza <code>nueva_categoria</code> / <code>nueva_cuenta_contable</code> y si faltan usa extracto con la misma lógica que Evolución— y editar cada registro; al guardar se marca como editado.</p>
         <div class="errores-filtros">
           <label for="filtro-todas-mes">Mes:</label>
           <select id="filtro-todas-mes" title="Filtrar por mes">
             <option value="todos">Todos</option>
           </select>
-          <label for="filtro-todas-categoria" style="margin-left:0.75rem;">Categoría:</label>
-          <select id="filtro-todas-categoria" title="Filtrar por categoría">
+          <label for="filtro-todas-categoria" style="margin-left:0.75rem;">Categoría (matriz):</label>
+          <select id="filtro-todas-categoria" title="Filtrar por categoría (matriz / distribución)">
+            <option value="todos">Todas</option>
+          </select>
+          <label for="filtro-todas-cuenta-contable" style="margin-left:0.75rem;">Cuenta (matriz):</label>
+          <select id="filtro-todas-cuenta-contable" title="Filtrar por cuenta contable (matriz / distribución)">
             <option value="todos">Todas</option>
           </select>
           <label for="filtro-todas-tipo" style="margin-left:0.75rem;">Tipo:</label>
@@ -661,8 +736,12 @@
               <th>Moneda</th>
               <th>Status</th>
               <th>Medio pago</th>
-              <th>Categoría</th>
-              <th>Cuenta contable</th>
+              <th>Categoría (matriz)</th>
+              <th>Cuenta (matriz)</th>
+              <th>Nueva categoría (BD)</th>
+              <th>Nueva cuenta (BD)</th>
+              <th>Costo directo</th>
+              <th>Costo indirecto</th>
               <th>Descripción</th>
               <th>Cliente</th>
               <th>Cat desc</th>
@@ -680,12 +759,12 @@
     </div>
     <div id="panel-evolucion" class="card panel">
       <div class="errores-panel-toolbar">
-        <p class="sin-cotizacion-note" style="margin:0;">Tabla dinámica: filas por agrupación, columnas por período. Valores en la moneda seleccionada (ARS/USD). Misma base que <strong>Flujo por mes</strong>: sin anulados, sin apertura/cierre ni traspasos internos (Transferencia / Depósito).</p>
+        <p class="sin-cotizacion-note" style="margin:0;">Tabla dinámica: filas por <strong>categoría o cuenta de matriz</strong> (prioriza columnas nuevas en BD; si faltan, extracto con validación como en el resto del tablero). Columnas por período; moneda ARS/USD. Misma base que <strong>Flujo por mes</strong>: sin anulados, sin apertura/cierre ni traspasos internos (Transferencia / Depósito).</p>
         <div class="errores-filtros">
           <label for="evolucion-agrupar">Agrupar por:</label>
           <select id="evolucion-agrupar" title="Fila de la tabla">
-            <option value="categoria">Categoría</option>
-            <option value="cuenta">Cuenta contable</option>
+            <option value="categoria">Nueva categoría (matriz)</option>
+            <option value="cuenta">Nueva cuenta contable (matriz)</option>
           </select>
           <label for="evolucion-periodo" style="margin-left:0.75rem;">Período:</label>
           <select id="evolucion-periodo" title="Columna de la tabla">
@@ -702,12 +781,12 @@
         </table>
       </div>
       <div id="evolucion-referencia-flujo" class="evolucion-referencia-flujo oculto" style="margin-top:1rem; padding:0.75rem; background:#e8f4f8; border-radius:6px; font-size:0.9rem;">
-        <div style="font-weight:600; margin-bottom:0.5rem; color:#333;">Proyección agregada (suma de ingresos y egresos proyectados por categoría)</div>
+        <div style="font-weight:600; margin-bottom:0.5rem; color:#333;">Proyección agregada (suma de ingresos y egresos proyectados por fila de matriz)</div>
         <table id="tabla-referencia-flujo" style="width:auto; min-width:420px;">
           <thead><tr><th style="text-align:left; padding:0.25rem 0.5rem;">Mes</th><th style="text-align:right; padding:0.25rem 0.5rem;">Ingresos</th><th style="text-align:right; padding:0.25rem 0.5rem;">Egresos</th><th style="text-align:right; padding:0.25rem 0.5rem;">G/P</th></tr></thead>
           <tbody id="tbody-referencia-flujo"></tbody>
         </table>
-        <p style="margin:0.5rem 0 0; color:#555; font-size:0.85rem;">Mismo cálculo que la tabla: la fila «Total» y la solapa Flujo usan esta proyección por categoría.</p>
+        <p style="margin:0.5rem 0 0; color:#555; font-size:0.85rem;">Mismo cálculo que la tabla: la fila «Total» y la solapa Flujo usan esta proyección por la misma agrupación de matriz.</p>
       </div>
     </div>
     <div id="panel-traspasos-internos" class="card panel">
@@ -723,8 +802,10 @@
               <th>Monto reg.</th>
               <th>Mon.</th>
               <th>Equivalente vista</th>
-              <th>Categoría</th>
-              <th>Cuenta contable</th>
+              <th>Categoría (extracto)</th>
+              <th>Cuenta (extracto)</th>
+              <th>Categoría (matriz)</th>
+              <th>Cuenta (matriz)</th>
               <th>Medio pago</th>
               <th>Descripción</th>
               <th>Id origen</th>
@@ -864,6 +945,9 @@
       </div>
       <div class="modal-body" id="modal-editar-body">
         <div class="form-grid">
+          <div id="edit-ayuda-wrap" class="form-group form-group-full" style="display:none;">
+            <p id="edit-ayuda-contexto" class="sin-cotizacion-note" style="margin:0;"></p>
+          </div>
           <div class="form-group">
             <label>Fecha</label>
             <input type="date" id="edit-fecha">
@@ -903,6 +987,22 @@
           <div class="form-group">
             <label>Cuenta contable</label>
             <select id="edit-cuenta-contable"></select>
+          </div>
+          <div class="form-group">
+            <label for="edit-costo-directo">Costo directo</label>
+            <select id="edit-costo-directo" title="Bandera matriz (Y/N). Afecta ratios Costo directo / Ingresos en egresos operativos.">
+              <option value="">—</option>
+              <option value="Y">Y</option>
+              <option value="N">N</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="edit-costo-indirecto">Costo indirecto</label>
+            <select id="edit-costo-indirecto" title="Bandera matriz (Y/N). Afecta ratios Costo indirecto / Ingresos si no es directo.">
+              <option value="">—</option>
+              <option value="Y">Y</option>
+              <option value="N">N</option>
+            </select>
           </div>
           <div class="form-group">
             <label>Origen archivo</label>
@@ -1018,6 +1118,12 @@
           </div>
         </section>
         <section class="config-section">
+          <h3 class="config-section-title">Inclusión por mes en cálculos</h3>
+          <p class="sin-cotizacion-note" style="margin-top:0;">Solo aparecen meses que tienen al menos un movimiento en la base cargada. <strong>Activá</strong> el interruptor para que ese mes entre en totales, flujo por mes, Evolución, Caución y listados que respetan el flujo operativo. Si lo <strong>desactivás</strong>, el mes queda fuera de esos números (como si no existiera en el tablero agregado). La solapa «Todas las transacciones» y la exportación de base histórica siguen mostrando todos los movimientos.</p>
+          <div id="config-meses-inclusion-wrap" class="config-meses-inclusion-grid" aria-live="polite"></div>
+          <p class="sin-cotizacion-note" style="margin-top:0.5rem; margin-bottom:0;">Los cambios se aplican al guardar esta ventana.</p>
+        </section>
+        <section class="config-section">
           <h3 class="config-section-title">Alertas Mensuales</h3>
           <p class="sin-cotizacion-note" style="margin-top:0;">Umbrales para las alertas que se muestran por mes. La alerta de desvío de categoría se activa cuando la variación (positiva o negativa) supera el % elegido.</p>
           <div class="form-group">
@@ -1128,7 +1234,8 @@
           <thead>
             <tr>
               <th>Fecha</th>
-              <th>Categoría</th>
+              <th>Categoría (matriz)</th>
+              <th>Cuenta (matriz)</th>
               <th>Descripción</th>
               <th>Monto</th>
               <th>Origen</th>
@@ -1175,7 +1282,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.49';
+    const APP_VERSION = '1.57';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1188,6 +1295,9 @@
     const ALERTA_SIN_COMISIONES_KEY = 'fornitalia_alerta_sin_comisiones';
     const ALERTA_SIN_ALQUILERES_KEY = 'fornitalia_alerta_sin_alquileres';
     const ALERTA_SIN_IMPUESTOS_KEY = 'fornitalia_alerta_sin_impuestos';
+    /** JSON array de claves "YYYY-MM" excluidas de totales, flujo, Evolución, Caución y agregados. Vacío = ninguna. Si falta la clave en localStorage, se usa el default legacy (marzo 2026). */
+    const MESES_EXCLUIDOS_CALCULO_KEY = 'fornitalia_meses_excluidos_calculo';
+    const MESES_EXCLUIDOS_DEFAULT_LEGACY = ['2026-03'];
 
     const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -1632,6 +1742,13 @@
         if (row.alerta_sin_comisiones !== undefined) localStorage.setItem(ALERTA_SIN_COMISIONES_KEY, row.alerta_sin_comisiones ? '1' : '0');
         if (row.alerta_sin_alquileres !== undefined) localStorage.setItem(ALERTA_SIN_ALQUILERES_KEY, row.alerta_sin_alquileres ? '1' : '0');
         if (row.alerta_sin_impuestos !== undefined) localStorage.setItem(ALERTA_SIN_IMPUESTOS_KEY, row.alerta_sin_impuestos ? '1' : '0');
+        const { data: rowMeses, error: errMeses } = await client.from('config_dashboard').select('meses_excluidos').eq('user_id', uid).maybeSingle();
+        if (!errMeses && rowMeses && rowMeses.meses_excluidos != null) {
+          try {
+            const arr = Array.isArray(rowMeses.meses_excluidos) ? rowMeses.meses_excluidos : JSON.parse(String(rowMeses.meses_excluidos));
+            if (Array.isArray(arr)) setMesesExcluidosFromArray(arr);
+          } catch (_) { /* ignorar valor inválido */ }
+        }
       } catch (_) { /* mantener localStorage */ }
     }
 
@@ -1647,6 +1764,12 @@
         const recorte = parseInt(localStorage.getItem(PROYECCION_RECORTE_KEY) || '20', 10);
         const pct = parseInt(localStorage.getItem(PCT_CAUCION_KEY) || '95', 10);
         const alertaDesvio = parseInt(localStorage.getItem(ALERTA_DESVIO_PCT_KEY) || '25', 10);
+        let mesesExcluidosArr = [];
+        try {
+          const rawM = localStorage.getItem(MESES_EXCLUIDOS_CALCULO_KEY);
+          if (rawM != null && rawM !== '') mesesExcluidosArr = JSON.parse(rawM);
+          if (!Array.isArray(mesesExcluidosArr)) mesesExcluidosArr = [];
+        } catch (_) { mesesExcluidosArr = []; }
         await client.from('config_dashboard').upsert({
           user_id: uid,
           proyeccion_metodo: metodo,
@@ -1660,6 +1783,7 @@
           alerta_sin_comisiones: localStorage.getItem(ALERTA_SIN_COMISIONES_KEY) !== '0',
           alerta_sin_alquileres: localStorage.getItem(ALERTA_SIN_ALQUILERES_KEY) !== '0',
           alerta_sin_impuestos: localStorage.getItem(ALERTA_SIN_IMPUESTOS_KEY) !== '0',
+          meses_excluidos: mesesExcluidosArr,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
       } catch (_) { /* ya quedó en localStorage */ }
@@ -1736,6 +1860,18 @@
       return anio + '-' + String(mes + 1).padStart(2, '0');
     }
 
+    /** Costo directo/indirecto / Ingresos = suma egresos con bandera Y ÷ ingresos operativos (sin restar comisiones). */
+    function ratiosCostoDirectoIndirectoVsIngresos(ingresos, egrDir, egrInd) {
+      const ing = ingresos > 0 ? ingresos : 0;
+      const dE = egrDir != null ? egrDir : 0;
+      const iE = egrInd != null ? egrInd : 0;
+      const sumaTag = dE + iE;
+      if (sumaTag <= 0) return { pctDir: '–', pctInd: '–' };
+      const pctDir = ing > 0 ? ((dE / ing) * 100).toFixed(1) + '%' : '–';
+      const pctInd = ing > 0 ? ((iE / ing) * 100).toFixed(1) + '%' : '–';
+      return { pctDir, pctInd };
+    }
+
     function proyeccionDesdeVentana(objetosMes, agg) {
       if (!objetosMes.length) return { ing: 0, egr: 0, gp: 0, comVentasPct: '–', egrSinComIngPct: '–', ratioComNum: 0, ratioEgrNum: 0 };
       const ings = objetosMes.map(k => (k.ingresos != null ? k.ingresos : 0));
@@ -1783,6 +1919,86 @@
       return String(mes).padStart(2, '0') + '-' + anio;
     }
 
+    /** Clave canónica YYYY-MM desde fila (anio/mes o fecha). */
+    function mesAnioKeyDesdeRow(r) {
+      if (!r) return null;
+      const a = r.anio != null ? Number(r.anio) : null;
+      const m = r.mes != null ? Number(r.mes) : null;
+      if (Number.isFinite(a) && Number.isFinite(m) && m >= 1 && m <= 12) {
+        return a + '-' + String(m).padStart(2, '0');
+      }
+      const f = fechaStr(r.fecha);
+      if (f && /^\d{4}-\d{2}-\d{2}$/.test(f)) return f.slice(0, 7);
+      return null;
+    }
+
+    function getMesesExcluidosSet() {
+      try {
+        const raw = localStorage.getItem(MESES_EXCLUIDOS_CALCULO_KEY);
+        if (raw == null || raw === '') {
+          return new Set(MESES_EXCLUIDOS_DEFAULT_LEGACY.filter(k => typeof k === 'string' && /^\d{4}-\d{2}$/.test(k)));
+        }
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr)) return new Set(MESES_EXCLUIDOS_DEFAULT_LEGACY);
+        return new Set(arr.filter(k => typeof k === 'string' && /^\d{4}-\d{2}$/.test(k)));
+      } catch (_) {
+        return new Set(MESES_EXCLUIDOS_DEFAULT_LEGACY);
+      }
+    }
+
+    function setMesesExcluidosFromArray(arr) {
+      const clean = (Array.isArray(arr) ? arr : []).filter(k => typeof k === 'string' && /^\d{4}-\d{2}$/.test(k));
+      localStorage.setItem(MESES_EXCLUIDOS_CALCULO_KEY, JSON.stringify(clean));
+    }
+
+    function labelMesAnioKey(key) {
+      const m = String(key || '').match(/^(\d{4})-(\d{2})$/);
+      if (!m) return key;
+      const anio = parseInt(m[1], 10);
+      const mes = parseInt(m[2], 10);
+      if (!Number.isFinite(anio) || mes < 1 || mes > 12) return key;
+      return MESES[mes - 1] + ' ' + anio + ' (' + formatoMesAnio(mes, anio) + ')';
+    }
+
+    function esMesExcluidoEnCalculos(r) {
+      const k = mesAnioKeyDesdeRow(r);
+      return k != null && getMesesExcluidosSet().has(k);
+    }
+
+    function actualizarNotaMesesExcluidosFlujo() {
+      const el = document.getElementById('flujo-nota-meses-excluidos');
+      if (!el) return;
+      const s = getMesesExcluidosSet();
+      if (!s.size) {
+        el.textContent = 'Ningún mes está excluido de los cálculos del tablero (Configuración → Inclusión por mes).';
+        return;
+      }
+      const labels = [...s].sort().map(labelMesAnioKey);
+      el.textContent = 'Meses fuera de totales y flujo operativo: ' + labels.join('; ') + '.';
+    }
+
+    function renderConfigMesesInclusionUI() {
+      const wrap = document.getElementById('config-meses-inclusion-wrap');
+      if (!wrap) return;
+      const keys = new Set();
+      (cacheTransacciones || []).forEach(r => {
+        const k = mesAnioKeyDesdeRow(r);
+        if (k) keys.add(k);
+      });
+      const ordenados = [...keys].sort();
+      if (ordenados.length === 0) {
+        wrap.innerHTML = '<p class="sin-cotizacion-note" style="margin:0.5rem;">No hay datos cargados todavía. Cargá transacciones y volvé a abrir Configuración.</p>';
+        return;
+      }
+      const excl = getMesesExcluidosSet();
+      const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+      wrap.innerHTML = ordenados.map(key => {
+        const incluir = !excl.has(key);
+        const id = 'config-mes-inc-' + key.replace(/[^0-9]/g, '-');
+        return '<label class="config-switch-row" for="' + esc(id) + '"><input type="checkbox" id="' + esc(id) + '" data-mes-key="' + esc(key) + '" ' + (incluir ? 'checked' : '') + '><span class="config-switch-label">Incluir ' + esc(labelMesAnioKey(key)) + ' en totales y flujos</span></label>';
+      }).join('');
+    }
+
     function formatearNumero(n, moneda) {
       if (n == null || isNaN(n)) return '–';
       return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: moneda === 'USD' ? 2 : 0 }).format(n);
@@ -1824,19 +2040,6 @@
       return { anio: isNaN(anio) ? null : anio, mes: isNaN(mes) ? null : mes };
     }
 
-    /**
-     * Mes abierto / no cerrado: fuera de flujo, totales, solapas y export (coherencia con informes).
-     * Lista ampliable; al cerrar el mes en origen, quitar o ajustar aquí y en generar-analisis-financiero-pdf.js.
-     */
-    function esTransaccionMesNoCerradoExcluida(r) {
-      const a = r.anio != null ? Number(r.anio) : null;
-      const m = r.mes != null ? Number(r.mes) : null;
-      if (Number.isFinite(a) && Number.isFinite(m) && a === 2026 && m === 3) return true;
-      const f = fechaStr(r.fecha);
-      if (f && /^2026-03-\d{2}$/.test(f)) return true;
-      return false;
-    }
-
     /** Normaliza para comparar categorías con/sin tildes (ej. Depósito / Deposito). */
     function categoriaSinAcentos(c) {
       return (c || '')
@@ -1854,14 +2057,24 @@
     }
 
     /**
-     * Fila excluida del flujo operativo (G/P operativo, caución, ratios operativos, Evolución alineada al flujo).
-     * Incluye: Anulado, Apertura/Cierre de caja (por categoría o heurística en fila), Transferencia/Depósito.
+     * Reglas operativas sin filtro por mes (duplicados, auditoría): anulados, apertura/cierre, traspasos internos.
      */
-    function excluirFilaFlujoOperativo(r) {
+    function excluirFilaReglasOperativas(r) {
       if (!r) return true;
       if ((r.status || '').toString().trim() === 'Anulado') return true;
       if (esAperturaOCierreCaja(r)) return true;
-      return esTraspasoInternoCategoria(r.categoria);
+      if (esTraspasoInternoCategoria(r.categoria)) return true;
+      return false;
+    }
+
+    /**
+     * Fila excluida del flujo operativo agregado (G/P, caución, ratios, Evolución, errores de clasificación en tablero).
+     * Incluye reglas operativas + mes desactivado en Configuración → Inclusión por mes.
+     */
+    function excluirFilaFlujoOperativo(r) {
+      if (excluirFilaReglasOperativas(r)) return true;
+      if (esMesExcluidoEnCalculos(r)) return true;
+      return false;
     }
 
     /**
@@ -1892,19 +2105,55 @@
       return textoIndicaComision(desc, catDesc);
     }
 
+    /** Normaliza categoría/cuenta para comparar excepciones (minúsculas, sin acentos). */
+    function normParConf(s) {
+      return String(s ?? '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    }
+
+    /**
+     * Pares categoría / cuenta contable que no deben marcarse como error de inconsistencia
+     * aunque la descripción no contenga palabras clave de la categoría o cuenta.
+     */
+    function esParCategoriaCuentaExcluidoErrores(categoria, cuentaContable) {
+      const c = normParConf(categoria);
+      const u = normParConf(cuentaContable);
+      if (c === 'impuestos' && u === 'iibb') return true;
+      if (c === 'logistica' && u === 'fletes y transportes') return true;
+      const catAlquileres = c === 'alquiler' || c === 'alquileres y servicios';
+      if (catAlquileres && (u === 'alquiler' || u === 'electricidad' || u === 'internet' || u === 'telefonia')) return true;
+      if (c === 'activos' && u === 'hornos') return true;
+      if ((c === 'mantenimiento' || c === 'manteniemiento') && u === 'ferreteria') return true;
+      if (c === 'sueldos') {
+        const cuentasComisionVenta = new Set([
+          'comisoiones venta',
+          'comisiones venta',
+          'comisiones ventas',
+          'comisones venta',
+          'comisones ventas',
+        ]);
+        if (cuentasComisionVenta.has(u)) return true;
+      }
+      if (c === 'marketing' && u === 'creacion de contenido') return true;
+      if (c === 'honorarios' && (u === 'honorarios contable' || u === 'honorarios contables')) return true;
+      return false;
+    }
+
     // Valida consistencia entre categoría, cuenta contable y descripción (solo Egresos).
     function esDescripcionConsistenteConCategoriaYCuenta(r) {
       if (!r || r.tipo_movimiento !== 'Egreso') return true;
       const catOrig = (r.categoria || '').trim().toLowerCase();
       const cuentaOrig = (r.cuenta_contable || '').trim().toLowerCase();
+      if (esParCategoriaCuentaExcluidoErrores(r.categoria, r.cuenta_contable)) return true;
       // Excepción: Comisiones Bancarias / Gastos Bancarios se considera consistente
       if (catOrig === 'comisiones bancarias' && cuentaOrig === 'gastos bancarios') return true;
       // Excepción: Impuestos / MercadoPago se considera consistente
       if (catOrig === 'impuestos' && cuentaOrig === 'mercadopago') return true;
       // Excepción: Impuestos / Transferencia Morba se considera consistente
       if (catOrig === 'impuestos' && cuentaOrig === 'transferencia morba') return true;
-      // Excepción: Alquileres y Servicios (categoría Alquiler) / Cuenta Alquiler se considera consistente
-      if (catOrig === 'alquiler' && cuentaOrig === 'alquiler') return true;
       const descBase = ((r.descripcion || '') + ' ' + (r.cat_desc || '') + ' ' + (r.cliente || '')).toLowerCase();
       const cuenta = (r.cuenta_contable || '').toString().toLowerCase();
       const catDisplay = getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc).toString().toLowerCase();
@@ -1972,7 +2221,7 @@
 
     function getErroresDuplicados() {
       // Excluir anulados: un registro confirmado y otro anulado con los mismos datos no es duplicado
-      const lista = cacheTransacciones.filter(r => !excluirFilaFlujoOperativo(r));
+      const lista = cacheTransacciones.filter(r => !excluirFilaReglasOperativas(r));
       const out = [];
       lista.forEach(r => {
         const otro = getPosibleDuplicado(r, lista);
@@ -2033,7 +2282,7 @@
     }
 
     async function fetchAllTransaccionesNoAnuladas() {
-      const cols = 'id, id_origen, id_operacion, fecha, mes, anio, tipo_movimiento, monto, tipo_cambio, monto_cambio, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, editado, editado_detalle';
+      const cols = 'id, id_origen, id_operacion, fecha, mes, anio, tipo_movimiento, monto, tipo_cambio, monto_cambio, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, nueva_categoria, nueva_cuenta_contable, costo_directo, costo_indirecto, editado, editado_detalle';
       const all = [];
       let offset = 0;
       for (;;) {
@@ -2090,7 +2339,7 @@
           anio: Number.isFinite(anioNum) ? anioNum : null,
           status: (r.status == null ? '' : String(r.status)).trim()
         };
-      }).filter((r) => !esTransaccionMesNoCerradoExcluida(r));
+      });
       const tcs = tcRows || [];
       const map = {};
       tcs.forEach(r => {
@@ -2243,6 +2492,7 @@
 
         const key = `${r.anio}-${String(r.mes).padStart(2,'0')}`;
         if (esAperturaOCierreCaja(r)) return;
+        if (esMesExcluidoEnCalculos(r)) return;
 
         if (!porMesBruto[key]) porMesBruto[key] = { anio: r.anio, mes: r.mes, ingresos: 0, egresos: 0 };
         if (r.tipo_movimiento === 'Ingreso') {
@@ -2264,25 +2514,34 @@
           }
         }
 
-        const cat = (r.categoria || '').trim() || 'Sin categoría';
-        const catDisplay = getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || 'Sin categoría';
-        const catLow = cat.toLowerCase();
-        if (!porMes[key]) porMes[key] = { anio: r.anio, mes: r.mes, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0 };
+        const catExtract = (r.categoria || '').trim() || 'Sin categoría';
+        const catLow = catExtract.toLowerCase();
+        const catMatriz = categoriaDistribucionFlujo(r);
+        if (!porMes[key]) porMes[key] = {
+          anio: r.anio, mes: r.mes, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0,
+          egresosCostoDirecto: 0, egresosCostoIndirecto: 0
+        };
         if (!porMesCategoria[key]) porMesCategoria[key] = {};
-        if (!porMesCategoria[key][cat]) porMesCategoria[key][cat] = 0;
-        porMesCategoria[key][cat] += montoParaSumar;
+        if (!porMesCategoria[key][catMatriz]) porMesCategoria[key][catMatriz] = 0;
+        porMesCategoria[key][catMatriz] += montoParaSumar;
         if (!porMesCatIng[key]) porMesCatIng[key] = {};
         if (!porMesCatEgr[key]) porMesCatEgr[key] = {};
         if (r.tipo_movimiento === 'Ingreso') {
           porMes[key].ingresos += montoParaSumar;
           totalIngresos += montoParaSumar;
-          porMesCatIng[key][catDisplay] = (porMesCatIng[key][catDisplay] || 0) + montoParaSumar;
+          porMesCatIng[key][catMatriz] = (porMesCatIng[key][catMatriz] || 0) + montoParaSumar;
           if (catLow.includes('venta')) porMes[key].ventas += montoParaSumar;
         } else if (r.tipo_movimiento === 'Egreso') {
           porMes[key].egresos += montoParaSumar;
           totalEgresos += montoParaSumar;
-          porMesCatEgr[key][catDisplay] = (porMesCatEgr[key][catDisplay] || 0) + montoParaSumar;
-          if (catLow === 'comisiones') porMes[key].comisiones += montoParaSumar;
+          porMesCatEgr[key][catMatriz] = (porMesCatEgr[key][catMatriz] || 0) + montoParaSumar;
+          const cd = (r.costo_directo || '').toString().trim().toUpperCase() === 'Y';
+          const ci = (r.costo_indirecto || '').toString().trim().toUpperCase() === 'Y';
+          if (cd) porMes[key].egresosCostoDirecto += montoParaSumar;
+          if (ci) porMes[key].egresosCostoIndirecto += montoParaSumar;
+          if (catLow === 'comisiones') {
+            porMes[key].comisiones += montoParaSumar;
+          }
           if (catLow === 'comisiones' || esComisionDentroSueldos(r.categoria, r.descripcion, r.cat_desc)) porMes[key].comisionesParaRatio += montoParaSumar;
         }
       });
@@ -2362,7 +2621,7 @@
                 const clase = positivo ? 'alerta-desvio-positivo' : 'alerta-desvio-negativo';
                 const signo = positivo ? '+' : '-';
                 const catEsc = (cat || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-                alertas.push('La categoría <strong>' + catEsc + '</strong> tiene un desvío de <span class="' + clase + '">' + signo + desvioPct.toFixed(1) + '%</span> respecto del mes anterior.');
+                alertas.push('La categoría (matriz) <strong>' + catEsc + '</strong> tiene un desvío de <span class="' + clase + '">' + signo + desvioPct.toFixed(1) + '%</span> respecto del mes anterior.');
               }
             }
           });
@@ -2417,16 +2676,18 @@
         const ay = parseInt(key.slice(0, 4), 10);
         const am = parseInt(key.slice(5), 10);
         const b = porMesBruto[key] || { anio: ay, mes: am, ingresos: 0, egresos: 0 };
-        const d = porMes[key] || { anio: ay, mes: am, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0, intCaucion: 0 };
+        const d = porMes[key] || { anio: ay, mes: am, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0, intCaucion: 0, egresosCostoDirecto: 0, egresosCostoIndirecto: 0 };
         const netBruto = b.ingresos - b.egresos;
         const balance = d.ingresos - d.egresos;
         const label = formatoMesAnio(d.mes, d.anio);
-        const comisiones = d.comisiones != null ? d.comisiones : 0;
         const comisionesParaRatio = d.comisionesParaRatio != null ? d.comisionesParaRatio : 0;
         const ventas = d.ventas != null ? d.ventas : 0;
         const comVentasPct = ventas > 0 ? ((comisionesParaRatio / ventas) * 100).toFixed(1) + '%' : '–';
-        const egrSinCom = (d.egresos != null ? d.egresos : 0) - comisiones;
-        const egrSinComIngPct = d.ingresos > 0 ? ((egrSinCom / d.ingresos) * 100).toFixed(1) + '%' : '–';
+        const { pctDir: costoDirIngPct, pctInd: costoIndIngPct } = ratiosCostoDirectoIndirectoVsIngresos(
+          d.ingresos != null ? d.ingresos : 0,
+          d.egresosCostoDirecto,
+          d.egresosCostoIndirecto
+        );
         const alertas = alertasPorMes[key] || [];
         const alertasJson = alertas.length ? JSON.stringify(alertas).replace(/"/g, '&quot;') : '';
         const iconoAlert = alertas.length ? `<span class="alert-icon" role="button" tabindex="0" data-alertas="${alertasJson}" data-label="${label.replace(/"/g, '&quot;')}" title="Ver alertas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>` : '';
@@ -2437,7 +2698,8 @@
           <td class="balance ${netBruto >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(netBruto, moneda)}</td>
           <td class="balance ${balance >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balance, moneda)}</td>
           <td>${comVentasPct}</td>
-          <td>${egrSinComIngPct}</td>
+          <td>${costoDirIngPct}</td>
+          <td>${costoIndIngPct}</td>
           <td class="ingresos int-caucion-cell" data-key-mes="${key}" role="button" tabindex="0" title="Ver marcha de cálculo (en pesos ARS)">$ ${formatearNumero((d.intCaucion != null ? d.intCaucion : 0), 'ARS')}</td>
           <td class="alert-icon-cell">${iconoAlert}</td>
         </tr>`;
@@ -2505,8 +2767,7 @@
         let prevRes = null;
         for (let i = 0; i < mesesAProyectar; i++) {
           const comVentasPctI = proyVentas[i] > 0 ? ((proyComisionesParaRatio[i] / proyVentas[i]) * 100).toFixed(1) + '%' : '–';
-          const egrSinComIngPctI = proyIng[i] > 0 ? ((proyEgr[i] - proyComisiones[i]) / proyIng[i] * 100).toFixed(1) + '%' : '–';
-          const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct: comVentasPctI, egrSinComIngPct: egrSinComIngPctI };
+          const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct: comVentasPctI, costoDirIngPct: '–', costoIndIngPct: '–' };
           proys.push(proy);
           if (i > 0 && prevRes && prevRes.detalle && prevRes.detalle.length > 0) {
             const ultima = prevRes.detalle[prevRes.detalle.length - 1];
@@ -2522,7 +2783,7 @@
           basePartida = proyGpArs + intCaucionProy;
           gpInicialSolo = res.gpAcumSoloFin;
           detalleIntCaucionProy[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), basePartida: baseInicio, gpTotalReal: i === 0 ? gpTotalRealArsCaucion : undefined, intAcumuladoInicial, proyGP: proyGpArs, tasaDiaria: tasaDiariaProy, intCaucion: intCaucionProy, detalle: res.detalle, dias: diasMes };
-          detalleProyeccionPorMes[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), ing: proy.ing, egr: proy.egr, gp: proy.gp, comVentasPct: proy.comVentasPct, egrSinComIngPct: proy.egrSinComIngPct, ingresoPorCat: { ...proyDetalle[keyProy].ingresoPorCat }, egresoPorCat: { ...proyDetalle[keyProy].egresoPorCat } };
+          detalleProyeccionPorMes[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), ing: proy.ing, egr: proy.egr, gp: proy.gp, comVentasPct: proy.comVentasPct, costoDirIngPct: proy.costoDirIngPct, costoIndIngPct: proy.costoIndIngPct, ingresoPorCat: { ...proyDetalle[keyProy].ingresoPorCat }, egresoPorCat: { ...proyDetalle[keyProy].egresoPorCat } };
           filasProy += `<tr class="fila-proyeccion" data-proy-key="${keyProy}" role="button" tabindex="0" title="Ver detalle de proyección">
             <td>Proy. ${formatoMesAnio(mesProy, anioProy)}</td>
             <td class="ingresos">${simbolo}${formatearNumero(proy.ing, moneda)}</td>
@@ -2530,7 +2791,8 @@
             <td style="color:#888;">–</td>
             <td class="balance ${proy.gp >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(proy.gp, moneda)}</td>
             <td>${proy.comVentasPct}</td>
-            <td>${proy.egrSinComIngPct}</td>
+            <td>${proy.costoDirIngPct}</td>
+            <td>${proy.costoIndIngPct}</td>
             <td class="ingresos int-caucion-cell" data-proy-key="${keyProy}" role="button" tabindex="0" title="Ver marcha de cálculo (en pesos ARS)">$ ${formatearNumero(intCaucionProy, 'ARS')}</td>
             <td class="alert-icon-cell"></td>
           </tr>`;
@@ -2556,8 +2818,14 @@
         return s + (pm && pm.ventas != null ? pm.ventas : 0);
       }, 0);
       const comVentasPctTotal = totalVentas > 0 ? ((totalComisionesParaRatio / totalVentas) * 100).toFixed(1) + '%' : '–';
-      const egrSinComTotal = totalEgresos - totalComisiones;
-      const egrSinComIngPctTotal = totalIngresos > 0 ? ((egrSinComTotal / totalIngresos) * 100).toFixed(1) + '%' : '–';
+      let sumEgrDir = 0, sumEgrInd = 0;
+      ordenados.forEach(k => {
+        const pm = porMes[k];
+        if (!pm) return;
+        sumEgrDir += pm.egresosCostoDirecto || 0;
+        sumEgrInd += pm.egresosCostoIndirecto || 0;
+      });
+      const { pctDir: totCostoDirIng, pctInd: totCostoIndIng } = ratiosCostoDirectoIndirectoVsIngresos(totalIngresos, sumEgrDir, sumEgrInd);
       const tfoot = document.getElementById('tfoot-flujo');
       if (tfoot) {
         let tfootHtml = ordenados.length === 0 ? '' : `<tr class="fila-total-real">
@@ -2567,7 +2835,8 @@
           <td class="balance ${netoCajaBruto >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(netoCajaBruto, moneda)}</td>
           <td class="balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</td>
           <td>${comVentasPctTotal}</td>
-          <td>${egrSinComIngPctTotal}</td>
+          <td>${totCostoDirIng}</td>
+          <td>${totCostoIndIng}</td>
           <td class="ingresos" title="Caución acumulada en pesos ARS (solo origen ARS)">$ ${formatearNumero(totalIntCaucion, 'ARS')}</td>
           <td class="alert-icon-cell"></td>
         </tr>`;
@@ -2575,7 +2844,7 @@
         if (filasProy) {
           const metodoLabel = configProy.metodo === 'promedio_ponderado' ? 'Promedio ponderado' : (configProy.metodo === 'promedio' ? 'Promedio' : (configProy.metodo === 'promedio_recortado' ? 'Promedio recortado (suaviza picos)' : 'Mediana'));
           const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución). Caución proyectada: solo serie <strong>ARS</strong> (origen pesos), misma marcha que el real; punto de partida = G/P operativo ARS acumulado histórico × % + interés acumulado real; tasa = promedio último mes real; días naturales del mes.`;
-          tfootHtml += `<tr class="fila-titulo-proyeccion"><td colspan="9">Próximos ${mesesAProyectar} ${mesesAProyectar === 1 ? 'mes' : 'meses'} proyectados:</td></tr>${filasProy}<tr class="disclaimer-proyeccion"><td colspan="9">${disclaimer}</td></tr>`;
+          tfootHtml += `<tr class="fila-titulo-proyeccion"><td colspan="10">Próximos ${mesesAProyectar} ${mesesAProyectar === 1 ? 'mes' : 'meses'} proyectados:</td></tr>${filasProy}<tr class="disclaimer-proyeccion"><td colspan="10">${disclaimer}</td></tr>`;
         }
         tfoot.innerHTML = tfootHtml;
       }
@@ -2583,6 +2852,7 @@
       renderErroresGlobal();
       renderTraspasosInternos();
       renderEvolucion();
+      actualizarNotaMesesExcluidosFlujo();
     }
 
     function renderTraspasosInternos() {
@@ -2598,7 +2868,7 @@
       rows.sort((a, b) => String(fechaStr(a.fecha) || '').localeCompare(String(fechaStr(b.fecha) || '')));
       const esc = (v) => (v == null ? '' : String(v)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
       tbody.innerHTML = rows.length === 0
-        ? '<tr><td colspan="10" style="color:#666;">No hay registros con categoría Transferencia o Depósito/Deposito.</td></tr>'
+        ? '<tr><td colspan="12" style="color:#666;">No hay registros con categoría Transferencia o Depósito/Deposito.</td></tr>'
         : rows.map(r => {
           const mConv = montoConvertido(r, moneda, tipoDolar);
           const eq = mConv == null ? '–' : (simbolo + formatearNumero(mConv, moneda));
@@ -2613,6 +2883,8 @@
             <td class="num">${eq}</td>
             <td>${esc(r.categoria)}</td>
             <td>${esc(r.cuenta_contable)}</td>
+            <td>${esc(categoriaDistribucionFlujo(r))}</td>
+            <td>${esc(cuentaDistribucionFlujo(r))}</td>
             <td>${esc(r.medio_pago)}</td>
             <td>${esc(r.descripcion)}</td>
             <td>${esc(r.id_origen)}</td>
@@ -2671,13 +2943,14 @@
       const colLabel = colKey === '__total__' ? 'Total' : formatearColHeaderEvolucion(colKey, periodo);
       titulo.textContent = 'Detalle — ' + (rowKey || '').replace(/</g, '&lt;') + (colKey !== '__total__' ? ' · ' + colLabel : ' (' + colLabel + ')');
       if (!list || list.length === 0) {
-        tbodyDet.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">No hay registros.</td></tr>';
+        tbodyDet.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666;">No hay registros.</td></tr>';
       } else {
         const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
         tbodyDet.innerHTML = list.map(item => `
           <tr>
             <td>${esc(item.fecha)}</td>
             <td>${esc(item.categoria)}</td>
+            <td>${esc(item.cuenta != null ? item.cuenta : '—')}</td>
             <td>${esc((item.descripcion || '—').slice(0, 200))}</td>
             <td class="${item.monto >= 0 ? 'ingresos' : 'egresos'}">${evolucionSimbolo}${formatearNumero(item.monto, evolucionMoneda)}</td>
             <td>${esc(item.origen_archivo || '—')}</td>
@@ -2771,8 +3044,8 @@
         const signo = r.tipo_movimiento === 'Ingreso' ? 1 : -1;
         const valor = signo * montoConv;
         const rowKey = agrupar === 'categoria'
-          ? (getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || 'Sin categoría')
-          : ((r.cuenta_contable || '').trim() || '—');
+          ? categoriaDistribucionFlujo(r)
+          : cuentaDistribucionFlujo(r);
         let colKey;
         if (periodo === 'diario') {
           colKey = fechaStr(r.fecha);
@@ -2795,7 +3068,8 @@
         if (!detalle[rowKey][colKey]) detalle[rowKey][colKey] = [];
         detalle[rowKey][colKey].push({
           fecha: fechaStr(r.fecha),
-          categoria: getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || r.categoria || '—',
+          categoria: categoriaDistribucionFlujo(r),
+          cuenta: cuentaDistribucionFlujo(r),
           descripcion: (r.descripcion || r.cliente || '').trim() || '—',
           monto: valor,
           origen_archivo: (r.origen_archivo || '').trim() || '—',
@@ -2892,7 +3166,7 @@
         if (ck === '__total_proy__' || (String(ck).indexOf('proy-') === 0)) return ' class="col-proyeccion-evolucion"';
         return '';
       };
-      thead.innerHTML = '<tr><th>' + esc(agrupar === 'categoria' ? 'Categoría' : 'Cuenta contable') + '</th>' + columnasConProy.map(c => '<th' + thClass(c) + '>' + esc(formatearColHeader(c)) + '</th>').join('') + (tieneProy ? '' : '<th>Total</th>') + '</tr>';
+      thead.innerHTML = '<tr><th>' + esc(agrupar === 'categoria' ? 'Nueva categoría (matriz)' : 'Nueva cuenta contable (matriz)') + '</th>' + columnasConProy.map(c => '<th' + thClass(c) + '>' + esc(formatearColHeader(c)) + '</th>').join('') + (tieneProy ? '' : '<th>Total</th>') + '</tr>';
       if (filasOrdenadas.length === 0) {
         tbody.innerHTML = '<tr><td colspan="' + (columnasConProy.length + (tieneProy ? 1 : 2)) + '" style="text-align:center; color:#666;">No hay datos para mostrar.</td></tr>';
         return;
@@ -2969,7 +3243,7 @@
       const monedaExport = getMoneda();
 
       const tieneProyExport = evolucionColumnasOrdenadas.indexOf('__total_proy__') >= 0;
-      const headerRow = [agrupar === 'categoria' ? 'Categoría' : 'Cuenta contable'].concat(evolucionColumnasOrdenadas.map(formatearColHeader)).concat(tieneProyExport ? [] : ['Total']);
+      const headerRow = [agrupar === 'categoria' ? 'Nueva categoría (matriz)' : 'Nueva cuenta contable (matriz)'].concat(evolucionColumnasOrdenadas.map(formatearColHeader)).concat(tieneProyExport ? [] : ['Total']);
       const rows = [['Moneda: ' + (monedaExport === 'USD' ? 'USD' : 'ARS') + '.'], headerRow];
       let totalPorColExport = {};
       evolucionColumnasOrdenadas.forEach(ck => { totalPorColExport[ck] = 0; });
@@ -3038,7 +3312,7 @@
         return;
       }
       const tipoDolar = document.getElementById('tipoDolar') && document.getElementById('tipoDolar').value ? document.getElementById('tipoDolar').value : 'mep';
-      const headers = ['id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'Tipo_Cambio', 'Monto_ARS', 'Monto_USD', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'editado', 'editado_detalle'];
+      const headers = ['id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'Tipo_Cambio', 'Monto_ARS', 'Monto_USD', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'nueva_categoria', 'nueva_cuenta_contable', 'costo_directo', 'costo_indirecto', 'editado', 'editado_detalle'];
       const rows = [['Exportado: Base histórica. Tipo_Cambio según selector de tipo de dólar (MEP/CCL/Oficial). Monto_ARS y Monto_USD son las conversiones aplicadas.'], headers];
       cacheTransacciones.forEach(r => {
         const montoOrig = (r.monto != null && r.monto !== '') ? Number(r.monto) : 0;
@@ -3069,12 +3343,16 @@
           (r.cat_desc || '').toString(),
           (r.origen_archivo || '').toString(),
           (r.cuenta_contable || '').toString(),
+          (r.nueva_categoria || '').toString(),
+          (r.nueva_cuenta_contable || '').toString(),
+          (r.costo_directo || '').toString(),
+          (r.costo_indirecto || '').toString(),
           r.editado === true ? 'Sí' : '',
           (r.editado_detalle || '').toString()
         ]);
       });
       const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }, { wch: 6 }, { wch: 32 }];
+      ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }, { wch: 22 }, { wch: 22 }, { wch: 8 }, { wch: 8 }, { wch: 6 }, { wch: 32 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Transacciones');
       const hoy = new Date();
@@ -3084,6 +3362,15 @@
 
     function normalizarString(v) {
       return (v == null ? '' : String(v)).trim();
+    }
+
+    /** Flags Y/N del extracto (Costo_Directo / Costo_Indirecto). */
+    function flagCostoDesdeExcel(value) {
+      const s = normalizarString(value).toUpperCase();
+      if (s === 'Y' || s === 'N') return s;
+      if (s === 'S' || s === 'SI' || s === 'YES') return 'Y';
+      if (s === 'NO') return 'N';
+      return normalizarString(value) || null;
     }
 
     function toNumOrNull(value) {
@@ -3288,6 +3575,8 @@
           idx + 1
         ].join('|'));
         const idOrigen = stampSec * 100000 + (idx + 1);
+        const costoDirRaw = r.Costo_Directo != null && String(r.Costo_Directo).trim() !== '' ? r.Costo_Directo : r.costo_directo;
+        const costoIndRaw = r.Costo_Indirecto != null && String(r.Costo_Indirecto).trim() !== '' ? r.Costo_Indirecto : r.costo_indirecto;
         out.push({
           titulo: 'Extracto normalizado',
           id_origen: idOrigen,
@@ -3303,6 +3592,10 @@
           observaciones: `hash_fuente:${hashFuente}`,
           categoria: normalizarString(r.categoria) || 'Sin categoría',
           cuenta_contable: normalizarString(r.cuenta_contable) || null,
+          nueva_categoria: normalizarString(r.nueva_categoria) || null,
+          nueva_cuenta_contable: normalizarString(r.nueva_cuenta_contable) || null,
+          costo_directo: flagCostoDesdeExcel(costoDirRaw),
+          costo_indirecto: flagCostoDesdeExcel(costoIndRaw),
           monto: montoOriginal,
           tipo_cambio: toNumOrNull(r.tipo_cambio),
           monto_cambio: toNumOrNull(r.monto_ars),
@@ -3336,7 +3629,7 @@
         alert('No hay registros con error para exportar.');
         return;
       }
-      const headers = ['tipo_error', 'id', 'id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'categoria_original', 'categoria_mostrada', 'cuenta_contable', 'medio_pago', 'moneda', 'monto', 'descripcion', 'cliente', 'cat_desc', 'origen_archivo', 'editado', 'editado_detalle'];
+      const headers = ['tipo_error', 'id', 'id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'categoria_original', 'categoria_matriz', 'cuenta_matriz', 'medio_pago', 'moneda', 'monto', 'descripcion', 'cliente', 'cat_desc', 'origen_archivo', 'editado', 'editado_detalle'];
       const rows = [['Moneda de los montos: ver columna "moneda" (ARS o USD).'], headers];
       lastErroresGlobal.forEach(r => {
         const regIsUSD = esTransaccionUSD(r);
@@ -3352,8 +3645,8 @@
           r.anio != null ? r.anio : '',
           (r.tipo_movimiento || '').toString(),
           (r.categoriaOriginal || '').toString(),
-          (getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || '').toString(),
-          (r.cuenta_contable || '').toString(),
+          (categoriaDistribucionFlujo(r) || '').toString(),
+          (cuentaDistribucionFlujo(r) || '').toString(),
           (r.medio_pago || '').toString(),
           monedaReg,
           montoNum,
@@ -3405,8 +3698,36 @@
       return montoOrig;
     }
 
+    /** Agrupación modal Flujo / serie mensual: prioriza columnas de matriz en BD. */
+    function categoriaDistribucionFlujo(r) {
+      const nueva = (r.nueva_categoria || '').trim();
+      if (nueva) return nueva;
+      const info = getCategoriaDisplayConValidacion(r);
+      return (info.categoria || 'Sin categoría');
+    }
+
+    function cuentaDistribucionFlujo(r) {
+      const nueva = (r.nueva_cuenta_contable || '').trim();
+      if (nueva) return nueva;
+      return (r.cuenta_contable || '').trim() || 'Sin cuenta contable';
+    }
+
+    function flagCostoY(v) {
+      return String(v ?? '').trim().toUpperCase() === 'Y';
+    }
+
+    /** Egreso: directo si costo_directo Y; si no, indirecto si costo_indirecto Y; si no, otros. */
+    function bucketEgresoCostoDirectoIndirecto(r) {
+      if (flagCostoY(r.costo_directo)) return 'directo';
+      if (flagCostoY(r.costo_indirecto)) return 'indirecto';
+      return 'otros';
+    }
+
     let chartSerieMensual = null;
     let lastErroresGlobal = [];
+    /** Último mes abierto en el modal de detalle (flujo); sirve para refrescar el HTML tras editar en Supabase. */
+    let ultimoModalMesAnio = null;
+    let ultimoModalMes = null;
 
     const verticalLinePlugin = {
       id: 'verticalLineMes',
@@ -3448,9 +3769,8 @@
       const tipoDolar = document.getElementById('tipoDolar').value;
       const rows = cacheTransacciones.filter(r => !excluirFilaFlujoOperativo(r));
       const match = (r) => {
-        if (tipo === 'categoria') return getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) === nombre;
-        const cuenta = (r.cuenta_contable || '').trim() || 'Sin cuenta contable';
-        return cuenta === nombre;
+        if (tipo === 'categoria') return categoriaDistribucionFlujo(r) === nombre;
+        return cuentaDistribucionFlujo(r) === nombre;
       };
       const todosLosMeses = [...new Set(rows.map(r => `${r.anio}-${String(r.mes).padStart(2,'0')}`))].sort();
       const porMes = {};
@@ -3522,6 +3842,8 @@
     }
 
     function abrirModal(anio, mes) {
+      ultimoModalMesAnio = anio;
+      ultimoModalMes = mes;
       const puedeEditarFilas = puedeOperarDashboard();
       const modal = document.getElementById('modal-caja');
       if (modal) {
@@ -3600,13 +3922,24 @@
         return head + body + foot;
       };
 
-      const porCategoria = {};
+      const ingMapCat = {};
+      const dirMapCat = {};
+      const indMapCat = {};
+      const otrMapCat = {};
       const erroresClasificacion = [];
       transaccionesMes.forEach(r => {
         const infoCat = getCategoriaDisplayConValidacion(r);
-        const catDisplay = infoCat.categoria || 'Sin categoría';
-        if (!porCategoria[catDisplay]) porCategoria[catDisplay] = [];
-        porCategoria[catDisplay].push({ ...r, montoConvertido: montoConvertido(r, moneda, tipoDolar) });
+        const catDisplay = categoriaDistribucionFlujo(r);
+        const row = { ...r, montoConvertido: montoConvertido(r, moneda, tipoDolar) };
+        if (r.tipo_movimiento === 'Ingreso') {
+          if (!ingMapCat[catDisplay]) ingMapCat[catDisplay] = [];
+          ingMapCat[catDisplay].push(row);
+        } else if (r.tipo_movimiento === 'Egreso') {
+          const b = bucketEgresoCostoDirectoIndirecto(r);
+          const tgt = b === 'directo' ? dirMapCat : (b === 'indirecto' ? indMapCat : otrMapCat);
+          if (!tgt[catDisplay]) tgt[catDisplay] = [];
+          tgt[catDisplay].push(row);
+        }
         if (infoCat.esError && r.tipo_movimiento === 'Egreso') {
           erroresClasificacion.push({
             ...r,
@@ -3615,50 +3948,85 @@
           });
         }
       });
-      const itemsIngreso = cat => (porCategoria[cat] || []).filter(i => i.tipo_movimiento === 'Ingreso');
-      const itemsEgreso = cat => (porCategoria[cat] || []).filter(i => i.tipo_movimiento === 'Egreso');
-      const categoriasIngreso = Object.keys(porCategoria).filter(cat => itemsIngreso(cat).length > 0).sort();
-      const categoriasEgreso = Object.keys(porCategoria).filter(cat => itemsEgreso(cat).length > 0).sort();
-      const filasModal = [
-        ...categoriasIngreso.map(cat => ({ nombre: cat, items: itemsIngreso(cat), totalCat: totalSolo(itemsIngreso(cat)), esIngreso: true })),
-        ...categoriasEgreso.map(cat => ({ nombre: cat, items: itemsEgreso(cat), totalCat: totalSolo(itemsEgreso(cat)), esIngreso: false }))
+      const ordenAlfModal = (a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' });
+      const mapAfilasModal = (m, esIng) => Object.keys(m).sort(ordenAlfModal).map((n) => ({
+        nombre: n,
+        items: m[n],
+        totalCat: totalSolo(m[n]),
+        esIngreso: esIng
+      }));
+      const filasModalGrupos = [
+        { titulo: 'Ingresos', filas: mapAfilasModal(ingMapCat, true) },
+        { titulo: 'Costo directo', filas: mapAfilasModal(dirMapCat, false) },
+        { titulo: 'Costo indirecto', filas: mapAfilasModal(indMapCat, false) },
+        { titulo: 'Otros costos', filas: mapAfilasModal(otrMapCat, false) }
       ];
 
-      const porCuenta = {};
+      const ingMapCta = {};
+      const dirMapCta = {};
+      const indMapCta = {};
+      const otrMapCta = {};
       transaccionesMes.forEach(r => {
-        const cuenta = (r.cuenta_contable || '').trim() || 'Sin cuenta contable';
-        if (!porCuenta[cuenta]) porCuenta[cuenta] = [];
-        porCuenta[cuenta].push({ ...r, montoConvertido: montoConvertido(r, moneda, tipoDolar) });
+        const cuenta = cuentaDistribucionFlujo(r);
+        const row = { ...r, montoConvertido: montoConvertido(r, moneda, tipoDolar) };
+        if (r.tipo_movimiento === 'Ingreso') {
+          if (!ingMapCta[cuenta]) ingMapCta[cuenta] = [];
+          ingMapCta[cuenta].push(row);
+        } else if (r.tipo_movimiento === 'Egreso') {
+          const b = bucketEgresoCostoDirectoIndirecto(r);
+          const tgt = b === 'directo' ? dirMapCta : (b === 'indirecto' ? indMapCta : otrMapCta);
+          if (!tgt[cuenta]) tgt[cuenta] = [];
+          tgt[cuenta].push(row);
+        }
       });
-      const itemsIngresoCuenta = cuenta => (porCuenta[cuenta] || []).filter(i => i.tipo_movimiento === 'Ingreso');
-      const itemsEgresoCuenta = cuenta => (porCuenta[cuenta] || []).filter(i => i.tipo_movimiento === 'Egreso');
-      const cuentasIngreso = Object.keys(porCuenta).filter(c => itemsIngresoCuenta(c).length > 0).sort();
-      const cuentasEgreso = Object.keys(porCuenta).filter(c => itemsEgresoCuenta(c).length > 0).sort();
-      const filasModalCuenta = [
-        ...cuentasIngreso.map(cuenta => ({ nombre: cuenta, items: itemsIngresoCuenta(cuenta), totalCat: totalSolo(itemsIngresoCuenta(cuenta)), esIngreso: true })),
-        ...cuentasEgreso.map(cuenta => ({ nombre: cuenta, items: itemsEgresoCuenta(cuenta), totalCat: totalSolo(itemsEgresoCuenta(cuenta)), esIngreso: false }))
+      const filasModalCuentaGrupos = [
+        { titulo: 'Ingresos', filas: mapAfilasModal(ingMapCta, true) },
+        { titulo: 'Costo directo', filas: mapAfilasModal(dirMapCta, false) },
+        { titulo: 'Costo indirecto', filas: mapAfilasModal(indMapCta, false) },
+        { titulo: 'Otros costos', filas: mapAfilasModal(otrMapCta, false) }
       ];
 
       document.getElementById('modal-titulo').textContent = labelMes;
       const body = document.getElementById('modal-body');
 
-      const buildTabla = (filas, prefixId, columnaNombre, tipo, anioSel, mesSel) => {
+      const buildTablaGrupos = (grupos, prefixId, columnaNombre, tipo, anioSel, mesSel) => {
         let h = `<table class="modal-tabla"><thead><tr><th>Mes</th><th>${columnaNombre}</th><th>Monto</th><th></th></tr></thead><tbody>`;
-        filas.forEach((fila, idx) => {
-          const { nombre, items, totalCat, esIngreso } = fila;
-          const claseMonto = esIngreso ? 'ingresos' : 'egresos';
-          const detalleTabla = renderDetalleTabla(items);
-          const nombreEsc = nombre.replace(/</g,'&lt;').replace(/"/g,'&quot;');
-          const nombreAttr = nombre.replace(/"/g, '&quot;');
-          h += `
-          <tr data-row-index="${idx}">
-            <td>${labelMes.replace(/</g,'&lt;')}</td>
+        let idx = 0;
+        grupos.forEach((grupo) => {
+          const titEsc = String(grupo.titulo || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+          h += `<tr class="modal-grupo-seccion"><td colspan="4">${titEsc}</td></tr>`;
+          if (!grupo.filas || grupo.filas.length === 0) {
+            h += '<tr><td colspan="4" class="muted" style="padding-left:0.75rem;font-size:0.9rem;">Sin movimientos</td></tr>';
+            return;
+          }
+          grupo.filas.forEach((fila) => {
+            const { nombre, items, totalCat, esIngreso } = fila;
+            const claseMonto = esIngreso ? 'ingresos' : 'egresos';
+            const detalleTabla = renderDetalleTabla(items);
+            const nombreEsc = nombre.replace(/</g, '&lt;').replace(/"/g, '&quot;');
+            const nombreAttr = nombre.replace(/"/g, '&quot;');
+            const curIdx = idx;
+            idx += 1;
+            h += `
+          <tr data-row-index="${curIdx}">
+            <td>${labelMes.replace(/</g, '&lt;')}</td>
             <td>${nombreEsc}</td>
             <td class="${claseMonto}">${simbolo}${formatearNumero(totalCat, moneda)}</td>
-            <td><button type="button" class="ver-btn icon-btn" data-row-index="${idx}" data-prefix="${prefixId}" aria-label="Ver transacciones" title="Ver transacciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button><button type="button" class="grafico-btn icon-btn" data-tipo="${tipo}" data-nombre="${nombreAttr}" data-anio="${anioSel}" data-mes="${mesSel}" aria-label="Ver gráfico" title="Ver gráfico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></button></td>
+            <td><button type="button" class="ver-btn icon-btn" data-row-index="${curIdx}" data-prefix="${prefixId}" aria-label="Ver transacciones" title="Ver transacciones"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button><button type="button" class="grafico-btn icon-btn" data-tipo="${tipo}" data-nombre="${nombreAttr}" data-anio="${anioSel}" data-mes="${mesSel}" aria-label="Ver gráfico" title="Ver gráfico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></button></td>
           </tr>
-          <tr class="detalle-cat" id="${prefixId}-detalle-${idx}" style="display:none;">
+          <tr class="detalle-cat" id="${prefixId}-detalle-${curIdx}" style="display:none;">
             <td colspan="4">${detalleTabla}</td>
+          </tr>`;
+          });
+          const totalGrupo = grupo.filas.reduce((s, f) => s + (Number(f.totalCat) || 0), 0);
+          const esIngGrupo = grupo.titulo === 'Ingresos';
+          const claseTot = esIngGrupo ? 'ingresos' : 'egresos';
+          h += `
+          <tr class="modal-grupo-total">
+            <td></td>
+            <td class="modal-grupo-total-label">Total</td>
+            <td class="${claseTot}">${simbolo}${formatearNumero(totalGrupo, moneda)}</td>
+            <td></td>
           </tr>`;
         });
         h += '</tbody></table>';
@@ -3681,13 +4049,14 @@
         ? `<div id="modal-panel-errores" class="modal-panel">${erroresResumenHtml}</div>`
         : '';
       let html = `
+        <p class="sin-cotizacion-note" style="margin:0 0 0.5rem 0;">Agrupado en <strong>Ingresos</strong>, <strong>Costo directo</strong> (<code>costo_directo</code> = Y), <strong>Costo indirecto</strong> (<code>costo_indirecto</code> = Y, solo si no es directo) y <strong>Otros costos</strong> (egresos sin ninguna Y). Si un egreso tiene ambas Y, cuenta en <strong>Costo directo</strong>. Dentro de cada bloque, orden alfabético. Categoría/cuenta: <strong>nueva_categoria</strong> / <strong>nueva_cuenta_contable</strong> si existen en la base; si no, extracto.</p>
         <div class="modal-tabs" role="tablist">
-          <button type="button" class="modal-tab activo" data-panel="categoria" role="tab">By Categoria</button>
-          <button type="button" class="modal-tab" data-panel="cuenta" role="tab">By Cuenta Contable</button>
+          <button type="button" class="modal-tab activo" data-panel="categoria" role="tab">Por categoría (matriz)</button>
+          <button type="button" class="modal-tab" data-panel="cuenta" role="tab">Por cuenta (matriz)</button>
           ${tabErrores}
         </div>
-        <div id="modal-panel-categoria" class="modal-panel activo">${buildTabla(filasModal, 'modal-detalle-cat', 'Categoría', 'categoria', anio, mes)}</div>
-        <div id="modal-panel-cuenta" class="modal-panel">${buildTabla(filasModalCuenta, 'modal-detalle-cuenta', 'Cuenta contable', 'cuenta', anio, mes)}</div>
+        <div id="modal-panel-categoria" class="modal-panel activo">${buildTablaGrupos(filasModalGrupos, 'modal-detalle-cat', 'Categoría (matriz)', 'categoria', anio, mes)}</div>
+        <div id="modal-panel-cuenta" class="modal-panel">${buildTablaGrupos(filasModalCuentaGrupos, 'modal-detalle-cuenta', 'Cuenta (matriz)', 'cuenta', anio, mes)}</div>
         ${panelErrores}
       `;
       body.innerHTML = html;
@@ -3771,8 +4140,8 @@
       });
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       let html = '<p class="sin-cotizacion-note" style="margin-top:0;">Valores proyectados (sin transacciones reales).</p>';
-      html += '<p><strong>Resumen:</strong> Ingresos ' + simbolo + formatearNumero(d.ing, moneda) + ' · Egresos ' + simbolo + formatearNumero(d.egr, moneda) + ' · G/P ' + simbolo + formatearNumero(d.gp, moneda) + ' · Comisiones/Ventas ' + (d.comVentasPct || '–') + ' · Egr s/com./Ingresos ' + (d.egrSinComIngPct || '–') + '</p>';
-      html += '<table class="modal-tabla"><thead><tr><th>Categoría</th><th>Ingresos</th><th>Egresos</th><th>G/P</th></tr></thead><tbody>';
+      html += '<p><strong>Resumen:</strong> Ingresos ' + simbolo + formatearNumero(d.ing, moneda) + ' · Egresos ' + simbolo + formatearNumero(d.egr, moneda) + ' · G/P ' + simbolo + formatearNumero(d.gp, moneda) + ' · Comisiones/Ventas ' + (d.comVentasPct || '–') + ' · Costo dir./Ingr. ' + (d.costoDirIngPct || '–') + ' · Costo ind./Ingr. ' + (d.costoIndIngPct || '–') + '</p>';
+      html += '<table class="modal-tabla"><thead><tr><th>Agrupación (matriz)</th><th>Ingresos</th><th>Egresos</th><th>G/P</th></tr></thead><tbody>';
       filas.forEach(f => {
         const cls = f.gp >= 0 ? 'positivo' : 'negativo';
         html += '<tr><td>' + esc(f.cat) + '</td><td class="ingresos">' + simbolo + formatearNumero(f.ing, moneda) + '</td><td class="egresos">' + simbolo + formatearNumero(f.egr, moneda) + '</td><td class="balance ' + cls + '">' + simbolo + formatearNumero(f.gp, moneda) + '</td></tr>';
@@ -3844,7 +4213,7 @@
         if (filtro === 'duplicado') return r.tipoError === TIPO_ERROR_DUPLICADO;
         return true;
       });
-      function catMostrada(r) { return (r.categoriaDisplay || getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || '').trim(); }
+      function catMostrada(r) { return (categoriaDistribucionFlujo(r) || '').trim(); }
       const catOrigUnicas = [...new Set(errores.map(r => (r.categoriaOriginal || '').trim()).filter(Boolean))].sort();
       const catMostradaUnicas = [...new Set(errores.map(r => catMostrada(r)).filter(Boolean))].sort();
       if (selCatOrig) {
@@ -3892,8 +4261,8 @@
             <td>${esc(idOperacion)}</td>
             <td>${esc(r.tipo_movimiento || '')}</td>
             <td>${esc(r.categoriaOriginal || '')}</td>
-            <td>${esc(getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || '')}</td>
-            <td>${esc(r.cuenta_contable || '')}</td>
+            <td>${esc(categoriaDistribucionFlujo(r))}</td>
+            <td>${esc(cuentaDistribucionFlujo(r))}</td>
             <td>${esc(r.medio_pago || '')}</td>
             <td>${esc(valReg)}</td>
             <td>${esc(monedaReg)}</td>
@@ -3938,12 +4307,13 @@
       const tbody = document.getElementById('tbody-todas-transacciones');
       const selMes = document.getElementById('filtro-todas-mes');
       const selCat = document.getElementById('filtro-todas-categoria');
+      const selCuenta = document.getElementById('filtro-todas-cuenta-contable');
       const selTipo = document.getElementById('filtro-todas-tipo');
       const inputIdOperacion = document.getElementById('filtro-todas-id-operacion');
-      if (!tbody || !selMes || !selCat || !selTipo) return;
+      if (!tbody || !selMes || !selCat || !selCuenta || !selTipo) return;
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       if (cacheTransacciones.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color:#666;">No hay transacciones cargadas.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="23" style="text-align:center; color:#666;">No hay transacciones cargadas.</td></tr>';
         return;
       }
       if (selMes.options.length <= 1) {
@@ -3954,8 +4324,12 @@
         }).join('');
       }
       if (selCat.options.length <= 1) {
-        const categorias = [...new Set(cacheTransacciones.map(r => (r.categoria || '').trim() || 'Sin categoría'))].sort();
+        const categorias = [...new Set(cacheTransacciones.map(r => categoriaDistribucionFlujo(r)))].sort();
         selCat.innerHTML = '<option value="todos">Todas</option>' + categorias.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('');
+      }
+      if (selCuenta.options.length <= 1) {
+        const cuentas = [...new Set(cacheTransacciones.map(r => cuentaDistribucionFlujo(r)))].sort();
+        selCuenta.innerHTML = '<option value="todos">Todas</option>' + cuentas.map(cu => '<option value="' + esc(cu) + '">' + esc(cu) + '</option>').join('');
       }
       if (selTipo.options.length <= 1) {
         const tipos = [...new Set(cacheTransacciones.map(r => (r.tipo_movimiento || '').trim()).filter(Boolean))].sort();
@@ -3963,6 +4337,7 @@
       }
       const valorMes = selMes.value;
       const valorCat = selCat.value;
+      const valorCuenta = selCuenta.value;
       const valorTipo = selTipo.value;
       let list = cacheTransacciones;
       if (valorMes !== 'todos') {
@@ -3970,7 +4345,10 @@
         list = list.filter(r => r.anio === anio && r.mes === mes);
       }
       if (valorCat !== 'todos') {
-        list = list.filter(r => ((r.categoria || '').trim() || 'Sin categoría') === valorCat);
+        list = list.filter(r => categoriaDistribucionFlujo(r) === valorCat);
+      }
+      if (valorCuenta !== 'todos') {
+        list = list.filter(r => cuentaDistribucionFlujo(r) === valorCuenta);
       }
       if (valorTipo !== 'todos') {
         list = list.filter(r => (r.tipo_movimiento || '').trim() === valorTipo);
@@ -3982,7 +4360,7 @@
       }
       currentTodasTransaccionesList = list;
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color:#666;">No hay registros con los filtros seleccionados.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="23" style="text-align:center; color:#666;">No hay registros con los filtros seleccionados.</td></tr>';
         return;
       }
       const rows = list.map(r => {
@@ -4001,8 +4379,12 @@
             <td>${esc(monedaReg)}</td>
             <td>${esc(r.status || '')}</td>
             <td>${esc(r.medio_pago || '')}</td>
-            <td>${esc((r.categoria || '').trim() || '')}</td>
-            <td>${esc(r.cuenta_contable || '')}</td>
+            <td>${esc(categoriaDistribucionFlujo(r))}</td>
+            <td>${esc(cuentaDistribucionFlujo(r))}</td>
+            <td>${esc((r.nueva_categoria || '').trim() || '')}</td>
+            <td>${esc((r.nueva_cuenta_contable || '').trim() || '')}</td>
+            <td>${esc((r.costo_directo || '').toString())}</td>
+            <td>${esc((r.costo_indirecto || '').toString())}</td>
             <td>${esc((r.descripcion || '').slice(0, 120))}</td>
             <td>${esc(r.cliente || '')}</td>
             <td>${esc((r.cat_desc || '').slice(0, 80))}</td>
@@ -4056,8 +4438,8 @@
             <td>${esc(fechaStr(r.fecha))}</td>
             <td>${esc(r.tipo_movimiento || '')}</td>
             <td>${esc(r.categoriaOriginal || '')}</td>
-            <td>${esc(r.categoriaDisplay || '')}</td>
-            <td>${esc(r.cuenta_contable || '')}</td>
+            <td>${esc(categoriaDistribucionFlujo(r))}</td>
+            <td>${esc(cuentaDistribucionFlujo(r))}</td>
             <td>${esc(r.medio_pago || '')}</td>
             <td>${esc((r.descripcion || r.cliente || '–').slice(0, 160))}</td>
             <td>${esc((r.origen_archivo || '').trim() || '—')}</td>
@@ -4073,8 +4455,8 @@
                 <th>Fecha</th>
                 <th>Tipo</th>
                 <th>Categoría orig.</th>
-                <th>Categoría mostrada</th>
-                <th>Cuenta contable</th>
+                <th>Categoría (matriz)</th>
+                <th>Cuenta (matriz)</th>
                 <th>Medio</th>
                 <th>Descripción</th>
                 <th>Origen</th>
@@ -4134,7 +4516,16 @@
       const editCatDesc = get('edit-cat-desc');
       const editIdOrigen = get('edit-id-origen');
       const editIdOperacion = get('edit-id-operacion');
+      const editCostoDirecto = get('edit-costo-directo');
+      const editCostoIndirecto = get('edit-costo-indirecto');
       if (!editCategoria || !editCuenta || !editDescripcion) return;
+
+      function costoFlagSelectValueDesdeRecord(v) {
+        const s = String(v ?? '').trim().toUpperCase();
+        if (s === 'Y') return 'Y';
+        if (s === 'N') return 'N';
+        return '';
+      }
 
       titulo.textContent = 'Editar registro — ' + (fechaStr(record.fecha) || '');
 
@@ -4170,6 +4561,22 @@
       editMedioPago.value = (record.medio_pago || '').trim();
       editMoneda.value = (record.moneda || '').trim().toUpperCase() || '';
       editOrigen.value = (record.origen_archivo || '').trim();
+      if (editCostoDirecto) editCostoDirecto.value = costoFlagSelectValueDesdeRecord(record.costo_directo);
+      if (editCostoIndirecto) editCostoIndirecto.value = costoFlagSelectValueDesdeRecord(record.costo_indirecto);
+
+      const ayudaWrap = get('edit-ayuda-wrap');
+      const ayudaP = get('edit-ayuda-contexto');
+      if (ayudaWrap && ayudaP) {
+        const chk = getCategoriaDisplayConValidacion(record);
+        if (chk.esError && (record.tipo_movimiento || '').trim() === 'Egreso') {
+          ayudaWrap.style.display = '';
+          ayudaP.textContent =
+            'Este egreso está marcado por inconsistencia entre categoría, cuenta contable y descripción: la descripción (y Cat desc / cliente) debe contener al menos una palabra clave (≥3 letras) alineada con la categoría o la cuenta. En la base la categoría puede ser correcta aunque el listado muestre «Sin categoría». Si tocás Guardar sin modificar ningún campo, no se envía nada a Supabase (no hay cambios que guardar).';
+        } else {
+          ayudaWrap.style.display = 'none';
+          ayudaP.textContent = '';
+        }
+      }
 
       const guardarBtn = get('edit-guardar');
       const cancelarBtn = get('edit-cancelar');
@@ -4200,17 +4607,67 @@
         if (v(editIdOrigen) !== (record.id_origen != null ? String(record.id_origen) : '')) { payload.id_origen = v(editIdOrigen) || null; partes.push('Id origen'); }
         if (v(editIdOperacion) !== (record.id_operacion != null ? String(record.id_operacion) : '')) { payload.id_operacion = v(editIdOperacion) || null; partes.push('Id operación'); }
 
+        const cdNuevo = editCostoDirecto && editCostoDirecto.value ? editCostoDirecto.value.toUpperCase() : '';
+        const ciNuevo = editCostoIndirecto && editCostoIndirecto.value ? editCostoIndirecto.value.toUpperCase() : '';
+        const cdAnterior = costoFlagSelectValueDesdeRecord(record.costo_directo);
+        const ciAnterior = costoFlagSelectValueDesdeRecord(record.costo_indirecto);
+        if (cdNuevo !== cdAnterior) {
+          payload.costo_directo = cdNuevo === 'Y' || cdNuevo === 'N' ? cdNuevo : null;
+          partes.push('Costo directo');
+        }
+        if (ciNuevo !== ciAnterior) {
+          payload.costo_indirecto = ciNuevo === 'Y' || ciNuevo === 'N' ? ciNuevo : null;
+          partes.push('Costo indirecto');
+        }
+
         if (partes.length === 0) {
-          backdrop.classList.add('oculto');
+          alert(
+            'No hay cambios respecto al registro actual: no se ejecutó ninguna actualización en la tabla transacciones de Supabase. Si estabas corrigiendo un error de inconsistencia, modificá categoría, cuenta contable, descripción o Cat desc para alinear el texto con la categoría/cuenta; luego volvé a guardar.'
+          );
+          return;
+        }
+        if (!record.id) {
+          alert('Este registro no tiene id de Supabase; no se puede actualizar. Recargá la página o revisá la carga de datos.');
           return;
         }
         payload.editado = true;
         payload.editado_detalle = partes.join(', ');
-        const { error } = await client.from('transacciones').update(payload).eq('id', record.id);
-        if (error) { alert('Error al guardar: ' + (error.message || 'Unknown')); return; }
+        const { data: updatedRows, error } = await client
+          .from('transacciones')
+          .update(payload)
+          .eq('id', record.id)
+          .select('id');
+        if (error) {
+          alert('Error al guardar: ' + (error.message || 'Unknown'));
+          return;
+        }
+        if (!updatedRows || !updatedRows.length) {
+          alert(
+            'No se actualizó ninguna fila en Supabase (0 filas). Revisá permisos RLS/UPDATE en la tabla transacciones, que el id sea el UUID correcto y que el registro no esté excluido por otra regla.'
+          );
+          return;
+        }
+        try {
+          await cargarDatos();
+        } catch (e) {
+          alert(
+            'Los cambios se guardaron en Supabase, pero falló la recarga de datos: ' +
+              (e && e.message ? e.message : String(e)) +
+              '\nProbá recargar la página (F5).'
+          );
+          return;
+        }
         backdrop.classList.add('oculto');
-        await cargarDatos();
         recalcular();
+        const mesBackdrop = document.getElementById('modal-backdrop');
+        if (
+          mesBackdrop &&
+          !mesBackdrop.classList.contains('oculto') &&
+          ultimoModalMesAnio != null &&
+          ultimoModalMes != null
+        ) {
+          abrirModal(ultimoModalMesAnio, ultimoModalMes);
+        }
         renderErroresGlobal();
         renderTodasTransacciones();
         if (currentErroresAnio != null && currentErroresMes != null) {
@@ -4502,6 +4959,7 @@
         });
         document.getElementById('filtro-todas-mes').addEventListener('change', renderTodasTransacciones);
         document.getElementById('filtro-todas-categoria').addEventListener('change', renderTodasTransacciones);
+        document.getElementById('filtro-todas-cuenta-contable').addEventListener('change', renderTodasTransacciones);
         document.getElementById('filtro-todas-tipo').addEventListener('change', renderTodasTransacciones);
         const filtroIdOperacionEl = document.getElementById('filtro-todas-id-operacion');
         if (filtroIdOperacionEl) filtroIdOperacionEl.addEventListener('input', renderTodasTransacciones);
@@ -4521,18 +4979,34 @@
           if (helpEl && popover) {
             e.preventDefault();
             e.stopPropagation();
+            const tplId = helpEl.getAttribute('data-help-template');
             const text = helpEl.getAttribute('data-help');
-            if (text) {
-              const alreadyOpen = !popover.classList.contains('oculto') && popover._openTrigger === helpEl;
-              if (alreadyOpen) {
-                popover.classList.add('oculto');
-                popover._openTrigger = null;
-                return;
+            const alreadyOpen = !popover.classList.contains('oculto') && popover._openTrigger === helpEl;
+            if (alreadyOpen) {
+              popover.classList.add('oculto');
+              popover.classList.remove('th-help-popover-rich');
+              popover._openTrigger = null;
+              return;
+            }
+            let ok = false;
+            popover.classList.remove('th-help-popover-rich');
+            if (tplId) {
+              const tpl = document.getElementById(tplId);
+              if (tpl && tpl.content) {
+                popover.replaceChildren();
+                popover.appendChild(tpl.content.cloneNode(true));
+                popover.classList.add('th-help-popover-rich');
+                ok = true;
               }
+            } else if (text) {
               popover.textContent = text;
+              ok = true;
+            }
+            if (ok) {
               popover._openTrigger = helpEl;
               const rect = helpEl.getBoundingClientRect();
-              popover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 288)) + 'px';
+              const popW = popover.classList.contains('th-help-popover-rich') ? Math.min(440, window.innerWidth - 16) : 280;
+              popover.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - popW - 8)) + 'px';
               popover.style.top = (rect.bottom + 6) + 'px';
               popover.classList.remove('oculto');
             }
@@ -4540,6 +5014,7 @@
           }
           if (popover && !e.target.closest('#th-help-popover')) {
             popover.classList.add('oculto');
+            popover.classList.remove('th-help-popover-rich');
             popover._openTrigger = null;
           }
         });
@@ -4548,6 +5023,7 @@
             const popover = document.getElementById('th-help-popover');
             if (popover && !popover.classList.contains('oculto')) {
               popover.classList.add('oculto');
+              popover.classList.remove('th-help-popover-rich');
               popover._openTrigger = null;
             }
           }
@@ -4642,6 +5118,7 @@
           if (cbSinImpuestos) cbSinImpuestos.checked = getAlertaSinImpuestos();
           const wrapRecorte = document.getElementById('config-recorte-wrap');
           if (wrapRecorte) wrapRecorte.style.display = c.metodo === 'promedio_recortado' ? 'block' : 'none';
+          renderConfigMesesInclusionUI();
           document.getElementById('modal-configuracion-backdrop').classList.remove('oculto');
         });
         document.getElementById('config-proyeccion-metodo').addEventListener('change', () => {
@@ -4672,6 +5149,16 @@
           if (cbSinAlquileresS) localStorage.setItem(ALERTA_SIN_ALQUILERES_KEY, cbSinAlquileresS.checked ? '1' : '0');
           const cbSinImpuestosS = document.getElementById('config-alerta-sin-impuestos');
           if (cbSinImpuestosS) localStorage.setItem(ALERTA_SIN_IMPUESTOS_KEY, cbSinImpuestosS.checked ? '1' : '0');
+          const wrapMeses = document.getElementById('config-meses-inclusion-wrap');
+          const exclMeses = [];
+          if (wrapMeses) {
+            wrapMeses.querySelectorAll('input[type="checkbox"][data-mes-key]').forEach(cb => {
+              const key = cb.getAttribute('data-mes-key');
+              if (!key || !/^\d{4}-\d{2}$/.test(key)) return;
+              if (!cb.checked) exclMeses.push(key);
+            });
+          }
+          setMesesExcluidosFromArray(exclMeses);
           document.getElementById('modal-configuracion-backdrop').classList.add('oculto');
           syncConfigToSupabase();
           recalcular();
