@@ -11,7 +11,8 @@ alwaysApply: true
 - **Datos:** Supabase (PostgreSQL). Tablas relevantes: `transacciones`, `tipo_de_cambio`, `config_dashboard`. Scripts SQL en carpeta `sql/` se ejecutan en Supabase SQL Editor.
 - **Hosting:** Vercel. App en producción: fornitalia.vercel.app. Despliegue con `vercel --prod` tras push a `main`.
 - **Repositorio:** Git/GitHub (rama `main`). Estructura ordenada: `sql/`, `scripts/`, `docs/` (ver regla estructura-proyecto).
-- **Bitácora:** Node.js + SheetJS (xlsx). Script `scripts/crear-bitacora-excel.js` genera `Bitacora_tareas.xlsx` (en raíz) con las solapas Log, Resumen, Ref Git y Vercel, Versiones, Presupuesto, Tecnología.
+- **Bitácora:** Node.js + SheetJS (xlsx). Script `scripts/crear-bitacora-excel.js` genera `Bitacora_tareas.xlsx` (en raíz) con las solapas Log, Resumen, Ref Git y Vercel, Versiones, Presupuesto, Tecnología. Al regenerar, conserva Fecha/Hora de filas ya presentes en Log y Versiones.
+- **Fechas (SQL / dashboard):** si el cambio toca persistencia, consultas o UI filtrada por fecha de negocio, aplicar la regla **fechas-argentina-negocio** (no omitir).
 
 ---
 
@@ -21,7 +22,7 @@ Al completar una tarea relevante en este proyecto, revisar **cada** solapa y act
 
 1. **Solapa Log**  
    Agregar una fila en el array `datosLog` de `crear-bitacora-excel.js` con: Fecha, Hora, titulo_tarea, desc_tarea, etapa.  
-   **Fecha y hora:** usar siempre la **fecha y hora actual en Argentina** (timezone America/Argentina/Buenos_Aires). Al agregar la entrada, usar esa referencia o los placeholders `__HOY__` y `__AHORA__` (el script los reemplaza por la fecha/hora en Argentina al ejecutar `node crear-bitacora-excel.js`).  
+   **Fecha y hora:** en la **nueva fila** escribir fecha y hora literales en Argentina (`dd/mm/aaaa`, `HH:mm`, timezone America/Argentina/Buenos_Aires). Opcionalmente `__HOY__` / `__AHORA__` solo en esa fila nueva al generar el Excel por primera vez. **No** reescribir fechas/horas de filas ya registradas: al ejecutar `node scripts/crear-bitacora-excel.js`, el script conserva Fecha/Hora de filas existentes en `Bitacora_tareas.xlsx` (solapas Log y Versiones).  
    **Cuándo:** siempre que la tarea sea un trabajo realizado (cambio, feature, corrección, script SQL, regla, etc.).
 
 2. **Solapa Resumen**  
@@ -52,7 +53,7 @@ Cuando el usuario diga que desplegar (ej. "desplegar", "listo desplegar", "OK de
    En `dashboard-flujo-caja.html`, actualizar la constante `APP_VERSION` (buscar `const APP_VERSION = 'X.Y'`) al **siguiente número de versión** (ej. 1.9 → 1.10). Esa versión se muestra abajo en el sidebar.
 
 2. **Actualizar todas las solapas de la bitácora que correspondan** en `crear-bitacora-excel.js` (revisar las cuatro y no omitir ninguna):
-   - **Versiones:** siempre en despliegue. Agregar una fila en el array `versiones` con (Versión, Fecha, Descripción del despliegue). Usar la misma versión que `APP_VERSION`. **Fecha:** usar la fecha actual en Argentina; se puede usar `__HOY__` (el script la reemplaza por la fecha en Argentina al generar el Excel). Incluir los cambios principales.
+   - **Versiones:** siempre en despliegue. Agregar una fila en el array `versiones` con (Versión, Fecha, Descripción del despliegue). Usar la misma versión que `APP_VERSION`. **Fecha:** fecha literal del despliegue en Argentina, o `__HOY__` solo en la fila nueva (el script conserva fechas de versiones ya escritas en el Excel). Incluir los cambios principales.
    - **Log:** si hubo tareas en la sesión, agregar las entradas en `datosLog` (Fecha, Hora, titulo_tarea, desc_tarea, etapa).
    - **Resumen:** si los cambios agregan o modifican funcionalidad de la app, agregar o actualizar las filas en `funcionalidades`.
    - **Presupuesto:** si los cambios del despliegue agregan o modifican un entregable comercial, agregar o actualizar la fila en `presupuesto` (Grupo, Descripción comercial, Horas hombre). La columna Importe (USD) la actualiza el usuario a mano. Revisar en cada despliegue si aplica.
