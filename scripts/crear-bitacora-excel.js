@@ -1,57 +1,12 @@
 const XLSX = require('xlsx');
 const path = require('path');
+const {
+  preservarFechasHistoricasLog,
+  preservarFechasHistoricasVersiones,
+} = require('../../scripts/lib/lyp-bitacora-fechas');
 
-// Fecha/hora Argentina (America/Argentina/Buenos_Aires). Al regenerar el Excel se conservan fechas ya escritas en Bitacora_tareas.xlsx.
-const ZONA_ARGENTINA = 'America/Argentina/Buenos_Aires';
 const outPath = path.join(__dirname, '..', 'Bitacora_tareas.xlsx');
-function ahoraFecha() {
-  return new Date().toLocaleDateString('es-AR', { timeZone: ZONA_ARGENTINA, day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-function ahoraHora() {
-  return new Date().toLocaleTimeString('es-AR', { timeZone: ZONA_ARGENTINA, hour: '2-digit', minute: '2-digit', hour12: false });
-}
-function leerFilasExistentes(hoja) {
-  try {
-    const wb = XLSX.readFile(outPath);
-    const ws = wb.Sheets[hoja];
-    if (!ws) return null;
-    return XLSX.utils.sheet_to_json(ws, { header: 1 });
-  } catch (_) {
-    return null;
-  }
-}
-function preservarFechasHistoricasLog(rows) {
-  const existing = leerFilasExistentes('Log');
-  return rows.map((row, i) => {
-    if (!Array.isArray(row)) return row;
-    const prev = existing && existing[i];
-    if (row[0] === '__HOY__' || row[1] === '__AHORA__') {
-      const fechaPrev = prev && prev[0] != null ? String(prev[0]).trim() : '';
-      const horaPrev = prev && prev[1] != null ? String(prev[1]).trim() : '';
-      const fecha = row[0] === '__HOY__'
-        ? (fechaPrev && fechaPrev !== 'Fecha' ? fechaPrev : ahoraFecha())
-        : row[0];
-      const hora = row[1] === '__AHORA__'
-        ? (horaPrev ? horaPrev : ahoraHora())
-        : row[1];
-      return [fecha, hora, ...row.slice(2)];
-    }
-    return row;
-  });
-}
-function preservarFechasHistoricasVersiones(rows) {
-  const existing = leerFilasExistentes('Versiones');
-  return rows.map((row, i) => {
-    if (!Array.isArray(row)) return row;
-    const prev = existing && existing[i];
-    if (row[1] === '__HOY__') {
-      const fechaPrev = prev && prev[1] != null ? String(prev[1]).trim() : '';
-      const fecha = fechaPrev && fechaPrev !== 'Fecha' ? fechaPrev : ahoraFecha();
-      return [row[0], fecha, ...row.slice(2)];
-    }
-    return row;
-  });
-}
+const projectRoot = path.join(__dirname, '..');
 
 // --- Hoja Log (bitácora de tareas)
 // Filas históricas: fecha y hora literales en el array. Solo filas nuevas pueden usar __HOY__/__AHORA__ (una vez al generar).
@@ -199,10 +154,12 @@ const datosLog = [
   ['__HOY__', '__AHORA__', 'Conversión ARS en dashboard (USD y monto)', 'montoConvertido: USD con monto × tipo_cambio o cotización de tabla; movimientos ARS usan monto (no monto_cambio desalineado). Ayuda Flujo actualizada.', 'Implementacion'],
   ['__HOY__', '__AHORA__', 'Modal editar: nueva categoría y cuenta matriz', 'Select nueva_categoria y nueva_cuenta_contable en edición completa; persistencia en transacciones y editado_detalle.', 'Implementacion'],
   ['__HOY__', '__AHORA__', 'Bitácora: fechas históricas al regenerar', 'crear-bitacora-excel.js conserva Fecha/Hora de Log y Versiones ya escritas en Bitacora_tareas.xlsx; regla bitacora-tareas sin reescribir filas antiguas.', 'Implementacion'],
-  ['__HOY__', '__AHORA__', 'Despliegue v1.58 producción', 'Push main y vercel --prod: scroll modal detalle, conversión montos, edición matriz, bitácora con fechas congeladas; APP_VERSION 1.58.', 'Despliegue'],
+  ['__HOY__', '__AHORA__', 'Modal editar: Cliente en combo', 'Campo Cliente pasa a select con valores existentes en la base (sin texto libre); incluye el cliente del registro si no estaba en la lista.', 'Implementacion'],
+  ['__HOY__', '__AHORA__', 'Flujo por mes: Costo total / Ingreso total', 'Se quita columna Neto bruto; nueva columna Costo total / Ingreso total (egresos operativos ÷ ingresos operativos) tras Costo ind. / Ingresos; total y proyección alineados. Ayuda del panel actualizada.', 'Implementacion'],
+  ['__HOY__', '__AHORA__', 'Despliegue v1.59 producción', 'Push main y vercel --prod: combo Cliente en edición; tabla Flujo sin Neto bruto y con Costo total / Ingreso total; APP_VERSION 1.59.', 'Despliegue'],
 ];
 
-const datosLogParaExcel = preservarFechasHistoricasLog(datosLog);
+const datosLogParaExcel = preservarFechasHistoricasLog(projectRoot, outPath, datosLog);
 const wsLog = XLSX.utils.aoa_to_sheet(datosLogParaExcel);
 wsLog['!cols'] = [
   { wch: 12 },
@@ -215,7 +172,7 @@ wsLog['!cols'] = [
 // --- Hoja Resumen (funcionalidades de la app)
 const funcionalidades = [
   ['Funcionalidad', 'Descripción'],
-  ['Flujo de caja por mes', 'Tabla alineada al informe financiero PDF: columnas Ingresos y Egresos = totales del libro de movimientos (incluyen traspasos entre cuentas); Neto bruto; G/P operativo sin Transferencia/Depósito ni Apertura/Cierre; ratios y columna Caución (mismo criterio que esTransaccionUSD, montos en pesos; tasas desde serie_cauciones.json o Serie_Cauciones.xlsx; normalización automática si el JSON está en escala antigua; % configurable). Proyección de caución en ARS con la misma base. Meses excluidos por Configuración → Inclusión por mes no aparecen en filas ni totales agregados. Icono de ayuda discreto sobre la tabla abre el texto detallado de alineación al PDF (popover).'],
+  ['Flujo de caja por mes', 'Tabla alineada al informe financiero PDF: columnas Ingresos y Egresos = totales del libro de movimientos (incluyen traspasos entre cuentas); G/P operativo sin Transferencia/Depósito ni Apertura/Cierre; ratios Costo dir./ind./total sobre ingresos operativos; columna Caución (mismo criterio que esTransaccionUSD, montos en pesos; tasas desde serie_cauciones.json o Serie_Cauciones.xlsx; normalización automática si el JSON está en escala antigua; % configurable). Proyección de caución en ARS con la misma base. Meses excluidos por Configuración → Inclusión por mes no aparecen en filas ni totales agregados. Icono de ayuda discreto sobre la tabla abre el texto detallado de alineación al PDF (popover).'],
   ['Resumen global', 'Cuatro tarjetas: Ingresos totales y Egresos totales del libro de movimientos (con traspasos), Neto caja (bruto) y G/P operativo (sin traspasos internos), en ARS o USD según selector.'],
   ['Moneda', 'Selector ARS / USD. Maestro caja→moneda (medio de pago) alineado a scripts/lib/fornitalia-moneda-por-medio.js en import normalizado y en esTransaccionUSD. En ARS: USD con monto × tipo_cambio o cotización de tabla; movimientos en ARS usan monto (no monto_cambio si viene desalineado del extracto).'],
   ['Tipo de cambio USD', 'Opciones MEP, CCL u Oficial para convertir a dólares.'],
@@ -260,7 +217,7 @@ const funcionalidades = [
   ['Evolución: orden ingreso/egreso', 'En la tabla Evolución las filas se muestran primero las de ingreso (total >= 0) y luego las de egreso (total < 0); dentro de cada grupo orden alfabético. Aplica al agrupar por categoría o cuenta de matriz.'],
   ['Int. por caución', 'Columna en flujo por mes: interés mensual por colocar el sobrante de caja a la tasa diaria de la serie de cauciones. Carga Serie_Cauciones.xlsx al refrescar (o serie_cauciones.json si no hay Excel). Cálculo: base = G/P acumulado a la fecha + interés acumulado; Int T = base × tasa. Clic en el valor abre modal con marcha (G/P acum, Int T-1, Base, Tasa, Int T).'],
   ['Todas las transacciones', 'Solapa que lista todas las transacciones con todas las columnas. Filtros por mes, categoría (matriz) y cuenta (matriz) —misma prioridad nueva_* que Evolución—, tipo (Ingreso/Egreso) e id operación (texto). Columnas principales cat/cuenta por matriz; columnas nueva_* como en BD. Botón Editar por registro abre modal de edición completa.'],
-  ['Edición completa de registros', 'Modal de edición con todos los campos: fecha, mes, año, tipo movimiento, monto, moneda, status, medio pago, categoría, nueva categoría (matriz), cuenta contable, nueva cuenta contable (matriz), costo_directo y costo_indirecto (Y/N o vacío), origen archivo, descripción, cliente, cat_desc, id_origen, id_operación. Combos para campos normalizados (valores existentes en BD). editado y editado_detalle al guardar. Tras guardar OK: recarga datos, recalcula flujo, y si el modal de detalle del mes sigue abierto se vuelve a armar ese modal para no mostrar HTML viejo.'],
+  ['Edición completa de registros', 'Modal de edición con todos los campos: fecha, mes, año, tipo movimiento, monto, moneda, status, medio pago, categoría, nueva categoría (matriz), cuenta contable, nueva cuenta contable (matriz), costo_directo y costo_indirecto (Y/N o vacío), origen archivo, descripción, cliente (combo con valores existentes en BD), cat_desc, id_origen, id_operación. Combos para campos normalizados (valores existentes en BD). editado y editado_detalle al guardar. Tras guardar OK: recarga datos, recalcula flujo, y si el modal de detalle del mes sigue abierto se vuelve a armar ese modal para no mostrar HTML viejo.'],
   ['Proyección próximos 3 meses', 'Debajo del total real en Flujo por mes: "Próximos 3 meses proyectados" con ventana rodante. Configuración (sidebar): método (Mediana/Promedio) y meses de historia (3, 6, 12, 24). Ingresos, egresos, G/P y ratios proyectados por mes.'],
   ['Int. por caución proyectado', 'Punto de partida = G/P Total real + interés acumulado; tasa = promedio último mes real; días naturales; Int T-1 día 1 = (Int T-1 + Int T) último día del mes anterior. G/P acum en marcha = al inicio de cada día (real y proyectado). Ventana rodante: ingresos/egresos distintos por mes.'],
   ['Disclaimer proyección', 'Debajo de las filas proyectadas, texto en letra chica y gris oscuro que explica la metodología: Mediana/Promedio de N meses, ventana rodante, y cálculo de Int. por caución proyectado.'],
@@ -342,8 +299,9 @@ const versiones = [
   ['1.49', '__HOY__', 'Caución: normalización de escala de tasas (JSON legado vs fracción diaria Excel); informe financiero §8 coherente con app (esTransaccionUSD, montos en pesos); convertir-serie-cauciones.js con fechas Date/ISO; serie_cauciones.json alineado a Serie_Cauciones.xlsx. Despliegue a producción Vercel.'],
   ['1.57', '__HOY__', 'Dashboard: Evolución y agregados con categoría/cuenta matriz (nueva_* + fallback); Configuración Inclusión por mes (meses_excluidos localStorage + Supabase, sql supabase_config_dashboard_meses_excluidos.sql); modal editar costo_directo y costo_indirecto; ayuda informe PDF tras ícono en Flujo por mes (popover template); duplicados sin filtrar por mes excluido; APP_VERSION 1.57. Despliegue producción Vercel.'],
   ['1.58', '__HOY__', 'Modal detalle con scroll; montoConvertido USD×TC y ARS por monto; edición nueva_categoria/nueva_cuenta_contable; bitácora conserva fechas históricas al regenerar; APP_VERSION 1.58. Despliegue producción Vercel.'],
+  ['1.59', '__HOY__', 'Modal editar: Cliente en combo (valores existentes). Flujo por mes: sin Neto bruto; columna Costo total / Ingreso total; ayuda y proyección alineadas. APP_VERSION 1.59. Despliegue producción Vercel.'],
 ];
-const versionesParaExcel = preservarFechasHistoricasVersiones(versiones);
+const versionesParaExcel = preservarFechasHistoricasVersiones(projectRoot, outPath, versiones);
 const wsVersiones = XLSX.utils.aoa_to_sheet(versionesParaExcel);
 wsVersiones['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 75 }];
 

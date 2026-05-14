@@ -635,8 +635,9 @@
       <template id="template-flujo-informe-pdf">
         <div class="th-help-rich-content">
           <p>En <strong>ARS</strong>, movimientos en <strong>USD</strong>: <strong>monto × tipo_cambio</strong> de la fila; si falta, <strong>monto × cotización</strong> de la tabla (MEP/CCL/Oficial); si no hay tasa, <strong>monto_cambio</strong> en BD. Movimientos ya en ARS: se usa <strong>monto</strong> (no <strong>monto_cambio</strong>, que en el extracto puede venir desalineado).</p>
-          <p>Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = totales extracto (con traspasos); <strong>Neto bruto</strong> = ing − egr. <strong>G/P operativo</strong> y ratios excluyen apertura/cierre y <strong>Transferencia</strong> / <strong>Deposito/Depósito</strong>.</p>
-          <p><strong>Costo directo / Ingresos</strong> y <strong>Costo indirecto / Ingresos</strong> = egresos operativos con <code>costo_directo</code> o <code>costo_indirecto</code> = Y, respectivamente, divididos por ingresos operativos del mes (sin restar comisiones: quedan clasificados por esas banderas).</p>
+          <p>Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = totales extracto (con traspasos). <strong>G/P operativo</strong> y ratios excluyen apertura/cierre y <strong>Transferencia</strong> / <strong>Deposito/Depósito</strong>.</p>
+          <p><strong>Costo directo / Ingresos</strong> y <strong>Costo indirecto / Ingresos</strong> = egresos operativos con <code>costo_directo</code> o <code>costo_indirecto</code> = Y, divididos por ingresos operativos del mes (sin restar comisiones aparte: quedan clasificados por esas banderas).</p>
+          <p><strong>Costo total / Ingreso total</strong> = total de egresos operativos del mes dividido por ingresos operativos del mes.</p>
           <p><strong>Caución</strong> además usa <strong>solo movimientos en moneda de origen ARS</strong> y montos en <strong>pesos</strong> (la tasa de la serie es en ARS), aunque el selector muestre USD en el resto de la tabla.</p>
         </div>
       </template>
@@ -652,11 +653,11 @@
             <th>Mes-Año</th>
             <th>Ingresos</th>
             <th>Egresos</th>
-            <th>Neto bruto</th>
             <th>G/P operativo</th>
             <th>Comisiones <span class="th-help" data-help="Corresponde solo a las comisiones por venta." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ventas %</th>
             <th>Costo dir. <span class="th-help" data-help="Egresos operativos con costo_directo = Y, divididos por ingresos operativos del mes. No se restan comisiones aparte." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
             <th>Costo ind. <span class="th-help" data-help="Egresos operativos con costo_indirecto = Y (y sin prioridad de directo), divididos por ingresos operativos. No se restan comisiones aparte." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
+            <th>Costo total <span class="th-help" data-help="Egresos operativos del mes (sin traspasos internos) divididos por ingresos operativos del mes." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingreso total</th>
             <th class="th-int-caucion" id="th-int-caucion-label" title="Interés acumulado por mes colocando el sobrante de caja a la tasa de la serie de cauciones">Caución (100% cash)</th>
             <th class="alert-icon-cell"></th>
           </tr>
@@ -1033,7 +1034,7 @@
           </div>
           <div class="form-group">
             <label>Cliente</label>
-            <input type="text" id="edit-cliente" placeholder="Cliente">
+            <select id="edit-cliente"></select>
           </div>
           <div class="form-group">
             <label>Cat desc</label>
@@ -1301,7 +1302,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.58';
+    const APP_VERSION = '1.59';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1877,6 +1878,12 @@
       const [anio, mes] = key.split('-').map(Number);
       if (mes >= 12) return (anio + 1) + '-01';
       return anio + '-' + String(mes + 1).padStart(2, '0');
+    }
+
+    function ratioCostoTotalVsIngresoTotal(ingresos, egresos) {
+      const ing = ingresos > 0 ? ingresos : 0;
+      const egr = egresos != null ? egresos : 0;
+      return ing > 0 ? ((egr / ing) * 100).toFixed(1) + '%' : '–';
     }
 
     /** Costo directo/indirecto / Ingresos = suma egresos con bandera Y ÷ ingresos operativos (sin restar comisiones). */
@@ -2696,7 +2703,6 @@
         const am = parseInt(key.slice(5), 10);
         const b = porMesBruto[key] || { anio: ay, mes: am, ingresos: 0, egresos: 0 };
         const d = porMes[key] || { anio: ay, mes: am, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0, intCaucion: 0, egresosCostoDirecto: 0, egresosCostoIndirecto: 0 };
-        const netBruto = b.ingresos - b.egresos;
         const balance = d.ingresos - d.egresos;
         const label = formatoMesAnio(d.mes, d.anio);
         const comisionesParaRatio = d.comisionesParaRatio != null ? d.comisionesParaRatio : 0;
@@ -2707,6 +2713,7 @@
           d.egresosCostoDirecto,
           d.egresosCostoIndirecto
         );
+        const costoTotalIngPct = ratioCostoTotalVsIngresoTotal(d.ingresos, d.egresos);
         const alertas = alertasPorMes[key] || [];
         const alertasJson = alertas.length ? JSON.stringify(alertas).replace(/"/g, '&quot;') : '';
         const iconoAlert = alertas.length ? `<span class="alert-icon" role="button" tabindex="0" data-alertas="${alertasJson}" data-label="${label.replace(/"/g, '&quot;')}" title="Ver alertas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>` : '';
@@ -2714,11 +2721,11 @@
           <td>${label}</td>
           <td class="ingresos">${simbolo}${formatearNumero(b.ingresos, moneda)}</td>
           <td class="egresos">${simbolo}${formatearNumero(b.egresos, moneda)}</td>
-          <td class="balance ${netBruto >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(netBruto, moneda)}</td>
           <td class="balance ${balance >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balance, moneda)}</td>
           <td>${comVentasPct}</td>
           <td>${costoDirIngPct}</td>
           <td>${costoIndIngPct}</td>
+          <td>${costoTotalIngPct}</td>
           <td class="ingresos int-caucion-cell" data-key-mes="${key}" role="button" tabindex="0" title="Ver marcha de cálculo (en pesos ARS)">$ ${formatearNumero((d.intCaucion != null ? d.intCaucion : 0), 'ARS')}</td>
           <td class="alert-icon-cell">${iconoAlert}</td>
         </tr>`;
@@ -2786,7 +2793,7 @@
         let prevRes = null;
         for (let i = 0; i < mesesAProyectar; i++) {
           const comVentasPctI = proyVentas[i] > 0 ? ((proyComisionesParaRatio[i] / proyVentas[i]) * 100).toFixed(1) + '%' : '–';
-          const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct: comVentasPctI, costoDirIngPct: '–', costoIndIngPct: '–' };
+          const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct: comVentasPctI, costoDirIngPct: '–', costoIndIngPct: '–', costoTotalIngPct: ratioCostoTotalVsIngresoTotal(proyIng[i], proyEgr[i]) };
           proys.push(proy);
           if (i > 0 && prevRes && prevRes.detalle && prevRes.detalle.length > 0) {
             const ultima = prevRes.detalle[prevRes.detalle.length - 1];
@@ -2802,16 +2809,16 @@
           basePartida = proyGpArs + intCaucionProy;
           gpInicialSolo = res.gpAcumSoloFin;
           detalleIntCaucionProy[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), basePartida: baseInicio, gpTotalReal: i === 0 ? gpTotalRealArsCaucion : undefined, intAcumuladoInicial, proyGP: proyGpArs, tasaDiaria: tasaDiariaProy, intCaucion: intCaucionProy, detalle: res.detalle, dias: diasMes };
-          detalleProyeccionPorMes[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), ing: proy.ing, egr: proy.egr, gp: proy.gp, comVentasPct: proy.comVentasPct, costoDirIngPct: proy.costoDirIngPct, costoIndIngPct: proy.costoIndIngPct, ingresoPorCat: { ...proyDetalle[keyProy].ingresoPorCat }, egresoPorCat: { ...proyDetalle[keyProy].egresoPorCat } };
+          detalleProyeccionPorMes[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), ing: proy.ing, egr: proy.egr, gp: proy.gp, comVentasPct: proy.comVentasPct, costoDirIngPct: proy.costoDirIngPct, costoIndIngPct: proy.costoIndIngPct, costoTotalIngPct: proy.costoTotalIngPct, ingresoPorCat: { ...proyDetalle[keyProy].ingresoPorCat }, egresoPorCat: { ...proyDetalle[keyProy].egresoPorCat } };
           filasProy += `<tr class="fila-proyeccion" data-proy-key="${keyProy}" role="button" tabindex="0" title="Ver detalle de proyección">
             <td>Proy. ${formatoMesAnio(mesProy, anioProy)}</td>
             <td class="ingresos">${simbolo}${formatearNumero(proy.ing, moneda)}</td>
             <td class="egresos">${simbolo}${formatearNumero(proy.egr, moneda)}</td>
-            <td style="color:#888;">–</td>
             <td class="balance ${proy.gp >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(proy.gp, moneda)}</td>
             <td>${proy.comVentasPct}</td>
             <td>${proy.costoDirIngPct}</td>
             <td>${proy.costoIndIngPct}</td>
+            <td>${proy.costoTotalIngPct}</td>
             <td class="ingresos int-caucion-cell" data-proy-key="${keyProy}" role="button" tabindex="0" title="Ver marcha de cálculo (en pesos ARS)">$ ${formatearNumero(intCaucionProy, 'ARS')}</td>
             <td class="alert-icon-cell"></td>
           </tr>`;
@@ -2845,17 +2852,18 @@
         sumEgrInd += pm.egresosCostoIndirecto || 0;
       });
       const { pctDir: totCostoDirIng, pctInd: totCostoIndIng } = ratiosCostoDirectoIndirectoVsIngresos(totalIngresos, sumEgrDir, sumEgrInd);
+      const totCostoTotalIng = ratioCostoTotalVsIngresoTotal(totalIngresos, totalEgresos);
       const tfoot = document.getElementById('tfoot-flujo');
       if (tfoot) {
         let tfootHtml = ordenados.length === 0 ? '' : `<tr class="fila-total-real">
           <td>Total</td>
           <td class="ingresos">${simbolo}${formatearNumero(totalIngBruto, moneda)}</td>
           <td class="egresos">${simbolo}${formatearNumero(totalEgBruto, moneda)}</td>
-          <td class="balance ${netoCajaBruto >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(netoCajaBruto, moneda)}</td>
           <td class="balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</td>
           <td>${comVentasPctTotal}</td>
           <td>${totCostoDirIng}</td>
           <td>${totCostoIndIng}</td>
+          <td>${totCostoTotalIng}</td>
           <td class="ingresos" title="Caución acumulada en pesos ARS (solo origen ARS)">$ ${formatearNumero(totalIntCaucion, 'ARS')}</td>
           <td class="alert-icon-cell"></td>
         </tr>`;
@@ -4163,7 +4171,7 @@
       });
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       let html = '<p class="sin-cotizacion-note" style="margin-top:0;">Valores proyectados (sin transacciones reales).</p>';
-      html += '<p><strong>Resumen:</strong> Ingresos ' + simbolo + formatearNumero(d.ing, moneda) + ' · Egresos ' + simbolo + formatearNumero(d.egr, moneda) + ' · G/P ' + simbolo + formatearNumero(d.gp, moneda) + ' · Comisiones/Ventas ' + (d.comVentasPct || '–') + ' · Costo dir./Ingr. ' + (d.costoDirIngPct || '–') + ' · Costo ind./Ingr. ' + (d.costoIndIngPct || '–') + '</p>';
+      html += '<p><strong>Resumen:</strong> Ingresos ' + simbolo + formatearNumero(d.ing, moneda) + ' · Egresos ' + simbolo + formatearNumero(d.egr, moneda) + ' · G/P ' + simbolo + formatearNumero(d.gp, moneda) + ' · Comisiones/Ventas ' + (d.comVentasPct || '–') + ' · Costo dir./Ingr. ' + (d.costoDirIngPct || '–') + ' · Costo ind./Ingr. ' + (d.costoIndIngPct || '–') + ' · Costo total/Ingr. ' + (d.costoTotalIngPct || '–') + '</p>';
       html += '<table class="modal-tabla"><thead><tr><th>Agrupación (matriz)</th><th>Ingresos</th><th>Egresos</th><th>G/P</th></tr></thead><tbody>';
       filas.forEach(f => {
         const cls = f.gp >= 0 ? 'positivo' : 'negativo';
@@ -4559,7 +4567,6 @@
       editAnio.value = record.anio != null ? String(record.anio) : '';
       editMonto.value = record.monto != null ? String(record.monto) : '';
       editDescripcion.value = (record.descripcion || '').toString();
-      editCliente.value = (record.cliente || '').toString();
       editCatDesc.value = (record.cat_desc || '').toString();
       editIdOrigen.value = (record.id_origen != null ? String(record.id_origen) : '');
       editIdOperacion.value = (record.id_operacion != null ? String(record.id_operacion) : '');
@@ -4572,6 +4579,9 @@
       const statusUnicos = [...new Set(cacheTransacciones.map(r => (r.status || '').trim()).filter(Boolean))].sort();
       const mediosPago = [...new Set(cacheTransacciones.map(r => (r.medio_pago || '').trim()).filter(Boolean))].sort();
       const origenesUnicos = [...new Set(cacheTransacciones.map(r => (r.origen_archivo || '').trim()).filter(Boolean))].sort();
+      const clientesUnicos = [...new Set(cacheTransacciones.map(r => (r.cliente || '').trim()).filter(Boolean))].sort();
+      const clienteActual = (record.cliente || '').trim();
+      if (clienteActual && !clientesUnicos.includes(clienteActual)) clientesUnicos.push(clienteActual);
 
       editCategoria.innerHTML = optionize(categoriasUnicas, '—');
       if (editNuevaCategoria) editNuevaCategoria.innerHTML = optionize(nuevasCategoriasUnicas, '—');
@@ -4582,6 +4592,7 @@
       editMedioPago.innerHTML = optionize(mediosPago, '—');
       editMoneda.innerHTML = '<option value="">—</option><option value="ARS">ARS</option><option value="USD">USD</option>';
       editOrigen.innerHTML = optionize(origenesUnicos, '—');
+      if (editCliente) editCliente.innerHTML = optionize(clientesUnicos, '—');
 
       editCategoria.value = (record.categoria || '').trim();
       if (editNuevaCategoria) editNuevaCategoria.value = (record.nueva_categoria || '').trim();
@@ -4592,6 +4603,7 @@
       editMedioPago.value = (record.medio_pago || '').trim();
       editMoneda.value = (record.moneda || '').trim().toUpperCase() || '';
       editOrigen.value = (record.origen_archivo || '').trim();
+      if (editCliente) editCliente.value = (record.cliente || '').trim();
       if (editCostoDirecto) editCostoDirecto.value = costoFlagSelectValueDesdeRecord(record.costo_directo);
       if (editCostoIndirecto) editCostoIndirecto.value = costoFlagSelectValueDesdeRecord(record.costo_indirecto);
 
