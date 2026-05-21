@@ -157,6 +157,8 @@ const datosLog = [
   ['__HOY__', '__AHORA__', 'Modal editar: Cliente en combo', 'Campo Cliente pasa a select con valores existentes en la base (sin texto libre); incluye el cliente del registro si no estaba en la lista.', 'Implementacion'],
   ['__HOY__', '__AHORA__', 'Flujo por mes: Costo total / Ingreso total', 'Se quita columna Neto bruto; nueva columna Costo total / Ingreso total (egresos operativos ÷ ingresos operativos) tras Costo ind. / Ingresos; total y proyección alineados. Ayuda del panel actualizada.', 'Implementacion'],
   ['__HOY__', '__AHORA__', 'Despliegue v1.59 producción', 'Push main y vercel --prod: combo Cliente en edición; tabla Flujo sin Neto bruto y con Costo total / Ingreso total; APP_VERSION 1.59.', 'Despliegue'],
+  ['__HOY__', '__AHORA__', 'Modal detalle mes: Cliente e icono ver transacción', 'Tabla expandida del modal mensual: columna Cliente; icono ojo por fila abre modal de edición (detalle completo). Ya no se abre al clic en toda la fila. APP_VERSION 1.60.', 'Implementacion'],
+  ['__HOY__', '__AHORA__', 'Despliegue v1.60 producción', 'Push main y vercel --prod: modal detalle mes con columna Cliente e icono ojo para abrir edición/detalle completo. APP_VERSION 1.60.', 'Despliegue'],
 ];
 
 const datosLogParaExcel = preservarFechasHistoricasLog(projectRoot, outPath, datosLog);
@@ -186,7 +188,7 @@ const funcionalidades = [
   ['Gráfico serie mensual', 'Botón "Gráfico" en cada fila de categoría o cuenta de matriz: modal con serie mensual (neto por mes) para esa clave, en la moneda seleccionada.'],
   ['Detalle transacciones', 'En cada agrupación, listado con monto, descripción y origen (origen_archivo).'],
   ['Detalle transacciones (moneda registración)', 'En el modal mensual, cada línea muestra el monto en su moneda de registración (US$ / $). Si la moneda seleccionada difiere, se muestra la conversión a la moneda de vista (→) o indica (sin cot.) si falta tipo de cambio.'],
-  ['Detalle transacciones (tabla)', 'En el modal mensual, al expandir una categoría/cuenta se muestra una tabla con títulos y filas de transacciones (Fecha, Tipo, Medio, Moneda, Monto, moneda vista, Descripción, Origen). El detalle expandido tiene scroll vertical con encabezados fijos; el cuerpo del modal también desplaza cuando el contenido supera la ventana.'],
+  ['Detalle transacciones (tabla)', 'En el modal mensual, al expandir una categoría/cuenta se muestra una tabla con títulos y filas de transacciones (Fecha, Tipo, Medio, Moneda, Monto, moneda vista, TC, Cliente, Descripción, Origen). Icono ojo por fila (operadores) abre el modal de edición con el detalle completo del registro. Scroll vertical con encabezados fijos en el detalle expandido.'],
   ['Detalle transacciones (tipo de cambio)', 'En el detalle expandido del modal mensual, se muestra la columna TC (según MEP/CCL/Oficial) cuando hay conversión entre moneda registración y moneda vista; si no aplica muestra — y si falta cotización muestra sin cot.'],
   ['Alertas por mes', 'Avisos: mes sin egresos; sin registros de Sueldos, Comisiones, Alquileres o Impuestos; desvío % de categoría (matriz) vs mes anterior.'],
   ['Inclusión por mes (Configuración)', 'Interruptores por cada mes con movimientos: incluir o excluir del flujo por mes, tarjetas de resumen, Evolución, Caución y agregados que usan excluirFilaFlujoOperativo. Persistencia localStorage y columna meses_excluidos en config_dashboard. Sin afectar duplicados ni export de base histórica.'],
@@ -300,6 +302,7 @@ const versiones = [
   ['1.57', '__HOY__', 'Dashboard: Evolución y agregados con categoría/cuenta matriz (nueva_* + fallback); Configuración Inclusión por mes (meses_excluidos localStorage + Supabase, sql supabase_config_dashboard_meses_excluidos.sql); modal editar costo_directo y costo_indirecto; ayuda informe PDF tras ícono en Flujo por mes (popover template); duplicados sin filtrar por mes excluido; APP_VERSION 1.57. Despliegue producción Vercel.'],
   ['1.58', '__HOY__', 'Modal detalle con scroll; montoConvertido USD×TC y ARS por monto; edición nueva_categoria/nueva_cuenta_contable; bitácora conserva fechas históricas al regenerar; APP_VERSION 1.58. Despliegue producción Vercel.'],
   ['1.59', '__HOY__', 'Modal editar: Cliente en combo (valores existentes). Flujo por mes: sin Neto bruto; columna Costo total / Ingreso total; ayuda y proyección alineadas. APP_VERSION 1.59. Despliegue producción Vercel.'],
+  ['1.60', '__HOY__', 'Modal detalle mensual: columna Cliente en tabla expandida; icono ojo por fila abre modal de edición (detalle completo). APP_VERSION 1.60. Despliegue producción Vercel.'],
 ];
 const versionesParaExcel = preservarFechasHistoricasVersiones(projectRoot, outPath, versiones);
 const wsVersiones = XLSX.utils.aoa_to_sheet(versionesParaExcel);

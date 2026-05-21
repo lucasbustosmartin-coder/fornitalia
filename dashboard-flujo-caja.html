@@ -345,8 +345,9 @@
     .modal-tabla .detalle-tabla td.monto-vista { white-space: nowrap; }
     .modal-tabla .detalle-tabla td.desc { color: #333; }
     .modal-tabla .detalle-tabla .muted { color: #777; }
-    .modal-tabla .detalle-tabla tbody tr.fila-transaccion-ver { cursor: pointer; }
-    .modal-tabla .detalle-tabla tbody tr.fila-transaccion-ver:hover { background: #f0f4f8; }
+    .modal-tabla .detalle-tabla td.cliente { color: #333; max-width: 10rem; }
+    .modal-tabla .detalle-tabla td.detalle-accion { width: 2.5rem; text-align: center; white-space: nowrap; vertical-align: middle; }
+    .modal-tabla .detalle-tabla .ver-transaccion-detalle-btn { margin: 0; }
     .modal-tabla .btn-ver-errores,
     .btn-ver-errores {
       padding: 0.35rem 0.75rem;
@@ -1302,7 +1303,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.59';
+    const APP_VERSION = '1.60';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -3903,12 +3904,15 @@
                 <th>Monto</th>
                 <th>${esc(moneda)}</th>
                 <th>TC (${esc((tipoDolar || '').toString().toUpperCase())})</th>
+                <th>Cliente</th>
                 <th>Descripción</th>
                 <th>Origen</th>
+                ${puedeEditarFilas ? '<th class="detalle-accion" aria-label="Acciones"></th>' : ''}
               </tr>
             </thead>
             <tbody>
         `;
+        const iconoVerTransaccion = `<button type="button" class="ver-transaccion-detalle-btn edit-btn" data-transaccion-id="__ID__" title="Ver detalle de la transacción" aria-label="Ver detalle de la transacción"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>`;
         const body = items.map(i => {
           const regIsUSD = esTransaccionUSD(i);
           const monedaReg = regIsUSD ? 'USD' : 'ARS';
@@ -3931,12 +3935,15 @@
             : (tasa != null
               ? `<span class="muted">${esc(fmtTC(Number(tasa)))}</span>`
               : '<span class="muted">sin cot.</span>');
-          const desc = (i.descripcion || i.cliente || '–').slice(0, 120);
+          const desc = (i.descripcion || '–').slice(0, 120);
+          const cliente = (i.cliente || '').trim();
           const origen = (i.origen_archivo || '').trim();
           const idReg = (i.id || '').toString().replace(/"/g, '&quot;');
-          const rowInteractive = puedeEditarFilas ? ' role="button" tabindex="0" title="Ver detalle de la transacción"' : ' title="Solo lectura"';
+          const celdaAccion = puedeEditarFilas
+            ? `<td class="detalle-accion">${iconoVerTransaccion.replace('__ID__', idReg)}</td>`
+            : '';
           return `
-            <tr class="fila-transaccion-ver" data-transaccion-id="${idReg}"${rowInteractive}>
+            <tr class="fila-transaccion-ver" data-transaccion-id="${idReg}">
               <td>${esc(fechaStr(i.fecha))}</td>
               <td>${esc(i.tipo_movimiento || '')}</td>
               <td>${esc(i.medio_pago || '')}</td>
@@ -3944,8 +3951,10 @@
               <td class="monto-reg">${esc(valReg)}</td>
               <td class="monto-vista">${valVista}</td>
               <td>${valTC}</td>
+              <td class="cliente">${cliente ? esc(cliente) : '<span class="muted">—</span>'}</td>
               <td class="desc">${esc(desc)}</td>
               <td>${origen ? `<span class="origen-detalle" title="Origen">${esc(origen)}</span>` : '<span class="muted">—</span>'}</td>
+              ${celdaAccion}
             </tr>
           `;
         }).join('');
@@ -4128,11 +4137,11 @@
 
       body.addEventListener('click', (e) => {
         if (!puedeEditarFilas) return;
-        const tr = e.target.closest('.fila-transaccion-ver');
-        if (!tr) return;
+        const btn = e.target.closest('.ver-transaccion-detalle-btn');
+        if (!btn) return;
         e.preventDefault();
         e.stopPropagation();
-        const id = tr.getAttribute('data-transaccion-id');
+        const id = btn.getAttribute('data-transaccion-id');
         const record = cacheTransacciones.find(r => (r.id || '').toString() === id);
         if (record) abrirModalEditar(record);
       });
