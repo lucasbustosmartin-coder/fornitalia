@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1.34">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f5f5f5; display: flex; flex-direction: column; min-height: 100vh; }
@@ -99,7 +99,10 @@
     .sidebar-version { margin-top: auto; padding: 0.75rem 1rem; font-size: 0.75rem; color: rgba(255,255,255,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
     .sidebar.expanded .sidebar-version { opacity: 1; }
     .sidebar:not(.expanded) .sidebar-version { text-align: center; padding: 0.5rem 0; }
-    .main-content { flex: 1; padding: 1.5rem; overflow-x: auto; }
+    .main-content { flex: 1; padding: 1rem 1.5rem; overflow-x: auto; }
+    .dashboard-header-row { display: flex; align-items: center; gap: 0.45rem; }
+    .dashboard-header-row h1 { margin: 0; color: #1a1a1a; }
+    .dashboard-nota-compact { color: #666; margin: 0 0 0.5rem 0; font-size: 0.85rem; }
     h1 { margin-top: 0; color: #1a1a1a; }
     .card { background: #fff; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
     table { width: 100%; border-collapse: collapse; }
@@ -163,10 +166,12 @@
       border-radius: 3px;
     }
     #th-help-popover.oculto { display: none; }
-    .panel { display: none; }
+    .panel { display: none; margin-bottom: 0; }
     .panel.activo { display: block; }
+    #tabla-wrap .panel.card { padding: 0.85rem 1rem; }
     .sin-cotizacion-note { color: #b45309; font-size: 0.9rem; margin-top: 0.5rem; }
-    .errores-panel-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem; }
+    .errores-panel-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; flex-shrink: 0; }
+    .panel-toolbar-start { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; flex: 1; min-width: 0; }
     .errores-filtros { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
     .errores-filtros label { font-size: 0.9rem; color: #555; white-space: nowrap; }
     .errores-filtros select { padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; min-width: 200px; }
@@ -181,25 +186,129 @@
       border-radius: 6px;
       border: 1px solid #eee;
     }
-    .evolucion-table-wrap {
-      overflow: auto;
-      margin-top: 0.5rem;
-      max-height: 70vh;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior-x: contain;
-      overscroll-behavior-y: auto;
+    #tabla-estado-financiero {
+      min-width: max-content;
+      border-collapse: separate;
+      border-spacing: 0;
+      --ef-w-label: 22rem;
     }
-    .errores-table-wrap {
+    #tabla-estado-financiero th,
+    #tabla-estado-financiero td { border-bottom: 1px solid #e8e8e8; padding: 0.45rem 0.55rem; }
+    #tabla-estado-financiero thead th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: #f2f3f5;
+      font-weight: 600;
+      color: #555;
+    }
+    #tabla-estado-financiero td.ef-col-label,
+    #tabla-estado-financiero th.ef-col-label {
+      text-align: left;
+      vertical-align: middle;
+    }
+    #tabla-estado-financiero .ef-sticky-label {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      min-width: var(--ef-w-label);
+      max-width: 28rem;
+      width: var(--ef-w-label);
+      background: #fff;
+      box-shadow: 2px 0 5px rgba(0, 0, 0, 0.07);
+    }
+    #tabla-estado-financiero thead .ef-sticky-label { z-index: 6; background: #f2f3f5; box-shadow: 2px 0 5px rgba(0, 0, 0, 0.07); }
+    #tabla-estado-financiero .ef-label { display: block; line-height: 1.35; }
+    #tabla-estado-financiero .ef-label-detalle {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+      padding-left: 0.15rem;
+      font-weight: 400;
+      color: #333;
+    }
+    #tabla-estado-financiero .ef-bullet {
+      flex-shrink: 0;
+      color: #6b7280;
+      font-size: 0.95em;
+      line-height: 1.2;
+      user-select: none;
+    }
+    #tabla-estado-financiero tr.ef-fila-subtotal td { font-weight: 600; vertical-align: middle; }
+    #tabla-estado-financiero tr.ef-nivel-0.ef-fila-subtotal td {
+      background: #dce4ee;
+      color: #1a1a1a;
+    }
+    #tabla-estado-financiero tr.ef-nivel-0.ef-fila-subtotal .ef-sticky-label,
+    #tabla-estado-financiero tr.ef-nivel-0.ef-fila-subtotal td.num-ef { background: #dce4ee !important; }
+    #tabla-estado-financiero tr.ef-nivel-2.ef-fila-subtotal td {
+      background: #f3e8d4;
+      color: #3d3428;
+    }
+    #tabla-estado-financiero tr.ef-nivel-2.ef-fila-subtotal .ef-sticky-label,
+    #tabla-estado-financiero tr.ef-nivel-2.ef-fila-subtotal td.num-ef { background: #f3e8d4 !important; }
+    #tabla-estado-financiero td.num-ef { text-align: right; white-space: nowrap; vertical-align: middle; }
+    #tabla-estado-financiero td.num-ef.ef-celda-subtotal {
+      white-space: normal;
+      min-width: 5.5rem;
+    }
+    #tabla-estado-financiero .ef-monto-val { display: block; line-height: 1.3; }
+    #tabla-estado-financiero .ef-monto-pct {
+      display: block;
+      margin-top: 0.15rem;
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: #5c6570;
+      line-height: 1.2;
+    }
+    #tabla-estado-financiero .ef-pct-ref { font-weight: 400; color: #888; }
+    #tabla-estado-financiero th.ef-th-periodo,
+    #tabla-estado-financiero th.ef-th-total {
+      white-space: nowrap;
+      text-align: right;
+      vertical-align: bottom;
+      padding: 0.5rem 0.65rem;
+      font-size: 0.85rem;
+      line-height: 1.25;
+      min-width: 5.25rem;
+    }
+    #tabla-estado-financiero th.ef-th-total { font-weight: 700; }
+    .errores-table-wrap:not(.tabla-scroll-anclada) {
       overflow-x: auto;
       overflow-y: visible;
-      margin-top: 0.5rem;
+      margin-top: 0.35rem;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior-x: contain;
+    }
+    /* Scroll interno + thead sticky (EF, Evolución, Transacciones) */
+    .tabla-scroll-anclada {
+      overflow: auto;
+      min-height: 14rem;
+      margin-top: 0.35rem;
+      padding-bottom: 1.75rem;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      border-radius: 6px;
+      border: 1px solid #eee;
     }
     #tabla-errores-global { min-width: max-content; }
     #tabla-errores-global th:nth-child(12),
     #tabla-errores-global td:nth-child(12) { text-align: left; }
-    #tabla-todas-transacciones { min-width: max-content; }
+    #tabla-todas-transacciones {
+      min-width: max-content;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    #tabla-todas-transacciones thead th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: #f2f3f5;
+      background-clip: padding-box;
+      box-shadow: 0 1px 0 0 #ddd;
+      font-weight: 600;
+      color: #555;
+    }
     #tabla-todas-transacciones th:nth-child(11),
     #tabla-todas-transacciones td:nth-child(11) { text-align: left; max-width: 200px; }
     .fila-proyeccion { font-style: italic; color: #555; background: #fafafa; cursor: pointer; }
@@ -238,10 +347,7 @@
 
     #panel-flujo .flujo-table-wrap table thead th,
     #tabla-errores-global thead th,
-    #tabla-todas-transacciones thead th,
-    #tabla-traspasos-internos thead th,
-    #tabla-excluidos-upload thead th,
-    #tabla-referencia-flujo thead th {
+    #tabla-excluidos-upload thead th {
       position: sticky;
       top: 0;
       z-index: 2;
@@ -274,7 +380,6 @@
     .int-caucion-cell:hover { text-decoration: underline; }
     tr.fila-mes { cursor: pointer; }
     tr.fila-mes:hover { background: #f8f8f8; }
-    #tabla-traspasos-internos td.num { text-align: right; font-variant-numeric: tabular-nums; }
     #panel-flujo tfoot td { font-weight: 600; border-top: 2px solid #333; padding: 0.5rem 0.65rem; background: #f5f5f5; }
     #panel-flujo tfoot td:first-child { text-align: left; }
     #panel-flujo tfoot td:not(:first-child):not(.alert-icon-cell) { text-align: right; }
@@ -586,9 +691,20 @@
   </aside>
   <main id="main-content" class="main-content">
   <div id="view-dashboard">
-  <h1>Flujo de caja</h1>
-  <p style="color:#666; margin-top:0;">Entradas y salidas por mes. No se incluyen transacciones anuladas. Los meses que desactives en <strong>Configuración → Inclusión por mes</strong> quedan fuera de totales, tabla de flujo, Evolución, Caución y exportaciones agregadas; <strong>Todas las transacciones</strong> y la exportación de base histórica siguen mostrando el extracto completo. Si no hay cotización para la fecha, se usa la inmediata anterior. Hacé clic en un mes para ver el detalle por categoría.</p>
-  <p id="flujo-nota-meses-excluidos" style="color:#555; margin-top:0.35rem; font-size:0.88rem;"></p>
+  <div class="dashboard-header-row">
+    <h1>Flujo de caja</h1>
+    <button type="button" class="th-help th-help--inline" data-help-template="template-dashboard-intro" aria-label="Ayuda: flujo de caja" title="Ayuda">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+    </button>
+  </div>
+  <template id="template-dashboard-intro">
+    <div class="th-help-rich-content">
+      <p>Entradas y salidas por mes. No se incluyen transacciones anuladas.</p>
+      <p>Los meses que desactives en <strong>Configuración → Inclusión por mes</strong> quedan fuera de totales, tabla de flujo, Evolución, Caución y exportaciones agregadas; <strong>Todas las transacciones</strong> y la exportación de base histórica siguen mostrando el extracto completo.</p>
+      <p>Si no hay cotización para la fecha, se usa la inmediata anterior. Hacé clic en un mes para ver el detalle por categoría.</p>
+    </div>
+  </template>
+  <p id="flujo-nota-meses-excluidos" class="dashboard-nota-compact"></p>
 
   <div id="loading" class="card loading">Cargando transacciones y tipos de cambio…</div>
   <div id="error" class="card error" style="display:none;"></div>
@@ -628,7 +744,7 @@
         <button type="button" class="tab" data-panel="errores-global"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>Errores</button>
         <button type="button" class="tab" data-panel="todas-transacciones"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span>Todas las transacciones</button>
         <button type="button" class="tab" data-panel="evolucion"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Evolución</button>
-        <button type="button" class="tab" data-panel="traspasos-internos"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4M7 4L3 8M7 4l4 4"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4"/></svg></span>Traspasos internos</button>
+        <button type="button" class="tab" data-panel="estado-financiero"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>Estado Financiero</button>
         <button type="button" class="tab" data-panel="excluidos-upload"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18A2 2 0 0 0 3.53 21h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></span>Excluidos upload</button>
       </div>
     </div>
@@ -636,7 +752,7 @@
       <template id="template-flujo-informe-pdf">
         <div class="th-help-rich-content">
           <p>En <strong>ARS</strong>, movimientos en <strong>USD</strong>: <strong>monto × tipo_cambio</strong> de la fila; si falta, <strong>monto × cotización</strong> de la tabla (MEP/CCL/Oficial); si no hay tasa, <strong>monto_cambio</strong> en BD. Movimientos ya en ARS: se usa <strong>monto</strong> (no <strong>monto_cambio</strong>, que en el extracto puede venir desalineado).</p>
-          <p>Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = totales extracto (con traspasos). <strong>G/P operativo</strong> y ratios excluyen apertura/cierre y <strong>Transferencia</strong> / <strong>Deposito/Depósito</strong>.</p>
+          <p>Columnas <strong>Ingresos</strong>, <strong>Egresos</strong> y <strong>G/P operativo</strong> = caja operativa del extracto (sin anulados ni apertura/cierre de caja).</p>
           <p><strong>Costo directo / Ingresos</strong> y <strong>Costo indirecto / Ingresos</strong> = egresos operativos con <code>costo_directo</code> o <code>costo_indirecto</code> = Y, divididos por ingresos operativos del mes (sin restar comisiones aparte: quedan clasificados por esas banderas).</p>
           <p><strong>Costo total / Ingreso total</strong> = total de egresos operativos del mes dividido por ingresos operativos del mes.</p>
           <p><strong>Caución</strong> además usa <strong>solo movimientos en moneda de origen ARS</strong> y montos en <strong>pesos</strong> (la tasa de la serie es en ARS), aunque el selector muestre USD en el resto de la tabla.</p>
@@ -658,7 +774,7 @@
             <th>Comisiones <span class="th-help" data-help="Corresponde solo a las comisiones por venta." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ventas %</th>
             <th>Costo dir. <span class="th-help" data-help="Egresos operativos con costo_directo = Y, divididos por ingresos operativos del mes. No se restan comisiones aparte." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
             <th>Costo ind. <span class="th-help" data-help="Egresos operativos con costo_indirecto = Y (y sin prioridad de directo), divididos por ingresos operativos. No se restan comisiones aparte." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
-            <th>Costo total <span class="th-help" data-help="Egresos operativos del mes (sin traspasos internos) divididos por ingresos operativos del mes." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingreso total</th>
+            <th>Costo total <span class="th-help" data-help="Egresos operativos del mes divididos por ingresos operativos del mes." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingreso total</th>
             <th class="th-int-caucion" id="th-int-caucion-label" title="Interés acumulado por mes colocando el sobrante de caja a la tasa de la serie de cauciones">Caución (100% cash)</th>
             <th class="alert-icon-cell"></th>
           </tr>
@@ -669,8 +785,15 @@
       </div>
     </div>
     <div id="panel-errores-global" class="card panel">
+      <template id="template-errores-panel">
+        <div class="th-help-rich-content">
+          <p>Registros de egresos con posibles inconsistencias entre categoría, cuenta contable y descripción del extracto (validación). Pueden corregirse desde el icono de edición.</p>
+          <p>El filtro <strong>Categoría (matriz)</strong> usa <code>nueva_categoria</code> o el mismo fallback que Evolución.</p>
+        </div>
+      </template>
       <div class="errores-panel-toolbar">
-        <p class="sin-cotizacion-note" style="margin:0;">Registros de egresos con posibles inconsistencias entre categoría, cuenta contable y descripción del extracto (validación). Pueden corregirse desde el icono de edición. El filtro <strong>Categoría (matriz)</strong> usa <code>nueva_categoria</code> o el mismo fallback que Evolución.</p>
+        <div class="panel-toolbar-start">
+          <button type="button" class="th-help th-help--inline" data-help-template="template-errores-panel" aria-label="Ayuda: Errores" title="Ayuda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
         <div class="errores-filtros">
           <label for="filtro-tipo-error">Tipo de error:</label>
           <select id="filtro-tipo-error" title="Filtrar por tipo de error">
@@ -686,6 +809,7 @@
           <select id="filtro-categoria-mostrada" title="Filtrar por categoría de matriz (nueva en BD o fallback)">
             <option value="">Todas</option>
           </select>
+        </div>
         </div>
         <button type="button" class="btn btn-success btn-ver-errores" id="btn-exportar-errores" title="Exportar lista de errores a Excel"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar errores a Excel</button>
       </div>
@@ -714,8 +838,14 @@
       </div>
     </div>
     <div id="panel-todas-transacciones" class="card panel">
+      <template id="template-todas-transacciones-panel">
+        <div class="th-help-rich-content">
+          <p>Listado de todas las transacciones. Podés filtrar por mes, <strong>categoría y cuenta (matriz)</strong> —prioriza <code>nueva_categoria</code> / <code>nueva_cuenta_contable</code> y si faltan usa extracto con la misma lógica que Evolución— y editar cada registro; al guardar se marca como editado.</p>
+        </div>
+      </template>
       <div class="errores-panel-toolbar">
-        <p class="sin-cotizacion-note" style="margin:0;">Listado de todas las transacciones. Podés filtrar por mes, <strong>categoría y cuenta (matriz)</strong> —prioriza <code>nueva_categoria</code> / <code>nueva_cuenta_contable</code> y si faltan usa extracto con la misma lógica que Evolución— y editar cada registro; al guardar se marca como editado.</p>
+        <div class="panel-toolbar-start">
+          <button type="button" class="th-help th-help--inline" data-help-template="template-todas-transacciones-panel" aria-label="Ayuda: Todas las transacciones" title="Ayuda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
         <div class="errores-filtros">
           <label for="filtro-todas-mes">Mes:</label>
           <select id="filtro-todas-mes" title="Filtrar por mes">
@@ -736,8 +866,9 @@
           <label for="filtro-todas-id-operacion" style="margin-left:0.75rem;">Id operación:</label>
           <input type="text" id="filtro-todas-id-operacion" placeholder="Buscar por id operación" title="Filtrar por id operación (coincidencia parcial)" style="padding:0.35rem 0.6rem; border-radius:6px; border:1px solid #ccc; font-size:0.9rem; min-width:140px;">
         </div>
+        </div>
       </div>
-      <div class="errores-table-wrap">
+      <div class="errores-table-wrap tabla-scroll-anclada">
         <table id="tabla-todas-transacciones">
           <thead>
             <tr>
@@ -755,6 +886,8 @@
               <th>Nueva cuenta (BD)</th>
               <th>Costo directo</th>
               <th>Costo indirecto</th>
+              <th>EF Item</th>
+              <th>EF SubItem</th>
               <th>Descripción</th>
               <th>Cliente</th>
               <th>Cat desc</th>
@@ -771,8 +904,15 @@
       </div>
     </div>
     <div id="panel-evolucion" class="card panel">
+      <template id="template-evolucion-panel">
+        <div class="th-help-rich-content">
+          <p>Tabla dinámica: filas por <strong>categoría o cuenta de matriz</strong> (prioriza columnas nuevas en BD; si faltan, extracto con validación como en el resto del tablero). Columnas por período; moneda ARS/USD.</p>
+          <p>Misma base que <strong>Flujo por mes</strong>: sin anulados ni apertura/cierre de caja.</p>
+        </div>
+      </template>
       <div class="errores-panel-toolbar">
-        <p class="sin-cotizacion-note" style="margin:0;">Tabla dinámica: filas por <strong>categoría o cuenta de matriz</strong> (prioriza columnas nuevas en BD; si faltan, extracto con validación como en el resto del tablero). Columnas por período; moneda ARS/USD. Misma base que <strong>Flujo por mes</strong>: sin anulados, sin apertura/cierre ni traspasos internos (Transferencia / Depósito).</p>
+        <div class="panel-toolbar-start">
+          <button type="button" class="th-help th-help--inline" data-help-template="template-evolucion-panel" aria-label="Ayuda: Evolución" title="Ayuda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
         <div class="errores-filtros">
           <label for="evolucion-agrupar">Agrupar por:</label>
           <select id="evolucion-agrupar" title="Fila de la tabla">
@@ -785,52 +925,54 @@
             <option value="diario">Diario (fecha)</option>
           </select>
         </div>
+        </div>
         <button type="button" class="btn btn-success btn-ver-errores btn-exportar-evolucion" id="btn-exportar-evolucion" title="Exportar tabla Evolución a Excel"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar Evolución a Excel</button>
       </div>
-      <div class="evolucion-table-wrap">
+      <div class="evolucion-table-wrap tabla-scroll-anclada">
         <table id="tabla-evolucion">
           <thead id="thead-evolucion"></thead>
           <tbody id="tbody-evolucion"></tbody>
         </table>
       </div>
-      <div id="evolucion-referencia-flujo" class="evolucion-referencia-flujo oculto" style="margin-top:1rem; padding:0.75rem; background:#e8f4f8; border-radius:6px; font-size:0.9rem;">
-        <div style="font-weight:600; margin-bottom:0.5rem; color:#333;">Proyección agregada (suma de ingresos y egresos proyectados por fila de matriz)</div>
-        <table id="tabla-referencia-flujo" style="width:auto; min-width:420px;">
-          <thead><tr><th style="text-align:left; padding:0.25rem 0.5rem;">Mes</th><th style="text-align:right; padding:0.25rem 0.5rem;">Ingresos</th><th style="text-align:right; padding:0.25rem 0.5rem;">Egresos</th><th style="text-align:right; padding:0.25rem 0.5rem;">G/P</th></tr></thead>
-          <tbody id="tbody-referencia-flujo"></tbody>
-        </table>
-        <p style="margin:0.5rem 0 0; color:#555; font-size:0.85rem;">Mismo cálculo que la tabla: la fila «Total» y la solapa Flujo usan esta proyección por la misma agrupación de matriz.</p>
-      </div>
     </div>
-    <div id="panel-traspasos-internos" class="card panel">
+    <div id="panel-estado-financiero" class="card panel">
+      <template id="template-estado-financiero-panel">
+        <div class="th-help-rich-content">
+          <p>Estructura desde <strong>EF_Estructura</strong> (Supabase <code>ef_estructura</code>), montos desde transacciones por <code>ef_subitem</code>. Misma base operativa que Evolución (sin anulados ni apertura/cierre).</p>
+          <p>Columna <strong>Ítem</strong>: secciones y totales en negrita; detalle con viñeta. Subtotales y fórmulas muestran % del <strong>Flujo Operativo Generado</strong>.</p>
+          <p><em>Conciliación de disponibilidades (sección 7) oculta por ahora.</em></p>
+        </div>
+      </template>
       <div class="errores-panel-toolbar">
-        <p class="sin-cotizacion-note" style="margin:0;">Registros con categoría <strong>Transferencia</strong> o <strong>Deposito/Depósito</strong>: traspasos entre cuentas propias. <strong>No entran</strong> en G/P operativo ni ratios. <strong>Caución</strong> tampoco incluye esos traspasos ni movimientos en <strong>USD</strong> de origen; sus importes se muestran en <strong>ARS</strong> en la columna Caución.</p>
+        <div class="panel-toolbar-start">
+          <button type="button" class="th-help th-help--inline" data-help-template="template-estado-financiero-panel" aria-label="Ayuda: Estado Financiero" title="Ayuda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
+          <div class="errores-filtros">
+            <label for="ef-periodo">Período:</label>
+            <select id="ef-periodo" title="Columnas de la tabla">
+              <option value="mensual">Mensual (MM-YYYY)</option>
+              <option value="diario">Diario (fecha)</option>
+            </select>
+          </div>
+        </div>
+        <button type="button" class="btn btn-success btn-ver-errores btn-exportar-evolucion" id="btn-exportar-estado-financiero" title="Exportar tabla Estado Financiero a Excel"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar EF a Excel</button>
       </div>
-      <div class="errores-table-wrap">
-        <table id="tabla-traspasos-internos">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Tipo</th>
-              <th>Monto reg.</th>
-              <th>Mon.</th>
-              <th>Equivalente vista</th>
-              <th>Categoría (extracto)</th>
-              <th>Cuenta (extracto)</th>
-              <th>Categoría (matriz)</th>
-              <th>Cuenta (matriz)</th>
-              <th>Medio pago</th>
-              <th>Descripción</th>
-              <th>Id origen</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-traspasos-internos"></tbody>
+      <div class="estado-financiero-table-wrap tabla-scroll-anclada">
+        <table id="tabla-estado-financiero">
+          <thead id="thead-estado-financiero"></thead>
+          <tbody id="tbody-estado-financiero"></tbody>
         </table>
       </div>
     </div>
     <div id="panel-excluidos-upload" class="card panel">
+      <template id="template-excluidos-panel">
+        <div class="th-help-rich-content">
+          <p>Log de registros excluidos durante cargas de extracto normalizado (errores de validación o Apertura/Cierre de Caja).</p>
+        </div>
+      </template>
       <div class="errores-panel-toolbar">
-        <p class="sin-cotizacion-note" style="margin:0;">Log de registros excluidos durante cargas de extracto normalizado (errores de validación o Apertura/Cierre de Caja).</p>
+        <div class="panel-toolbar-start">
+          <button type="button" class="th-help th-help--inline" data-help-template="template-excluidos-panel" aria-label="Ayuda: Excluidos upload" title="Ayuda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
+        </div>
         <button type="button" class="btn" id="btn-recargar-excluidos-upload"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10"/><path d="M20.49 15A9 9 0 0 1 6.36 18.36L1 14"/></svg></span> Recargar</button>
       </div>
       <div class="errores-table-wrap">
@@ -1024,6 +1166,14 @@
               <option value="Y">Y</option>
               <option value="N">N</option>
             </select>
+          </div>
+          <div class="form-group">
+            <label>EF Item</label>
+            <select id="edit-ef-item" title="Ítem de estado de flujo (EF_Item del extracto)."></select>
+          </div>
+          <div class="form-group">
+            <label>EF SubItem</label>
+            <select id="edit-ef-subitem" title="Subítem de estado de flujo (EF_SubItem del extracto)."></select>
           </div>
           <div class="form-group">
             <label>Origen archivo</label>
@@ -1303,7 +1453,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.60';
+    const APP_VERSION = '1.78';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -2258,6 +2408,7 @@
     }
 
     let cacheTransacciones = [];
+    let cacheEfEstructura = [];
     let cacheTC = {};
     let fechasConTasa = { mep: [], ccl: [], oficial: [] };
     let cacheSerieCauciones = {};
@@ -2309,7 +2460,7 @@
     }
 
     async function fetchAllTransaccionesNoAnuladas() {
-      const cols = 'id, id_origen, id_operacion, fecha, mes, anio, tipo_movimiento, monto, tipo_cambio, monto_cambio, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, nueva_categoria, nueva_cuenta_contable, costo_directo, costo_indirecto, editado, editado_detalle';
+      const cols = 'id, id_origen, id_operacion, fecha, mes, anio, tipo_movimiento, monto, tipo_cambio, monto_cambio, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, nueva_categoria, nueva_cuenta_contable, costo_directo, costo_indirecto, ef_item, ef_subitem, editado, editado_detalle';
       const all = [];
       let offset = 0;
       for (;;) {
@@ -2347,11 +2498,16 @@
     }
 
     async function cargarDatos() {
-      const [txRows, tcRows] = await withTimeout(
-        Promise.all([fetchAllTransaccionesNoAnuladas(), fetchAllTipoDeCambio()]),
+      const [txRows, tcRows, efRows] = await withTimeout(
+        Promise.all([
+          fetchAllTransaccionesNoAnuladas(),
+          fetchAllTipoDeCambio(),
+          fetchEfEstructura().catch(() => [])
+        ]),
         CARGA_TIMEOUT_MS,
         'La carga de datos tardó demasiado. Revisá la conexión o intentá de nuevo.'
       );
+      cacheEfEstructura = (efRows || []).slice().sort((a, b) => (a.orden || 0) - (b.orden || 0));
       cacheTransacciones = (txRows || []).map(r => {
         const f = fechaStr(r.fecha);
         let mesNum = r.mes != null && r.mes !== '' ? Number(r.mes) : null;
@@ -2506,12 +2662,10 @@
 
       const porMes = {};
       const porMesArs = {};
-      const porMesBruto = {};
       const porMesCategoria = {};
       const porMesCatIng = {};
       const porMesCatEgr = {};
       let totalIngresos = 0, totalEgresos = 0;
-      let totalIngBruto = 0, totalEgBruto = 0;
       rows.forEach(r => {
         if ((r.status || '').toString().trim() === 'Anulado') return;
         const montoParaSumar = montoConvertido(r, moneda, tipoDolar);
@@ -2520,15 +2674,6 @@
         const key = `${r.anio}-${String(r.mes).padStart(2,'0')}`;
         if (esAperturaOCierreCaja(r)) return;
         if (esMesExcluidoEnCalculos(r)) return;
-
-        if (!porMesBruto[key]) porMesBruto[key] = { anio: r.anio, mes: r.mes, ingresos: 0, egresos: 0 };
-        if (r.tipo_movimiento === 'Ingreso') {
-          porMesBruto[key].ingresos += montoParaSumar;
-          totalIngBruto += montoParaSumar;
-        } else if (r.tipo_movimiento === 'Egreso') {
-          porMesBruto[key].egresos += montoParaSumar;
-          totalEgBruto += montoParaSumar;
-        }
 
         if (esTraspasoInternoCategoria(r.categoria)) return;
 
@@ -2611,7 +2756,7 @@
         intAcumuladoAnterior += intDia;
       });
 
-      const ordenados = [...new Set([...Object.keys(porMes), ...Object.keys(porMesBruto)])].sort();
+      const ordenados = Object.keys(porMes).sort();
       const categoriasEnMes = {};
       ordenados.forEach(key => {
         const [anio, mes] = [parseInt(key.slice(0, 4), 10), parseInt(key.slice(5), 10)];
@@ -2631,8 +2776,7 @@
         const ay = parseInt(key.slice(0, 4), 10);
         const am = parseInt(key.slice(5), 10);
         const d = porMes[key] || { anio: ay, mes: am, ingresos: 0, egresos: 0 };
-        const brutoMes = porMesBruto[key] || { ingresos: 0, egresos: 0 };
-        if (getAlertaMesSinEgresos() && (brutoMes.egresos === 0 || (typeof brutoMes.egresos === 'number' && brutoMes.egresos < 1e-6))) alertas.push('El mes no tiene egresos en el extracto (columnas brutas).');
+        if (getAlertaMesSinEgresos() && (d.egresos === 0 || (typeof d.egresos === 'number' && d.egresos < 1e-6))) alertas.push('El mes no tiene egresos en el extracto.');
         categoriasEsperadas.forEach(({ nombre, tiene, activa }) => {
           if (activa() && !tiene(categoriasEnMes[key] || [])) alertas.push('No hay registros de ' + nombre + ' en el mes.');
         });
@@ -2656,15 +2800,13 @@
         alertasPorMes[key] = alertas;
       });
       const balanceTotal = totalIngresos - totalEgresos;
-      const netoCajaBruto = totalIngBruto - totalEgBruto;
       const simbolo = moneda === 'USD' ? 'US$ ' : '$ ';
       flujoMoneda = moneda;
       flujoSimbolo = simbolo;
       document.getElementById('resumen').innerHTML = `
-        <div class="card" title="Como informe PDF: incluye Transferencia/Depósito entre cuentas"><div style="color:#555;">Ingresos totales</div><div style="font-size:0.72rem;color:#888;">Extracto (con traspasos)</div><div class="valor ingresos">${simbolo}${formatearNumero(totalIngBruto, moneda)}</div></div>
-        <div class="card" title="Como informe PDF: incluye traspasos entre cuentas"><div style="color:#555;">Egresos totales</div><div style="font-size:0.72rem;color:#888;">Extracto (con traspasos)</div><div class="valor egresos">${simbolo}${formatearNumero(totalEgBruto, moneda)}</div></div>
-        <div class="card" title="Ingresos totales − egresos totales del extracto"><div style="color:#555;">Neto caja</div><div style="font-size:0.72rem;color:#888;">Extracto (bruto)</div><div class="valor balance ${netoCajaBruto >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(netoCajaBruto, moneda)}</div></div>
-        <div class="card" title="Sin Transferencia ni Depósito entre cuentas; alineado a ratios y Caución"><div style="color:#555;">G/P operativo</div><div style="font-size:0.72rem;color:#888;">Sin traspasos internos</div><div class="valor balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</div></div>
+        <div class="card" title="Ingresos operativos del extracto (sin anulados ni apertura/cierre)"><div style="color:#555;">Ingresos totales</div><div class="valor ingresos">${simbolo}${formatearNumero(totalIngresos, moneda)}</div></div>
+        <div class="card" title="Egresos operativos del extracto (sin anulados ni apertura/cierre)"><div style="color:#555;">Egresos totales</div><div class="valor egresos">${simbolo}${formatearNumero(totalEgresos, moneda)}</div></div>
+        <div class="card" title="Ingresos − egresos operativos; alineado a ratios y Caución"><div style="color:#555;">G/P operativo</div><div class="valor balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</div></div>
       `;
       document.getElementById('resumen').style.display = 'flex';
 
@@ -2702,7 +2844,6 @@
       const filasReales = ordenados.map(key => {
         const ay = parseInt(key.slice(0, 4), 10);
         const am = parseInt(key.slice(5), 10);
-        const b = porMesBruto[key] || { anio: ay, mes: am, ingresos: 0, egresos: 0 };
         const d = porMes[key] || { anio: ay, mes: am, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0, intCaucion: 0, egresosCostoDirecto: 0, egresosCostoIndirecto: 0 };
         const balance = d.ingresos - d.egresos;
         const label = formatoMesAnio(d.mes, d.anio);
@@ -2720,8 +2861,8 @@
         const iconoAlert = alertas.length ? `<span class="alert-icon" role="button" tabindex="0" data-alertas="${alertasJson}" data-label="${label.replace(/"/g, '&quot;')}" title="Ver alertas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>` : '';
         return `<tr class="fila-mes" data-anio="${d.anio}" data-mes="${d.mes}">
           <td>${label}</td>
-          <td class="ingresos">${simbolo}${formatearNumero(b.ingresos, moneda)}</td>
-          <td class="egresos">${simbolo}${formatearNumero(b.egresos, moneda)}</td>
+          <td class="ingresos">${simbolo}${formatearNumero(d.ingresos, moneda)}</td>
+          <td class="egresos">${simbolo}${formatearNumero(d.egresos, moneda)}</td>
           <td class="balance ${balance >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balance, moneda)}</td>
           <td>${comVentasPct}</td>
           <td>${costoDirIngPct}</td>
@@ -2858,8 +2999,8 @@
       if (tfoot) {
         let tfootHtml = ordenados.length === 0 ? '' : `<tr class="fila-total-real">
           <td>Total</td>
-          <td class="ingresos">${simbolo}${formatearNumero(totalIngBruto, moneda)}</td>
-          <td class="egresos">${simbolo}${formatearNumero(totalEgBruto, moneda)}</td>
+          <td class="ingresos">${simbolo}${formatearNumero(totalIngresos, moneda)}</td>
+          <td class="egresos">${simbolo}${formatearNumero(totalEgresos, moneda)}</td>
           <td class="balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</td>
           <td>${comVentasPctTotal}</td>
           <td>${totCostoDirIng}</td>
@@ -2878,46 +3019,9 @@
       }
 
       renderErroresGlobal();
-      renderTraspasosInternos();
       renderEvolucion();
+      renderEstadoFinanciero();
       actualizarNotaMesesExcluidosFlujo();
-    }
-
-    function renderTraspasosInternos() {
-      const tbody = document.getElementById('tbody-traspasos-internos');
-      if (!tbody) return;
-      const moneda = getMoneda();
-      const tipoDolar = document.getElementById('tipoDolar') ? document.getElementById('tipoDolar').value : 'mep';
-      const simbolo = moneda === 'USD' ? 'US$ ' : '$ ';
-      const rows = cacheTransacciones.filter(r =>
-        (r.status || '').toString().trim() !== 'Anulado' &&
-        esTraspasoInternoCategoria(r.categoria)
-      );
-      rows.sort((a, b) => String(fechaStr(a.fecha) || '').localeCompare(String(fechaStr(b.fecha) || '')));
-      const esc = (v) => (v == null ? '' : String(v)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-      tbody.innerHTML = rows.length === 0
-        ? '<tr><td colspan="12" style="color:#666;">No hay registros con categoría Transferencia o Depósito/Deposito.</td></tr>'
-        : rows.map(r => {
-          const mConv = montoConvertido(r, moneda, tipoDolar);
-          const eq = mConv == null ? '–' : (simbolo + formatearNumero(mConv, moneda));
-          const monReg = (esTransaccionUSD(r) ? 'USD' : 'ARS');
-          const mReg = Number(r.monto) || 0;
-          const mRegStr = (monReg === 'USD' ? 'US$ ' : '$ ') + formatearNumero(mReg, monReg === 'USD' ? 'USD' : 'ARS');
-          return `<tr>
-            <td>${esc(fechaStr(r.fecha))}</td>
-            <td>${esc(r.tipo_movimiento)}</td>
-            <td class="num">${mRegStr}</td>
-            <td>${esc(monReg)}</td>
-            <td class="num">${eq}</td>
-            <td>${esc(r.categoria)}</td>
-            <td>${esc(r.cuenta_contable)}</td>
-            <td>${esc(categoriaDistribucionFlujo(r))}</td>
-            <td>${esc(cuentaDistribucionFlujo(r))}</td>
-            <td>${esc(r.medio_pago)}</td>
-            <td>${esc(r.descripcion)}</td>
-            <td>${esc(r.id_origen)}</td>
-          </tr>`;
-        }).join('');
     }
 
     let evolucionDetalle = {};
@@ -3245,19 +3349,570 @@
         });
       });
 
-      const refFlujoEl = document.getElementById('evolucion-referencia-flujo');
-      const tbodyRefFlujo = document.getElementById('tbody-referencia-flujo');
-      if (refFlujoEl && tbodyRefFlujo) {
-        if (evolucionProyFlujo && evolucionProyFlujo.length === 3) {
-          refFlujoEl.classList.remove('oculto');
-          tbodyRefFlujo.innerHTML = evolucionProyFlujo.map(p => '<tr><td style="padding:0.25rem 0.5rem;">' + esc(p.label) + '</td><td class="ingresos" style="text-align:right; padding:0.25rem 0.5rem;">' + simbolo + formatearNumero(p.ing, moneda) + '</td><td class="egresos" style="text-align:right; padding:0.25rem 0.5rem;">' + simbolo + formatearNumero(p.egr, moneda) + '</td><td class="balance ' + (p.gp >= 0 ? 'positivo' : 'negativo') + '" style="text-align:right; padding:0.25rem 0.5rem;">' + simbolo + formatearNumero(p.gp, moneda) + '</td></tr>').join('');
-        } else {
-          refFlujoEl.classList.add('oculto');
-          tbodyRefFlujo.innerHTML = '';
+      thead.querySelectorAll('th').forEach((th, i) => { th.style.textAlign = i === 0 ? 'left' : 'right'; });
+      programarAjusteTablasScrollAncladas();
+    }
+
+    function ajustarAlturaTablasScrollAncladas() {
+      const margenInferior = 20;
+      document.querySelectorAll('.tabla-scroll-anclada').forEach((wrap) => {
+        const panel = wrap.closest('.panel');
+        if (!panel || !panel.classList.contains('activo')) {
+          wrap.style.maxHeight = '';
+          return;
         }
+        const top = wrap.getBoundingClientRect().top;
+        wrap.style.maxHeight = Math.max(240, window.innerHeight - top - margenInferior) + 'px';
+      });
+    }
+
+    function programarAjusteTablasScrollAncladas() {
+      requestAnimationFrame(() => requestAnimationFrame(ajustarAlturaTablasScrollAncladas));
+    }
+
+    function buildMontosPorSubitemEf(periodo, moneda, tipoDolar) {
+      const map = {};
+      cacheTransacciones.filter(r => !excluirFilaFlujoOperativo(r)).forEach(r => {
+        const sub = resolveEfSubitemCanon(r.ef_subitem);
+        if (!sub) return;
+        const key = normEfSubitemKey(sub);
+        let colKey;
+        if (periodo === 'diario') {
+          colKey = fechaStr(r.fecha);
+          if (!colKey) return;
+        } else {
+          const { anio: anioF, mes: mesF } = anioMesDesdeFecha(r.fecha);
+          const anio = r.anio != null ? r.anio : anioF;
+          const mes = r.mes != null ? r.mes : mesF;
+          if (anio == null || mes == null) return;
+          colKey = anio + '-' + String(mes).padStart(2, '0');
+        }
+        const montoConv = montoConvertido(r, moneda, tipoDolar);
+        if (montoConv == null) return;
+        const signo = r.tipo_movimiento === 'Ingreso' ? 1 : -1;
+        if (!map[key]) map[key] = {};
+        map[key][colKey] = (map[key][colKey] || 0) + signo * montoConv;
+      });
+      return map;
+    }
+
+    function efColMapZero(columnas) {
+      const z = {};
+      columnas.forEach(c => { z[c] = 0; });
+      return z;
+    }
+
+    function efColMapAdd(columnas, a, b) {
+      const o = {};
+      columnas.forEach(c => { o[c] = ((a && a[c]) || 0) + ((b && b[c]) || 0); });
+      return o;
+    }
+
+    function efColMapSub(columnas, a, b) {
+      const o = {};
+      columnas.forEach(c => { o[c] = ((a && a[c]) || 0) - ((b && b[c]) || 0); });
+      return o;
+    }
+
+    /** Resta magnitud de egreso: montos de costos/egresos vienen negativos en caja. */
+    function efColMapSubAbs(columnas, a, b) {
+      const o = {};
+      columnas.forEach(c => {
+        o[c] = ((a && a[c]) || 0) - Math.abs((b && b[c]) || 0);
+      });
+      return o;
+    }
+
+    /** Evalúa fórmulas de filas (=) según texto en EF_Estructura (naturaleza). */
+    function evaluarFormulaEfTotal(line, lines, byOrden, columnas) {
+      const t = normalizarString(line.naturaleza || '');
+      const codigoEq = (c) => normalizarString(c);
+      const section = (cod) => {
+        const ln = lines.find(l => l.nivel === 0 && codigoEq(l.codigo) === codigoEq(cod));
+        return ln ? (byOrden[ln.orden] || efColMapZero(columnas)) : efColMapZero(columnas);
+      };
+      const totalRow = (cod) => {
+        const ln = lines.find(l => l.nivel === 2 && codigoEq(l.codigo).toUpperCase() === codigoEq(cod).toUpperCase());
+        return ln ? (byOrden[ln.orden] || efColMapZero(columnas)) : efColMapZero(columnas);
+      };
+      const subitem = (cod) => {
+        const ln = lines.find(l => l.nivel === 1 && codigoEq(l.codigo) === codigoEq(cod));
+        return ln ? (byOrden[ln.orden] || efColMapZero(columnas)) : efColMapZero(columnas);
+      };
+
+      if (/Total\s+1\s*-\s*Total\s+2/i.test(t)) {
+        return efColMapSubAbs(columnas, section('1'), section('2'));
+      }
+      if (/Margen\s+Bruto\s+A\s*-\s*Total\s+3/i.test(t)) {
+        return efColMapSubAbs(columnas, totalRow('A'), section('3'));
+      }
+      if (/EBITDA\s+B\s*-\s*Total\s+4\s*-\s*Total\s+5/i.test(t)) {
+        return efColMapSubAbs(columnas, efColMapSubAbs(columnas, totalRow('B'), section('4')), section('5'));
+      }
+      if (/Flujo\s+Neto\s+C/i.test(t) && /6\.1/i.test(t)) {
+        return efColMapSubAbs(
+          columnas,
+          efColMapSubAbs(columnas, efColMapAdd(columnas, totalRow('C'), subitem('6.1')), subitem('6.2')),
+          subitem('6.3')
+        );
+      }
+      if (codigoEq(line.codigo) === '7.2') {
+        return efColMapAdd(columnas, subitem('7.1'), totalRow('D'));
+      }
+      return null;
+    }
+
+    function computeEfMontosPorOrden(lines, montosSubitem, columnas) {
+      const byOrden = {};
+      lines.forEach(line => {
+        if (line.nivel === 1 && line.ef_subitem) {
+          const key = normEfSubitemKey(line.ef_subitem);
+          byOrden[line.orden] = { ...(montosSubitem[key] || {}) };
+        }
+      });
+      lines.forEach((line, i) => {
+        if (line.nivel !== 0) return;
+        const sums = efColMapZero(columnas);
+        for (let j = i + 1; j < lines.length; j++) {
+          const next = lines[j];
+          if (next.nivel === 0 || next.nivel === 2) break;
+          if (next.nivel === 1) {
+            columnas.forEach(c => { sums[c] += (byOrden[next.orden] && byOrden[next.orden][c]) || 0; });
+          }
+        }
+        byOrden[line.orden] = sums;
+      });
+      lines
+        .filter(l => l.nivel === 2)
+        .sort((a, b) => a.orden - b.orden)
+        .forEach(line => {
+          const desdeFormula = evaluarFormulaEfTotal(line, lines, byOrden, columnas);
+          if (desdeFormula) {
+            byOrden[line.orden] = desdeFormula;
+            return;
+          }
+          let start = 0;
+          for (let k = lines.indexOf(line) - 1; k >= 0; k--) {
+            if (lines[k].nivel === 0) { start = k; break; }
+          }
+          const sums = efColMapZero(columnas);
+          for (let j = start + 1; j < lines.indexOf(line); j++) {
+            if (lines[j].nivel === 1) {
+              columnas.forEach(c => { sums[c] += (byOrden[lines[j].orden] && byOrden[lines[j].orden][c]) || 0; });
+            }
+          }
+          byOrden[line.orden] = sums;
+        });
+      return byOrden;
+    }
+
+    function formatEfCeldaItem(line, esc) {
+      if (line.nivel === 0) {
+        return '<span class="ef-label ef-label-seccion">' + esc(line.ef_item) + '</span>';
+      }
+      if (line.nivel === 1) {
+        return '<span class="ef-label ef-label-detalle"><span class="ef-bullet" aria-hidden="true">•</span><span>' + esc(line.ef_subitem) + '</span></span>';
+      }
+      if (line.nivel === 2) {
+        return '<span class="ef-label ef-label-total">' + esc(line.ef_subitem || line.ef_item) + '</span>';
+      }
+      return '';
+    }
+
+    function formatEfItemExport(line) {
+      if (line.nivel === 0) return line.ef_item || '';
+      if (line.nivel === 1) return '• ' + (line.ef_subitem || '');
+      if (line.nivel === 2) return line.ef_subitem || line.ef_item || '';
+      return '';
+    }
+
+    function formatearNumeroEf(n) {
+      if (n == null || isNaN(n)) return '—';
+      return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n));
+    }
+
+    function esFilaEfSubtotal(line) {
+      return line.nivel === 0 || line.nivel === 2;
+    }
+
+    function getEfFlujoOperativoBase(lines, montosPorOrden, columnas) {
+      const ln = lines.find(l => l.nivel === 0 && normalizarString(l.codigo) === '1');
+      if (!ln) return { porCol: {}, total: 0 };
+      const porCol = montosPorOrden[ln.orden] || {};
+      let total = 0;
+      columnas.forEach(c => { total += porCol[c] || 0; });
+      return { porCol, total };
+    }
+
+    function pctDelFlujoOperativo(valor, base) {
+      const b = Math.abs(base || 0);
+      if (!b) return null;
+      return (Math.abs(valor || 0) / b) * 100;
+    }
+
+    function formatearPctEf(pct) {
+      if (pct == null || isNaN(pct)) return '—';
+      return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(pct) + '%';
+    }
+
+    function formatEfCeldaMontoHtml(valor, simbolo, baseFlujo, conPct) {
+      const v = valor !== 0 ? Math.round(valor) : 0;
+      const montoTxt = v !== 0 ? (simbolo + formatearNumeroEf(v)) : '—';
+      if (!conPct) return montoTxt;
+      const pct = pctDelFlujoOperativo(v, baseFlujo);
+      const pctTxt = pct != null ? formatearPctEf(pct) : '—';
+      return '<div class="ef-monto-val">' + montoTxt + '</div>'
+        + '<div class="ef-monto-pct">' + pctTxt + ' <span class="ef-pct-ref">del Flujo Op.</span></div>';
+    }
+
+    /** Sección 7 y filas de conciliación: fuera de la vista EF por ahora. */
+    function esLineaEfConciliacion(line) {
+      const cod = normalizarString(line.codigo || '');
+      if (cod === '7' || cod.indexOf('7.') === 0) return true;
+      const txt = normEfSubitemKey((line.ef_item || '') + ' ' + (line.ef_subitem || ''));
+      return txt.indexOf('conciliacion') !== -1;
+    }
+
+    function filtrarLineasEfParaVista(lines) {
+      return lines.filter(l => !esLineaEfConciliacion(l));
+    }
+
+    function renderEstadoFinanciero() {
+      const thead = document.getElementById('thead-estado-financiero');
+      const tbody = document.getElementById('tbody-estado-financiero');
+      if (!thead || !tbody) return;
+      const periodo = (document.getElementById('ef-periodo') && document.getElementById('ef-periodo').value) || 'mensual';
+      const moneda = getMoneda();
+      const tipoDolar = document.getElementById('tipoDolar') ? document.getElementById('tipoDolar').value : 'mep';
+      const simbolo = moneda === 'USD' ? 'US$ ' : '$ ';
+      const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
+
+      if (!cacheEfEstructura.length) {
+        thead.innerHTML = '<tr><th>Ítem</th><th>Período</th></tr>';
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#666;">No hay estructura EF cargada. Subí el extracto con hoja <strong>EF_Estructura</strong> (Actualizar base desde normalizado).</td></tr>';
+        return;
       }
 
-      thead.querySelectorAll('th').forEach((th, i) => { th.style.textAlign = i === 0 ? 'left' : 'right'; });
+      const allLines = cacheEfEstructura.map(r => ({
+        orden: r.orden,
+        codigo: r.codigo,
+        nivel: Number(r.nivel),
+        ef_item: r.ef_item || '',
+        ef_subitem: r.ef_subitem || '',
+        naturaleza: r.naturaleza || '',
+        es_total: !!r.es_total
+      }));
+      const lines = filtrarLineasEfParaVista(allLines);
+
+      const montosSubitem = buildMontosPorSubitemEf(periodo, moneda, tipoDolar);
+      const columnasSet = new Set();
+      Object.values(montosSubitem).forEach(colMap => {
+        Object.keys(colMap).forEach(c => columnasSet.add(c));
+      });
+      const columnasOrdenadas = Array.from(columnasSet).sort();
+      const montosPorOrden = computeEfMontosPorOrden(allLines, montosSubitem, columnasOrdenadas);
+      const foBase = getEfFlujoOperativoBase(allLines, montosPorOrden, columnasOrdenadas);
+
+      const formatearColHeader = (key) => formatearColHeaderEvolucion(key, periodo);
+      thead.innerHTML = '<tr><th class="ef-col-label ef-sticky-label">Ítem</th>'
+        + columnasOrdenadas.map(c => '<th class="num-ef ef-th-periodo">' + esc(formatearColHeader(c)) + '</th>').join('')
+        + '<th class="num-ef ef-th-total">Total</th></tr>';
+
+      if (!columnasOrdenadas.length) {
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#666;">No hay movimientos con <code>ef_subitem</code> para armar períodos.</td></tr>';
+        return;
+      }
+
+      const filasHtml = lines.map(line => {
+        const montos = montosPorOrden[line.orden] || {};
+        const esSubtotal = esFilaEfSubtotal(line);
+        let totalFila = 0;
+        const celdas = columnasOrdenadas.map(colKey => {
+          const v = montos[colKey] || 0;
+          totalFila += v;
+          const cls = v > 0 ? 'ingresos' : (v < 0 ? 'egresos' : '');
+          const baseCol = foBase.porCol[colKey] || 0;
+          const inner = formatEfCeldaMontoHtml(v, simbolo, baseCol, esSubtotal);
+          return '<td class="num-ef ' + cls + (esSubtotal ? ' ef-celda-subtotal' : '') + '">' + inner + '</td>';
+        });
+        const totalRed = Math.round(totalFila);
+        const totalCls = totalRed >= 0 ? 'balance positivo' : 'balance negativo';
+        const labelHtml = formatEfCeldaItem(line, esc);
+        const totalInner = formatEfCeldaMontoHtml(totalFila, simbolo, foBase.total, esSubtotal);
+        return '<tr class="ef-nivel-' + line.nivel + (esSubtotal ? ' ef-fila-subtotal' : '') + '"><td class="ef-col-label ef-sticky-label">' + labelHtml + '</td>'
+          + celdas.join('')
+          + '<td class="num-ef ' + totalCls + (esSubtotal ? ' ef-celda-subtotal' : '') + '" style="font-weight:600;">' + totalInner + '</td></tr>';
+      }).join('');
+
+      tbody.innerHTML = filasHtml;
+      programarAjusteTablasScrollAncladas();
+    }
+
+    function efExcelSolidFill(rgb) {
+      const hex = String(rgb || 'FFFFFF').replace('#', '').toUpperCase();
+      const argb = hex.length === 6 ? 'FF' + hex : hex;
+      return { patternType: 'solid', fgColor: { rgb: argb }, bgColor: { rgb: argb } };
+    }
+
+    function efExcelMergeCellStyle(cell, partial) {
+      if (!cell) return;
+      const prev = cell.s || {};
+      cell.s = {
+        ...prev,
+        ...partial,
+        font: Object.assign({}, prev.font || {}, partial.font || {}),
+        alignment: Object.assign({ vertical: 'center' }, prev.alignment || {}, partial.alignment || {}),
+        fill: partial.fill != null ? partial.fill : prev.fill,
+        numFmt: partial.numFmt != null ? partial.numFmt : prev.numFmt,
+      };
+    }
+
+    function efExcelExpandRef(ws, r, c) {
+      const range = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : { s: { r: 0, c: 0 }, e: { r: 0, c: 0 } };
+      if (r > range.e.r) range.e.r = r;
+      if (c > range.e.c) range.e.c = c;
+      ws['!ref'] = XLSX.utils.encode_range(range);
+    }
+
+    /** Celdas vacías (sin monto) no las crea aoa_to_sheet con null; sin celda, Excel no pinta el fondo. */
+    function efExcelGetOrCreateCell(ws, r, c) {
+      const addr = XLSX.utils.encode_cell({ r, c });
+      if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+      efExcelExpandRef(ws, r, c);
+      return ws[addr];
+    }
+
+    /**
+     * Enteros sin decimales; el separador de miles lo aplica Excel según locale (es-AR → punto).
+     * No usar "#.##0" en el código de formato: el punto se interpreta como decimal y genera ",0".
+     */
+    const EF_EXCEL_NUMFMT_ENTERO_AR = '#,##0_);(-#,##0)';
+    /** % ya calculados 0–100+ → fracción 0–1 para que Excel no multiplique de nuevo (evita 10000%). */
+    const EF_EXCEL_NUMFMT_PCT_AR = '0.0%';
+
+    function efPctValorParaExcel(pct) {
+      if (pct == null || isNaN(pct)) return null;
+      return Math.round(Number(pct) * 10) / 1000;
+    }
+
+    function aplicarFormatoNumerosExportEf(ws, rowMeta, idxColTotal) {
+      if (!ws || !rowMeta.length) return;
+      const enc = XLSX.utils.encode_cell;
+      for (let r = 1; r < rowMeta.length; r++) {
+        if (rowMeta[r] && rowMeta[r].kind === 'pct') continue;
+        for (let c = 1; c <= idxColTotal; c++) {
+          const addr = enc({ r, c });
+          const cell = ws[addr];
+          if (!cell || typeof cell.v !== 'number') continue;
+          cell.z = EF_EXCEL_NUMFMT_ENTERO_AR;
+          efExcelMergeCellStyle(cell, { numFmt: EF_EXCEL_NUMFMT_ENTERO_AR });
+        }
+      }
+    }
+
+    function generarNotasAnalisisEf(montos, columnas, line, periodo) {
+      const serie = columnas.map(c => ({
+        periodo: formatearColHeaderEvolucion(c, periodo),
+        valor: Math.round(montos[c] || 0)
+      }));
+      const activos = serie.filter(p => p.valor !== 0);
+      const fmtM = (n) => {
+        const sign = n < 0 ? '-' : '';
+        return sign + Math.abs(n).toLocaleString('es-AR', { maximumFractionDigits: 0, minimumFractionDigits: 0 });
+      };
+
+      const positivos = [];
+      const negativos = [];
+
+      if (!activos.length) {
+        return '+ Sin movimientos en el rango.\n+ Verificar imputación de ef_subitem.\n- No hay variaciones para comparar.\n- Sin meses de referencia en la serie.';
+      }
+
+      const maxP = serie.reduce((a, b) => (b.valor > a.valor ? b : a), serie[0]);
+      const minP = serie.reduce((a, b) => (b.valor < a.valor ? b : a), serie[0]);
+      const mitad = Math.max(1, Math.floor(serie.length / 2));
+      const prom1 = serie.slice(0, mitad).reduce((s, p) => s + p.valor, 0) / mitad;
+      const prom2 = serie.slice(mitad).reduce((s, p) => s + p.valor, 0) / (serie.length - mitad);
+      const deltaTend = prom2 - prom1;
+      const umbral = Math.max(50000, Math.abs(prom1) * 0.05);
+
+      const soloEgresos = activos.length > 0 && activos.every(p => p.valor < 0);
+      const mezcla = activos.some(p => p.valor > 0) && activos.some(p => p.valor < 0);
+
+      if (line.nivel === 2) {
+        const acum = serie.reduce((s, p) => s + p.valor, 0);
+        if (acum > 0) positivos.push('Acumulado del indicador positivo ($ ' + fmtM(acum) + ').');
+        else if (acum < 0) negativos.push('Acumulado del indicador en negativo ($ ' + fmtM(acum) + ').');
+      }
+
+      if (!soloEgresos) {
+        if (maxP.valor > 0) positivos.push('Mejor mes: ' + maxP.periodo + ' ($ ' + fmtM(maxP.valor) + ').');
+        if (deltaTend > umbral) positivos.push('Tendencia reciente al alza (2.ª mitad vs. 1.ª del rango).');
+        if (minP.valor > 0 && minP.periodo !== maxP.periodo) positivos.push('Piso del período positivo en ' + minP.periodo + '.');
+        if (minP.valor < 0) negativos.push('Mes más débil: ' + minP.periodo + ' ($ ' + fmtM(minP.valor) + ').');
+        if (deltaTend < -umbral) negativos.push('Tendencia reciente a la baja en la serie.');
+      } else {
+        const menorEgreso = activos.slice().sort((a, b) => b.valor - a.valor)[0];
+        const mayorEgreso = activos.slice().sort((a, b) => a.valor - b.valor)[0];
+        if (menorEgreso) positivos.push('Menor salida: ' + menorEgreso.periodo + ' ($ ' + fmtM(menorEgreso.valor) + ').');
+        if (deltaTend > umbral) positivos.push('Egresos más contenidos en la 2.ª mitad del rango.');
+        if (mayorEgreso) negativos.push('Mayor salida: ' + mayorEgreso.periodo + ' ($ ' + fmtM(mayorEgreso.valor) + ').');
+        if (deltaTend < -umbral) negativos.push('Presión de egreso creciente en meses recientes.');
+      }
+
+      if (mezcla) {
+        negativos.push('Serie mixta (ingresos y egresos en distintos meses): revisar consistencia.');
+      }
+      if (Math.abs(maxP.valor - minP.valor) > umbral * 3 && maxP.periodo !== minP.periodo) {
+        negativos.push('Alta volatilidad entre ' + minP.periodo + ' y ' + maxP.periodo + '.');
+      }
+
+      const pos = positivos.slice(0, 2);
+      const neg = negativos.slice(0, 2);
+      while (pos.length < 2) {
+        pos.push(pos.length === 0 ? 'Actividad en ' + activos.length + ' meses del rango.' : 'Sin segundo hallazgo positivo destacado.');
+      }
+      while (neg.length < 2) {
+        neg.push(neg.length === 0 && !negativos.length ? 'Sin alertas negativas en la serie.' : 'Sin segundo punto negativo destacado.');
+      }
+      const lineas = pos.map(t => '+ ' + t);
+      neg.forEach(t => lineas.push('- ' + t));
+      return lineas.join('\n');
+    }
+
+    function aplicarEstiloColumnaNotasEf(ws, rowMeta, idxColNotas) {
+      if (!ws || idxColNotas < 0) return;
+      const enc = XLSX.utils.encode_cell;
+      for (let r = 0; r < rowMeta.length; r++) {
+        const cell = ws[enc({ r, c: idxColNotas })];
+        if (!cell) continue;
+        efExcelMergeCellStyle(cell, {
+          alignment: { wrapText: true, vertical: 'top' },
+        });
+      }
+    }
+
+    function aplicarEstilosExportEf(ws, rowMeta, colCount) {
+      if (!ws || !window.XLSX || !rowMeta.length) return;
+      const enc = XLSX.utils.encode_cell;
+      for (let c = 0; c < colCount; c++) {
+        const cell = efExcelGetOrCreateCell(ws, 0, c);
+        efExcelMergeCellStyle(cell, {
+          font: { bold: true },
+          fill: efExcelSolidFill('F2F3F5'),
+          alignment: { vertical: 'center' },
+        });
+      }
+      for (let r = 1; r < rowMeta.length; r++) {
+        const meta = rowMeta[r];
+        if (!meta) continue;
+        let fillRgb = null;
+        let font = { sz: 11 };
+        if (meta.kind === 'pct') {
+          fillRgb = 'F5F5F5';
+          font = { italic: true, color: { rgb: 'FF666666' }, sz: 9 };
+        } else if (meta.nivel === 0) {
+          fillRgb = 'DCE4EE';
+          font = { bold: true };
+        } else if (meta.nivel === 2) {
+          fillRgb = 'F3E8D4';
+          font = { bold: true };
+        } else {
+          continue;
+        }
+        const fill = fillRgb ? efExcelSolidFill(fillRgb) : null;
+        for (let c = 0; c < colCount; c++) {
+          const cell = efExcelGetOrCreateCell(ws, r, c);
+          efExcelMergeCellStyle(cell, {
+            font,
+            fill,
+            alignment: { vertical: 'center' },
+          });
+        }
+      }
+    }
+
+    function exportarEstadoFinancieroExcel() {
+      if (!window.XLSX || !cacheEfEstructura.length) {
+        alert('No hay estructura EF para exportar.');
+        return;
+      }
+      const periodo = (document.getElementById('ef-periodo') && document.getElementById('ef-periodo').value) || 'mensual';
+      const moneda = getMoneda();
+      const tipoDolar = document.getElementById('tipoDolar') ? document.getElementById('tipoDolar').value : 'mep';
+      const allLines = cacheEfEstructura.slice().sort((a, b) => (a.orden || 0) - (b.orden || 0));
+      const lines = filtrarLineasEfParaVista(allLines);
+      const montosSubitem = buildMontosPorSubitemEf(periodo, moneda, tipoDolar);
+      const columnasSet = new Set();
+      Object.values(montosSubitem).forEach(colMap => Object.keys(colMap).forEach(c => columnasSet.add(c)));
+      const columnasOrdenadas = Array.from(columnasSet).sort();
+      const montosPorOrden = computeEfMontosPorOrden(allLines, montosSubitem, columnasOrdenadas);
+      const foBase = getEfFlujoOperativoBase(allLines, montosPorOrden, columnasOrdenadas);
+      const header = ['Item', ...columnasOrdenadas.map(c => formatearColHeaderEvolucion(c, periodo)), 'Total', 'Notas'];
+      const idxColTotal = columnasOrdenadas.length + 1;
+      const idxColNotas = columnasOrdenadas.length + 2;
+      const rows = [header];
+      const rowMeta = [{ kind: 'header' }];
+      lines.forEach(line => {
+        const montos = montosPorOrden[line.orden] || {};
+        const esSubtotal = esFilaEfSubtotal(line);
+        let total = 0;
+        const vals = columnasOrdenadas.map(c => {
+          const v = montos[c] || 0;
+          total += v;
+          const red = Math.round(v);
+          return red !== 0 ? red : '';
+        });
+        const totalRed = Math.round(total);
+        const notas = generarNotasAnalisisEf(montos, columnasOrdenadas, line, periodo);
+        rows.push([
+          formatEfItemExport(line),
+          ...vals,
+          totalRed !== 0 ? totalRed : '',
+          notas
+        ]);
+        rowMeta.push({ kind: 'data', nivel: line.nivel });
+        if (esSubtotal) {
+          const pctVals = columnasOrdenadas.map(c => {
+            const p = pctDelFlujoOperativo(Math.round(montos[c] || 0), foBase.porCol[c] || 0);
+            const v = efPctValorParaExcel(p);
+            return v != null ? v : '';
+          });
+          const pTotal = pctDelFlujoOperativo(totalRed, foBase.total);
+          const vTotal = efPctValorParaExcel(pTotal);
+          rows.push([
+            '  % del Flujo Operativo',
+            ...pctVals,
+            vTotal != null ? vTotal : '',
+            ''
+          ]);
+          rowMeta.push({ kind: 'pct' });
+        }
+      });
+      const colCount = header.length;
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      aplicarFormatoNumerosExportEf(ws, rowMeta, idxColTotal);
+      for (let r = 1; r < rows.length; r++) {
+        if (rowMeta[r] && rowMeta[r].kind !== 'pct') continue;
+        for (let c = 1; c <= idxColTotal; c++) {
+          const cell = ws[XLSX.utils.encode_cell({ r, c })];
+          if (cell && typeof cell.v === 'number') {
+            cell.z = EF_EXCEL_NUMFMT_PCT_AR;
+            efExcelMergeCellStyle(cell, { numFmt: EF_EXCEL_NUMFMT_PCT_AR });
+          }
+        }
+      }
+      aplicarEstilosExportEf(ws, rowMeta, colCount);
+      aplicarEstiloColumnaNotasEf(ws, rowMeta, idxColNotas);
+      const colsWidth = [{ wch: 42 }];
+      columnasOrdenadas.forEach(() => colsWidth.push({ wch: 14 }));
+      colsWidth.push({ wch: 16 }, { wch: 52 });
+      ws['!cols'] = colsWidth;
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Estado_Financiero');
+      const hoy = new Date();
+      const fecha = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
+      XLSX.writeFile(wb, 'Estado_Financiero_Fornitalia_' + fecha + '.xlsx', { cellStyles: true });
     }
 
     function exportarEvolucionExcel() {
@@ -3296,7 +3951,7 @@
 
       if (tieneProyExport && evolucionProyFlujo && evolucionProyFlujo.length > 0) {
         rows.push([]);
-        rows.push(['Referencia Flujo (proyección): mismos Ingresos, Egresos y G/P operativo que la solapa Flujo por mes (sin traspasos internos).']);
+        rows.push(['Referencia Flujo (proyección): mismos Ingresos, Egresos y G/P operativo que la solapa Flujo por mes.']);
         rows.push(['Mes', 'Ingresos', 'Egresos', 'G/P']);
         evolucionProyFlujo.forEach(p => rows.push([p.label, p.ing, p.egr, p.gp]));
       }
@@ -3340,7 +3995,7 @@
         return;
       }
       const tipoDolar = document.getElementById('tipoDolar') && document.getElementById('tipoDolar').value ? document.getElementById('tipoDolar').value : 'mep';
-      const headers = ['id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'Tipo_Cambio', 'Monto_ARS', 'Monto_USD', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'nueva_categoria', 'nueva_cuenta_contable', 'costo_directo', 'costo_indirecto', 'editado', 'editado_detalle'];
+      const headers = ['id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'Tipo_Cambio', 'Monto_ARS', 'Monto_USD', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'nueva_categoria', 'nueva_cuenta_contable', 'costo_directo', 'costo_indirecto', 'ef_item', 'ef_subitem', 'editado', 'editado_detalle'];
       const rows = [['Exportado: Base histórica. Tipo_Cambio según selector de tipo de dólar (MEP/CCL/Oficial). Monto_ARS y Monto_USD son las conversiones aplicadas.'], headers];
       cacheTransacciones.forEach(r => {
         const montoOrig = (r.monto != null && r.monto !== '') ? Number(r.monto) : 0;
@@ -3375,12 +4030,14 @@
           (r.nueva_cuenta_contable || '').toString(),
           (r.costo_directo || '').toString(),
           (r.costo_indirecto || '').toString(),
+          (r.ef_item || '').toString(),
+          (r.ef_subitem || '').toString(),
           r.editado === true ? 'Sí' : '',
           (r.editado_detalle || '').toString()
         ]);
       });
       const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }, { wch: 22 }, { wch: 22 }, { wch: 8 }, { wch: 8 }, { wch: 6 }, { wch: 32 }];
+      ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }, { wch: 22 }, { wch: 22 }, { wch: 8 }, { wch: 8 }, { wch: 42 }, { wch: 48 }, { wch: 6 }, { wch: 32 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Transacciones');
       const hoy = new Date();
@@ -3390,6 +4047,115 @@
 
     function normalizarString(v) {
       return (v == null ? '' : String(v)).trim();
+    }
+
+    function textoCampoDesdeFila(r, keys) {
+      for (let i = 0; i < keys.length; i++) {
+        const val = normalizarString(r[keys[i]]);
+        if (val) return val;
+      }
+      return '';
+    }
+
+    function efItemDesdeFilaNormalizado(r) {
+      const v = textoCampoDesdeFila(r, ['EF_Item', 'ef_item']);
+      return v || null;
+    }
+
+    function efSubitemDesdeFilaNormalizado(r) {
+      const v = textoCampoDesdeFila(r, ['EF_SubItem', 'ef_subitem']);
+      return v || null;
+    }
+
+    const EF_SUBITEM_ALIASES = {
+      'cobranzas por ventas': 'Cobranzas por Ventas (Efectivo neto ingresado)',
+      'otros ingresos operativos': 'Otros Ingresos Operativos'
+    };
+
+    function normEfSubitemKey(s) {
+      return normalizarString(s).toLowerCase().replace(/:$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    function resolveEfSubitemCanon(subitemRaw) {
+      const raw = normalizarString(subitemRaw);
+      if (!raw) return '';
+      const key = normEfSubitemKey(raw);
+      return EF_SUBITEM_ALIASES[key] || raw;
+    }
+
+    function parseEfEstructuraAoa(aoa) {
+      const lines = [];
+      let curItem = '';
+      let orden = 0;
+      for (let i = 1; i < aoa.length; i++) {
+        const row = aoa[i] || [];
+        const cod = normalizarString(row[0]);
+        const rubro = normalizarString(row[1]);
+        const comp = normalizarString(row[2]);
+        const signo = normalizarString(row[3]);
+        const nat = normalizarString(row[4]);
+        if (!rubro && !comp && !cod) continue;
+        const esTotal = signo === '(=)' || signo === '=' || rubro.startsWith('(=)') || (rubro.includes('(=)') && !comp);
+        if (esTotal) {
+          orden += 1;
+          lines.push({ orden, codigo: cod, nivel: 2, ef_item: curItem, ef_subitem: rubro, signo: signo || '(=)', naturaleza: comp || nat, es_total: true });
+          continue;
+        }
+        if (rubro && !comp) {
+          curItem = rubro;
+          orden += 1;
+          lines.push({ orden, codigo: cod, nivel: 0, ef_item: rubro, ef_subitem: '', signo, naturaleza: nat, es_total: false });
+          continue;
+        }
+        if (comp) {
+          orden += 1;
+          lines.push({ orden, codigo: cod, nivel: 1, ef_item: curItem, ef_subitem: comp, signo, naturaleza: nat, es_total: false });
+        }
+      }
+      return lines;
+    }
+
+    function parseEfEstructuraFromWorkbook(wb, fileName) {
+      const sheet = wb.Sheets && (wb.Sheets.EF_Estructura || wb.Sheets['EF_Estructura']);
+      if (!sheet) return [];
+      const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      const normFile = normalizarString(fileName) || 'upload_normalizado.xlsx';
+      return parseEfEstructuraAoa(aoa).map(l => ({ ...l, fuente_archivo: normFile }));
+    }
+
+    async function fetchEfEstructura() {
+      const { data, error } = await client
+        .from('ef_estructura')
+        .select('id, orden, codigo, nivel, ef_item, ef_subitem, signo, naturaleza, es_total, fuente_archivo')
+        .order('orden', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function reemplazarEfEstructuraEnSupabase(lines, batchSize, onProgress) {
+      const { error: delErr } = await client.from('ef_estructura').delete().not('id', 'is', null);
+      if (delErr) throw delErr;
+      if (!lines.length) return 0;
+      const payload = lines.map(l => ({
+        orden: l.orden,
+        codigo: l.codigo || null,
+        nivel: l.nivel,
+        ef_item: l.ef_item,
+        ef_subitem: l.ef_subitem || null,
+        signo: l.signo || null,
+        naturaleza: l.naturaleza || null,
+        es_total: !!l.es_total,
+        fuente_archivo: l.fuente_archivo || null
+      }));
+      let inserted = 0;
+      for (let i = 0; i < payload.length; i += batchSize) {
+        const chunk = payload.slice(i, i + batchSize);
+        const { error } = await client.from('ef_estructura').insert(chunk);
+        if (error) throw error;
+        inserted += chunk.length;
+        if (onProgress) onProgress(inserted, payload.length);
+      }
+      return inserted;
     }
 
     /** Flags Y/N del extracto (Costo_Directo / Costo_Indirecto). */
@@ -3624,6 +4390,8 @@
           nueva_cuenta_contable: normalizarString(r.nueva_cuenta_contable) || null,
           costo_directo: flagCostoDesdeExcel(costoDirRaw),
           costo_indirecto: flagCostoDesdeExcel(costoIndRaw),
+          ef_item: efItemDesdeFilaNormalizado(r),
+          ef_subitem: efSubitemDesdeFilaNormalizado(r),
           monto: montoOriginal,
           tipo_cambio: toNumOrNull(r.tipo_cambio),
           monto_cambio: toNumOrNull(r.monto_ars),
@@ -4353,7 +5121,8 @@
       if (!tbody || !selMes || !selCat || !selCuenta || !selTipo) return;
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       if (cacheTransacciones.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="23" style="text-align:center; color:#666;">No hay transacciones cargadas.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="25" style="text-align:center; color:#666;">No hay transacciones cargadas.</td></tr>';
+        programarAjusteTablasScrollAncladas();
         return;
       }
       if (selMes.options.length <= 1) {
@@ -4400,7 +5169,8 @@
       }
       currentTodasTransaccionesList = list;
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="23" style="text-align:center; color:#666;">No hay registros con los filtros seleccionados.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="25" style="text-align:center; color:#666;">No hay registros con los filtros seleccionados.</td></tr>';
+        programarAjusteTablasScrollAncladas();
         return;
       }
       const rows = list.map(r => {
@@ -4425,6 +5195,8 @@
             <td>${esc((r.nueva_cuenta_contable || '').trim() || '')}</td>
             <td>${esc((r.costo_directo || '').toString())}</td>
             <td>${esc((r.costo_indirecto || '').toString())}</td>
+            <td>${esc((r.ef_item || '').toString().slice(0, 80))}</td>
+            <td>${esc((r.ef_subitem || '').toString().slice(0, 80))}</td>
             <td>${esc((r.descripcion || '').slice(0, 120))}</td>
             <td>${esc(r.cliente || '')}</td>
             <td>${esc((r.cat_desc || '').slice(0, 80))}</td>
@@ -4446,6 +5218,7 @@
           if (record) abrirModalEditar(record);
         });
       });
+      programarAjusteTablasScrollAncladas();
     }
 
     function abrirModalErrores(labelMes, errores, anio, mes) {
@@ -4560,6 +5333,8 @@
       const editIdOperacion = get('edit-id-operacion');
       const editCostoDirecto = get('edit-costo-directo');
       const editCostoIndirecto = get('edit-costo-indirecto');
+      const editEfItem = get('edit-ef-item');
+      const editEfSubitem = get('edit-ef-subitem');
       if (!editCategoria || !editCuenta || !editDescripcion) return;
 
       function costoFlagSelectValueDesdeRecord(v) {
@@ -4591,6 +5366,12 @@
       const clientesUnicos = [...new Set(cacheTransacciones.map(r => (r.cliente || '').trim()).filter(Boolean))].sort();
       const clienteActual = (record.cliente || '').trim();
       if (clienteActual && !clientesUnicos.includes(clienteActual)) clientesUnicos.push(clienteActual);
+      const efItemsUnicos = [...new Set(cacheTransacciones.map(r => (r.ef_item || '').trim()).filter(Boolean))].sort();
+      const efSubitemsUnicos = [...new Set(cacheTransacciones.map(r => (r.ef_subitem || '').trim()).filter(Boolean))].sort();
+      const efItemActual = (record.ef_item || '').trim();
+      const efSubitemActual = (record.ef_subitem || '').trim();
+      if (efItemActual && !efItemsUnicos.includes(efItemActual)) efItemsUnicos.push(efItemActual);
+      if (efSubitemActual && !efSubitemsUnicos.includes(efSubitemActual)) efSubitemsUnicos.push(efSubitemActual);
 
       editCategoria.innerHTML = optionize(categoriasUnicas, '—');
       if (editNuevaCategoria) editNuevaCategoria.innerHTML = optionize(nuevasCategoriasUnicas, '—');
@@ -4602,6 +5383,8 @@
       editMoneda.innerHTML = '<option value="">—</option><option value="ARS">ARS</option><option value="USD">USD</option>';
       editOrigen.innerHTML = optionize(origenesUnicos, '—');
       if (editCliente) editCliente.innerHTML = optionize(clientesUnicos, '—');
+      if (editEfItem) editEfItem.innerHTML = optionize(efItemsUnicos, '—');
+      if (editEfSubitem) editEfSubitem.innerHTML = optionize(efSubitemsUnicos, '—');
 
       editCategoria.value = (record.categoria || '').trim();
       if (editNuevaCategoria) editNuevaCategoria.value = (record.nueva_categoria || '').trim();
@@ -4613,6 +5396,8 @@
       editMoneda.value = (record.moneda || '').trim().toUpperCase() || '';
       editOrigen.value = (record.origen_archivo || '').trim();
       if (editCliente) editCliente.value = (record.cliente || '').trim();
+      if (editEfItem) editEfItem.value = efItemActual;
+      if (editEfSubitem) editEfSubitem.value = efSubitemActual;
       if (editCostoDirecto) editCostoDirecto.value = costoFlagSelectValueDesdeRecord(record.costo_directo);
       if (editCostoIndirecto) editCostoIndirecto.value = costoFlagSelectValueDesdeRecord(record.costo_indirecto);
 
@@ -4672,6 +5457,14 @@
         if (ciNuevo !== ciAnterior) {
           payload.costo_indirecto = ciNuevo === 'Y' || ciNuevo === 'N' ? ciNuevo : null;
           partes.push('Costo indirecto');
+        }
+        if (editEfItem && v(editEfItem) !== (record.ef_item || '').trim()) {
+          payload.ef_item = v(editEfItem) || null;
+          partes.push('EF Item');
+        }
+        if (editEfSubitem && v(editEfSubitem) !== (record.ef_subitem || '').trim()) {
+          payload.ef_subitem = v(editEfSubitem) || null;
+          partes.push('EF SubItem');
         }
 
         if (partes.length === 0) {
@@ -5006,10 +5799,16 @@
             btn.classList.add('activo');
             if (id) document.getElementById('panel-' + id).classList.add('activo');
             if (id === 'evolucion') renderEvolucion();
+            if (id === 'estado-financiero') renderEstadoFinanciero();
             if (id === 'todas-transacciones') renderTodasTransacciones();
-            if (id === 'traspasos-internos') renderTraspasosInternos();
             if (id === 'excluidos-upload') renderExcluidosUpload();
+            programarAjusteTablasScrollAncladas();
           });
+        });
+        let resizeTablasScrollTimer;
+        window.addEventListener('resize', () => {
+          clearTimeout(resizeTablasScrollTimer);
+          resizeTablasScrollTimer = setTimeout(ajustarAlturaTablasScrollAncladas, 120);
         });
         document.getElementById('filtro-todas-mes').addEventListener('change', renderTodasTransacciones);
         document.getElementById('filtro-todas-categoria').addEventListener('change', renderTodasTransacciones);
@@ -5020,6 +5819,10 @@
         document.getElementById('evolucion-agrupar').addEventListener('change', renderEvolucion);
         document.getElementById('evolucion-periodo').addEventListener('change', renderEvolucion);
         document.getElementById('btn-exportar-evolucion').addEventListener('click', exportarEvolucionExcel);
+        const efPeriodoEl = document.getElementById('ef-periodo');
+        if (efPeriodoEl) efPeriodoEl.addEventListener('change', renderEstadoFinanciero);
+        const btnExportEf = document.getElementById('btn-exportar-estado-financiero');
+        if (btnExportEf) btnExportEf.addEventListener('click', exportarEstadoFinancieroExcel);
         const btnRecargarExcluidos = document.getElementById('btn-recargar-excluidos-upload');
         if (btnRecargarExcluidos) btnRecargarExcluidos.addEventListener('click', async () => {
           await cargarDatos();
@@ -5238,6 +6041,7 @@
           if (!backdrop || !btnOpen) return;
 
           let filasPreparadas = [];
+          let efEstructuraPreparada = [];
           let erroresPreparacion = [];
           let excluidosPreparacion = [];
           let uploadEnCurso = false;
@@ -5291,6 +6095,7 @@
             previewEl.style.display = 'none';
             previewEl.textContent = '';
             filasPreparadas = [];
+            efEstructuraPreparada = [];
             erroresPreparacion = [];
             excluidosPreparacion = [];
             refreshSubmitState();
@@ -5298,6 +6103,7 @@
 
           async function prepararArchivo(file) {
             filasPreparadas = [];
+            efEstructuraPreparada = [];
             erroresPreparacion = [];
             excluidosPreparacion = [];
             previewEl.style.display = 'none';
@@ -5314,13 +6120,18 @@
             filasPreparadas = mapped.filas;
             erroresPreparacion = mapped.errores;
             excluidosPreparacion = mapped.excluidosDetalle || [];
+            efEstructuraPreparada = parseEfEstructuraFromWorkbook(wb, file.name);
             const resumen = [
               `Hoja detectada: ${sheetName}`,
               `Filas leídas: ${rows.length}`,
               `Excluidas por definición (Apertura/Cierre de Caja): ${mapped.excluidasAperturaCierre || 0}`,
               `Filas válidas: ${filasPreparadas.length}`,
+              `Líneas EF_Estructura: ${efEstructuraPreparada.length}`,
               `Errores (informativo): ${erroresPreparacion.length}`
             ];
+            if (!efEstructuraPreparada.length) {
+              errorEl.textContent = (errorEl.textContent ? errorEl.textContent + '\n' : '') + 'Aviso: el archivo no tiene hoja EF_Estructura; no se actualizará la estructura en Supabase.';
+            }
             previewEl.textContent = resumen.join('\n');
             previewEl.style.display = 'block';
             if (erroresPreparacion.length > 0) {
@@ -5417,6 +6228,16 @@
               progressEl.textContent = `Eliminación completada.\n${deleted} / ${deleted} (100%)`;
               if (progressBarFillEl) progressBarFillEl.style.width = '55%';
               const inserted = await insertarTransaccionesPorLotes(filasPreparadas, 200);
+              let efInserted = 0;
+              if (efEstructuraPreparada.length > 0) {
+                try {
+                  efInserted = await reemplazarEfEstructuraEnSupabase(efEstructuraPreparada, 100, (act, tot) => {
+                    updateProgress('Actualizando estructura EF...', act, tot);
+                  });
+                } catch (efErr) {
+                  throw new Error('Transacciones insertadas, pero falló EF_Estructura: ' + (efErr.message || String(efErr)));
+                }
+              }
               try {
                 await client.from('transacciones_upload_excluidos').delete().not('id', 'is', null);
               } catch (_) { /* tabla opcional */ }
@@ -5455,7 +6276,7 @@
               renderErroresGlobal();
               renderTodasTransacciones();
               renderExcluidosUpload();
-              okEl.textContent = `Actualización completada. Filas insertadas: ${inserted}. Excluidas/logueadas: ${excluidosPreparacion.length}.`;
+              okEl.textContent = `Actualización completada. Filas insertadas: ${inserted}. Estructura EF: ${efInserted} líneas. Excluidas/logueadas: ${excluidosPreparacion.length}.`;
               if (progressBarFillEl) progressBarFillEl.style.width = '100%';
               setTimeout(() => {
                 backdrop.classList.add('oculto');
