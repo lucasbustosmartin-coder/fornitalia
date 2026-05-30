@@ -117,8 +117,8 @@
     .loading { color: #666; }
     .error { color: #b91c1c; }
     .resumen { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-    .resumen .card { flex: 1; min-width: 140px; }
-    .resumen .valor { font-size: 1.5rem; font-weight: 700; }
+    .resumen .card { flex: 1; min-width: 11rem; }
+    .resumen .valor { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: thin; }
     .filtros { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
     .filtros label { display: flex; align-items: center; gap: 0.5rem; }
     .filtros select { padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px solid #ccc; }
@@ -175,22 +175,65 @@
     .errores-filtros { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
     .errores-filtros label { font-size: 0.9rem; color: #555; white-space: nowrap; }
     .errores-filtros select { padding: 0.35rem 0.6rem; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; min-width: 200px; }
-    /* LyP — thead sticky; scroll vertical = página (evita quedar “atascado” al final por overscroll-behavior + doble scroll).
-       Solo scroll horizontal si la tabla desborda. El párrafo informativo queda fuera: no recorta la tabla. */
-    .flujo-table-wrap {
+    /* LyP — tablas de solapas: columnas al ancho del contenido (max título/celda) + scroll horizontal */
+    #tabla-wrap .flujo-table-wrap,
+    #tabla-wrap .errores-table-wrap,
+    #tabla-wrap .evolucion-table-wrap,
+    #tabla-wrap .estado-financiero-table-wrap {
       overflow-x: auto;
       overflow-y: visible;
+      max-width: 100%;
       margin-top: 0.35rem;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior-x: contain;
       border-radius: 6px;
       border: 1px solid #eee;
     }
-    #tabla-estado-financiero {
+    #tabla-wrap .tabla-scroll-anclada {
+      overflow-x: auto;
+      overflow-y: auto;
+      min-height: 14rem;
+      padding-bottom: 1.75rem;
+      overscroll-behavior: contain;
+    }
+    #tabla-wrap .panel table {
+      width: max-content;
       min-width: max-content;
+      table-layout: auto;
       border-collapse: separate;
       border-spacing: 0;
-      --ef-w-label: 22rem;
+    }
+    #tabla-wrap .panel table th,
+    #tabla-wrap .panel table td {
+      white-space: nowrap;
+      width: auto;
+      max-width: none;
+    }
+    #tabla-wrap .panel table th.tabla-celda-wrap,
+    #tabla-wrap .panel table td.tabla-celda-wrap,
+    #tabla-wrap .panel table .disclaimer-proyeccion td {
+      white-space: normal;
+      min-width: 0;
+    }
+    #panel-flujo .flujo-table-wrap th,
+    #panel-flujo .flujo-table-wrap td {
+      font-variant-numeric: tabular-nums;
+    }
+    #panel-flujo .flujo-table-wrap th:first-child,
+    #panel-flujo .flujo-table-wrap td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: #fff;
+      box-shadow: 2px 0 4px rgba(0, 0, 0, 0.06);
+    }
+    #panel-flujo .flujo-table-wrap thead th:first-child { z-index: 3; background: #fff; }
+    #panel-flujo .flujo-table-wrap tfoot td:first-child { background: #f5f5f5; }
+    #panel-flujo tr.fila-proyeccion td:first-child { background: #fafafa; }
+    #panel-flujo tr.fila-titulo-proyeccion td:first-child { background: #f0f0f0; }
+    #tabla-estado-financiero {
+      border-collapse: separate;
+      border-spacing: 0;
     }
     #tabla-estado-financiero th,
     #tabla-estado-financiero td { border-bottom: 1px solid #e8e8e8; padding: 0.45rem 0.55rem; }
@@ -211,9 +254,9 @@
       position: sticky;
       left: 0;
       z-index: 2;
-      min-width: var(--ef-w-label);
-      max-width: 28rem;
-      width: var(--ef-w-label);
+      min-width: max-content;
+      width: auto;
+      max-width: none;
       background: #fff;
       box-shadow: 2px 0 5px rgba(0, 0, 0, 0.07);
     }
@@ -249,8 +292,7 @@
     #tabla-estado-financiero tr.ef-nivel-2.ef-fila-subtotal td.num-ef { background: #f3e8d4 !important; }
     #tabla-estado-financiero td.num-ef { text-align: right; white-space: nowrap; vertical-align: middle; }
     #tabla-estado-financiero td.num-ef.ef-celda-subtotal {
-      white-space: normal;
-      min-width: 5.5rem;
+      white-space: nowrap;
     }
     #tabla-estado-financiero .ef-monto-val { display: block; line-height: 1.3; }
     #tabla-estado-financiero .ef-monto-pct {
@@ -270,34 +312,91 @@
       padding: 0.5rem 0.65rem;
       font-size: 0.85rem;
       line-height: 1.25;
-      min-width: 5.25rem;
     }
     #tabla-estado-financiero th.ef-th-total { font-weight: 700; }
+    #tabla-estado-financiero tr.ef-fila-indicadores-seccion td {
+      background: #e8eef4;
+      font-weight: 600;
+      border-top: 2px solid #c5d0de;
+    }
+    #tabla-estado-financiero tr.ef-fila-indicadores-seccion .ef-sticky-label,
+    #tabla-estado-financiero tr.ef-fila-indicadores-seccion td.num-ef { background: #e8eef4 !important; }
+    #tabla-estado-financiero tr.ef-fila-indicador td.ef-col-label { vertical-align: middle; }
+    #tabla-estado-financiero tr.ef-fila-indicador .ef-label-detalle { white-space: nowrap; }
+    #tabla-estado-financiero td.num-ef.ef-monto-clickable { cursor: pointer; }
+    #tabla-estado-financiero td.num-ef.ef-monto-clickable:hover .ef-monto-val { text-decoration: underline; }
+    #modal-ef-detalle .modal-body { max-height: min(70vh, 520px); overflow: auto; }
+    #modal-ef-detalle .detalle-tabla thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f2f3f5;
+      background-clip: padding-box;
+      box-shadow: 0 1px 0 #ddd;
+    }
+    #tabla-estado-financiero .ef-label-row {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      justify-content: space-between;
+      width: 100%;
+      min-width: 0;
+    }
+    #tabla-estado-financiero .ef-label-row .ef-label,
+    #tabla-estado-financiero .ef-label-row .ef-label-detalle,
+    #tabla-estado-financiero .ef-label-row .ef-label-seccion,
+    #tabla-estado-financiero .ef-label-row .ef-label-total { flex: 1; min-width: 0; }
+    #tabla-estado-financiero .ef-grafico-linea-btn,
+    #tabla-estado-financiero .ef-grafico-columna-btn {
+      flex-shrink: 0;
+      min-width: 1.35rem;
+      min-height: 1.35rem;
+      width: 1.35rem;
+      height: 1.35rem;
+      padding: 0.1rem;
+      border: 1px solid #d8dce3;
+      border-radius: 5px;
+      background: #fff;
+      color: #555;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+    #tabla-estado-financiero .ef-grafico-linea-btn:hover,
+    #tabla-estado-financiero .ef-grafico-columna-btn:hover {
+      color: #1a1a1a;
+      border-color: #9ca3af;
+      background: #f5f5f5;
+    }
+    #tabla-estado-financiero .ef-grafico-linea-btn svg,
+    #tabla-estado-financiero .ef-grafico-columna-btn svg { width: 12px; height: 12px; }
+    #tabla-estado-financiero th .ef-th-periodo-wrap {
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.3rem;
+      white-space: nowrap;
+    }
+    #tabla-estado-financiero th .ef-th-periodo-label { line-height: 1.2; }
+    .modal-grafico.modal-grafico-ef-ancho { max-width: 880px; }
+    @media (max-width: 768px) {
+      #tabla-estado-financiero .ef-grafico-linea-btn,
+      #tabla-estado-financiero .ef-grafico-columna-btn {
+        min-width: 44px;
+        min-height: 44px;
+        width: 44px;
+        height: 44px;
+        padding: 0.35rem;
+      }
+      #tabla-estado-financiero .ef-grafico-linea-btn svg,
+      #tabla-estado-financiero .ef-grafico-columna-btn svg { width: 16px; height: 16px; }
+    }
     .errores-table-wrap:not(.tabla-scroll-anclada) {
       overflow-x: auto;
       overflow-y: visible;
-      margin-top: 0.35rem;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior-x: contain;
-    }
-    /* Scroll interno + thead sticky (EF, Evolución, Transacciones) */
-    .tabla-scroll-anclada {
-      overflow: auto;
-      min-height: 14rem;
-      margin-top: 0.35rem;
-      padding-bottom: 1.75rem;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-      border-radius: 6px;
-      border: 1px solid #eee;
-    }
-    #tabla-errores-global { min-width: max-content; }
-    #tabla-errores-global th:nth-child(12),
-    #tabla-errores-global td:nth-child(12) { text-align: left; }
-    #tabla-todas-transacciones {
-      min-width: max-content;
-      border-collapse: separate;
-      border-spacing: 0;
     }
     #tabla-todas-transacciones thead th {
       position: sticky;
@@ -309,8 +408,12 @@
       font-weight: 600;
       color: #555;
     }
-    #tabla-todas-transacciones th:nth-child(11),
-    #tabla-todas-transacciones td:nth-child(11) { text-align: left; max-width: 200px; }
+    #tabla-todas-transacciones th:nth-child(17),
+    #tabla-todas-transacciones td:nth-child(17),
+    #tabla-errores-global th:nth-child(12),
+    #tabla-errores-global td:nth-child(12),
+    #tabla-excluidos-upload td:nth-child(4),
+    #tabla-excluidos-upload td:nth-child(8) { text-align: left; }
     .fila-proyeccion { font-style: italic; color: #555; background: #fafafa; cursor: pointer; }
     .fila-proyeccion:hover { background: #f0f0f0; }
     .fila-proyeccion td:first-child { font-weight: 500; }
@@ -324,7 +427,7 @@
     #modal-configuracion .config-meses-inclusion-grid { display: flex; flex-direction: column; gap: 0.35rem; max-height: 280px; overflow-y: auto; padding: 0.35rem 0; border: 1px solid #e5e5e5; border-radius: 8px; background: #fafafa; }
     #modal-configuracion .config-meses-inclusion-grid .config-switch-row { margin: 0; padding: 0.35rem 0.65rem; border-radius: 6px; }
     #modal-configuracion .config-meses-inclusion-grid .config-switch-row:hover { background: #f0f0f0; }
-    #tabla-evolucion { min-width: 100%; border-collapse: collapse; }
+    #tabla-evolucion { border-collapse: separate; border-spacing: 0; }
     #tabla-evolucion th, #tabla-evolucion td { padding: 0.45rem 0.65rem; white-space: nowrap; }
     #tabla-evolucion th { background: #f2f3f5; font-weight: 600; color: #555; }
     /* Encabezado fijo al desplazarse hacia abajo */
@@ -512,7 +615,9 @@
     .app-footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #eee; font-size: 0.85rem; color: #888; text-align: center; }
     .modal-grafico { max-width: 720px; }
     .modal-grafico-body { min-height: 280px; }
+    .modal-grafico.modal-grafico-ef-ancho .modal-grafico-body { min-height: 340px; }
     .grafico-container { position: relative; height: 280px; width: 100%; }
+    .modal-grafico.modal-grafico-ef-ancho .grafico-container { height: 340px; }
     .modal-tabla .icon-btn { width: 24px; height: 24px; }
     .modal-tabla .icon-btn svg { width: 100%; height: 100%; }
     .tabs-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.5rem; }
@@ -752,9 +857,9 @@
       <template id="template-flujo-informe-pdf">
         <div class="th-help-rich-content">
           <p>En <strong>ARS</strong>, movimientos en <strong>USD</strong>: <strong>monto × tipo_cambio</strong> de la fila; si falta, <strong>monto × cotización</strong> de la tabla (MEP/CCL/Oficial); si no hay tasa, <strong>monto_cambio</strong> en BD. Movimientos ya en ARS: se usa <strong>monto</strong> (no <strong>monto_cambio</strong>, que en el extracto puede venir desalineado).</p>
-          <p>Columnas <strong>Ingresos</strong>, <strong>Egresos</strong> y <strong>G/P operativo</strong> = caja operativa del extracto (sin anulados ni apertura/cierre de caja).</p>
-          <p><strong>Costo directo / Ingresos</strong> y <strong>Costo indirecto / Ingresos</strong> = egresos operativos con <code>costo_directo</code> o <code>costo_indirecto</code> = Y, divididos por ingresos operativos del mes (sin restar comisiones aparte: quedan clasificados por esas banderas).</p>
-          <p><strong>Costo total / Ingreso total</strong> = total de egresos operativos del mes dividido por ingresos operativos del mes.</p>
+          <p>Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = caja operativa neteada: egresos con <code>ef_subitem</code> de ingreso §1 (Cobranzas, Otros ingresos operativos, etc.) se restan de ambas columnas del mes (devoluciones / ajustes al mismo rubro que el Estado Financiero). <strong>G/P operativo</strong> = Ingresos − Egresos (sin cambio). Caución sigue con flujo bruto en ARS.</p>
+          <p><strong>Comisiones / Ventas %</strong> = egresos con <code>ef_subitem</code> <strong>Comisiones por Ventas</strong> ÷ ingresos con <code>ef_subitem</code> <strong>Cobranzas por Ventas (Efectivo neto ingresado)</strong> del mes (subítems canónicos EF; alias cortos en import se normalizan). Sin <code>ef_subitem</code> la fila no entra al ratio.</p>
+          <p>Columnas <strong>Costo dir.</strong>, <strong>Costo ind.</strong> y <strong>Costo total / Ingreso total</strong> usan la misma fórmula % del Flujo Op. que el Estado Financiero (montos internos sin redondear; solo la visualización de importes es entera).</p>
           <p><strong>Caución</strong> además usa <strong>solo movimientos en moneda de origen ARS</strong> y montos en <strong>pesos</strong> (la tasa de la serie es en ARS), aunque el selector muestre USD en el resto de la tabla.</p>
         </div>
       </template>
@@ -768,13 +873,13 @@
         <thead>
           <tr>
             <th>Mes-Año</th>
-            <th>Ingresos</th>
-            <th>Egresos</th>
+            <th>Ingresos <span class="th-help" data-help="Ingresos operativos del mes, netos de devoluciones con ef_subitem de ingreso §1 (mismo criterio que FLUJO OPERATIVO GENERADO en EF). El importe se resta también de Egresos para no alterar el balance." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></th>
+            <th>Egresos <span class="th-help" data-help="Egresos operativos del mes, menos devoluciones §1 (egresos imputados al mismo ef_subitem que un ingreso de §1). Alineado al neteo de Ingresos." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></th>
             <th>G/P operativo</th>
-            <th>Comisiones <span class="th-help" data-help="Corresponde solo a las comisiones por venta." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ventas %</th>
-            <th>Costo dir. <span class="th-help" data-help="Egresos operativos con costo_directo = Y, divididos por ingresos operativos del mes. No se restan comisiones aparte." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
-            <th>Costo ind. <span class="th-help" data-help="Egresos operativos con costo_indirecto = Y (y sin prioridad de directo), divididos por ingresos operativos. No se restan comisiones aparte." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
-            <th>Costo total <span class="th-help" data-help="Egresos operativos del mes divididos por ingresos operativos del mes." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingreso total</th>
+            <th>Comisiones <span class="th-help" data-help="Comisiones por Ventas (ef_subitem) ÷ Cobranzas por Ventas (Efectivo neto ingresado) (ef_subitem), por mes. Solo filas con subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ventas %</th>
+            <th>Costo dir. <span class="th-help" data-help="Total COSTOS DIRECTOS (Efectivo) (ef_item §2) ÷ total FLUJO OPERATIVO GENERADO (ef_item §1) del mes. Alineado al Estado Financiero. Solo filas con ítem/subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
+            <th>Costo ind. <span class="th-help" data-help="Total COSTOS INDIRECTOS (Estructura) (ef_item §3) ÷ total FLUJO OPERATIVO GENERADO (ef_item §1) del mes. Alineado al Estado Financiero. Solo filas con ítem/subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
+            <th>Costo total <span class="th-help" data-help="Total egresos operativos del mes ÷ total FLUJO OPERATIVO GENERADO (ef_item §1). Alineado al Estado Financiero (% del Flujo Op.)." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingreso total</th>
             <th class="th-int-caucion" id="th-int-caucion-label" title="Interés acumulado por mes colocando el sobrante de caja a la tasa de la serie de cauciones">Caución (100% cash)</th>
             <th class="alert-icon-cell"></th>
           </tr>
@@ -939,7 +1044,8 @@
       <template id="template-estado-financiero-panel">
         <div class="th-help-rich-content">
           <p>Estructura desde <strong>EF_Estructura</strong> (Supabase <code>ef_estructura</code>), montos desde transacciones por <code>ef_subitem</code>. Misma base operativa que Evolución (sin anulados ni apertura/cierre).</p>
-          <p>Columna <strong>Ítem</strong>: secciones y totales en negrita; detalle con viñeta. Subtotales y fórmulas muestran % del <strong>Flujo Operativo Generado</strong>.</p>
+          <p>Columna <strong>Ítem</strong>: secciones y totales en negrita; detalle con viñeta. Subtotales y fórmulas muestran % del <strong>Flujo Operativo Generado</strong>. Clic en un <strong>importe</strong> abre el detalle de transacciones que lo componen. Icono <strong>línea</strong> por fila: evolución mensual. Icono <strong>barras</strong> en columnas: consumo del Flujo Op. (Margen bruto de caja y Flujo neto del período).</p>
+          <p>Al final de la tabla, filas <strong>Indicadores de Gestión</strong> (mismas columnas de período). Fórmula y notas en el icono <strong>?</strong> junto al nombre.</p>
           <p><em>Conciliación de disponibilidades (sección 7) oculta por ahora.</em></p>
         </div>
       </template>
@@ -957,7 +1063,7 @@
         <button type="button" class="btn btn-success btn-ver-errores btn-exportar-evolucion" id="btn-exportar-estado-financiero" title="Exportar tabla Estado Financiero a Excel"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar EF a Excel</button>
       </div>
       <div class="estado-financiero-table-wrap tabla-scroll-anclada">
-        <table id="tabla-estado-financiero">
+        <table id="tabla-estado-financiero" class="tabla-layout-ef">
           <thead id="thead-estado-financiero"></thead>
           <tbody id="tbody-estado-financiero"></tbody>
         </table>
@@ -1153,7 +1259,7 @@
           </div>
           <div class="form-group">
             <label for="edit-costo-directo">Costo directo</label>
-            <select id="edit-costo-directo" title="Bandera matriz (Y/N). Afecta ratios Costo directo / Ingresos en egresos operativos.">
+            <select id="edit-costo-directo" title="Bandera matriz (Y/N). Agrupa egresos en modal por categoría; el ratio Costo dir./Ingresos usa ítems EF (§2 COSTOS DIRECTOS).">
               <option value="">—</option>
               <option value="Y">Y</option>
               <option value="N">N</option>
@@ -1161,7 +1267,7 @@
           </div>
           <div class="form-group">
             <label for="edit-costo-indirecto">Costo indirecto</label>
-            <select id="edit-costo-indirecto" title="Bandera matriz (Y/N). Afecta ratios Costo indirecto / Ingresos si no es directo.">
+            <select id="edit-costo-indirecto" title="Bandera matriz (Y/N). Agrupa egresos en modal por categoría; el ratio Costo ind./Ingresos usa ítems EF (§3 COSTOS INDIRECTOS).">
               <option value="">—</option>
               <option value="Y">Y</option>
               <option value="N">N</option>
@@ -1394,6 +1500,38 @@
     </div>
   </div>
 
+  <div id="modal-ef-detalle-backdrop" class="modal-backdrop oculto">
+    <div class="modal modal-evolucion-detalle-ancho" id="modal-ef-detalle">
+      <div class="modal-header" id="modal-ef-detalle-header-drag">
+        <h2 id="modal-ef-detalle-titulo">Detalle Estado Financiero</h2>
+        <button type="button" class="modal-close" id="modal-ef-detalle-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
+      </div>
+      <div class="modal-body" id="modal-ef-detalle-body">
+        <p id="modal-ef-detalle-resumen" class="modal-ef-detalle-resumen" style="margin:0 0 0.75rem;font-size:0.9rem;color:#555;"></p>
+        <div class="errores-table-wrap">
+          <table class="detalle-tabla" id="tabla-ef-detalle">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>EF Subítem</th>
+                <th>EF Ítem</th>
+                <th>Categoría (matriz)</th>
+                <th>Cuenta (matriz)</th>
+                <th>Descripción</th>
+                <th>Tipo</th>
+                <th>Monto</th>
+                <th>Origen</th>
+                <th>Id origen</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-ef-detalle"></tbody>
+            <tfoot id="tfoot-ef-detalle"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="modal-evolucion-detalle-backdrop" class="modal-backdrop oculto">
     <div class="modal modal-evolucion-detalle-ancho" id="modal-evolucion-detalle">
       <div class="modal-header" id="modal-evolucion-detalle-header-drag">
@@ -1453,7 +1591,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.78';
+    const APP_VERSION = '1.96';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1927,7 +2065,7 @@
     async function syncConfigToSupabase() {
       try {
         const { data: { session } } = await client.auth.getSession();
-        if (!session?.user?.id) return;
+        if (!session?.user?.id) return { ok: true, skipped: true };
         const uid = session.user.id;
         const metodo = localStorage.getItem(PROYECCION_METODO_KEY) || 'promedio_recortado';
         const meses = parseInt(localStorage.getItem(PROYECCION_MESES_KEY) || '6', 10) || 6;
@@ -1941,7 +2079,7 @@
           if (rawM != null && rawM !== '') mesesExcluidosArr = JSON.parse(rawM);
           if (!Array.isArray(mesesExcluidosArr)) mesesExcluidosArr = [];
         } catch (_) { mesesExcluidosArr = []; }
-        await client.from('config_dashboard').upsert({
+        const { error } = await client.from('config_dashboard').upsert({
           user_id: uid,
           proyeccion_metodo: metodo,
           proyeccion_meses: meses,
@@ -1957,7 +2095,15 @@
           meses_excluidos: mesesExcluidosArr,
           updated_at: new Date().toISOString()
         }, { onConflict: 'user_id' });
-      } catch (_) { /* ya quedó en localStorage */ }
+        if (error) {
+          console.error('syncConfigToSupabase', error);
+          return { ok: false, error };
+        }
+        return { ok: true };
+      } catch (err) {
+        console.error('syncConfigToSupabase', err);
+        return { ok: false, error: err };
+      }
     }
 
     function getProyeccionConfig() {
@@ -2031,21 +2177,41 @@
       return anio + '-' + String(mes + 1).padStart(2, '0');
     }
 
-    function ratioCostoTotalVsIngresoTotal(ingresos, egresos) {
-      const ing = ingresos > 0 ? ingresos : 0;
-      const egr = egresos != null ? egresos : 0;
-      return ing > 0 ? ((egr / ing) * 100).toFixed(1) + '%' : '–';
+    /** % del Flujo Operativo Generado (misma fórmula que Estado Financiero; montos sin redondear). */
+    function pctDelFlujoOperativo(valor, base) {
+      const b = Math.abs(base || 0);
+      if (!b) return null;
+      return (Math.abs(valor || 0) / b) * 100;
     }
 
-    /** Costo directo/indirecto / Ingresos = suma egresos con bandera Y ÷ ingresos operativos (sin restar comisiones). */
-    function ratiosCostoDirectoIndirectoVsIngresos(ingresos, egrDir, egrInd) {
-      const ing = ingresos > 0 ? ingresos : 0;
-      const dE = egrDir != null ? egrDir : 0;
-      const iE = egrInd != null ? egrInd : 0;
-      const sumaTag = dE + iE;
-      if (sumaTag <= 0) return { pctDir: '–', pctInd: '–' };
-      const pctDir = ing > 0 ? ((dE / ing) * 100).toFixed(1) + '%' : '–';
-      const pctInd = ing > 0 ? ((iE / ing) * 100).toFixed(1) + '%' : '–';
+    function formatearPctRatioFlujo(pct) {
+      if (pct == null || isNaN(pct)) return '–';
+      return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(pct) + '%';
+    }
+
+    /** Ratio egresos ÷ FLUJO OPERATIVO GENERADO (base común dir./ind./total). */
+    function ratioEfVsFlujoOperativo(flujoOperativoGenerado, montoEgreso) {
+      const egr = montoEgreso != null ? montoEgreso : 0;
+      if (egr <= 0) return '–';
+      return formatearPctRatioFlujo(pctDelFlujoOperativo(egr, flujoOperativoGenerado));
+    }
+
+    function ratioCostoDirectoVsFlujoOperativo(flujoOperativoGenerado, egrCostoDirecto) {
+      return ratioEfVsFlujoOperativo(flujoOperativoGenerado, egrCostoDirecto);
+    }
+
+    function ratioCostoIndirectoVsFlujoOperativo(flujoOperativoGenerado, egrCostoIndirecto) {
+      return ratioEfVsFlujoOperativo(flujoOperativoGenerado, egrCostoIndirecto);
+    }
+
+    /** Costo total / Ingreso total = total egresos operativos ÷ FLUJO OPERATIVO GENERADO. */
+    function ratioCostoTotalVsFlujoOperativo(flujoOperativoGenerado, egresosOperativos) {
+      return ratioEfVsFlujoOperativo(flujoOperativoGenerado, egresosOperativos);
+    }
+
+    function ratiosCostoDirectoIndirectoVsIngresos(_ingresos, egrDir, egrInd, flujoOperativoGenerado) {
+      const pctDir = ratioCostoDirectoVsFlujoOperativo(flujoOperativoGenerado, egrDir);
+      const pctInd = ratioCostoIndirectoVsFlujoOperativo(flujoOperativoGenerado, egrInd);
       return { pctDir, pctInd };
     }
 
@@ -2178,7 +2344,7 @@
 
     function formatearNumero(n, moneda) {
       if (n == null || isNaN(n)) return '–';
-      return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: moneda === 'USD' ? 2 : 0 }).format(n);
+      return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(n));
     }
 
     function esMonedaUSD(medioPago) {
@@ -2409,6 +2575,8 @@
 
     let cacheTransacciones = [];
     let cacheEfEstructura = [];
+    let cacheEfSubitemToItem = null;
+    let cacheEfSec1IngresoSubitemKeys = null;
     let cacheTC = {};
     let fechasConTasa = { mep: [], ccl: [], oficial: [] };
     let cacheSerieCauciones = {};
@@ -2507,7 +2675,12 @@
         CARGA_TIMEOUT_MS,
         'La carga de datos tardó demasiado. Revisá la conexión o intentá de nuevo.'
       );
-      cacheEfEstructura = (efRows || []).slice().sort((a, b) => (a.orden || 0) - (b.orden || 0));
+      cacheEfEstructura = (efRows || []).slice().sort((a, b) => (a.orden || 0) - (b.orden || 0)).map(r => ({
+        ...r,
+        ef_item: efItemEtiquetaDisplay(r.ef_item || '')
+      }));
+      cacheEfSubitemToItem = null;
+      cacheEfSec1IngresoSubitemKeys = null;
       cacheTransacciones = (txRows || []).map(r => {
         const f = fechaStr(r.fecha);
         let mesNum = r.mes != null && r.mes !== '' ? Number(r.mes) : null;
@@ -2687,11 +2860,12 @@
         }
 
         const catExtract = (r.categoria || '').trim() || 'Sin categoría';
-        const catLow = catExtract.toLowerCase();
         const catMatriz = categoriaDistribucionFlujo(r);
         if (!porMes[key]) porMes[key] = {
           anio: r.anio, mes: r.mes, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0,
-          egresosCostoDirecto: 0, egresosCostoIndirecto: 0
+          flujoOperativoGenerado: 0,
+          egresosCostoDirecto: 0, egresosCostoIndirecto: 0,
+          devolucionesSec1: 0
         };
         if (!porMesCategoria[key]) porMesCategoria[key] = {};
         if (!porMesCategoria[key][catMatriz]) porMesCategoria[key][catMatriz] = 0;
@@ -2702,21 +2876,46 @@
           porMes[key].ingresos += montoParaSumar;
           totalIngresos += montoParaSumar;
           porMesCatIng[key][catMatriz] = (porMesCatIng[key][catMatriz] || 0) + montoParaSumar;
-          if (catLow.includes('venta')) porMes[key].ventas += montoParaSumar;
+          if (esEfSubitemCobranzasPorVentas(r)) porMes[key].ventas += montoParaSumar;
+          if (esEfItemFlujoOperativoGenerado(r)) porMes[key].flujoOperativoGenerado += montoParaSumar;
         } else if (r.tipo_movimiento === 'Egreso') {
           porMes[key].egresos += montoParaSumar;
           totalEgresos += montoParaSumar;
           porMesCatEgr[key][catMatriz] = (porMesCatEgr[key][catMatriz] || 0) + montoParaSumar;
-          const cd = (r.costo_directo || '').toString().trim().toUpperCase() === 'Y';
-          const ci = (r.costo_indirecto || '').toString().trim().toUpperCase() === 'Y';
-          if (cd) porMes[key].egresosCostoDirecto += montoParaSumar;
-          if (ci) porMes[key].egresosCostoIndirecto += montoParaSumar;
-          if (catLow === 'comisiones') {
-            porMes[key].comisiones += montoParaSumar;
+          if (esEfSubitemSec1Ingreso(r)) {
+            porMes[key].devolucionesSec1 += montoParaSumar;
+            if (esEfSubitemCobranzasPorVentas(r)) porMes[key].ventas -= montoParaSumar;
           }
-          if (catLow === 'comisiones' || esComisionDentroSueldos(r.categoria, r.descripcion, r.cat_desc)) porMes[key].comisionesParaRatio += montoParaSumar;
+          if (esEfItemCostosDirectos(r)) porMes[key].egresosCostoDirecto += montoParaSumar;
+          if (esEfItemCostosIndirectos(r)) porMes[key].egresosCostoIndirecto += montoParaSumar;
+          if (esEfSubitemComisionesPorVentas(r)) {
+            porMes[key].comisiones += montoParaSumar;
+            porMes[key].comisionesParaRatio += montoParaSumar;
+          }
         }
       });
+
+      /** Opción 3: devoluciones con subítem de ingreso §1 netean Ingresos y Egresos (balance igual; alineado a EF §1). */
+      Object.keys(porMes).forEach(key => {
+        const dev = porMes[key].devolucionesSec1 || 0;
+        if (!(dev > 0)) return;
+        porMes[key].ingresos -= dev;
+        porMes[key].egresos -= dev;
+        totalIngresos -= dev;
+        totalEgresos -= dev;
+      });
+
+      /** Dir./ind./Flujo Op.: mismos totales de sección EF que Estado Financiero (ef_subitem, sin redondeo). */
+      const seccionesEfPorMes = calcularSeccionesEfPorMes(moneda, tipoDolar);
+      if (seccionesEfPorMes) {
+        Object.keys(porMes).forEach(key => {
+          const sec = seccionesEfPorMes[key];
+          if (!sec || !(sec.flujoOperativoGenerado > 0)) return;
+          porMes[key].flujoOperativoGenerado = sec.flujoOperativoGenerado;
+          porMes[key].egresosCostoDirecto = sec.egresosCostoDirecto;
+          porMes[key].egresosCostoIndirecto = sec.egresosCostoIndirecto;
+        });
+      }
 
       Object.keys(porMes).forEach(k => { porMes[k].intCaucion = 0; });
       detalleIntCaucionPorMes = {};
@@ -2804,8 +3003,8 @@
       flujoMoneda = moneda;
       flujoSimbolo = simbolo;
       document.getElementById('resumen').innerHTML = `
-        <div class="card" title="Ingresos operativos del extracto (sin anulados ni apertura/cierre)"><div style="color:#555;">Ingresos totales</div><div class="valor ingresos">${simbolo}${formatearNumero(totalIngresos, moneda)}</div></div>
-        <div class="card" title="Egresos operativos del extracto (sin anulados ni apertura/cierre)"><div style="color:#555;">Egresos totales</div><div class="valor egresos">${simbolo}${formatearNumero(totalEgresos, moneda)}</div></div>
+        <div class="card" title="Ingresos operativos netos (devoluciones §1 neteadas de Ingresos y Egresos)"><div style="color:#555;">Ingresos totales</div><div class="valor ingresos">${simbolo}${formatearNumero(totalIngresos, moneda)}</div></div>
+        <div class="card" title="Egresos operativos netos (sin devoluciones §1, que se netean en Ingresos)"><div style="color:#555;">Egresos totales</div><div class="valor egresos">${simbolo}${formatearNumero(totalEgresos, moneda)}</div></div>
         <div class="card" title="Ingresos − egresos operativos; alineado a ratios y Caución"><div style="color:#555;">G/P operativo</div><div class="valor balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</div></div>
       `;
       document.getElementById('resumen').style.display = 'flex';
@@ -2844,18 +3043,20 @@
       const filasReales = ordenados.map(key => {
         const ay = parseInt(key.slice(0, 4), 10);
         const am = parseInt(key.slice(5), 10);
-        const d = porMes[key] || { anio: ay, mes: am, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0, intCaucion: 0, egresosCostoDirecto: 0, egresosCostoIndirecto: 0 };
+        const d = porMes[key] || { anio: ay, mes: am, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0, intCaucion: 0, flujoOperativoGenerado: 0, egresosCostoDirecto: 0, egresosCostoIndirecto: 0 };
         const balance = d.ingresos - d.egresos;
         const label = formatoMesAnio(d.mes, d.anio);
         const comisionesParaRatio = d.comisionesParaRatio != null ? d.comisionesParaRatio : 0;
         const ventas = d.ventas != null ? d.ventas : 0;
         const comVentasPct = ventas > 0 ? ((comisionesParaRatio / ventas) * 100).toFixed(1) + '%' : '–';
+        const flujoOp = d.flujoOperativoGenerado != null ? d.flujoOperativoGenerado : 0;
         const { pctDir: costoDirIngPct, pctInd: costoIndIngPct } = ratiosCostoDirectoIndirectoVsIngresos(
           d.ingresos != null ? d.ingresos : 0,
           d.egresosCostoDirecto,
-          d.egresosCostoIndirecto
+          d.egresosCostoIndirecto,
+          flujoOp
         );
-        const costoTotalIngPct = ratioCostoTotalVsIngresoTotal(d.ingresos, d.egresos);
+        const costoTotalIngPct = ratioCostoTotalVsFlujoOperativo(flujoOp, d.egresos);
         const alertas = alertasPorMes[key] || [];
         const alertasJson = alertas.length ? JSON.stringify(alertas).replace(/"/g, '&quot;') : '';
         const iconoAlert = alertas.length ? `<span class="alert-icon" role="button" tabindex="0" data-alertas="${alertasJson}" data-label="${label.replace(/"/g, '&quot;')}" title="Ver alertas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>` : '';
@@ -2918,6 +3119,12 @@
         const proyVentas = proyeccionDesdeSerie(valoresVentas, N, agg, mesesAProyectar);
         const proyComisionesParaRatio = proyeccionDesdeSerie(valoresComisionesParaRatio, N, agg, mesesAProyectar);
         const proyComisiones = proyeccionDesdeSerie(valoresComisiones, N, agg, mesesAProyectar);
+        const valoresEgrDir = ordenados.map(k => { const x = porMes[k]; return x && x.egresosCostoDirecto != null ? x.egresosCostoDirecto : 0; });
+        const valoresEgrInd = ordenados.map(k => { const x = porMes[k]; return x && x.egresosCostoIndirecto != null ? x.egresosCostoIndirecto : 0; });
+        const valoresFlujoOp = ordenados.map(k => { const x = porMes[k]; return x && x.flujoOperativoGenerado != null ? x.flujoOperativoGenerado : 0; });
+        const proyEgrDir = proyeccionDesdeSerie(valoresEgrDir, N, agg, mesesAProyectar);
+        const proyEgrInd = proyeccionDesdeSerie(valoresEgrInd, N, agg, mesesAProyectar);
+        const proyFlujoOp = proyeccionDesdeSerie(valoresFlujoOp, N, agg, mesesAProyectar);
         const valoresIngArsCaucion = ordenados.map(k => (porMesArs[k] ? porMesArs[k].ingresos : 0));
         const valoresEgrArsCaucion = ordenados.map(k => (porMesArs[k] ? porMesArs[k].egresos : 0));
         const proyIngArsCaucion = proyeccionDesdeSerie(valoresIngArsCaucion, N, agg, mesesAProyectar);
@@ -2935,7 +3142,8 @@
         let prevRes = null;
         for (let i = 0; i < mesesAProyectar; i++) {
           const comVentasPctI = proyVentas[i] > 0 ? ((proyComisionesParaRatio[i] / proyVentas[i]) * 100).toFixed(1) + '%' : '–';
-          const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct: comVentasPctI, costoDirIngPct: '–', costoIndIngPct: '–', costoTotalIngPct: ratioCostoTotalVsIngresoTotal(proyIng[i], proyEgr[i]) };
+          const { pctDir: costoDirIngPctI, pctInd: costoIndIngPctI } = ratiosCostoDirectoIndirectoVsIngresos(proyIng[i], proyEgrDir[i], proyEgrInd[i], proyFlujoOp[i]);
+          const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct: comVentasPctI, costoDirIngPct: costoDirIngPctI, costoIndIngPct: costoIndIngPctI, costoTotalIngPct: ratioCostoTotalVsFlujoOperativo(proyFlujoOp[i], proyEgr[i]) };
           proys.push(proy);
           if (i > 0 && prevRes && prevRes.detalle && prevRes.detalle.length > 0) {
             const ultima = prevRes.detalle[prevRes.detalle.length - 1];
@@ -2986,15 +3194,16 @@
         return s + (pm && pm.ventas != null ? pm.ventas : 0);
       }, 0);
       const comVentasPctTotal = totalVentas > 0 ? ((totalComisionesParaRatio / totalVentas) * 100).toFixed(1) + '%' : '–';
-      let sumEgrDir = 0, sumEgrInd = 0;
+      let sumEgrDir = 0, sumEgrInd = 0, sumFlujoOp = 0;
       ordenados.forEach(k => {
         const pm = porMes[k];
         if (!pm) return;
         sumEgrDir += pm.egresosCostoDirecto || 0;
         sumEgrInd += pm.egresosCostoIndirecto || 0;
+        sumFlujoOp += pm.flujoOperativoGenerado || 0;
       });
-      const { pctDir: totCostoDirIng, pctInd: totCostoIndIng } = ratiosCostoDirectoIndirectoVsIngresos(totalIngresos, sumEgrDir, sumEgrInd);
-      const totCostoTotalIng = ratioCostoTotalVsIngresoTotal(totalIngresos, totalEgresos);
+      const { pctDir: totCostoDirIng, pctInd: totCostoIndIng } = ratiosCostoDirectoIndirectoVsIngresos(totalIngresos, sumEgrDir, sumEgrInd, sumFlujoOp);
+      const totCostoTotalIng = ratioCostoTotalVsFlujoOperativo(sumFlujoOp, totalEgresos);
       const tfoot = document.getElementById('tfoot-flujo');
       if (tfoot) {
         let tfootHtml = ordenados.length === 0 ? '' : `<tr class="fila-total-real">
@@ -3022,6 +3231,7 @@
       renderEvolucion();
       renderEstadoFinanciero();
       actualizarNotaMesesExcluidosFlujo();
+      programarAjusteTablasScrollAncladas();
     }
 
     let evolucionDetalle = {};
@@ -3353,6 +3563,61 @@
       programarAjusteTablasScrollAncladas();
     }
 
+    function celdaExcluidaAutoAnchoColumna(cell) {
+      if (!cell || cell.colSpan > 1) return true;
+      if (cell.classList.contains('alert-icon-cell')) return true;
+      if (cell.closest('.disclaimer-proyeccion')) return true;
+      return false;
+    }
+
+    /** Ancho de columna = max(título, celdas); scroll horizontal en el wrap de la solapa. */
+    function ajustarAnchoColumnasTabla(table) {
+      if (!table || !table.tHead || !table.tHead.rows.length) return;
+      const headRow = table.tHead.rows[0];
+      const colCount = headRow.cells.length;
+      if (!colCount) return;
+
+      const maxWidths = new Array(colCount).fill(0);
+      const medir = (cell, colIdx) => {
+        if (celdaExcluidaAutoAnchoColumna(cell)) return;
+        const clone = cell.cloneNode(true);
+        const cs = window.getComputedStyle(cell);
+        clone.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden;height:auto;width:auto;max-width:none;min-width:0;white-space:nowrap;';
+        clone.style.font = cs.font;
+        clone.style.padding = cs.padding;
+        clone.style.letterSpacing = cs.letterSpacing;
+        document.body.appendChild(clone);
+        const w = clone.getBoundingClientRect().width;
+        document.body.removeChild(clone);
+        if (w > maxWidths[colIdx]) maxWidths[colIdx] = w;
+      };
+
+      [...headRow.cells].forEach((cell, i) => medir(cell, i));
+      table.querySelectorAll('tbody tr, tfoot tr').forEach(tr => {
+        if (tr.closest('.disclaimer-proyeccion')) return;
+        [...tr.cells].forEach((cell, i) => {
+          if (i < colCount) medir(cell, i);
+        });
+      });
+
+      let colgroup = table.querySelector('colgroup[data-auto-cols]');
+      if (!colgroup) {
+        colgroup = document.createElement('colgroup');
+        colgroup.setAttribute('data-auto-cols', '1');
+        table.insertBefore(colgroup, table.firstChild);
+      }
+      colgroup.replaceChildren();
+      maxWidths.forEach(w => {
+        const col = document.createElement('col');
+        if (w > 0) col.style.minWidth = Math.ceil(w + 1) + 'px';
+        colgroup.appendChild(col);
+      });
+    }
+
+    function ajustarAnchoColumnasTablasPanel() {
+      document.querySelectorAll('#tabla-wrap .panel.activo table').forEach(ajustarAnchoColumnasTabla);
+    }
+
     function ajustarAlturaTablasScrollAncladas() {
       const margenInferior = 20;
       document.querySelectorAll('.tabla-scroll-anclada').forEach((wrap) => {
@@ -3367,7 +3632,201 @@
     }
 
     function programarAjusteTablasScrollAncladas() {
-      requestAnimationFrame(() => requestAnimationFrame(ajustarAlturaTablasScrollAncladas));
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        ajustarAlturaTablasScrollAncladas();
+        ajustarAnchoColumnasTablasPanel();
+      }));
+    }
+
+    function efColKeyDesdeTransaccion(r, periodo) {
+      if (periodo === 'diario') {
+        const colKey = fechaStr(r.fecha);
+        return colKey || null;
+      }
+      const { anio: anioF, mes: mesF } = anioMesDesdeFecha(r.fecha);
+      const anio = r.anio != null ? r.anio : anioF;
+      const mes = r.mes != null ? r.mes : mesF;
+      if (anio == null || mes == null) return null;
+      return anio + '-' + String(mes).padStart(2, '0');
+    }
+
+    function efTransaccionToDetalleItem(r, moneda, tipoDolar) {
+      const montoConv = montoConvertido(r, moneda, tipoDolar);
+      if (montoConv == null) return null;
+      const signo = r.tipo_movimiento === 'Ingreso' ? 1 : -1;
+      return {
+        fecha: fechaStr(r.fecha),
+        ef_subitem: resolveEfSubitemCanon(r.ef_subitem) || r.ef_subitem || '—',
+        ef_item: efItemEtiquetaDisplay(r.ef_item) || '—',
+        categoria: categoriaDistribucionFlujo(r),
+        cuenta: cuentaDistribucionFlujo(r),
+        descripcion: (r.descripcion || r.cliente || '').trim() || '—',
+        tipo_movimiento: (r.tipo_movimiento || '').trim() || '—',
+        monto: signo * montoConv,
+        origen_archivo: (r.origen_archivo || '').trim() || '—',
+        id_origen: (r.id_origen != null && r.id_origen !== '') ? String(r.id_origen) : '—'
+      };
+    }
+
+    function efSubitemsDesdeSeccionEnLines(sectionLine, lines) {
+      const idx = lines.indexOf(sectionLine);
+      if (idx < 0) return [];
+      const subs = [];
+      for (let j = idx + 1; j < lines.length; j++) {
+        const next = lines[j];
+        if (next.nivel === 0 || next.nivel === 2) break;
+        if (next.nivel === 1 && next.ef_subitem) {
+          const c = resolveEfSubitemCanon(next.ef_subitem) || next.ef_subitem;
+          if (c) subs.push(c);
+        }
+      }
+      return subs;
+    }
+
+    function efSubitemsDesdeSeccionCodigo(lines, codigo) {
+      const ln = lines.find(l => l.nivel === 0 && normalizarString(l.codigo) === normalizarString(codigo));
+      return ln ? efSubitemsDesdeSeccionEnLines(ln, lines) : [];
+    }
+
+    function efSubitemPorCodigoLinea(lines, cod) {
+      const ln = lines.find(l => l.nivel === 1 && normalizarString(l.codigo) === normalizarString(cod));
+      if (!ln || !ln.ef_subitem) return [];
+      const c = resolveEfSubitemCanon(ln.ef_subitem) || ln.ef_subitem;
+      return c ? [c] : [];
+    }
+
+    function efSubitemsNivel1EnBloque(lines, startIdx, endIdx) {
+      const subs = [];
+      for (let j = startIdx + 1; j < endIdx; j++) {
+        if (lines[j].nivel === 1 && lines[j].ef_subitem) {
+          const c = resolveEfSubitemCanon(lines[j].ef_subitem) || lines[j].ef_subitem;
+          if (c) subs.push(c);
+        }
+      }
+      return subs;
+    }
+
+    /** Subítems cuya suma alimenta el importe de la fila EF (detalle al clic). */
+    function efSubitemsParaLineaDetalle(line, lines) {
+      if (line.nivel === 1 && line.ef_subitem) {
+        const c = resolveEfSubitemCanon(line.ef_subitem) || line.ef_subitem;
+        return c ? [c] : [];
+      }
+      if (line.nivel === 0) {
+        return efSubitemsDesdeSeccionEnLines(line, lines);
+      }
+      if (line.nivel === 2) {
+        const cod = normalizarString(line.codigo).toUpperCase();
+        const nat = normalizarString(line.naturaleza || '');
+        const s = (c) => efSubitemsDesdeSeccionCodigo(lines, c);
+        const sub = (c) => efSubitemPorCodigoLinea(lines, c);
+        if (cod === 'A' || /Total\s+1\s*-\s*Total\s+2/i.test(nat)) {
+          return s('1').concat(s('2'));
+        }
+        if (cod === 'B' || /Margen\s+Bruto/i.test(nat)) {
+          return s('1').concat(s('2'), s('3'));
+        }
+        if (cod === 'C' || (/Flujo\s+Neto\s+C/i.test(nat) && /6\.1/i.test(nat))) {
+          return s('1').concat(s('2'), s('3'), s('4'), s('5'), sub('6.1'), sub('6.2'), sub('6.3'));
+        }
+        if (cod === 'D') {
+          return s('1').concat(s('2'), s('3'), s('4'), s('5'), sub('6.1'), sub('6.2'), sub('6.3'));
+        }
+        if (cod === '7.2') {
+          return sub('7.1').concat(efSubitemsParaLineaDetalle(
+            lines.find(l => l.nivel === 2 && normalizarString(l.codigo).toUpperCase() === 'D') || line,
+            lines
+          ));
+        }
+        const idx = lines.indexOf(line);
+        let start = 0;
+        for (let k = idx - 1; k >= 0; k--) {
+          if (lines[k].nivel === 0) { start = k; break; }
+        }
+        return efSubitemsNivel1EnBloque(lines, start, idx);
+      }
+      return [];
+    }
+
+    function efListarTransaccionesParaCelda(line, colKey, periodo, moneda, tipoDolar, columnasOrdenadas, lines) {
+      const subitems = efSubitemsParaLineaDetalle(line, lines);
+      const allowed = new Set(subitems.map(s => normEfSubitemKey(s)));
+      if (!allowed.size) return [];
+      const colSet = colKey === '__total__'
+        ? new Set(columnasOrdenadas)
+        : new Set([colKey]);
+      const out = [];
+      cacheTransacciones.filter(r => !excluirFilaFlujoOperativo(r)).forEach(r => {
+        const sub = resolveEfSubitemCanon(r.ef_subitem);
+        if (!sub || !allowed.has(normEfSubitemKey(sub))) return;
+        const ck = efColKeyDesdeTransaccion(r, periodo);
+        if (!ck || !colSet.has(ck)) return;
+        const item = efTransaccionToDetalleItem(r, moneda, tipoDolar);
+        if (item) out.push(item);
+      });
+      out.sort((a, b) => {
+        const fc = (a.fecha || '').localeCompare(b.fecha || '');
+        if (fc !== 0) return fc;
+        return String(a.id_origen).localeCompare(String(b.id_origen));
+      });
+      return out;
+    }
+
+    function abrirModalEfDetalleCelda(orden, colKey) {
+      const st = efTablaState;
+      if (!st) return;
+      const line = st.lines.find(l => l.orden === orden);
+      if (!line) return;
+      const backdrop = document.getElementById('modal-ef-detalle-backdrop');
+      const titulo = document.getElementById('modal-ef-detalle-titulo');
+      const resumen = document.getElementById('modal-ef-detalle-resumen');
+      const tbody = document.getElementById('tbody-ef-detalle');
+      const tfoot = document.getElementById('tfoot-ef-detalle');
+      if (!backdrop || !titulo || !tbody) return;
+      const tipoDolar = document.getElementById('tipoDolar') ? document.getElementById('tipoDolar').value : 'mep';
+      const colLabel = colKey === '__total__'
+        ? 'Total del rango'
+        : formatearColHeaderEvolucion(colKey, st.periodo);
+      const labelFila = formatEfItemExport(line);
+      const montos = st.montosPorOrden[line.orden] || {};
+      const valorCelda = colKey === '__total__'
+        ? st.columnasOrdenadas.reduce((s, c) => s + (montos[c] || 0), 0)
+        : (montos[colKey] || 0);
+      titulo.textContent = 'Detalle EF — ' + labelFila + ' · ' + colLabel;
+      const list = efListarTransaccionesParaCelda(
+        line, colKey, st.periodo, st.moneda, tipoDolar, st.columnasOrdenadas, st.lines
+      );
+      const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
+      const simbolo = st.simbolo;
+      const sumaList = list.reduce((s, it) => s + it.monto, 0);
+      if (resumen) {
+        resumen.textContent = list.length + ' transacción' + (list.length === 1 ? '' : 'es')
+          + ' · Importe celda: ' + simbolo + formatearNumero(valorCelda, st.moneda)
+          + (list.length ? ' · Suma listada: ' + simbolo + formatearNumero(sumaList, st.moneda) : '');
+      }
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#666;">No hay transacciones imputadas con <code>ef_subitem</code> para este rubro y período.</td></tr>';
+        if (tfoot) tfoot.innerHTML = '';
+      } else {
+        tbody.innerHTML = list.map(item => `
+          <tr>
+            <td>${esc(item.fecha)}</td>
+            <td>${esc(item.ef_subitem)}</td>
+            <td>${esc(item.ef_item)}</td>
+            <td>${esc(item.categoria)}</td>
+            <td>${esc(item.cuenta != null ? item.cuenta : '—')}</td>
+            <td>${esc((item.descripcion || '—').slice(0, 240))}</td>
+            <td>${esc(item.tipo_movimiento)}</td>
+            <td class="${item.monto >= 0 ? 'ingresos' : 'egresos'}">${simbolo}${formatearNumero(item.monto, st.moneda)}</td>
+            <td>${esc(item.origen_archivo)}</td>
+            <td>${esc(item.id_origen)}</td>
+          </tr>
+        `).join('');
+        if (tfoot) {
+          tfoot.innerHTML = '<tr><td colspan="7" style="font-weight:600;text-align:right;">Suma</td><td class="' + (sumaList >= 0 ? 'ingresos' : 'egresos') + '" style="font-weight:600;">' + simbolo + formatearNumero(sumaList, st.moneda) + '</td><td colspan="2"></td></tr>';
+        }
+      }
+      backdrop.classList.remove('oculto');
     }
 
     function buildMontosPorSubitemEf(periodo, moneda, tipoDolar) {
@@ -3394,6 +3853,38 @@
         map[key][colKey] = (map[key][colKey] || 0) + signo * montoConv;
       });
       return map;
+    }
+
+    /** Totales §1/§2/§3 por mes — misma base que computeEfMontosPorOrden en Estado Financiero. */
+    function calcularSeccionesEfPorMes(moneda, tipoDolar) {
+      if (!cacheEfEstructura.length) return null;
+      const allLines = cacheEfEstructura.map(efLineaEfDesdeRegistro);
+      const lines = filtrarLineasEfParaVista(allLines);
+      const montosSubitem = buildMontosPorSubitemEf('mensual', moneda, tipoDolar);
+      const columnasSet = new Set();
+      Object.values(montosSubitem).forEach(colMap => {
+        Object.keys(colMap).forEach(c => columnasSet.add(c));
+      });
+      const columnasOrdenadas = Array.from(columnasSet).sort();
+      if (!columnasOrdenadas.length) return null;
+      const montosPorOrden = computeEfMontosPorOrden(lines, montosSubitem, columnasOrdenadas);
+      const montosSeccion = (cod) => {
+        const ln = lines.find(l => l.nivel === 0 && normalizarString(l.codigo) === cod);
+        return ln ? (montosPorOrden[ln.orden] || {}) : {};
+      };
+      const s1 = montosSeccion('1');
+      const s2 = montosSeccion('2');
+      const s3 = montosSeccion('3');
+      const out = {};
+      columnasOrdenadas.forEach(colKey => {
+        const flujo = s1[colKey] || 0;
+        out[colKey] = {
+          flujoOperativoGenerado: flujo > 0 ? flujo : 0,
+          egresosCostoDirecto: Math.abs(s2[colKey] || 0),
+          egresosCostoIndirecto: Math.abs(s3[colKey] || 0)
+        };
+      });
+      return out;
     }
 
     function efColMapZero(columnas) {
@@ -3506,9 +3997,28 @@
       return byOrden;
     }
 
+    /** Rubro sección EF sin prefijo "LÍNEA X: " (p. ej. ANTICIPOS DE IMPUESTOS). */
+    function efItemEtiquetaDisplay(efItem) {
+      const s = (efItem == null ? '' : String(efItem)).trim();
+      if (!s) return '';
+      return s.replace(/^L[ií]nea\s+[A-Za-z0-9]+:\s*/i, '').trim() || s;
+    }
+
+    function efLineaEfDesdeRegistro(r) {
+      return {
+        orden: r.orden,
+        codigo: r.codigo,
+        nivel: Number(r.nivel),
+        ef_item: efItemEtiquetaDisplay(r.ef_item || ''),
+        ef_subitem: r.ef_subitem || '',
+        naturaleza: r.naturaleza || '',
+        es_total: !!r.es_total
+      };
+    }
+
     function formatEfCeldaItem(line, esc) {
       if (line.nivel === 0) {
-        return '<span class="ef-label ef-label-seccion">' + esc(line.ef_item) + '</span>';
+        return '<span class="ef-label ef-label-seccion">' + esc(efItemEtiquetaDisplay(line.ef_item)) + '</span>';
       }
       if (line.nivel === 1) {
         return '<span class="ef-label ef-label-detalle"><span class="ef-bullet" aria-hidden="true">•</span><span>' + esc(line.ef_subitem) + '</span></span>';
@@ -3520,7 +4030,7 @@
     }
 
     function formatEfItemExport(line) {
-      if (line.nivel === 0) return line.ef_item || '';
+      if (line.nivel === 0) return efItemEtiquetaDisplay(line.ef_item);
       if (line.nivel === 1) return '• ' + (line.ef_subitem || '');
       if (line.nivel === 2) return line.ef_subitem || line.ef_item || '';
       return '';
@@ -3544,22 +4054,16 @@
       return { porCol, total };
     }
 
-    function pctDelFlujoOperativo(valor, base) {
-      const b = Math.abs(base || 0);
-      if (!b) return null;
-      return (Math.abs(valor || 0) / b) * 100;
-    }
-
     function formatearPctEf(pct) {
       if (pct == null || isNaN(pct)) return '—';
       return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(pct) + '%';
     }
 
     function formatEfCeldaMontoHtml(valor, simbolo, baseFlujo, conPct) {
-      const v = valor !== 0 ? Math.round(valor) : 0;
-      const montoTxt = v !== 0 ? (simbolo + formatearNumeroEf(v)) : '—';
+      const vDisplay = valor !== 0 ? Math.round(valor) : 0;
+      const montoTxt = vDisplay !== 0 ? (simbolo + formatearNumeroEf(vDisplay)) : '—';
       if (!conPct) return montoTxt;
-      const pct = pctDelFlujoOperativo(v, baseFlujo);
+      const pct = pctDelFlujoOperativo(valor, baseFlujo);
       const pctTxt = pct != null ? formatearPctEf(pct) : '—';
       return '<div class="ef-monto-val">' + montoTxt + '</div>'
         + '<div class="ef-monto-pct">' + pctTxt + ' <span class="ef-pct-ref">del Flujo Op.</span></div>';
@@ -3577,6 +4081,424 @@
       return lines.filter(l => !esLineaEfConciliacion(l));
     }
 
+    let efTablaState = null;
+    const SVG_EF_GRAFICO_LINEA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>';
+    const SVG_EF_GRAFICO_BARRA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
+
+    function efEscAttrTitulo(s) {
+      return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    }
+
+    function efGraficoLineaBtnHtml(orden, titulo) {
+      const t = efEscAttrTitulo(titulo);
+      return '<button type="button" class="ef-grafico-linea-btn btn-icon-only" data-ef-orden="' + orden + '" title="Evolución mensual: ' + t + '" aria-label="Ver evolución mensual de ' + t + '">' + SVG_EF_GRAFICO_LINEA + '</button>';
+    }
+
+    function efGraficoColumnaBtnHtml(colKey, tituloCol) {
+      const t = efEscAttrTitulo(tituloCol);
+      return '<button type="button" class="ef-grafico-columna-btn btn-icon-only" data-ef-col="' + efEscAttrTitulo(colKey) + '" title="Consumo del Flujo Op.: ' + t + '" aria-label="Ver consumo del flujo operativo en ' + t + '">' + SVG_EF_GRAFICO_BARRA + '</button>';
+    }
+
+    function efBuscarLineaEf(lines, codigo, nivel) {
+      const cod = normalizarString(codigo);
+      if (nivel === 0) return lines.find(l => l.nivel === 0 && normalizarString(l.codigo) === cod);
+      if (nivel === 2) return lines.find(l => l.nivel === 2 && normalizarString(l.codigo).toUpperCase() === cod.toUpperCase());
+      return null;
+    }
+
+    function efMontoLineaEnCol(lines, montosPorOrden, codigo, nivel, colKey, columnasOrdenadas) {
+      const ln = efBuscarLineaEf(lines, codigo, nivel);
+      if (!ln) return 0;
+      const m = montosPorOrden[ln.orden] || {};
+      if (colKey === '__total__') {
+        return columnasOrdenadas.reduce((s, c) => s + (m[c] || 0), 0);
+      }
+      return m[colKey] || 0;
+    }
+
+    function destruirChartSerieMensual() {
+      if (chartSerieMensual) { chartSerieMensual.destroy(); chartSerieMensual = null; }
+      const modal = document.getElementById('modal-grafico');
+      if (modal) modal.classList.remove('modal-grafico-ef-ancho');
+    }
+
+    function abrirModalGraficoEf(titulo, esAncho) {
+      const tituloEl = document.getElementById('modal-grafico-titulo');
+      const backdrop = document.getElementById('modal-grafico-backdrop');
+      const modal = document.getElementById('modal-grafico');
+      if (!tituloEl || !backdrop) return;
+      destruirChartSerieMensual();
+      tituloEl.textContent = titulo;
+      if (modal) modal.classList.toggle('modal-grafico-ef-ancho', !!esAncho);
+      backdrop.classList.remove('oculto');
+    }
+
+    function openEfFilaLineChart(orden) {
+      const st = efTablaState;
+      if (!st || !st.montosPorOrden[orden]) return;
+      const line = st.lines.find(l => l.orden === orden);
+      if (!line) return;
+      const montos = st.montosPorOrden[orden];
+      const labels = st.columnasOrdenadas.map(c => formatearColHeaderEvolucion(c, st.periodo));
+      const valoresReales = st.columnasOrdenadas.map(c => Math.round(montos[c] || 0));
+      const serieCosto = valoresReales.length > 0 && valoresReales.every(v => v <= 0);
+      const valoresGrafico = valoresReales.map(v => (v < 0 ? Math.abs(v) : v));
+      const titulo = formatEfItemExport(line);
+      abrirModalGraficoEf('Evolución mensual — ' + titulo + (serieCosto ? ' (valor absoluto, costo)' : ''), false);
+      const canvas = document.getElementById('chart-serie-mensual');
+      if (!canvas || typeof Chart === 'undefined') return;
+      const moneda = st.moneda;
+      const simbolo = st.simbolo;
+      const formatTick = (v) => typeof v === 'number' ? formatearNumero(v, moneda) : v;
+      const lineColor = '#2563eb';
+      const fillColor = 'rgba(37, 99, 235, 0.12)';
+      requestAnimationFrame(function() {
+        chartSerieMensual = new Chart(canvas.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: titulo,
+              data: valoresGrafico,
+              borderColor: lineColor,
+              backgroundColor: fillColor,
+              borderWidth: 2,
+              fill: true,
+              tension: 0.2,
+              pointRadius: 4,
+              pointBackgroundColor: lineColor
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) {
+                    const real = valoresReales[ctx.dataIndex];
+                    const y = ctx.parsed.y;
+                    if (real < 0) return simbolo + formatTick(y) + ' (costo)';
+                    return simbolo + formatTick(y);
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                min: 0,
+                ticks: {
+                  callback: function(v) {
+                    return simbolo + formatTick(Math.abs(v));
+                  }
+                }
+              }
+            }
+          }
+        });
+      });
+    }
+
+    /**
+     * Escala Y priorizando Margen bruto de caja y Flujo neto del período.
+     * No estira el eje hasta el Flujo Op. si eso aplasta las dos líneas de referencia.
+     */
+    function efLimitesYConsumoFlujo(wf) {
+      const hitosRef = [wf.mA, wf.mD].filter(v => v != null && Number.isFinite(v));
+      if (!hitosRef.length) {
+        const topsBarra = (wf.barPoints || []).map(p => p.top);
+        const basesBarra = (wf.barPoints || []).map(p => p.base);
+        let yMax = Math.max(0, wf.fo || 0, ...topsBarra);
+        let yMin = Math.min(0, ...basesBarra);
+        const pad = Math.max((yMax - yMin) * 0.12, 1);
+        return { min: yMin - pad, max: yMax + pad, flujoOpRecortado: false };
+      }
+      const hitoMin = Math.min(...hitosRef);
+      const hitoMax = Math.max(...hitosRef);
+      const spanHitos = hitoMax - hitoMin;
+      const anchor = Math.max(Math.abs(hitoMax), Math.abs(hitoMin), Math.abs(wf.fo || 0), 1);
+      const minSpanValor = Math.max(
+        spanHitos * 5,
+        anchor * 0.2,
+        Math.max(Math.abs(hitoMax), Math.abs(hitoMin)) * 0.24
+      );
+      const centro = (hitoMin + hitoMax) / 2;
+      let yMin = centro - minSpanValor / 2;
+      let yMax = centro + minSpanValor / 2;
+      if (hitoMin < 0 || hitoMax < 0 || (wf.mD != null && wf.mD < 0)) {
+        yMin = Math.min(yMin, hitoMin, wf.mD, wf.mA) - anchor * 0.06;
+      } else if (yMin > 0) {
+        yMin = 0;
+      }
+      const fo = wf.fo || 0;
+      let flujoOpRecortado = false;
+      if (fo > 0) {
+        if (fo <= yMax * 1.25) {
+          yMax = Math.max(yMax, fo * 1.04);
+        } else {
+          flujoOpRecortado = true;
+        }
+      }
+      const pad = minSpanValor * 0.1;
+      return {
+        min: yMin - (yMin < 0 ? pad : pad * 0.35),
+        max: yMax + pad,
+        flujoOpRecortado
+      };
+    }
+
+    function efHitoConsumoParaGrafico(ml, fo, simbolo, formatTick) {
+      const monto = simbolo + formatTick(Math.round(ml.value));
+      const pct = pctDelFlujoOperativo(ml.value, fo);
+      const pctTxt = pct != null ? formatearPctEf(pct) + ' del Flujo Op.' : '';
+      return {
+        value: ml.value,
+        title: ml.label,
+        montoTxt: monto,
+        pctTxt: pctTxt,
+        color: ml.color
+      };
+    }
+
+    /** Separa etiquetas en píxeles cuando los hitos tienen montos muy parecidos. */
+    function efLayoutEtiquetasHitosGrafico(lines, yScale, chartArea) {
+      const minPx = 30;
+      const items = lines.map(ml => {
+        const yLine = yScale.getPixelForValue(ml.value);
+        return { ml, yLine, yLabel: yLine };
+      }).filter(it => it.yLine >= chartArea.top - 4 && it.yLine <= chartArea.bottom + 4);
+      items.sort((a, b) => a.yLine - b.yLine);
+      for (let i = 1; i < items.length; i++) {
+        if (items[i].yLabel - items[i - 1].yLabel < minPx) {
+          items[i].yLabel = items[i - 1].yLabel + minPx;
+        }
+      }
+      for (let i = items.length - 2; i >= 0; i--) {
+        if (items[i + 1].yLabel - items[i].yLabel < minPx) {
+          items[i].yLabel = items[i + 1].yLabel - minPx;
+        }
+      }
+      const top = chartArea.top + 14;
+      const bottom = chartArea.bottom - 6;
+      items.forEach(it => {
+        if (it.yLabel < top) it.yLabel = top;
+        if (it.yLabel > bottom) it.yLabel = bottom;
+      });
+      return items;
+    }
+
+    const efMilestoneHLinePlugin = {
+      id: 'efMilestoneHLines',
+      afterDraw(chart) {
+        const lines = chart.options.efMilestoneLines;
+        if (!lines || !lines.length) return;
+        try {
+          const { ctx, chartArea, scales } = chart;
+          const yScale = scales.y;
+          if (!yScale) return;
+          const layout = efLayoutEtiquetasHitosGrafico(lines, yScale, chartArea);
+          const labelX = chartArea.right - 6;
+          layout.forEach(({ ml, yLine, yLabel }) => {
+            ctx.save();
+            ctx.setLineDash([6, 4]);
+            ctx.strokeStyle = ml.color || '#2563eb';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(chartArea.left, yLine);
+            ctx.lineTo(chartArea.right, yLine);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            if (Math.abs(yLabel - yLine) > 4) {
+              ctx.strokeStyle = ml.color || '#2563eb';
+              ctx.lineWidth = 1;
+              ctx.setLineDash([2, 2]);
+              ctx.beginPath();
+              ctx.moveTo(labelX - 8, yLine);
+              ctx.lineTo(labelX - 8, yLabel);
+              ctx.stroke();
+              ctx.setLineDash([]);
+            }
+            ctx.fillStyle = ml.color || '#2563eb';
+            ctx.textAlign = 'right';
+            ctx.font = '600 10px system-ui, sans-serif';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(ml.title, labelX, yLabel - 1);
+            ctx.font = '10px system-ui, sans-serif';
+            ctx.textBaseline = 'top';
+            const detalle = ml.pctTxt ? (ml.montoTxt + ' · ' + ml.pctTxt) : ml.montoTxt;
+            ctx.fillText(detalle, labelX, yLabel + 1);
+            ctx.restore();
+          });
+        } catch (e) { /* no romper el gráfico */ }
+      }
+    };
+    /** Barras flotantes base→tope (Chart.js 3.9 no aplica base por punto en barras apiladas). */
+    const efWaterfallBarsPlugin = {
+      id: 'efWaterfallBars',
+      afterDatasetsDraw(chart) {
+        const pts = chart.options.efWaterfallPoints;
+        if (!pts || !pts.length) return;
+        try {
+          const meta = chart.getDatasetMeta(0);
+          const yScale = chart.scales.y;
+          if (!meta || !meta.data || !yScale) return;
+          const ctx = chart.ctx;
+          pts.forEach((p, i) => {
+            const el = meta.data[i];
+            if (!el || !p || p.height < 1) return;
+            const x = el.x;
+            const w = el.width || 24;
+            const yTop = yScale.getPixelForValue(p.top);
+            const yBase = yScale.getPixelForValue(p.base);
+            if (!Number.isFinite(yTop) || !Number.isFinite(yBase)) return;
+            const topPx = Math.min(yTop, yBase);
+            const hPx = Math.abs(yBase - yTop);
+            if (hPx < 0.5) return;
+            ctx.save();
+            ctx.fillStyle = p.color;
+            ctx.fillRect(x - w / 2, topPx, w, hPx);
+            ctx.restore();
+          });
+        } catch (e) { /* no romper el gráfico */ }
+      }
+    };
+    if (typeof Chart !== 'undefined') {
+      Chart.register(efWaterfallBarsPlugin);
+      Chart.register(efMilestoneHLinePlugin);
+    }
+
+    function buildEfConsumoWaterfallChartData(lines, montosPorOrden, colKey, columnasOrdenadas) {
+      const fo = efMontoLineaEnCol(lines, montosPorOrden, '1', 0, colKey, columnasOrdenadas);
+      const mA = efMontoLineaEnCol(lines, montosPorOrden, 'A', 2, colKey, columnasOrdenadas);
+      const mB = efMontoLineaEnCol(lines, montosPorOrden, 'B', 2, colKey, columnasOrdenadas);
+      const mC = efMontoLineaEnCol(lines, montosPorOrden, 'C', 2, colKey, columnasOrdenadas);
+      const mD = efMontoLineaEnCol(lines, montosPorOrden, 'D', 2, colKey, columnasOrdenadas);
+      const barSegments = [
+        { label: 'Flujo Op. Generado', bottom: 0, top: fo, color: 'rgba(13, 125, 61, 0.88)' },
+        { label: 'Costos directos', bottom: mA, top: fo, color: 'rgba(220, 38, 38, 0.78)' },
+        { label: 'Costos indirectos', bottom: mB, top: mA, color: 'rgba(220, 38, 38, 0.78)' },
+        { label: 'Impuestos y anticipos', bottom: mC, top: mB, color: 'rgba(220, 38, 38, 0.78)' },
+        { label: 'Financ. e inversión', bottom: mD, top: mC, color: 'rgba(220, 38, 38, 0.78)' }
+      ];
+      const labels = barSegments.map(s => s.label);
+      const barPoints = barSegments.map(s => {
+        const base = Math.min(s.bottom, s.top);
+        const top = Math.max(s.bottom, s.top);
+        return {
+          label: s.label,
+          base,
+          top,
+          height: Math.abs(top - base),
+          color: s.color
+        };
+      });
+      const milestoneLines = [
+        { value: mA, label: 'Margen bruto de caja', color: '#1d4ed8' },
+        { value: mD, label: 'Flujo neto del período', color: '#0d7d3d' }
+      ].filter(ml => ml.value != null && Number.isFinite(ml.value));
+      return { labels, barPoints, milestoneLines, fo, mA, mB, mC, mD };
+    }
+
+    function openEfColumnConsumoChart(colKey) {
+      const st = efTablaState;
+      if (!st) return;
+      const colLabel = colKey === '__total__'
+        ? 'Total del rango'
+        : formatearColHeaderEvolucion(colKey, st.periodo);
+      const wf = buildEfConsumoWaterfallChartData(st.allLines, st.montosPorOrden, colKey, st.columnasOrdenadas);
+      const yLim = efLimitesYConsumoFlujo(wf);
+      let tituloModal = 'Consumo del Flujo Operativo — ' + colLabel;
+      if (yLim.flujoOpRecortado) {
+        tituloModal += ' (escala en indicadores; barra de Flujo Op. puede superar el tope)';
+      }
+      abrirModalGraficoEf(tituloModal, true);
+      const canvas = document.getElementById('chart-serie-mensual');
+      if (!canvas || typeof Chart === 'undefined') return;
+      const moneda = st.moneda;
+      const simbolo = st.simbolo;
+      const formatTick = (v) => typeof v === 'number' ? formatearNumero(v, moneda) : v;
+      requestAnimationFrame(function() {
+        chartSerieMensual = new Chart(canvas.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: wf.labels,
+            datasets: [
+              {
+                label: 'Monto',
+                data: wf.barPoints.map(p => (p.height > 0 ? p.top : null)),
+                backgroundColor: 'rgba(0,0,0,0)',
+                hoverBackgroundColor: 'rgba(0,0,0,0.06)',
+                borderWidth: 0,
+                maxBarThickness: 52,
+                skipNull: true
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            efWaterfallPoints: wf.barPoints,
+            efMilestoneLines: wf.milestoneLines.map(ml =>
+              efHitoConsumoParaGrafico(ml, wf.fo, simbolo, formatTick)
+            ),
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(ctx) {
+                    const idx = ctx.dataIndex;
+                    const pt = wf.barPoints[idx];
+                    const seg = pt.label;
+                    if (seg.indexOf('Flujo Op.') !== -1) return seg + ': ' + simbolo + formatTick(Math.round(wf.fo));
+                    const h = pt.height || 0;
+                    return seg + ': −' + simbolo + formatTick(Math.round(h)) + ' (restante ' + simbolo + formatTick(Math.round(pt.base)) + ')';
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { ticks: { maxRotation: 45, minRotation: 0, font: { size: 10 } } },
+              y: {
+                min: yLim.min,
+                max: yLim.max,
+                ticks: {
+                  callback: function(v) {
+                    return (v < 0 ? '−' : '') + simbolo + formatTick(Math.abs(v));
+                  }
+                }
+              }
+            }
+          }
+        });
+      });
+    }
+
+    function setupEstadoFinancieroGraficos() {
+      const table = document.getElementById('tabla-estado-financiero');
+      if (!table || table.dataset.efGraficosBound === '1') return;
+      table.dataset.efGraficosBound = '1';
+      table.addEventListener('click', (e) => {
+        const lineBtn = e.target.closest('.ef-grafico-linea-btn');
+        if (lineBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const orden = parseInt(lineBtn.getAttribute('data-ef-orden'), 10);
+          if (!isNaN(orden)) openEfFilaLineChart(orden);
+          return;
+        }
+        const colBtn = e.target.closest('.ef-grafico-columna-btn');
+        if (colBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const col = colBtn.getAttribute('data-ef-col');
+          if (col) openEfColumnConsumoChart(col);
+        }
+      });
+    }
+
     function renderEstadoFinanciero() {
       const thead = document.getElementById('thead-estado-financiero');
       const tbody = document.getElementById('tbody-estado-financiero');
@@ -3588,20 +4510,13 @@
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
 
       if (!cacheEfEstructura.length) {
+        efTablaState = null;
         thead.innerHTML = '<tr><th>Ítem</th><th>Período</th></tr>';
         tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#666;">No hay estructura EF cargada. Subí el extracto con hoja <strong>EF_Estructura</strong> (Actualizar base desde normalizado).</td></tr>';
         return;
       }
 
-      const allLines = cacheEfEstructura.map(r => ({
-        orden: r.orden,
-        codigo: r.codigo,
-        nivel: Number(r.nivel),
-        ef_item: r.ef_item || '',
-        ef_subitem: r.ef_subitem || '',
-        naturaleza: r.naturaleza || '',
-        es_total: !!r.es_total
-      }));
+      const allLines = cacheEfEstructura.map(efLineaEfDesdeRegistro);
       const lines = filtrarLineasEfParaVista(allLines);
 
       const montosSubitem = buildMontosPorSubitemEf(periodo, moneda, tipoDolar);
@@ -3615,10 +4530,16 @@
 
       const formatearColHeader = (key) => formatearColHeaderEvolucion(key, periodo);
       thead.innerHTML = '<tr><th class="ef-col-label ef-sticky-label">Ítem</th>'
-        + columnasOrdenadas.map(c => '<th class="num-ef ef-th-periodo">' + esc(formatearColHeader(c)) + '</th>').join('')
-        + '<th class="num-ef ef-th-total">Total</th></tr>';
+        + columnasOrdenadas.map(c => {
+          const lbl = esc(formatearColHeader(c));
+          return '<th class="num-ef ef-th-periodo"><div class="ef-th-periodo-wrap"><span class="ef-th-periodo-label">' + lbl + '</span>'
+            + efGraficoColumnaBtnHtml(c, formatearColHeader(c)) + '</div></th>';
+        }).join('')
+        + '<th class="num-ef ef-th-total"><div class="ef-th-periodo-wrap"><span class="ef-th-periodo-label">Total</span>'
+        + efGraficoColumnaBtnHtml('__total__', 'Total del rango') + '</div></th></tr>';
 
       if (!columnasOrdenadas.length) {
+        efTablaState = null;
         tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#666;">No hay movimientos con <code>ef_subitem</code> para armar períodos.</td></tr>';
         return;
       }
@@ -3627,25 +4548,147 @@
         const montos = montosPorOrden[line.orden] || {};
         const esSubtotal = esFilaEfSubtotal(line);
         let totalFila = 0;
+        const attrsCeldaMonto = (colKey) => ' data-ef-orden="' + line.orden + '" data-ef-col="' + esc(colKey) + '" title="Ver transacciones del importe"';
         const celdas = columnasOrdenadas.map(colKey => {
           const v = montos[colKey] || 0;
           totalFila += v;
           const cls = v > 0 ? 'ingresos' : (v < 0 ? 'egresos' : '');
           const baseCol = foBase.porCol[colKey] || 0;
           const inner = formatEfCeldaMontoHtml(v, simbolo, baseCol, esSubtotal);
-          return '<td class="num-ef ' + cls + (esSubtotal ? ' ef-celda-subtotal' : '') + '">' + inner + '</td>';
+          return '<td class="num-ef ef-monto-clickable ' + cls + (esSubtotal ? ' ef-celda-subtotal' : '') + '"' + attrsCeldaMonto(colKey) + '>' + inner + '</td>';
         });
         const totalRed = Math.round(totalFila);
         const totalCls = totalRed >= 0 ? 'balance positivo' : 'balance negativo';
         const labelHtml = formatEfCeldaItem(line, esc);
+        const tituloFila = formatEfItemExport(line);
         const totalInner = formatEfCeldaMontoHtml(totalFila, simbolo, foBase.total, esSubtotal);
-        return '<tr class="ef-nivel-' + line.nivel + (esSubtotal ? ' ef-fila-subtotal' : '') + '"><td class="ef-col-label ef-sticky-label">' + labelHtml + '</td>'
+        return '<tr class="ef-nivel-' + line.nivel + (esSubtotal ? ' ef-fila-subtotal' : '') + '"><td class="ef-col-label ef-sticky-label">'
+          + '<div class="ef-label-row">' + labelHtml + efGraficoLineaBtnHtml(line.orden, tituloFila) + '</div></td>'
           + celdas.join('')
-          + '<td class="num-ef ' + totalCls + (esSubtotal ? ' ef-celda-subtotal' : '') + '" style="font-weight:600;">' + totalInner + '</td></tr>';
+          + '<td class="num-ef ef-monto-clickable ' + totalCls + (esSubtotal ? ' ef-celda-subtotal' : '') + '" style="font-weight:600;"' + attrsCeldaMonto('__total__') + '>' + totalInner + '</td></tr>';
       }).join('');
 
-      tbody.innerHTML = filasHtml;
+      tbody.innerHTML = filasHtml + buildFilasIndicadoresGestionHtml(columnasOrdenadas, montosSubitem, esc);
+      efTablaState = {
+        allLines,
+        lines,
+        montosPorOrden,
+        columnasOrdenadas,
+        periodo,
+        moneda,
+        simbolo
+      };
+      setupEstadoFinancieroGraficos();
+      setupEstadoFinancieroDetalleCeldas();
       programarAjusteTablasScrollAncladas();
+    }
+
+    function setupEstadoFinancieroDetalleCeldas() {
+      const table = document.getElementById('tabla-estado-financiero');
+      if (!table || table.dataset.efDetalleBound === '1') return;
+      table.dataset.efDetalleBound = '1';
+      table.addEventListener('click', (e) => {
+        const td = e.target.closest('.ef-monto-clickable');
+        if (!td) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const orden = parseInt(td.getAttribute('data-ef-orden'), 10);
+        const col = td.getAttribute('data-ef-col');
+        if (!isNaN(orden) && col) abrirModalEfDetalleCelda(orden, col);
+      });
+    }
+
+    function montoSubitemEfEnColumna(montosSubitem, subitemCanon, colKey) {
+      const key = normEfSubitemKey(resolveEfSubitemCanon(subitemCanon) || subitemCanon);
+      const colMap = montosSubitem[key];
+      return colMap && colMap[colKey] != null ? colMap[colKey] : 0;
+    }
+
+    function calcularRatioIndicadorGestion(montosSubitem, indicador, colKey) {
+      let num = montoSubitemEfEnColumna(montosSubitem, indicador.numerador, colKey);
+      if (indicador.numeradorAbs) num = Math.abs(num);
+      const den = montoSubitemEfEnColumna(montosSubitem, indicador.denominador, colKey);
+      if (!den || !Number.isFinite(den) || den <= 0) return null;
+      if (!Number.isFinite(num)) return null;
+      return num / den;
+    }
+
+    function formatearValorIndicadorGestion(val, tipo) {
+      if (val == null || !Number.isFinite(val)) return '—';
+      if (tipo === 'pct') return formatearPctEf(val * 100);
+      return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val);
+    }
+
+    function escHelpAttr(s) {
+      return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    }
+
+    const SVG_HELP_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>';
+
+    function helpIndicadorHtml(ayudaTexto) {
+      return '<span class="th-help" data-help="' + escHelpAttr(ayudaTexto) + '" role="button" tabindex="0" aria-label="Ayuda del indicador" title="Ayuda">' + SVG_HELP_ICON + '</span>';
+    }
+
+    function buildFilasIndicadoresGestionHtml(columnasOrdenadas, montosSubitem, esc) {
+      if (!INDICADORES_GESTION.length || !columnasOrdenadas.length) return '';
+      const vacios = columnasOrdenadas.map(() => '<td class="num-ef"></td>').join('');
+      let html = '<tr class="ef-nivel-0 ef-fila-subtotal ef-fila-indicadores-seccion"><td class="ef-col-label ef-sticky-label">'
+        + '<span class="ef-label ef-label-seccion">Indicadores de Gestión</span></td>'
+        + vacios + '<td class="num-ef"></td></tr>';
+      INDICADORES_GESTION.forEach(ind => {
+        let sumNum = 0;
+        let sumDen = 0;
+        const celdas = columnasOrdenadas.map(colKey => {
+          let num = montoSubitemEfEnColumna(montosSubitem, ind.numerador, colKey);
+          if (ind.numeradorAbs) num = Math.abs(num);
+          const den = montoSubitemEfEnColumna(montosSubitem, ind.denominador, colKey);
+          sumNum += num;
+          sumDen += den;
+          const ratio = calcularRatioIndicadorGestion(montosSubitem, ind, colKey);
+          const txt = formatearValorIndicadorGestion(ratio, ind.tipo);
+          return '<td class="num-ef">' + esc(txt) + '</td>';
+        });
+        const totalRatio = sumDen > 0 ? sumNum / sumDen : null;
+        const totalTxt = formatearValorIndicadorGestion(totalRatio, ind.tipo);
+        const ayuda = ind.formula + ' — ' + ind.notas;
+        const labelHtml = '<span class="ef-label ef-label-detalle"><span class="ef-bullet" aria-hidden="true">•</span><span>'
+          + esc(ind.label) + '</span>' + helpIndicadorHtml(ayuda) + '</span>';
+        html += '<tr class="ef-nivel-1 ef-fila-indicador"><td class="ef-col-label ef-sticky-label">' + labelHtml + '</td>'
+          + celdas.join('')
+          + '<td class="num-ef" style="font-weight:600;">' + esc(totalTxt) + '</td></tr>';
+      });
+      return html;
+    }
+
+    function appendIndicadoresGestionExport(rows, rowMeta, columnasOrdenadas, montosSubitem) {
+      if (!INDICADORES_GESTION.length || !columnasOrdenadas.length) return;
+      rows.push(['Indicadores de Gestión', ...columnasOrdenadas.map(() => ''), '', '']);
+      rowMeta.push({ kind: 'data', nivel: 0 });
+      INDICADORES_GESTION.forEach(ind => {
+        let sumNum = 0;
+        let sumDen = 0;
+        const vals = columnasOrdenadas.map(colKey => {
+          let num = montoSubitemEfEnColumna(montosSubitem, ind.numerador, colKey);
+          if (ind.numeradorAbs) num = Math.abs(num);
+          const den = montoSubitemEfEnColumna(montosSubitem, ind.denominador, colKey);
+          sumNum += num;
+          sumDen += den;
+          const ratio = calcularRatioIndicadorGestion(montosSubitem, ind, colKey);
+          if (ratio == null) return '';
+          if (ind.tipo === 'pct') {
+            const v = efPctValorParaExcel(ratio * 100);
+            return v != null ? v : '';
+          }
+          return Math.round(ratio * 10000) / 10000;
+        });
+        const totalRatio = sumDen > 0 ? sumNum / sumDen : null;
+        let totalVal = '';
+        if (totalRatio != null) {
+          totalVal = ind.tipo === 'pct' ? (efPctValorParaExcel(totalRatio * 100) ?? '') : Math.round(totalRatio * 10000) / 10000;
+        }
+        rows.push(['• ' + ind.label + ' (' + ind.formula + ')', ...vals, totalVal, ind.notas]);
+        rowMeta.push({ kind: 'indicador', nivel: 1 });
+      });
     }
 
     function efExcelSolidFill(rgb) {
@@ -3840,7 +4883,7 @@
       const periodo = (document.getElementById('ef-periodo') && document.getElementById('ef-periodo').value) || 'mensual';
       const moneda = getMoneda();
       const tipoDolar = document.getElementById('tipoDolar') ? document.getElementById('tipoDolar').value : 'mep';
-      const allLines = cacheEfEstructura.slice().sort((a, b) => (a.orden || 0) - (b.orden || 0));
+      const allLines = cacheEfEstructura.slice().sort((a, b) => (a.orden || 0) - (b.orden || 0)).map(efLineaEfDesdeRegistro);
       const lines = filtrarLineasEfParaVista(allLines);
       const montosSubitem = buildMontosPorSubitemEf(periodo, moneda, tipoDolar);
       const columnasSet = new Set();
@@ -3874,11 +4917,11 @@
         rowMeta.push({ kind: 'data', nivel: line.nivel });
         if (esSubtotal) {
           const pctVals = columnasOrdenadas.map(c => {
-            const p = pctDelFlujoOperativo(Math.round(montos[c] || 0), foBase.porCol[c] || 0);
+            const p = pctDelFlujoOperativo(montos[c] || 0, foBase.porCol[c] || 0);
             const v = efPctValorParaExcel(p);
             return v != null ? v : '';
           });
-          const pTotal = pctDelFlujoOperativo(totalRed, foBase.total);
+          const pTotal = pctDelFlujoOperativo(total, foBase.total);
           const vTotal = efPctValorParaExcel(pTotal);
           rows.push([
             '  % del Flujo Operativo',
@@ -3889,11 +4932,13 @@
           rowMeta.push({ kind: 'pct' });
         }
       });
+      appendIndicadoresGestionExport(rows, rowMeta, columnasOrdenadas, montosSubitem);
       const colCount = header.length;
       const ws = XLSX.utils.aoa_to_sheet(rows);
       aplicarFormatoNumerosExportEf(ws, rowMeta, idxColTotal);
       for (let r = 1; r < rows.length; r++) {
-        if (rowMeta[r] && rowMeta[r].kind !== 'pct') continue;
+        const meta = rowMeta[r];
+        if (!meta || (meta.kind !== 'pct' && meta.kind !== 'indicador')) continue;
         for (let c = 1; c <= idxColTotal; c++) {
           const cell = ws[XLSX.utils.encode_cell({ r, c })];
           if (cell && typeof cell.v === 'number') {
@@ -3970,6 +5015,7 @@
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;').replace(/"/g, '&quot;');
       if (!cacheExcluidosUpload.length) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:left; color:#666;">Sin registros excluidos para mostrar.</td></tr>';
+        programarAjusteTablasScrollAncladas();
         return;
       }
       tbody.innerHTML = cacheExcluidosUpload.map(r => {
@@ -3983,6 +5029,7 @@
         const desc = esc(r.descripcion || '—');
         return `<tr><td>${esc(fecha)}</td><td>${archivo}</td><td>${fila}</td><td style="text-align:left;">${motivo}</td><td>${tipo}</td><td>${moneda}</td><td>${monto}</td><td style="text-align:left;">${desc}</td></tr>`;
       }).join('');
+      programarAjusteTablasScrollAncladas();
     }
 
     function exportarAExcel() {
@@ -4067,10 +5114,141 @@
       return v || null;
     }
 
+    /** Subítems EF canónicos para ratio Comisiones/Ventas % (Flujo por mes). Ver template-flujo-informe-pdf. */
+    const EF_SUBITEM_COMISIONES_POR_VENTAS = 'Comisiones por Ventas';
+    const EF_SUBITEM_COBRANZAS_POR_VENTAS = 'Cobranzas por Ventas (Efectivo neto ingresado)';
+    const EF_SUBITEM_COSTO_FINANCIERO_MP = 'Costo Financiero (Mercado Pago)';
+
+    /** Indicadores de Gestión — filas al final de la tabla EF (mismas columnas de período). */
+    const INDICADORES_GESTION = [
+      {
+        id: 'ratio_eficiencia_costo_financiacion',
+        label: 'Ratio de Eficiencia Costo Financiación',
+        formula: 'Costo Financiero (Mercado Pago) ÷ Cobranzas por Ventas (Efectivo neto ingresado)',
+        notas: 'Costo financiero Mercado Pago sobre cobranzas del mes. A menor %, menor peso del costo MP en las cobranzas.',
+        tipo: 'pct',
+        numerador: EF_SUBITEM_COSTO_FINANCIERO_MP,
+        denominador: EF_SUBITEM_COBRANZAS_POR_VENTAS,
+        numeradorAbs: true
+      },
+      {
+        id: 'ratio_comisiones_cobranzas_venta',
+        label: 'Ratio de Comisiones / Cobranzas por Venta',
+        formula: 'Comisiones por Ventas ÷ Cobranzas por Ventas (Efectivo neto ingresado)',
+        notas: 'Misma regla que Comisiones / Ventas % en Flujo por mes: egresos con ef_subitem Comisiones por Ventas sobre cobranzas netas del mes (ef_subitem Cobranzas por Ventas).',
+        tipo: 'pct',
+        numerador: EF_SUBITEM_COMISIONES_POR_VENTAS,
+        denominador: EF_SUBITEM_COBRANZAS_POR_VENTAS,
+        numeradorAbs: true
+      }
+    ];
+
+    /** Ítems EF canónicos para ratio Costo dir. / Ingresos (Flujo por mes). Ver template-flujo-informe-pdf. */
+    const EF_ITEM_FLUJO_OPERATIVO_GENERADO = 'FLUJO OPERATIVO GENERADO';
+    const EF_ITEM_COSTOS_DIRECTOS_EFECTIVO = 'COSTOS DIRECTOS (Efectivo)';
+    const EF_ITEM_COSTOS_INDIRECTOS_ESTRUCTURA = 'COSTOS INDIRECTOS (Estructura)';
+
     const EF_SUBITEM_ALIASES = {
-      'cobranzas por ventas': 'Cobranzas por Ventas (Efectivo neto ingresado)',
+      'cobranzas por ventas': EF_SUBITEM_COBRANZAS_POR_VENTAS,
+      'comisiones por ventas': EF_SUBITEM_COMISIONES_POR_VENTAS,
       'otros ingresos operativos': 'Otros Ingresos Operativos'
     };
+
+    const EF_ITEM_ALIASES = {
+      'flujo operativo generado': EF_ITEM_FLUJO_OPERATIVO_GENERADO,
+      'costos directos (efectivo)': EF_ITEM_COSTOS_DIRECTOS_EFECTIVO,
+      'costos directos': EF_ITEM_COSTOS_DIRECTOS_EFECTIVO,
+      'costos indirectos (estructura)': EF_ITEM_COSTOS_INDIRECTOS_ESTRUCTURA,
+      'costos indirectos (gastos de estructura)': EF_ITEM_COSTOS_INDIRECTOS_ESTRUCTURA,
+      'costos indirectos': EF_ITEM_COSTOS_INDIRECTOS_ESTRUCTURA
+    };
+
+    function resolveEfItemCanon(itemRaw) {
+      const raw = normalizarString(itemRaw);
+      if (!raw) return '';
+      const key = normEfSubitemKey(raw);
+      return EF_ITEM_ALIASES[key] || raw;
+    }
+
+    function getEfSubitemToItemMap() {
+      if (cacheEfSubitemToItem) return cacheEfSubitemToItem;
+      const map = {};
+      cacheEfEstructura.forEach(l => {
+        if (Number(l.nivel) === 1 && l.ef_subitem && l.ef_item) {
+          map[normEfSubitemKey(l.ef_subitem)] = resolveEfItemCanon(l.ef_item);
+        }
+      });
+      Object.keys(EF_SUBITEM_ALIASES).forEach(alias => {
+        const k = normEfSubitemKey(EF_SUBITEM_ALIASES[alias]);
+        if (map[k]) map[alias] = map[k];
+      });
+      cacheEfSubitemToItem = map;
+      return map;
+    }
+
+    function getEfSec1IngresoSubitemKeys() {
+      if (cacheEfSec1IngresoSubitemKeys) return cacheEfSec1IngresoSubitemKeys;
+      const keys = new Set();
+      if (!cacheEfEstructura.length) {
+        cacheEfSec1IngresoSubitemKeys = keys;
+        return keys;
+      }
+      let inSec1 = false;
+      cacheEfEstructura.forEach(l => {
+        const cod = normalizarString(l.codigo);
+        if (Number(l.nivel) === 0) {
+          inSec1 = cod === '1';
+          return;
+        }
+        if (inSec1 && Number(l.nivel) === 1 && l.ef_subitem) {
+          const signo = normalizarString(l.signo);
+          if (signo === '+' || signo === '') keys.add(normEfSubitemKey(l.ef_subitem));
+        }
+      });
+      cacheEfSec1IngresoSubitemKeys = keys;
+      return keys;
+    }
+
+    /** Egreso con subítem de ingreso §1 (devolución; se netea en Ingresos y Egresos del Flujo). */
+    function esEfSubitemSec1Ingreso(r) {
+      const sub = resolveEfSubitemCanon(r && r.ef_subitem);
+      if (!sub) return false;
+      return getEfSec1IngresoSubitemKeys().has(normEfSubitemKey(sub));
+    }
+
+    function efItemCanonDesdeTransaccion(r) {
+      if (!r) return '';
+      const fromItem = resolveEfItemCanon(r.ef_item);
+      if (fromItem) return fromItem;
+      const sub = resolveEfSubitemCanon(r.ef_subitem);
+      if (!sub) return '';
+      const map = getEfSubitemToItemMap();
+      return map[normEfSubitemKey(sub)] || '';
+    }
+
+    function esEfItemCostosDirectos(r) {
+      return normEfSubitemKey(efItemCanonDesdeTransaccion(r)) === normEfSubitemKey(EF_ITEM_COSTOS_DIRECTOS_EFECTIVO);
+    }
+
+    function esEfItemCostosIndirectos(r) {
+      return normEfSubitemKey(efItemCanonDesdeTransaccion(r)) === normEfSubitemKey(EF_ITEM_COSTOS_INDIRECTOS_ESTRUCTURA);
+    }
+
+    function esEfItemFlujoOperativoGenerado(r) {
+      return normEfSubitemKey(efItemCanonDesdeTransaccion(r)) === normEfSubitemKey(EF_ITEM_FLUJO_OPERATIVO_GENERADO);
+    }
+
+    function efSubitemCanonKey(subitemRaw) {
+      return normEfSubitemKey(resolveEfSubitemCanon(subitemRaw));
+    }
+
+    function esEfSubitemComisionesPorVentas(r) {
+      return efSubitemCanonKey(r && r.ef_subitem) === normEfSubitemKey(EF_SUBITEM_COMISIONES_POR_VENTAS);
+    }
+
+    function esEfSubitemCobranzasPorVentas(r) {
+      return efSubitemCanonKey(r && r.ef_subitem) === normEfSubitemKey(EF_SUBITEM_COBRANZAS_POR_VENTAS);
+    }
 
     function normEfSubitemKey(s) {
       return normalizarString(s).toLowerCase().replace(/:$/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
@@ -4083,28 +5261,66 @@
       return EF_SUBITEM_ALIASES[key] || raw;
     }
 
+    function efFormulaDesdeNotas(row) {
+      const notas = normalizarString(row[4]);
+      if (!notas) return '';
+      return notas.replace(/^\s*\[\s*|\s*\]\s*$/g, '').trim();
+    }
+
     function parseEfEstructuraAoa(aoa) {
       const lines = [];
       let curItem = '';
       let orden = 0;
+      const header = (aoa[0] || []).map(c => normalizarString(c).toLowerCase());
+      const layoutRubroSigno = header.some(h => h.includes('signo'));
+
       for (let i = 1; i < aoa.length; i++) {
         const row = aoa[i] || [];
         const cod = normalizarString(row[0]);
         const rubro = normalizarString(row[1]);
-        const comp = normalizarString(row[2]);
-        const signo = normalizarString(row[3]);
-        const nat = normalizarString(row[4]);
-        if (!rubro && !comp && !cod) continue;
-        const esTotal = signo === '(=)' || signo === '=' || rubro.startsWith('(=)') || (rubro.includes('(=)') && !comp);
+        if (!rubro && !cod) continue;
+
+        let signo;
+        let nat;
+        let subitemDetalle;
+
+        if (layoutRubroSigno) {
+          signo = normalizarString(row[2]);
+          nat = normalizarString(row[3]);
+          subitemDetalle = rubro;
+        } else {
+          subitemDetalle = normalizarString(row[2]);
+          signo = normalizarString(row[3]);
+          nat = normalizarString(row[4]);
+        }
+
+        const esTotal = signo === '(=)' || signo === '=' || rubro.startsWith('(=)') || (rubro.includes('(=)') && !subitemDetalle);
         if (esTotal) {
           orden += 1;
-          lines.push({ orden, codigo: cod, nivel: 2, ef_item: curItem, ef_subitem: rubro, signo: signo || '(=)', naturaleza: comp || nat, es_total: true });
+          lines.push({ orden, codigo: cod, nivel: 2, ef_item: curItem, ef_subitem: rubro, signo: signo || '(=)', naturaleza: layoutRubroSigno ? (efFormulaDesdeNotas(row) || nat) : subitemDetalle || nat, es_total: true });
           continue;
         }
+
+        if (layoutRubroSigno) {
+          const esSeccion = /^\d+$/.test(String(cod)) && rubro && signo !== '+' && signo !== '-';
+          if (esSeccion) {
+            curItem = efItemEtiquetaDisplay(rubro);
+            orden += 1;
+            lines.push({ orden, codigo: cod, nivel: 0, ef_item: curItem, ef_subitem: '', signo, naturaleza: nat, es_total: false });
+            continue;
+          }
+          if (rubro && (signo === '+' || signo === '-')) {
+            orden += 1;
+            lines.push({ orden, codigo: cod, nivel: 1, ef_item: curItem, ef_subitem: subitemDetalle, signo, naturaleza: nat, es_total: false });
+          }
+          continue;
+        }
+
+        const comp = subitemDetalle;
         if (rubro && !comp) {
-          curItem = rubro;
+          curItem = efItemEtiquetaDisplay(rubro);
           orden += 1;
-          lines.push({ orden, codigo: cod, nivel: 0, ef_item: rubro, ef_subitem: '', signo, naturaleza: nat, es_total: false });
+          lines.push({ orden, codigo: cod, nivel: 0, ef_item: curItem, ef_subitem: '', signo, naturaleza: nat, es_total: false });
           continue;
         }
         if (comp) {
@@ -4595,12 +5811,11 @@
       if (!titulo || !canvas) return;
       const { labels, values, tipoMovimiento } = getSerieMensual(tipo, nombre);
       titulo.textContent = 'Tipo: ' + tipoMovimiento + ' — Serie mensual: ' + (nombre || '');
-      if (chartSerieMensual) { chartSerieMensual.destroy(); chartSerieMensual = null; }
+      destruirChartSerieMensual();
       document.getElementById('modal-grafico-backdrop').classList.remove('oculto');
       const moneda = getMoneda();
       const simbolo = moneda === 'USD' ? 'US$ ' : '$ ';
-      const decimals = moneda === 'USD' ? 2 : 0;
-      const formatTick = (v) => typeof v === 'number' ? new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: decimals }).format(v) : v;
+      const formatTick = (v) => typeof v === 'number' ? formatearNumero(v, moneda) : v;
       const labelMesSel = (anioSel != null && mesSel != null) ? formatoMesAnio(mesSel, anioSel) : null;
       const selectedIndex = labelMesSel != null ? labels.indexOf(labelMesSel) : -1;
       const lineColor = '#444';
@@ -5102,6 +6317,7 @@
           if (record && record.tipoError === TIPO_ERROR_DUPLICADO && record.registroPosibleDuplicado) abrirModalDuplicado(record);
         });
       });
+      programarAjusteTablasScrollAncladas();
     }
 
     let currentErroresList = [];
@@ -5746,12 +6962,14 @@
         setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-alertas-backdrop'), () => document.getElementById('modal-alertas-backdrop').classList.add('oculto'));
         document.getElementById('modal-grafico-close').addEventListener('click', () => {
           document.getElementById('modal-grafico-backdrop').classList.add('oculto');
-          if (chartSerieMensual) { chartSerieMensual.destroy(); chartSerieMensual = null; }
+          destruirChartSerieMensual();
         });
         setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-grafico-backdrop'), () => {
           document.getElementById('modal-grafico-backdrop').classList.add('oculto');
-          if (chartSerieMensual) { chartSerieMensual.destroy(); chartSerieMensual = null; }
+          destruirChartSerieMensual();
         });
+        setupEstadoFinancieroGraficos();
+        setupEstadoFinancieroDetalleCeldas();
         document.getElementById('modal-errores-close').addEventListener('click', () => document.getElementById('modal-errores-backdrop').classList.add('oculto'));
         setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-errores-backdrop'), () => document.getElementById('modal-errores-backdrop').classList.add('oculto'));
         document.getElementById('modal-editar-close').addEventListener('click', () => document.getElementById('modal-editar-backdrop').classList.add('oculto'));
@@ -5787,6 +7005,7 @@
         setupModalDrag('modal-caja', 'modal-header-drag', 'modal-close');
         setupModalDrag('modal-alertas', 'modal-alertas-header-drag', 'modal-alertas-close');
         setupModalDrag('modal-grafico', 'modal-grafico-header-drag', 'modal-grafico-close');
+        setupModalDrag('modal-ef-detalle', 'modal-ef-detalle-header-drag', 'modal-ef-detalle-close');
         setupModalDrag('modal-errores', 'modal-errores-header-drag', 'modal-errores-close');
         setupModalDrag('modal-editar-registro', 'modal-editar-header-drag', 'modal-editar-close');
 
@@ -5830,6 +7049,10 @@
         });
         document.getElementById('modal-evolucion-detalle-close').addEventListener('click', () => document.getElementById('modal-evolucion-detalle-backdrop').classList.add('oculto'));
         setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-evolucion-detalle-backdrop'), () => document.getElementById('modal-evolucion-detalle-backdrop').classList.add('oculto'));
+        const modalEfDetClose = document.getElementById('modal-ef-detalle-close');
+        const modalEfDetBackdrop = document.getElementById('modal-ef-detalle-backdrop');
+        if (modalEfDetClose) modalEfDetClose.addEventListener('click', () => modalEfDetBackdrop && modalEfDetBackdrop.classList.add('oculto'));
+        if (modalEfDetBackdrop) setupBackdropCloseOnlyOnRealClick(modalEfDetBackdrop, () => modalEfDetBackdrop.classList.add('oculto'));
         document.addEventListener('click', (e) => {
           const helpEl = e.target.closest('.th-help');
           const popover = document.getElementById('th-help-popover');
@@ -5983,7 +7206,7 @@
           const sel = document.getElementById('config-proyeccion-metodo');
           if (wrap && sel) wrap.style.display = sel.value === 'promedio_recortado' ? 'block' : 'none';
         });
-        document.getElementById('config-guardar').addEventListener('click', () => {
+        document.getElementById('config-guardar').addEventListener('click', async () => {
           const selMetodo = document.getElementById('config-proyeccion-metodo');
           const selMeses = document.getElementById('config-proyeccion-meses');
           const selRecorteSave = document.getElementById('config-proyeccion-recorte');
@@ -6017,7 +7240,11 @@
           }
           setMesesExcluidosFromArray(exclMeses);
           document.getElementById('modal-configuracion-backdrop').classList.add('oculto');
-          syncConfigToSupabase();
+          const syncRes = await syncConfigToSupabase();
+          if (syncRes && syncRes.ok === false) {
+            const msg = (syncRes.error && syncRes.error.message) ? syncRes.error.message : 'No se pudo guardar la configuración en el servidor.';
+            alert('La configuración quedó en este navegador, pero no se guardó en la base: ' + msg + '\n\nSi el mensaje menciona meses_excluidos, ejecutá en Supabase sql/supabase_config_dashboard_meses_excluidos.sql.');
+          }
           recalcular();
         });
         document.getElementById('config-cerrar').addEventListener('click', () => document.getElementById('modal-configuracion-backdrop').classList.add('oculto'));
