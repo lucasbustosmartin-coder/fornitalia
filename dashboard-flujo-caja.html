@@ -8,6 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f5f5f5; display: flex; flex-direction: column; min-height: 100vh; }
@@ -775,6 +776,10 @@
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg></span>
         <span class="menu-label">Home</span>
       </a>
+      <button type="button" class="menu-item" id="menu-reportes" title="Reportes" aria-label="Reportes" style="display:none;">
+        <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M8 9h2"/></svg></span>
+        <span class="menu-label">Reportes</span>
+      </button>
       <button type="button" class="menu-item" id="menu-novedades" title="Novedades del Negocio" aria-label="Novedades del Negocio">
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg></span>
         <span class="menu-label">Novedades del Negocio</span>
@@ -945,7 +950,7 @@
     <div id="panel-todas-transacciones" class="card panel">
       <template id="template-todas-transacciones-panel">
         <div class="th-help-rich-content">
-          <p>Listado de todas las transacciones. Podés filtrar por mes, <strong>categoría y cuenta (matriz)</strong> —prioriza <code>nueva_categoria</code> / <code>nueva_cuenta_contable</code> y si faltan usa extracto con la misma lógica que Evolución— y editar cada registro; al guardar se marca como editado.</p>
+          <p>Listado de todas las transacciones. Podés filtrar por mes, <strong>categoría y cuenta (matriz)</strong>, <strong>cliente</strong>, tipo e id de operación; al guardar se marca como editado.</p>
         </div>
       </template>
       <div class="errores-panel-toolbar">
@@ -966,6 +971,10 @@
           </select>
           <label for="filtro-todas-tipo" style="margin-left:0.75rem;">Tipo:</label>
           <select id="filtro-todas-tipo" title="Filtrar por tipo (Ingreso/Egreso)">
+            <option value="todos">Todos</option>
+          </select>
+          <label for="filtro-todas-cliente" style="margin-left:0.75rem;">Cliente:</label>
+          <select id="filtro-todas-cliente" title="Filtrar por cliente">
             <option value="todos">Todos</option>
           </select>
           <label for="filtro-todas-id-operacion" style="margin-left:0.75rem;">Id operación:</label>
@@ -1105,6 +1114,23 @@
     © 2026 Developed by L&amp;P Financial Consulting
   </footer>
   </div>
+  <div id="view-reportes" class="card" style="display:none;">
+    <h1 style="margin-top:0; display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+      <span style="display:inline-flex;" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></span>
+      Reportes
+    </h1>
+    <p style="color:#666; margin:0 0 1rem;">Exportaciones agregadas desde la base de transacciones en Supabase (misma lógica que el Excel <strong>Matriz_Relaciones_Transacciones_Fornitalia</strong> generado por script).</p>
+    <section class="reportes-bloque" style="margin-bottom:1.25rem; padding:1rem; border:1px solid #e5e5e5; border-radius:8px; background:#fafafa;">
+      <h2 style="font-size:1.05rem; margin:0 0 0.5rem;">Matriz de relaciones (categoría, cuenta, costo y proveedores)</h2>
+      <p class="sin-cotizacion-note" style="margin:0 0 0.75rem;">Incluye <strong>Matriz_Cat_Cuenta_Costo</strong>, <strong>Cat_x_Cuenta_Registros</strong> (categoría × cuenta, cantidad por cruce), <strong>Proveedores_Egreso</strong>, <strong>Proveedores_por_Cat_Cuenta</strong> y <strong>README</strong>. Las solapas de matriz y proveedores excluyen Impuestos, Ventas, MP - Costo Financiero y Comisiones Morvalab. <strong>Cat_x_Cuenta_Registros</strong> usa solo <code>status</code> = <strong>Confirmado</strong> (todas las categorías). Conteos numéricos en Excel.</p>
+      <p id="reportes-matriz-stats" class="sin-cotizacion-note" style="margin:0 0 0.75rem;" aria-live="polite"></p>
+      <button type="button" class="btn btn-success" id="btn-exportar-matriz-relaciones" title="Exportar matriz de relaciones a Excel" aria-label="Exportar matriz de relaciones a Excel">
+        <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>
+        Exportar Matriz Relaciones a Excel
+      </button>
+    </section>
+  </div>
+
   <div id="view-novedades" class="card" style="display:none;">
     <h1 style="margin-top:0; display:flex; align-items:center; gap:0.5rem;">
       <span style="display:inline-flex;"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg></span>
@@ -1591,7 +1617,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '1.96';
+    const APP_VERSION = '2.02';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1701,6 +1727,8 @@
         const n = document.getElementById(id);
         if (n) n.style.display = visible ? '' : 'none';
       };
+      const rep = exp || op;
+      setVis('menu-reportes', rep);
       setVis('menu-novedades', op);
       setVis('menu-configuracion', op);
       setVis('menu-seguridad', sec);
@@ -1746,6 +1774,82 @@
         document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
         document.getElementById('menu-home')?.classList.add('menu-item-active');
       }
+      const vRep = document.getElementById('view-reportes');
+      if (vRep && vRep.style.display === 'block' && !rep) {
+        vRep.style.display = 'none';
+        const vd = document.getElementById('view-dashboard');
+        if (vd) vd.style.display = 'block';
+        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+        document.getElementById('menu-home')?.classList.add('menu-item-active');
+      }
+    }
+
+    function puedeExportarReportes() {
+      return puedeExportarBaseHistorica() || puedeOperarDashboard();
+    }
+
+    function mostrarVistaPrincipal(idVista) {
+      const vd = document.getElementById('view-dashboard');
+      const vn = document.getElementById('view-novedades');
+      const vr = document.getElementById('view-reportes');
+      const vs = document.getElementById('view-seguridad');
+      if (vd) vd.style.display = idVista === 'dashboard' ? 'block' : 'none';
+      if (vn) vn.style.display = idVista === 'novedades' ? 'block' : 'none';
+      if (vr) vr.style.display = idVista === 'reportes' ? 'block' : 'none';
+      if (vs) vs.style.display = idVista === 'seguridad' ? 'block' : 'none';
+    }
+
+    function actualizarReportesMatrizStats() {
+      const el = document.getElementById('reportes-matriz-stats');
+      if (!el) return;
+      if (!cacheTransacciones.length) {
+        el.textContent = 'Aún no hay transacciones cargadas en la sesión.';
+        return;
+      }
+      if (!window.FornitaliaMatrizRelaciones) {
+        el.textContent = 'No se cargó el módulo de matriz de relaciones.';
+        return;
+      }
+      try {
+        const { stats } = window.FornitaliaMatrizRelaciones.buildMatrizRelacionesExcelData(cacheTransacciones, {
+          origenLabel: 'Supabase / tabla transacciones',
+        });
+        el.textContent = `${stats.rowsAll.toLocaleString('es-AR')} en sesión. Matriz/proveedores: ${stats.rowsFiltered.toLocaleString('es-AR')} tras exclusiones (${stats.rowsEgreso.toLocaleString('es-AR')} egresos). Cat×cuenta (solo Confirmado): ${stats.rowsConfirmados.toLocaleString('es-AR')} registros, ${stats.catCuentaCruceCategorias.toLocaleString('es-AR')} × ${stats.catCuentaCruceCuentas.toLocaleString('es-AR')} categorías/cuentas. Proveedores: ${stats.provDetalle.toLocaleString('es-AR')} filas, ${stats.provPorProveedor.toLocaleString('es-AR')} agrupados.`;
+      } catch (err) {
+        el.textContent = 'No se pudo calcular el resumen: ' + (err && err.message ? err.message : String(err));
+      }
+    }
+
+    function exportarMatrizRelacionesExcel() {
+      if (securityModuleActive() && !puedeExportarReportes()) {
+        alert('No tenés permiso para exportar reportes.');
+        return;
+      }
+      if (!window.XLSX) {
+        alert('No está disponible la librería Excel.');
+        return;
+      }
+      if (!window.FornitaliaMatrizRelaciones) {
+        alert('No se cargó el módulo de matriz de relaciones. Recargá la página.');
+        return;
+      }
+      if (!cacheTransacciones.length) {
+        alert('No hay transacciones cargadas. Esperá a que termine la carga del dashboard.');
+        return;
+      }
+      const MR = window.FornitaliaMatrizRelaciones;
+      const { sheets } = MR.buildMatrizRelacionesExcelData(cacheTransacciones, {
+        origenLabel: 'Supabase / tabla transacciones (exportado desde dashboard)',
+      });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheets[MR.SHEET_MATRIZ_COSTO]), MR.SHEET_MATRIZ_COSTO);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheets[MR.SHEET_CAT_CUENTA_CRUCE]), MR.SHEET_CAT_CUENTA_CRUCE);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheets[MR.SHEET_PROV_DETALLE]), MR.SHEET_PROV_DETALLE);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheets[MR.SHEET_PROV_AGRUP]), MR.SHEET_PROV_AGRUP);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheets.README), 'README');
+      const hoy = new Date();
+      const fecha = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
+      XLSX.writeFile(wb, 'Matriz_Relaciones_Transacciones_Fornitalia_' + fecha + '.xlsx');
     }
 
     const FORNITALIA_PERMISOS_MENU = [
@@ -6333,8 +6437,9 @@
       const selCat = document.getElementById('filtro-todas-categoria');
       const selCuenta = document.getElementById('filtro-todas-cuenta-contable');
       const selTipo = document.getElementById('filtro-todas-tipo');
+      const selCliente = document.getElementById('filtro-todas-cliente');
       const inputIdOperacion = document.getElementById('filtro-todas-id-operacion');
-      if (!tbody || !selMes || !selCat || !selCuenta || !selTipo) return;
+      if (!tbody || !selMes || !selCat || !selCuenta || !selTipo || !selCliente) return;
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       if (cacheTransacciones.length === 0) {
         tbody.innerHTML = '<tr><td colspan="25" style="text-align:center; color:#666;">No hay transacciones cargadas.</td></tr>';
@@ -6360,10 +6465,16 @@
         const tipos = [...new Set(cacheTransacciones.map(r => (r.tipo_movimiento || '').trim()).filter(Boolean))].sort();
         selTipo.innerHTML = '<option value="todos">Todos</option>' + tipos.map(t => '<option value="' + esc(t) + '">' + esc(t) + '</option>').join('');
       }
+      if (selCliente.options.length <= 1) {
+        const clientes = [...new Set(cacheTransacciones.map(r => (r.cliente || '').trim()).filter(Boolean))]
+          .sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+        selCliente.innerHTML = '<option value="todos">Todos</option>' + clientes.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('');
+      }
       const valorMes = selMes.value;
       const valorCat = selCat.value;
       const valorCuenta = selCuenta.value;
       const valorTipo = selTipo.value;
+      const valorCliente = selCliente.value;
       let list = cacheTransacciones;
       if (valorMes !== 'todos') {
         const [anio, mes] = valorMes.split('-').map(Number);
@@ -6377,6 +6488,9 @@
       }
       if (valorTipo !== 'todos') {
         list = list.filter(r => (r.tipo_movimiento || '').trim() === valorTipo);
+      }
+      if (valorCliente !== 'todos') {
+        list = list.filter(r => (r.cliente || '').trim() === valorCliente);
       }
       const valorIdOperacion = (inputIdOperacion && inputIdOperacion.value) ? String(inputIdOperacion.value).trim() : '';
       if (valorIdOperacion) {
@@ -6872,33 +6986,31 @@
         document.getElementById('menu-home')?.classList.add('menu-item-active');
         document.getElementById('menu-home')?.addEventListener('click', (e) => {
           e.preventDefault();
-          document.getElementById('view-dashboard').style.display = 'block';
-          document.getElementById('view-novedades').style.display = 'none';
-          const vs = document.getElementById('view-seguridad');
-          if (vs) vs.style.display = 'none';
+          mostrarVistaPrincipal('dashboard');
           document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
           document.getElementById('menu-home')?.classList.add('menu-item-active');
         });
+        document.getElementById('menu-reportes')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (!puedeExportarReportes()) return;
+          mostrarVistaPrincipal('reportes');
+          actualizarReportesMatrizStats();
+          document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+          document.getElementById('menu-reportes')?.classList.add('menu-item-active');
+        });
+        document.getElementById('btn-exportar-matriz-relaciones')?.addEventListener('click', exportarMatrizRelacionesExcel);
         document.getElementById('menu-novedades')?.addEventListener('click', (e) => {
           e.preventDefault();
           if (!puedeOperarDashboard()) return;
-          document.getElementById('view-dashboard').style.display = 'none';
-          document.getElementById('view-novedades').style.display = 'block';
-          const vs = document.getElementById('view-seguridad');
-          if (vs) vs.style.display = 'none';
+          mostrarVistaPrincipal('novedades');
           document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
           document.getElementById('menu-novedades')?.classList.add('menu-item-active');
         });
         document.getElementById('menu-seguridad')?.addEventListener('click', (e) => {
           e.preventDefault();
           if (!puedeAssignRoles()) return;
-          document.getElementById('view-dashboard').style.display = 'none';
-          document.getElementById('view-novedades').style.display = 'none';
-          const vs = document.getElementById('view-seguridad');
-          if (vs) {
-            vs.style.display = 'block';
-            loadSeguridadForfitalia();
-          }
+          mostrarVistaPrincipal('seguridad');
+          loadSeguridadForfitalia();
           document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
           document.getElementById('menu-seguridad')?.classList.add('menu-item-active');
         });
@@ -7033,6 +7145,7 @@
         document.getElementById('filtro-todas-categoria').addEventListener('change', renderTodasTransacciones);
         document.getElementById('filtro-todas-cuenta-contable').addEventListener('change', renderTodasTransacciones);
         document.getElementById('filtro-todas-tipo').addEventListener('change', renderTodasTransacciones);
+        document.getElementById('filtro-todas-cliente').addEventListener('change', renderTodasTransacciones);
         const filtroIdOperacionEl = document.getElementById('filtro-todas-id-operacion');
         if (filtroIdOperacionEl) filtroIdOperacionEl.addEventListener('input', renderTodasTransacciones);
         document.getElementById('evolucion-agrupar').addEventListener('change', renderEvolucion);
