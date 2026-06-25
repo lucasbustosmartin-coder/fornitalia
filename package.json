@@ -6,8 +6,10 @@
     "presentacion": "node scripts/crear-presentacion-propuesta.js",
     "consolidar-2025": "node scripts/consolidar-estado-resultados-2025.js",
     "consolidar-estados": "node scripts/consolidar-estado-resultados.js",
-    "informe-normalizacion-html": "node scripts/md-informe-a-html.js",
-    "informe-normalizacion-pdf": "node scripts/md-informe-a-html.js && node scripts/informe-html-a-pdf.js",
+    "informe-normalizacion": "node scripts/actualizar-seccion-84-matriz-normalizacion.js && node scripts/actualizar-seccion-usuario-informe-normalizacion.js && node scripts/md-informe-a-html.js && node scripts/informe-html-a-pdf.js",
+    "informe-normalizacion-html": "npm run informe-normalizacion",
+    "informe-normalizacion-pdf": "npm run informe-normalizacion",
+    "informe-normalizacion-solo-html": "node scripts/actualizar-seccion-84-matriz-normalizacion.js && node scripts/actualizar-seccion-usuario-informe-normalizacion.js && node scripts/md-informe-a-html.js",
     "normalizar-extracto": "node scripts/normalizar-extracto-fornitalia.js",
     "analisis-financiero-pdf": "node scripts/generar-analisis-financiero-pdf.js",
     "dashboard-app-pdf": "node scripts/dashboard-html-a-pdf.js",
@@ -15,12 +17,23 @@
     "normalizar-ventas-excel": "node scripts/normalizar-extracto-ventas-fornitalia.js",
     "diagnostico-ventas-2-julio": "node scripts/diagnostico-conciliacion-ventas-2-julio.js",
     "normalizar-compras-v1": "node scripts/normalizar-y-conciliar-compras-v1.js",
+    "conciliar-base-compras": "node scripts/conciliar-base-compras-movimientos.js",
+    "normalizar-compras-excel-sistemas": "node scripts/normalizar-compras-excel-sistemas.js",
+    "conciliar-compras-sistemas-vs-base": "node scripts/conciliar-compras-sistemas-vs-base.js",
+    "enriquecer-base-compras-sistemas": "node scripts/enriquecer-base-compras-desde-excel-sistemas.js",
+    "conciliar-compras-sistemas-transacciones": "node scripts/conciliar-compras-sistemas-transacciones.js",
+    "normalizar-detalle-operaciones-ventas": "node scripts/normalizar-detalle-operaciones-ventas.js",
+    "conciliar-detalle-ventas-movimientos": "node scripts/conciliar-detalle-ventas-movimientos.js",
+    "completar-matriz-ccsis-normalizado": "node scripts/completar-matriz-ccsis-desde-normalizado.js",
+    "matriz-relaciones-transacciones": "node scripts/generar-matriz-relaciones-transacciones.js",
+    "cargar-ef-estructura": "node scripts/cargar-ef-estructura-desde-excel.js",
     "playwright:install": "playwright install chromium"
   },
   "devDependencies": {
     "live-server": "^1.2.2",
     "playwright": "^1.49.0",
     "pptxgenjs": "^3.12.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "xlsx-js-style": "^1.2.0"
   }
 }

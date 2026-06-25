@@ -950,7 +950,7 @@
     <div id="panel-todas-transacciones" class="card panel">
       <template id="template-todas-transacciones-panel">
         <div class="th-help-rich-content">
-          <p>Listado de todas las transacciones. Podés filtrar por mes, <strong>categoría y cuenta (matriz)</strong>, <strong>cliente</strong>, tipo e id de operación; al guardar se marca como editado.</p>
+          <p>Listado de todas las transacciones. Filtros por mes, <strong>categoría y cuenta nueva (BD)</strong>, <strong>cliente</strong>, tipo e id de operación. En la tabla: categoría/cuenta del extracto (vieja) y nueva en BD por separado. Al guardar se marca como editado.</p>
         </div>
       </template>
       <div class="errores-panel-toolbar">
@@ -961,12 +961,12 @@
           <select id="filtro-todas-mes" title="Filtrar por mes">
             <option value="todos">Todos</option>
           </select>
-          <label for="filtro-todas-categoria" style="margin-left:0.75rem;">Categoría (matriz):</label>
-          <select id="filtro-todas-categoria" title="Filtrar por categoría (matriz / distribución)">
+          <label for="filtro-todas-categoria" style="margin-left:0.75rem;">Categoría (nueva):</label>
+          <select id="filtro-todas-categoria" title="Filtrar por nueva categoría en BD">
             <option value="todos">Todas</option>
           </select>
-          <label for="filtro-todas-cuenta-contable" style="margin-left:0.75rem;">Cuenta (matriz):</label>
-          <select id="filtro-todas-cuenta-contable" title="Filtrar por cuenta contable (matriz / distribución)">
+          <label for="filtro-todas-cuenta-contable" style="margin-left:0.75rem;">Cuenta (nueva):</label>
+          <select id="filtro-todas-cuenta-contable" title="Filtrar por nueva cuenta contable en BD">
             <option value="todos">Todas</option>
           </select>
           <label for="filtro-todas-tipo" style="margin-left:0.75rem;">Tipo:</label>
@@ -994,10 +994,10 @@
               <th>Moneda</th>
               <th>Status</th>
               <th>Medio pago</th>
-              <th>Categoría (matriz)</th>
-              <th>Cuenta (matriz)</th>
-              <th>Nueva categoría (BD)</th>
-              <th>Nueva cuenta (BD)</th>
+              <th>Categoría (extracto)</th>
+              <th>Cuenta (extracto)</th>
+              <th>Categoría nueva (BD)</th>
+              <th>Cuenta nueva (BD)</th>
               <th>Costo directo</th>
               <th>Costo indirecto</th>
               <th>EF Item</th>
@@ -1122,7 +1122,7 @@
     <p style="color:#666; margin:0 0 1rem;">Exportaciones agregadas desde la base de transacciones en Supabase (misma lógica que el Excel <strong>Matriz_Relaciones_Transacciones_Fornitalia</strong> generado por script).</p>
     <section class="reportes-bloque" style="margin-bottom:1.25rem; padding:1rem; border:1px solid #e5e5e5; border-radius:8px; background:#fafafa;">
       <h2 style="font-size:1.05rem; margin:0 0 0.5rem;">Matriz de relaciones (categoría, cuenta, costo y proveedores)</h2>
-      <p class="sin-cotizacion-note" style="margin:0 0 0.75rem;">Incluye <strong>Matriz_Cat_Cuenta_Costo</strong>, <strong>Cat_x_Cuenta_Registros</strong> (categoría × cuenta, cantidad por cruce), <strong>Proveedores_Egreso</strong>, <strong>Proveedores_por_Cat_Cuenta</strong> y <strong>README</strong>. Las solapas de matriz y proveedores excluyen Impuestos, Ventas, MP - Costo Financiero y Comisiones Morvalab. <strong>Cat_x_Cuenta_Registros</strong> usa solo <code>status</code> = <strong>Confirmado</strong> (todas las categorías). Conteos numéricos en Excel.</p>
+      <p class="sin-cotizacion-note" style="margin:0 0 0.75rem;">Incluye <strong>Matriz_Cat_Cuenta_Costo</strong> (todas las transacciones cargadas, sin exclusiones; la suma de <strong># Registros</strong> = total en sesión; filas en <strong>verde claro</strong> cuando cat/cuenta vieja tiene una sola relación nueva), <strong>Cat_x_Cuenta_Registros</strong> (solo Confirmado), <strong>Proveedores_*</strong> (excluyen Impuestos, Ventas, MP costo financiero, Comisiones Morvalab) y <strong>README</strong>. Conteos numéricos en Excel.</p>
       <p id="reportes-matriz-stats" class="sin-cotizacion-note" style="margin:0 0 0.75rem;" aria-live="polite"></p>
       <button type="button" class="btn btn-success" id="btn-exportar-matriz-relaciones" title="Exportar matriz de relaciones a Excel" aria-label="Exportar matriz de relaciones a Excel">
         <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>
@@ -1617,7 +1617,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.02';
+    const APP_VERSION = '2.07';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1814,7 +1814,7 @@
         const { stats } = window.FornitaliaMatrizRelaciones.buildMatrizRelacionesExcelData(cacheTransacciones, {
           origenLabel: 'Supabase / tabla transacciones',
         });
-        el.textContent = `${stats.rowsAll.toLocaleString('es-AR')} en sesión. Matriz/proveedores: ${stats.rowsFiltered.toLocaleString('es-AR')} tras exclusiones (${stats.rowsEgreso.toLocaleString('es-AR')} egresos). Cat×cuenta (solo Confirmado): ${stats.rowsConfirmados.toLocaleString('es-AR')} registros, ${stats.catCuentaCruceCategorias.toLocaleString('es-AR')} × ${stats.catCuentaCruceCuentas.toLocaleString('es-AR')} categorías/cuentas. Proveedores: ${stats.provDetalle.toLocaleString('es-AR')} filas, ${stats.provPorProveedor.toLocaleString('es-AR')} agrupados.`;
+        el.textContent = `${stats.rowsAll.toLocaleString('es-AR')} en sesión. Matriz costo: ${stats.matrizCostoRegistrosSum.toLocaleString('es-AR')} registros (suma # Registros = total, sin exclusiones); ${(stats.matrizCostoRelacionUnica || 0).toLocaleString('es-AR')} filas verde claro (relación única vieja→nueva). Proveedores: ${stats.rowsFiltered.toLocaleString('es-AR')} tras exclusiones (${stats.rowsEgreso.toLocaleString('es-AR')} egresos). Cat×cuenta (Confirmado): ${stats.rowsConfirmados.toLocaleString('es-AR')}. Combinaciones matriz: ${stats.matrizCosto.toLocaleString('es-AR')}; proveedores: ${stats.provDetalle.toLocaleString('es-AR')} filas.`;
       } catch (err) {
         el.textContent = 'No se pudo calcular el resumen: ' + (err && err.message ? err.message : String(err));
       }
@@ -1838,11 +1838,11 @@
         return;
       }
       const MR = window.FornitaliaMatrizRelaciones;
-      const { sheets } = MR.buildMatrizRelacionesExcelData(cacheTransacciones, {
+      const { sheets, matrizCosto } = MR.buildMatrizRelacionesExcelData(cacheTransacciones, {
         origenLabel: 'Supabase / tabla transacciones (exportado desde dashboard)',
       });
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheets[MR.SHEET_MATRIZ_COSTO]), MR.SHEET_MATRIZ_COSTO);
+      XLSX.utils.book_append_sheet(wb, MR.buildMatrizCostoWorksheet(XLSX, sheets[MR.SHEET_MATRIZ_COSTO], matrizCosto), MR.SHEET_MATRIZ_COSTO);
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheets[MR.SHEET_CAT_CUENTA_CRUCE]), MR.SHEET_CAT_CUENTA_CRUCE);
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheets[MR.SHEET_PROV_DETALLE]), MR.SHEET_PROV_DETALLE);
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheets[MR.SHEET_PROV_AGRUP]), MR.SHEET_PROV_AGRUP);
@@ -5829,6 +5829,15 @@
       return (r.cuenta_contable || '').trim() || 'Sin cuenta contable';
     }
 
+    /** Filtros Todas las transacciones: solo columnas nueva_* en BD (sin fallback al extracto). */
+    function categoriaNuevaBd(r) {
+      return (r.nueva_categoria || '').trim();
+    }
+
+    function cuentaNuevaBd(r) {
+      return (r.nueva_cuenta_contable || '').trim();
+    }
+
     function flagCostoY(v) {
       return String(v ?? '').trim().toUpperCase() === 'Y';
     }
@@ -6454,11 +6463,11 @@
         }).join('');
       }
       if (selCat.options.length <= 1) {
-        const categorias = [...new Set(cacheTransacciones.map(r => categoriaDistribucionFlujo(r)))].sort();
+        const categorias = [...new Set(cacheTransacciones.map(r => categoriaNuevaBd(r)).filter(Boolean))].sort();
         selCat.innerHTML = '<option value="todos">Todas</option>' + categorias.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('');
       }
       if (selCuenta.options.length <= 1) {
-        const cuentas = [...new Set(cacheTransacciones.map(r => cuentaDistribucionFlujo(r)))].sort();
+        const cuentas = [...new Set(cacheTransacciones.map(r => cuentaNuevaBd(r)).filter(Boolean))].sort();
         selCuenta.innerHTML = '<option value="todos">Todas</option>' + cuentas.map(cu => '<option value="' + esc(cu) + '">' + esc(cu) + '</option>').join('');
       }
       if (selTipo.options.length <= 1) {
@@ -6481,10 +6490,10 @@
         list = list.filter(r => r.anio === anio && r.mes === mes);
       }
       if (valorCat !== 'todos') {
-        list = list.filter(r => categoriaDistribucionFlujo(r) === valorCat);
+        list = list.filter(r => categoriaNuevaBd(r) === valorCat);
       }
       if (valorCuenta !== 'todos') {
-        list = list.filter(r => cuentaDistribucionFlujo(r) === valorCuenta);
+        list = list.filter(r => cuentaNuevaBd(r) === valorCuenta);
       }
       if (valorTipo !== 'todos') {
         list = list.filter(r => (r.tipo_movimiento || '').trim() === valorTipo);
@@ -6519,10 +6528,10 @@
             <td>${esc(monedaReg)}</td>
             <td>${esc(r.status || '')}</td>
             <td>${esc(r.medio_pago || '')}</td>
-            <td>${esc(categoriaDistribucionFlujo(r))}</td>
-            <td>${esc(cuentaDistribucionFlujo(r))}</td>
-            <td>${esc((r.nueva_categoria || '').trim() || '')}</td>
-            <td>${esc((r.nueva_cuenta_contable || '').trim() || '')}</td>
+            <td>${esc((r.categoria || '').trim())}</td>
+            <td>${esc((r.cuenta_contable || '').trim())}</td>
+            <td>${esc(categoriaNuevaBd(r))}</td>
+            <td>${esc(cuentaNuevaBd(r))}</td>
             <td>${esc((r.costo_directo || '').toString())}</td>
             <td>${esc((r.costo_indirecto || '').toString())}</td>
             <td>${esc((r.ef_item || '').toString().slice(0, 80))}</td>
