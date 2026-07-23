@@ -35,7 +35,18 @@ CREATE TABLE IF NOT EXISTS public.app_permission (
 INSERT INTO public.app_permission (permission, description) VALUES
   ('assign_roles', 'Asignar roles y editar permisos por rol (vista Seguridad)'),
   ('exportar_base_historica', 'Exportar Base Histórica a Excel'),
-  ('dashboard_operador', 'Panel operador: solapas extendidas, Novedades, Configuración, carga normalizada, edición de registros')
+  ('dashboard_operador', 'Compatibilidad: otorga todas las solapas y acciones de operador (legacy). Preferir permisos granulares.'),
+  ('ver_solapa_flujo', 'Ver solapa Flujo por mes'),
+  ('ver_solapa_errores', 'Ver solapa Errores'),
+  ('ver_solapa_todas_transacciones', 'Ver solapa Todas las transacciones'),
+  ('ver_solapa_evolucion', 'Ver solapa Evolución'),
+  ('ver_solapa_estado_financiero', 'Ver solapa Estado Financiero'),
+  ('ver_solapa_excluidos_upload', 'Ver solapa Excluidos upload'),
+  ('ver_novedades', 'Ver menú Novedades del Negocio'),
+  ('ver_configuracion', 'Ver menú Configuración'),
+  ('ver_reportes', 'Ver menú Reportes'),
+  ('carga_normalizada', 'Actualizar base desde extracto normalizado'),
+  ('editar_registros', 'Editar registros de transacciones')
 ON CONFLICT (permission) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS public.app_role_permission (
@@ -44,15 +55,40 @@ CREATE TABLE IF NOT EXISTS public.app_role_permission (
   PRIMARY KEY (role, permission)
 );
 
--- Visor: solo flujo por mes + exportar histórica
--- Encargado y Admin: operador completo; solo Admin: assign_roles
+-- Visor: flujo + exportar histórica + reportes
+-- Encargado y Admin: todas las solapas y acciones; solo Admin: assign_roles
+-- dashboard_operador se mantiene por compatibilidad con clientes antiguos
 INSERT INTO public.app_role_permission (role, permission) VALUES
   ('visor', 'exportar_base_historica'),
+  ('visor', 'ver_solapa_flujo'),
+  ('visor', 'ver_reportes'),
   ('encargado', 'exportar_base_historica'),
   ('encargado', 'dashboard_operador'),
+  ('encargado', 'ver_solapa_flujo'),
+  ('encargado', 'ver_solapa_errores'),
+  ('encargado', 'ver_solapa_todas_transacciones'),
+  ('encargado', 'ver_solapa_evolucion'),
+  ('encargado', 'ver_solapa_estado_financiero'),
+  ('encargado', 'ver_solapa_excluidos_upload'),
+  ('encargado', 'ver_novedades'),
+  ('encargado', 'ver_configuracion'),
+  ('encargado', 'ver_reportes'),
+  ('encargado', 'carga_normalizada'),
+  ('encargado', 'editar_registros'),
   ('admin', 'exportar_base_historica'),
   ('admin', 'dashboard_operador'),
-  ('admin', 'assign_roles')
+  ('admin', 'assign_roles'),
+  ('admin', 'ver_solapa_flujo'),
+  ('admin', 'ver_solapa_errores'),
+  ('admin', 'ver_solapa_todas_transacciones'),
+  ('admin', 'ver_solapa_evolucion'),
+  ('admin', 'ver_solapa_estado_financiero'),
+  ('admin', 'ver_solapa_excluidos_upload'),
+  ('admin', 'ver_novedades'),
+  ('admin', 'ver_configuracion'),
+  ('admin', 'ver_reportes'),
+  ('admin', 'carga_normalizada'),
+  ('admin', 'editar_registros')
 ON CONFLICT (role, permission) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS public.app_user_profile (

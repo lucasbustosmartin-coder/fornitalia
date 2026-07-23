@@ -72,16 +72,21 @@
     .seguridad-permisos-menu-colapsable.collapsed .seguridad-permisos-menu-body { display: none; }
     .seguridad-perm-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.35rem 0; border-bottom: 1px solid #f0f0f0; font-size: 0.88rem; }
     .seguridad-perm-row:last-child { border-bottom: none; }
-    .panel-seguridad .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
-    .panel-seguridad .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .panel-seguridad .toggle-switch { position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0; }
+    .panel-seguridad .toggle-switch input {
+      position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 1;
+    }
     .panel-seguridad .toggle-switch .slider {
-      position: absolute; cursor: pointer; inset: 0; background: #ccc; border-radius: 24px; transition: 0.2s;
+      position: absolute; pointer-events: none; inset: 0; background: #d1d5db; border-radius: 26px; transition: 0.2s;
     }
     .panel-seguridad .toggle-switch .slider:before {
-      position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s;
+      position: absolute; content: ''; height: 20px; width: 20px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
+      transition: 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     }
     .panel-seguridad .toggle-switch input:checked + .slider { background: #0d7d3d; }
-    .panel-seguridad .toggle-switch input:checked + .slider:before { transform: translateX(20px); }
+    .panel-seguridad .toggle-switch input:checked + .slider:before { transform: translateX(22px); }
+    .panel-seguridad .toggle-switch input:disabled { cursor: not-allowed; }
+    .panel-seguridad .toggle-switch input:disabled + .slider { opacity: 0.65; }
     .sidebar { width: 56px; min-width: 56px; background: #1a1a1a; color: #fff; transition: width 0.25s ease; overflow: hidden; display: flex; flex-direction: column; flex-shrink: 0; }
     .sidebar.expanded { width: 220px; }
     .sidebar-toggle { display: flex; align-items: center; justify-content: center; width: 56px; height: 52px; border: none; background: transparent; color: #fff; cursor: pointer; font-size: 1.25rem; flex-shrink: 0; }
@@ -1159,7 +1164,7 @@
       <span style="width:28px; height:28px; color:#555; flex-shrink:0;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
       Seguridad – Usuarios y roles
     </h1>
-    <p style="color:#666; margin:0 0 1rem 0; font-size:0.95rem;">Asigná el rol (Admin, Encargado, Visor) a cada usuario. Los permisos por rol definen qué ve cada perfil en el dashboard (visor: solo Flujo por mes y exportar base histórica).</p>
+    <p style="color:#666; margin:0 0 1rem 0; font-size:0.95rem;">Asigná el rol (Admin, Encargado, Visor) a cada usuario. Debajo podés activar o desactivar <strong>cada solapa y menú por separado</strong> para ese rol (incluido Visor).</p>
     <div id="seguridad-loading" class="seguridad-loading">Cargando usuarios…</div>
     <div id="seguridad-tabla-wrap" class="seguridad-tabla-wrap" style="display:none;">
       <table id="seguridad-tabla">
@@ -1617,7 +1622,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.07';
+    const APP_VERSION = '2.08';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1639,6 +1644,36 @@
     const PERM_EXPORTAR_BASE = 'exportar_base_historica';
     const PERM_DASHBOARD_OPERADOR = 'dashboard_operador';
     const PERM_ASSIGN_ROLES = 'assign_roles';
+    const PERM_EDITAR_REGISTROS = 'editar_registros';
+    const PERM_CARGA_NORMALIZADA = 'carga_normalizada';
+    const PERM_VER_NOVEDADES = 'ver_novedades';
+    const PERM_VER_CONFIGURACION = 'ver_configuracion';
+    const PERM_VER_REPORTES = 'ver_reportes';
+
+    /** Solapas del dashboard → permiso granular. */
+    const PANEL_PERMISO = {
+      flujo: 'ver_solapa_flujo',
+      'errores-global': 'ver_solapa_errores',
+      'todas-transacciones': 'ver_solapa_todas_transacciones',
+      evolucion: 'ver_solapa_evolucion',
+      'estado-financiero': 'ver_solapa_estado_financiero',
+      'excluidos-upload': 'ver_solapa_excluidos_upload',
+    };
+
+    /** Bundle legacy: si el rol aún tiene solo dashboard_operador, equivale a estos permisos. */
+    const OPERADOR_BUNDLE = [
+      'ver_solapa_flujo',
+      'ver_solapa_errores',
+      'ver_solapa_todas_transacciones',
+      'ver_solapa_evolucion',
+      'ver_solapa_estado_financiero',
+      'ver_solapa_excluidos_upload',
+      'ver_novedades',
+      'ver_configuracion',
+      'ver_reportes',
+      'carga_normalizada',
+      'editar_registros',
+    ];
 
     let userPermissions = [];
     /** true si respondió get_my_permissions (SQL de seguridad desplegado). Si false, modo compatibilidad = acceso completo al dashboard. */
@@ -1649,16 +1684,40 @@
       return fornitaliaSecurityRpcOk === true;
     }
 
+    function hasPerm(perm) {
+      if (!securityModuleActive()) return true;
+      if (!perm) return true;
+      if (userPermissions.includes(perm)) return true;
+      if (perm !== PERM_ASSIGN_ROLES && userPermissions.includes(PERM_DASHBOARD_OPERADOR) && OPERADOR_BUNDLE.includes(perm)) {
+        return true;
+      }
+      return false;
+    }
+
+    function puedeVerSolapa(panelId) {
+      const perm = PANEL_PERMISO[panelId];
+      if (!perm) return !securityModuleActive();
+      return hasPerm(perm);
+    }
+
     function puedeOperarDashboard() {
-      return !securityModuleActive() || userPermissions.includes(PERM_DASHBOARD_OPERADOR);
+      return !securityModuleActive() || userPermissions.includes(PERM_DASHBOARD_OPERADOR) || OPERADOR_BUNDLE.some((p) => userPermissions.includes(p));
+    }
+
+    function puedeEditarRegistros() {
+      return hasPerm(PERM_EDITAR_REGISTROS);
+    }
+
+    function puedeCargarNormalizado() {
+      return hasPerm(PERM_CARGA_NORMALIZADA);
     }
 
     function puedeExportarBaseHistorica() {
-      return !securityModuleActive() || userPermissions.includes(PERM_EXPORTAR_BASE);
+      return hasPerm(PERM_EXPORTAR_BASE);
     }
 
     function puedeAssignRoles() {
-      return securityModuleActive() && userPermissions.includes(PERM_ASSIGN_ROLES);
+      return securityModuleActive() && hasPerm(PERM_ASSIGN_ROLES);
     }
 
     function escapeHtmlSeg(s) {
@@ -1719,51 +1778,56 @@
     }
 
     function applySecurityUI() {
-      const op = puedeOperarDashboard();
       const exp = puedeExportarBaseHistorica();
       const sec = puedeAssignRoles();
+      const rep = hasPerm(PERM_VER_REPORTES) || exp;
+      const nov = hasPerm(PERM_VER_NOVEDADES);
+      const cfg = hasPerm(PERM_VER_CONFIGURACION);
+      const carga = puedeCargarNormalizado();
 
       const setVis = (id, visible) => {
         const n = document.getElementById(id);
         if (n) n.style.display = visible ? '' : 'none';
       };
-      const rep = exp || op;
       setVis('menu-reportes', rep);
-      setVis('menu-novedades', op);
-      setVis('menu-configuracion', op);
+      setVis('menu-novedades', nov);
+      setVis('menu-configuracion', cfg);
       setVis('menu-seguridad', sec);
       setVis('menu-cerrar-sesion', true);
 
       const btnUp = document.getElementById('btn-upload-normalizado');
-      if (btnUp) btnUp.style.display = op ? '' : 'none';
+      if (btnUp) btnUp.style.display = carga ? '' : 'none';
 
       const btnEx = document.getElementById('btn-exportar-excel');
       if (btnEx) btnEx.style.display = exp ? '' : 'none';
 
-      const tt = document.querySelector('.tabs-toolbar');
-      if (tt) tt.classList.toggle('solo-flujo', !op);
-
-      document.querySelectorAll('.tabs-toolbar .tab[data-panel]').forEach((tab) => {
+      const tabs = Array.from(document.querySelectorAll('.tabs-toolbar .tab[data-panel]'));
+      let visibleCount = 0;
+      let firstVisiblePanel = null;
+      tabs.forEach((tab) => {
         const panel = tab.getAttribute('data-panel');
-        const show = panel === 'flujo' || op;
+        const show = puedeVerSolapa(panel);
         tab.style.display = show ? '' : 'none';
-        if (!show && tab.classList.contains('activo')) {
-          tab.classList.remove('activo');
-          const flujoTab = document.querySelector('.tabs-toolbar .tab[data-panel="flujo"]');
-          if (flujoTab) flujoTab.classList.add('activo');
-          document.querySelectorAll('.panel').forEach((p) => p.classList.remove('activo'));
-          const pFlujo = document.getElementById('panel-flujo');
-          if (pFlujo) pFlujo.classList.add('activo');
+        if (show) {
+          visibleCount += 1;
+          if (!firstVisiblePanel) firstVisiblePanel = panel;
         }
       });
 
-      if (!op) {
-        document.querySelectorAll('.tabs-toolbar .tab[data-panel="flujo"]').forEach((t) => t.classList.add('activo'));
-        const pFlujo = document.getElementById('panel-flujo');
-        if (pFlujo) {
-          document.querySelectorAll('#tabla-wrap .panel').forEach((p) => p.classList.remove('activo'));
-          pFlujo.classList.add('activo');
-        }
+      const tt = document.querySelector('.tabs-toolbar');
+      if (tt) tt.classList.toggle('solo-flujo', visibleCount <= 1);
+
+      const activeTab = tabs.find((t) => t.classList.contains('activo') && t.style.display !== 'none');
+      if (!activeTab && firstVisiblePanel) {
+        tabs.forEach((t) => t.classList.remove('activo'));
+        document.querySelectorAll('#tabla-wrap .panel').forEach((p) => p.classList.remove('activo'));
+        const tabShow = tabs.find((t) => t.getAttribute('data-panel') === firstVisiblePanel);
+        if (tabShow) tabShow.classList.add('activo');
+        const panelEl = document.getElementById('panel-' + firstVisiblePanel);
+        if (panelEl) panelEl.classList.add('activo');
+      } else if (!activeTab && !firstVisiblePanel) {
+        tabs.forEach((t) => t.classList.remove('activo'));
+        document.querySelectorAll('#tabla-wrap .panel').forEach((p) => p.classList.remove('activo'));
       }
 
       const vSeg = document.getElementById('view-seguridad');
@@ -1782,10 +1846,18 @@
         document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
         document.getElementById('menu-home')?.classList.add('menu-item-active');
       }
+      const vNov = document.getElementById('view-novedades');
+      if (vNov && vNov.style.display === 'block' && !nov) {
+        vNov.style.display = 'none';
+        const vd = document.getElementById('view-dashboard');
+        if (vd) vd.style.display = 'block';
+        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+        document.getElementById('menu-home')?.classList.add('menu-item-active');
+      }
     }
 
     function puedeExportarReportes() {
-      return puedeExportarBaseHistorica() || puedeOperarDashboard();
+      return hasPerm(PERM_VER_REPORTES) || puedeExportarBaseHistorica();
     }
 
     function mostrarVistaPrincipal(idVista) {
@@ -1852,10 +1924,33 @@
       XLSX.writeFile(wb, 'Matriz_Relaciones_Transacciones_Fornitalia_' + fecha + '.xlsx');
     }
 
+    const MSG_APP_ROLE_PERM_MIGRACION =
+      'En Supabase ejecutá sql/migracion_permisos_solapas_granulares.sql (políticas INSERT/DELETE en app_role_permission).';
+
     const FORNITALIA_PERMISOS_MENU = [
-      { id: 'exportar', titulo: 'Exportar Base Histórica', operar: ['exportar_base_historica'] },
-      { id: 'operador', titulo: 'Panel operador (solapas, novedades, configuración, carga, edición)', operar: ['dashboard_operador'] },
-      { id: 'admin', titulo: 'Asignar roles y permisos', operar: ['assign_roles'] },
+      {
+        id: 'solapas',
+        titulo: 'Solapas del dashboard',
+        operar: [
+          'ver_solapa_flujo',
+          'ver_solapa_errores',
+          'ver_solapa_todas_transacciones',
+          'ver_solapa_evolucion',
+          'ver_solapa_estado_financiero',
+          'ver_solapa_excluidos_upload',
+        ],
+      },
+      {
+        id: 'menus',
+        titulo: 'Menús laterales',
+        operar: ['ver_novedades', 'ver_configuracion', 'ver_reportes'],
+      },
+      {
+        id: 'acciones',
+        titulo: 'Acciones',
+        operar: ['exportar_base_historica', 'carga_normalizada', 'editar_registros'],
+      },
+      { id: 'admin', titulo: 'Administración', operar: ['assign_roles'] },
     ];
 
     function loadSeguridadForfitalia() {
@@ -1885,9 +1980,11 @@
         client.from('app_role').select('role, label').order('role'),
         client.from('app_permission').select('permission, description').order('permission'),
         client.from('app_role_permission').select('role, permission'),
-      ]).then(([rUsers, rRoles, rPerms, rRolePerms]) => {
+        client.rpc('get_my_role'),
+      ]).then(([rUsers, rRoles, rPerms, rRolePerms, rMyRole]) => {
         loadingEl.style.display = 'none';
 
+        const myRole = (rMyRole && !rMyRole.error && rMyRole.data) ? String(rMyRole.data) : '';
         const usersRaw = rUsers.data || [];
         const users = usersRaw.filter((u) => u && (u.email != null && String(u.email).trim() !== ''));
         const roles = (rRoles.data || []).slice();
@@ -1982,19 +2079,34 @@
               const role = this.getAttribute('data-role');
               const permission = this.getAttribute('data-permission');
               const enable = this.checked;
+              const mismoRolQueSesion = String(role || '').trim() === String(myRole || '').trim();
               if (enable) {
-                client.from('app_role_permission').insert({ role, permission }).then((res) => {
+                client.from('app_role_permission').insert({ role, permission }).select('role, permission').then((res) => {
                   if (res.error) {
                     alert('Error: ' + (res.error.message || 'No se pudo guardar.'));
                     this.checked = false;
+                    return;
                   }
+                  if (!res.data || res.data.length === 0) {
+                    alert('No se guardó el permiso (0 filas). ' + MSG_APP_ROLE_PERM_MIGRACION);
+                    this.checked = false;
+                    return;
+                  }
+                  if (mismoRolQueSesion) refreshUserPermissions();
                 });
               } else {
-                client.from('app_role_permission').delete().eq('role', role).eq('permission', permission).then((res) => {
+                client.from('app_role_permission').delete().eq('role', role).eq('permission', permission).select('role, permission').then((res) => {
                   if (res.error) {
                     alert('Error: ' + (res.error.message || 'No se pudo guardar.'));
                     this.checked = true;
+                    return;
                   }
+                  if (!res.data || res.data.length === 0) {
+                    alert('No se eliminó el permiso (0 filas). ' + MSG_APP_ROLE_PERM_MIGRACION);
+                    this.checked = true;
+                    return;
+                  }
+                  if (mismoRolQueSesion) refreshUserPermissions();
                 });
               }
             });
@@ -5969,7 +6081,7 @@
     function abrirModal(anio, mes) {
       ultimoModalMesAnio = anio;
       ultimoModalMes = mes;
-      const puedeEditarFilas = puedeOperarDashboard();
+      const puedeEditarFilas = puedeEditarRegistros();
       const modal = document.getElementById('modal-caja');
       if (modal) {
         modal.style.position = '';
@@ -6178,10 +6290,10 @@
           <button type="button" class="btn btn-ver-errores" data-anio="${anio}" data-mes="${mes}"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span> Ver detalle de errores</button>
         `;
 
-      const tabErrores = puedeOperarDashboard()
+      const tabErrores = puedeEditarRegistros() || puedeVerSolapa('errores-global')
         ? `<button type="button" class="modal-tab" data-panel="errores" role="tab">Errores (${erroresCount})</button>`
         : '';
-      const panelErrores = puedeOperarDashboard()
+      const panelErrores = puedeEditarRegistros() || puedeVerSolapa('errores-global')
         ? `<div id="modal-panel-errores" class="modal-panel">${erroresResumenHtml}</div>`
         : '';
       let html = `
@@ -6377,6 +6489,7 @@
         tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; color:#666;">' + msg + '</td></tr>';
         return;
       }
+      const puedeEditar = puedeEditarRegistros();
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       const rows = errores.map(r => {
         const regIsUSD = esTransaccionUSD(r);
@@ -6388,7 +6501,8 @@
         const idOrigen = (r.id_origen != null && r.id_origen !== '') ? String(r.id_origen) : '';
         const idOperacion = (r.id_operacion != null && r.id_operacion !== '') ? String(r.id_operacion) : '';
         const esDuplicado = r.tipoError === TIPO_ERROR_DUPLICADO;
-        const btnVer = esDuplicado ? `<button type="button" class="ver-duplicado-btn edit-btn edit-btn-global" data-id="${id}" title="Ver posible duplicado" aria-label="Ver posible duplicado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>` : '';
+        const btnVer = (puedeEditar && esDuplicado) ? `<button type="button" class="ver-duplicado-btn edit-btn edit-btn-global" data-id="${id}" title="Ver posible duplicado" aria-label="Ver posible duplicado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>` : '';
+        const btnEdit = puedeEditar ? `<button type="button" class="edit-btn edit-btn-global" data-id="${id}" title="Editar registro" aria-label="Editar registro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : '';
         return `
           <tr>
             <td>${esc(r.tipoError || '')}</td>
@@ -6404,7 +6518,7 @@
             <td>${esc(monedaReg)}</td>
             <td>${esc((r.descripcion || r.cliente || '–').slice(0, 160))}</td>
             <td>${esc((r.origen_archivo || '').trim() || '—')}</td>
-            <td>${btnVer}<button type="button" class="edit-btn edit-btn-global" data-id="${id}" title="Editar registro" aria-label="Editar registro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+            <td>${btnVer}${btnEdit}</td>
           </tr>
         `;
       }).join('');
@@ -6507,6 +6621,7 @@
         list = list.filter(r => ((r.id_operacion || '').toString().toLowerCase()).includes(busqueda));
       }
       currentTodasTransaccionesList = list;
+      const puedeEditar = puedeEditarRegistros();
       if (!list.length) {
         tbody.innerHTML = '<tr><td colspan="25" style="text-align:center; color:#666;">No hay registros con los filtros seleccionados.</td></tr>';
         programarAjusteTablasScrollAncladas();
@@ -6518,6 +6633,9 @@
         const monedaReg = regIsUSD ? 'USD' : 'ARS';
         const simboloReg = regIsUSD ? 'US$ ' : '$ ';
         const montoVal = r.monto != null ? (simboloReg + formatearNumero(Number(r.monto), monedaReg)) : '–';
+        const celdaAccion = puedeEditar
+          ? `<td><button type="button" class="edit-btn edit-btn-todas" data-id="${id}" title="Editar registro" aria-label="Editar registro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>`
+          : '<td></td>';
         return `
           <tr>
             <td>${esc(fechaStr(r.fecha))}</td>
@@ -6544,7 +6662,7 @@
             <td>${esc(r.id_operacion != null ? r.id_operacion : '')}</td>
             <td>${r.editado ? 'Sí' : '—'}</td>
             <td>${esc((r.editado_detalle || '').toString().slice(0, 60))}</td>
-            <td><button type="button" class="edit-btn edit-btn-todas" data-id="${id}" title="Editar registro" aria-label="Editar registro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
+            ${celdaAccion}
           </tr>
         `;
       }).join('');
@@ -6647,7 +6765,7 @@
     }
 
     function abrirModalEditar(record) {
-      if (!puedeOperarDashboard()) return;
+      if (!puedeEditarRegistros()) return;
       const backdrop = document.getElementById('modal-editar-backdrop');
       const titulo = document.getElementById('modal-editar-titulo');
       if (!backdrop) return;
@@ -6922,7 +7040,7 @@
     }
 
     function abrirModalDuplicado(record) {
-      if (!puedeOperarDashboard()) return;
+      if (!puedeEditarRegistros()) return;
       const backdrop = document.getElementById('modal-duplicado-backdrop');
       const bodyEste = document.getElementById('modal-duplicado-este');
       const bodyOtro = document.getElementById('modal-duplicado-otro');
@@ -7010,7 +7128,7 @@
         document.getElementById('btn-exportar-matriz-relaciones')?.addEventListener('click', exportarMatrizRelacionesExcel);
         document.getElementById('menu-novedades')?.addEventListener('click', (e) => {
           e.preventDefault();
-          if (!puedeOperarDashboard()) return;
+          if (!hasPerm(PERM_VER_NOVEDADES)) return;
           mostrarVistaPrincipal('novedades');
           document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
           document.getElementById('menu-novedades')?.classList.add('menu-item-active');
@@ -7133,7 +7251,7 @@
         document.querySelectorAll('.tab').forEach(btn => {
           btn.addEventListener('click', () => {
             const id = btn.getAttribute('data-panel');
-            if (securityModuleActive() && !puedeOperarDashboard() && id && id !== 'flujo') return;
+            if (securityModuleActive() && id && !puedeVerSolapa(id)) return;
             document.querySelectorAll('.tab').forEach(b => b.classList.remove('activo'));
             document.querySelectorAll('.panel').forEach(p => p.classList.remove('activo'));
             btn.classList.add('activo');
@@ -7294,7 +7412,7 @@
 
         document.getElementById('menu-configuracion').addEventListener('click', (e) => {
           e.preventDefault();
-          if (!puedeOperarDashboard()) return;
+          if (!hasPerm(PERM_VER_CONFIGURACION)) return;
           const c = getProyeccionConfig();
           const selMetodo = document.getElementById('config-proyeccion-metodo');
           const selMeses = document.getElementById('config-proyeccion-meses');
@@ -7530,6 +7648,10 @@
           }
 
           btnOpen.addEventListener('click', () => {
+            if (!puedeCargarNormalizado()) {
+              alert('No tenés permiso para actualizar la base desde el extracto normalizado.');
+              return;
+            }
             resetModal();
             backdrop.classList.remove('oculto');
           });
