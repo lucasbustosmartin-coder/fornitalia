@@ -12,6 +12,10 @@ alwaysApply: true
 - **Moneda (reglas de negocio):** todo movimiento **Mercado Pago** y todo medio tipo **Transferencia Morba** (texto real en extracto; con **b**) se considera **ARS** en la inferencia del normalizado, upload y `esTransaccionUSD` (prevalece sobre el campo `moneda` o menciones de dólar). En código también se reconoce “morva” por si aparece un typo.
 - **Estructura del repo:** `sql/`, `scripts/`, `docs/`. Ver regla **estructura-proyecto**. Bitácora y despliegue: regla **bitacora-tareas**.
 
+## Fechas de negocio (regla estricta — no omitir)
+
+- Cualquier cambio que toque **día contable**, **filtros por fecha**, **defaults en SQL**, **agrupación por mes** o **día desde timestamp** debe cumplir la regla **fechas-argentina-negocio** (`.cursor/rules/fechas-argentina-negocio.mdc`). **No puede omitirse.** Referencia: `docs/FECHAS_ARGENTINA.md`.
+
 ## No fallar en terminal local
 
 - **El proyecto no debe fallar en terminal local.** Tras cambios relevantes en el frontend (p. ej. en `dashboard-flujo-caja.html` o scripts), comprobar que no haya errores: ejecutar el comando de dev o build del proyecto (p. ej. `npm run dev`, o el script que corresponda) desde la raíz y asegurarse de que termina sin error. Si falla, corregir antes de dar por cerrada la tarea.
@@ -20,3 +24,4 @@ alwaysApply: true
 
 - Bitácora y despliegue: regla **bitacora-tareas**.
 - Estructura del repo: regla **estructura-proyecto**.
+- Fechas en Argentina (**regla estricta no omitible**): `docs/FECHAS_ARGENTINA.md` y regla **fechas-argentina-negocio**.

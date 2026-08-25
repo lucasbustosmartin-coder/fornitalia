@@ -5,13 +5,15 @@ alwaysApply: true
 
 # Bitácora de tareas – Fornitalia
 
+**Base LyP:** `../.cursor/rules/bitacora-tareas.mdc` (fechas históricas al regenerar; módulo `../../scripts/lib/lyp-bitacora-fechas.js`).
+
 ## Tecnología e infraestructura (referencia)
 
 - **Frontend:** una sola página `dashboard-flujo-caja.html` (HTML, CSS, JavaScript en el mismo archivo). Sin framework; llamadas a Supabase desde el cliente.
 - **Datos:** Supabase (PostgreSQL). Tablas relevantes: `transacciones`, `tipo_de_cambio`, `config_dashboard`. Scripts SQL en carpeta `sql/` se ejecutan en Supabase SQL Editor.
 - **Hosting:** Vercel. App en producción: fornitalia.vercel.app. Despliegue con `vercel --prod` tras push a `main`.
 - **Repositorio:** Git/GitHub (rama `main`). Estructura ordenada: `sql/`, `scripts/`, `docs/` (ver regla estructura-proyecto).
-- **Bitácora:** Node.js + SheetJS (xlsx). Script `scripts/crear-bitacora-excel.js` genera `Bitacora_tareas.xlsx` (en raíz) con las solapas Log, Resumen, Ref Git y Vercel, Versiones, Presupuesto, Tecnología. Al regenerar, conserva Fecha/Hora de filas ya presentes en Log y Versiones.
+- **Bitácora:** Node.js + SheetJS (xlsx). Script `scripts/crear-bitacora-excel.js` genera `Bitacora_tareas.xlsx` (en raíz) con las solapas Log, Resumen, Ref Git y Vercel, Versiones, Presupuesto, Tecnología. Al regenerar, conserva Fecha/Hora de filas ya presentes en Log y Versiones (módulo compartido LyP).
 - **Fechas (SQL / dashboard):** si el cambio toca persistencia, consultas o UI filtrada por fecha de negocio, aplicar la regla **fechas-argentina-negocio** (no omitir).
 
 ---
