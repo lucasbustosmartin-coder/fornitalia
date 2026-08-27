@@ -15,7 +15,8 @@ alwaysApply: true
 
 - **Constante:** `ZONA_ARGENTINA = 'America/Argentina/Buenos_Aires'` (o equivalente documentado).
 - **Hoy / sumar días / filtros:** `fechaHoyYYYYMMDDArgentina()`, `fechaAddDaysYYYYMMDDArgentina`, `fechaYYYYMMDDEnZonaArgentina(instante)` para timestamps → día contable.
-- **Prohibido** para día de negocio: `new Date().getFullYear()/getMonth()/getDate()` sin zona; `toISOString().slice(0, 10)` como “día” de un instante (eso es UTC); mezclar TZ del usuario con criterio Argentina.
+- **Export Excel / PDF:** el día de negocio se toma del calendario **YYYY-MM-DD** (Argentina). En Excel escribir **serial numérico** de ese día + formato `dd/mm/yyyy` (o `dd/mm/aa` en barras cortas). **Prohibido** `new Date(Date.UTC(...))` o `toISOString()` como celda de fecha: en franja Argentina (UTC−3) corre el día. En PDF/HTML formatear `dd/mm/aaaa` desde las partes Y-M-D, no desde getters locales de un `Date` UTC.
+- **Prohibido** para día de negocio: `new Date().getFullYear()/getMonth()/getDate()` sin zona; `toISOString().slice(0, 10)` como “día” de un instante (eso es UTC); mezclar TZ del usuario con criterio Argentina; celdas Excel tipo `Date` en UTC.
 - Al tocar esto: `node --check main.js` antes de cerrar la tarea.
 
 ## SQL / Supabase (`sql/`)

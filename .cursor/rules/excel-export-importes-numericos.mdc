@@ -21,6 +21,7 @@ Que en Excel/LibreOffice el usuario pueda:
 - **No** usar en la exportación funciones de formato para visualización (ej. `formatImporteDisplay()`, strings con "1.234,56") en las columnas que son importes.
 - Para “sin valor” o vacío: usar `null` o dejar la celda sin valor para que Excel no cuente ese celda en SUM.
 - Texto (concepto, nombre, estado) sigue siendo string; columnas como Nro Orden / Nro Trans. pueden ser número si son identificadores numéricos.
+- **Fechas de negocio:** serial numérico del día calendario (Argentina) + formato `dd/mm/yyyy`. No `Date` UTC (corre el día en franja Argentina). Ver regla **fechas-argentina-negocio**.
 
 ## Ejemplo (concepto)
 

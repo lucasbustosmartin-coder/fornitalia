@@ -79,6 +79,18 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  function partesYmd(ymd) {
+    if (ymd == null || ymd === '') return null;
+    var s = String(ymd).slice(0, 10);
+    var p = s.split('-');
+    if (p.length !== 3) return null;
+    var y = Number(p[0]);
+    var m = Number(p[1]);
+    var d = Number(p[2]);
+    if (!y || m < 1 || m > 12 || d < 1 || d > 31) return null;
+    return { y: y, m: m, d: d };
+  }
+
   function fechaHoyYmd() {
     var parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: ZONA_AR, year: 'numeric', month: '2-digit', day: '2-digit'
@@ -93,35 +105,29 @@
   }
 
   function ymdToDate(ymd) {
-    if (!ymd) return null;
-    var s = String(ymd).slice(0, 10);
-    var p = s.split('-');
-    if (p.length !== 3) return null;
-    var dt = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    var p = partesYmd(ymd);
+    if (!p) return null;
+    var dt = new Date(p.y, p.m - 1, p.d);
     return isNaN(dt.getTime()) ? null : dt;
   }
 
   function formatFecha(ymd) {
-    var dt = ymdToDate(ymd);
-    if (!dt) return '—';
-    var dd = String(dt.getDate()).padStart(2, '0');
-    var mm = String(dt.getMonth() + 1).padStart(2, '0');
-    return dd + '/' + mm + '/' + dt.getFullYear();
+    var p = partesYmd(ymd);
+    if (!p) return '—';
+    return String(p.d).padStart(2, '0') + '/' + String(p.m).padStart(2, '0') + '/' + p.y;
   }
 
   function formatFechaBarra(ymd) {
-    var dt = ymdToDate(ymd);
-    if (!dt) return '';
-    var dd = String(dt.getDate()).padStart(2, '0');
-    var mm = String(dt.getMonth() + 1).padStart(2, '0');
-    var yy = String(dt.getFullYear()).slice(-2);
-    return dd + '/' + mm + '/' + yy;
+    var p = partesYmd(ymd);
+    if (!p) return '';
+    return String(p.d).padStart(2, '0') + '/' + String(p.m).padStart(2, '0') + '/' + String(p.y).slice(-2);
   }
 
+  /** Serial Excel del día calendario (sin zona). No usar Date UTC: en Argentina corre un día. */
   function excelDate(ymd) {
-    var dt = ymdToDate(ymd);
-    if (!dt) return null;
-    return new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()));
+    var p = partesYmd(ymd);
+    if (!p) return null;
+    return Math.round((Date.UTC(p.y, p.m - 1, p.d) - Date.UTC(1899, 11, 30)) / 86400000);
   }
 
   function diasEntre(a, b) {
@@ -689,6 +695,7 @@
     var tipoCol = opts.tipoCol != null ? opts.tipoCol : 1;
     var nombreCol = opts.nombreCol != null ? opts.nombreCol : 2;
     var wrapCols = opts.wrapCols || [];
+    var dateCols = opts.dateCols || [];
     for (r = headerRow + 1; r <= range.e.r; r++) {
       var tipoCell = ws[XLSX.utils.encode_cell({ r: r, c: tipoCol })];
       var tipo = tipoCell && tipoCell.v;
@@ -698,20 +705,19 @@
         if (!ws[addr]) continue;
         var cell = ws[addr];
         var bold = !!(esEnt && (c === nombreCol || c === tipoCol));
+        var wrap = wrapCols.indexOf(c) >= 0;
+        var esFecha = dateCols.indexOf(c) >= 0 && cell.t === 'n' && cell.v != null && cell.v !== '';
         var st = {
           font: xlFont(bold, XL.ink, 11),
           alignment: {
             vertical: 'center',
-            wrapText: wrapCols.indexOf(c) >= 0,
-            horizontal: cell.t === 'n' ? 'right' : 'left'
+            wrapText: wrap,
+            horizontal: esFecha ? 'center' : (cell.t === 'n' ? 'right' : 'left')
           },
           border: xlBorder(),
           fill: xlFill(esEnt ? XL.entBg : XL.white)
         };
-        if (cell.t === 'd' || cell.v instanceof Date) {
-          cell.t = 'd';
-          cell.z = 'dd/mm/yyyy';
-        }
+        if (esFecha) cell.z = 'dd/mm/yyyy';
         cell.s = st;
       }
     }
@@ -918,8 +924,8 @@
       var b = ymdToDate(it.fin);
       var row = [
         xlCell((esEnt ? '' : '    ') + it.nombre, stMeta),
-        xlCell(excelDate(it.inicio), stDate),
-        xlCell(excelDate(it.fin), stDate),
+        xlCell(excelDate(it.inicio), stDate, 'dd/mm/yyyy'),
+        xlCell(excelDate(it.fin), stDate, 'dd/mm/yyyy'),
         xlCell(it.pct == null ? null : Number(Number(it.pct).toFixed(2)), stNum, '0.00'),
         xlCell(excelHoras(it.horas), stNum, '0.00')
       ];
@@ -2119,14 +2125,14 @@
     wsResumen['!rows'] = [{ hpt: 22 }, { hpt: 18 }, { hpt: 48 }];
 
     var wsPlan = XLSX.utils.aoa_to_sheet(filasPlanExcel());
-    estilarHojaTabla(wsPlan, 0, { tipoCol: 1, nombreCol: 2, wrapCols: [2, 3] });
+    estilarHojaTabla(wsPlan, 0, { tipoCol: 1, nombreCol: 2, wrapCols: [2, 3], dateCols: [4, 5] });
     wsPlan['!cols'] = [
       { wch: 8 }, { wch: 14 }, { wch: 36 }, { wch: 42 }, { wch: 12 },
       { wch: 12 }, { wch: 16 }, { wch: 14 }, { wch: 11 }, { wch: 16 }
     ];
 
     var wsHoras = XLSX.utils.aoa_to_sheet(filasConciliacionExcel());
-    estilarHojaTabla(wsHoras, 0, { tipoCol: 3, nombreCol: 1, wrapCols: [1, 2, 5] });
+    estilarHojaTabla(wsHoras, 0, { tipoCol: 3, nombreCol: 1, wrapCols: [1, 2, 5], dateCols: [0] });
     wsHoras['!cols'] = [
       { wch: 12 }, { wch: 28 }, { wch: 28 }, { wch: 14 }, { wch: 16 }, { wch: 36 }, { wch: 18 }
     ];
@@ -2138,7 +2144,7 @@
     XLSX.utils.book_append_sheet(wb, wsHoras, 'Horas cons.');
     XLSX.utils.book_append_sheet(wb, wsGantt, 'Gantt');
     var safe = (p.nombre || 'plan').replace(/[^\w\-]+/g, '_').slice(0, 40);
-    XLSX.writeFile(wb, 'Plan_Trabajo_' + safe + '_' + fechaHoyYmd() + '.xlsx', { cellStyles: true });
+    XLSX.writeFile(wb, 'Plan_Trabajo_' + safe + '_' + fechaHoyYmd() + '.xlsx', { cellStyles: true, cellDates: false });
   }
 
   var printCleanupBound = false;

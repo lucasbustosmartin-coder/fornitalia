@@ -443,6 +443,9 @@
     #tabla-estado-financiero th .ef-th-periodo-label { line-height: 1.2; }
     .modal-grafico.modal-grafico-ef-ancho { max-width: 880px; }
     @media (max-width: 768px) {
+      .errores-panel-toolbar .btn {
+        min-height: 44px;
+      }
       #tabla-estado-financiero .ef-grafico-linea-btn,
       #tabla-estado-financiero .ef-grafico-columna-btn {
         min-width: 44px;
@@ -938,10 +941,13 @@
           <p><strong>Caución</strong> además usa <strong>solo movimientos en moneda de origen ARS</strong> y montos en <strong>pesos</strong> (la tasa de la serie es en ARS), aunque el selector muestre USD en el resto de la tabla.</p>
         </div>
       </template>
-      <div class="flujo-panel-help-row">
+      <div class="errores-panel-toolbar">
+        <div class="panel-toolbar-start">
         <button type="button" class="th-help th-help--inline" data-help-template="template-flujo-informe-pdf" aria-label="Ayuda: criterios alineados al informe PDF" title="Criterios de la tabla (informe PDF)">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
         </button>
+        </div>
+        <button type="button" class="btn btn-success btn-ver-errores btn-exportar-evolucion" id="btn-exportar-flujo-mes" title="Exportar tabla Flujo por mes a Excel"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar Flujo a Excel</button>
       </div>
       <div class="flujo-table-wrap">
       <table>
@@ -1727,7 +1733,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.09';
+    const APP_VERSION = '2.10';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -2640,6 +2646,35 @@
       return { pctDir, pctInd };
     }
 
+    /** Fracción 0–1 para Excel (Comisiones/Ventas). */
+    function fraccionComisionesSobreVentas(comisionesParaRatio, ventas) {
+      if (!(ventas > 0)) return null;
+      const c = comisionesParaRatio != null ? Number(comisionesParaRatio) : 0;
+      return c / ventas;
+    }
+
+    /** Fracción 0–1: egreso ÷ Flujo Operativo Generado (misma base que la tabla). */
+    function fraccionEgresoVsFlujoOperativo(flujoOperativoGenerado, montoEgreso) {
+      const egr = montoEgreso != null ? montoEgreso : 0;
+      if (!(egr > 0)) return null;
+      const pct = pctDelFlujoOperativo(egr, flujoOperativoGenerado);
+      if (pct == null || isNaN(pct)) return null;
+      return pct / 100;
+    }
+
+    function textoPlanoAlertasFlujo(alertas) {
+      return (alertas || [])
+        .map((a) => String(a)
+          .replace(/<[^>]*>/g, '')
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .trim())
+        .filter(Boolean)
+        .join(' | ');
+    }
+
     function proyeccionDesdeVentana(objetosMes, agg) {
       if (!objetosMes.length) return { ing: 0, egr: 0, gp: 0, comVentasPct: '–', egrSinComIngPct: '–', ratioComNum: 0, ratioEgrNum: 0 };
       const ings = objetosMes.map(k => (k.ingresos != null ? k.ingresos : 0));
@@ -3465,6 +3500,7 @@
         return { intCaucion: totalInt, baseFin: gpAcumSolo + intAcum, detalle, gpAcumSoloFin: gpAcumSolo };
       }
 
+      const filasFlujoExcel = [];
       const filasReales = ordenados.map(key => {
         const ay = parseInt(key.slice(0, 4), 10);
         const am = parseInt(key.slice(5), 10);
@@ -3485,6 +3521,19 @@
         const alertas = alertasPorMes[key] || [];
         const alertasJson = alertas.length ? JSON.stringify(alertas).replace(/"/g, '&quot;') : '';
         const iconoAlert = alertas.length ? `<span class="alert-icon" role="button" tabindex="0" data-alertas="${alertasJson}" data-label="${label.replace(/"/g, '&quot;')}" title="Ver alertas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>` : '';
+        filasFlujoExcel.push({
+          kind: 'real',
+          mes: label,
+          ingresos: d.ingresos != null ? Number(d.ingresos) : 0,
+          egresos: d.egresos != null ? Number(d.egresos) : 0,
+          gp: Number(balance),
+          comVentas: fraccionComisionesSobreVentas(comisionesParaRatio, ventas),
+          costoDir: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresosCostoDirecto),
+          costoInd: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresosCostoIndirecto),
+          costoTotal: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresos),
+          caucion: d.intCaucion != null ? Number(d.intCaucion) : 0,
+          alertas: textoPlanoAlertasFlujo(alertas)
+        });
         return `<tr class="fila-mes" data-anio="${d.anio}" data-mes="${d.mes}">
           <td>${label}</td>
           <td class="ingresos">${simbolo}${formatearNumero(d.ingresos, moneda)}</td>
@@ -3501,6 +3550,7 @@
 
       let filasProy = '';
       let tasaDiariaProy = 0;
+      const filasProyExcel = [];
       detalleIntCaucionProy = {};
         detalleProyeccionPorMes = {};
       if (ordenados.length > 0 && N > 0) {
@@ -3585,6 +3635,19 @@
           gpInicialSolo = res.gpAcumSoloFin;
           detalleIntCaucionProy[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), basePartida: baseInicio, gpTotalReal: i === 0 ? gpTotalRealArsCaucion : undefined, intAcumuladoInicial, proyGP: proyGpArs, tasaDiaria: tasaDiariaProy, intCaucion: intCaucionProy, detalle: res.detalle, dias: diasMes };
           detalleProyeccionPorMes[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), ing: proy.ing, egr: proy.egr, gp: proy.gp, comVentasPct: proy.comVentasPct, costoDirIngPct: proy.costoDirIngPct, costoIndIngPct: proy.costoIndIngPct, costoTotalIngPct: proy.costoTotalIngPct, ingresoPorCat: { ...proyDetalle[keyProy].ingresoPorCat }, egresoPorCat: { ...proyDetalle[keyProy].egresoPorCat } };
+          filasProyExcel.push({
+            kind: 'proy',
+            mes: 'Proy. ' + formatoMesAnio(mesProy, anioProy),
+            ingresos: Number(proy.ing),
+            egresos: Number(proy.egr),
+            gp: Number(proy.gp),
+            comVentas: fraccionComisionesSobreVentas(proyComisionesParaRatio[i], proyVentas[i]),
+            costoDir: fraccionEgresoVsFlujoOperativo(proyFlujoOp[i], proyEgrDir[i]),
+            costoInd: fraccionEgresoVsFlujoOperativo(proyFlujoOp[i], proyEgrInd[i]),
+            costoTotal: fraccionEgresoVsFlujoOperativo(proyFlujoOp[i], proyEgr[i]),
+            caucion: Number(intCaucionProy),
+            alertas: ''
+          });
           filasProy += `<tr class="fila-proyeccion" data-proy-key="${keyProy}" role="button" tabindex="0" title="Ver detalle de proyección">
             <td>Proy. ${formatoMesAnio(mesProy, anioProy)}</td>
             <td class="ingresos">${simbolo}${formatearNumero(proy.ing, moneda)}</td>
@@ -3652,6 +3715,35 @@
         tfoot.innerHTML = tfootHtml;
       }
 
+      if (ordenados.length) {
+        filasFlujoExcel.push({
+          kind: 'total',
+          mes: 'Total',
+          ingresos: Number(totalIngresos),
+          egresos: Number(totalEgresos),
+          gp: Number(balanceTotal),
+          comVentas: fraccionComisionesSobreVentas(totalComisionesParaRatio, totalVentas),
+          costoDir: fraccionEgresoVsFlujoOperativo(sumFlujoOp, sumEgrDir),
+          costoInd: fraccionEgresoVsFlujoOperativo(sumFlujoOp, sumEgrInd),
+          costoTotal: fraccionEgresoVsFlujoOperativo(sumFlujoOp, totalEgresos),
+          caucion: Number(totalIntCaucion),
+          alertas: ''
+        });
+      }
+      if (filasProyExcel.length) {
+        const metodoLabelExcel = configProy.metodo === 'promedio_ponderado' ? 'Promedio ponderado' : (configProy.metodo === 'promedio' ? 'Promedio' : (configProy.metodo === 'promedio_recortado' ? 'Promedio recortado (suaviza picos)' : 'Mediana'));
+        filasFlujoExcel.push({
+          kind: 'titulo_proy',
+          mes: 'Próximos ' + mesesAProyectar + (mesesAProyectar === 1 ? ' mes' : ' meses') + ' proyectados:'
+        });
+        filasProyExcel.forEach((r) => filasFlujoExcel.push(r));
+        filasFlujoExcel.push({
+          kind: 'disclaimer',
+          mes: 'Proyección: ' + metodoLabelExcel + ' de los últimos ' + configProy.meses + ' meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución). Caución proyectada: solo serie ARS (origen pesos), misma marcha que el real; punto de partida = G/P operativo ARS acumulado histórico × % + interés acumulado real; tasa = promedio último mes real; días naturales del mes.'
+        });
+      }
+      cacheFlujoExcel = { moneda: moneda, pctCaucion: pctCaucion, filas: filasFlujoExcel };
+
       renderErroresGlobal();
       renderEvolucion();
       renderEstadoFinanciero();
@@ -3667,6 +3759,8 @@
     let evolucionProyFlujo = null;
     let evolucionMoneda = 'ARS';
     let evolucionSimbolo = '$ ';
+    /** Snapshot de Flujo por mes para export Excel (mismos números que la tabla). */
+    let cacheFlujoExcel = null;
 
     function formatearColHeaderEvolucion(key, periodo) {
       if (key === '__total_real__') return 'Total real';
@@ -5383,6 +5477,116 @@
       const hoy = new Date();
       const fecha = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
       XLSX.writeFile(wb, 'Estado_Financiero_Fornitalia_' + fecha + '.xlsx', { cellStyles: true });
+    }
+
+    function exportarFlujoPorMesExcel() {
+      if (!window.XLSX) {
+        alert('No se pudo cargar la librería de Excel.');
+        return;
+      }
+      const snap = cacheFlujoExcel;
+      if (!snap || !snap.filas || !snap.filas.some((f) => f.kind === 'real' || f.kind === 'proy')) {
+        alert('No hay datos en Flujo por mes para exportar.');
+        return;
+      }
+      const monedaExport = snap.moneda === 'USD' ? 'USD' : 'ARS';
+      const pctCaucion = snap.pctCaucion != null ? snap.pctCaucion : 100;
+      const header = [
+        'Mes-Año',
+        'Ingresos',
+        'Egresos',
+        'G/P operativo',
+        'Comisiones / Ventas %',
+        'Costo dir. / Ingresos',
+        'Costo ind. / Ingresos',
+        'Costo total / Ingreso total',
+        'Caución (ARS, ' + pctCaucion + '% cash)',
+        'Alertas'
+      ];
+      const titulo = 'Exportado: Flujo por mes. Moneda de Ingresos, Egresos y G/P: ' + monedaExport + '. Caución siempre en ARS (solo origen pesos). Importes numéricos; % como fracción.';
+      const rows = [[titulo], header];
+      const rowMeta = [{ kind: 'titulo' }, { kind: 'header' }];
+      snap.filas.forEach((f) => {
+        if (f.kind === 'titulo_proy' || f.kind === 'disclaimer') {
+          rows.push([f.mes || '', '', '', '', '', '', '', '', '', '']);
+          rowMeta.push({ kind: f.kind });
+          return;
+        }
+        const celdaPct = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : '');
+        rows.push([
+          f.mes || '',
+          typeof f.ingresos === 'number' ? f.ingresos : 0,
+          typeof f.egresos === 'number' ? f.egresos : 0,
+          typeof f.gp === 'number' ? f.gp : 0,
+          celdaPct(f.comVentas),
+          celdaPct(f.costoDir),
+          celdaPct(f.costoInd),
+          celdaPct(f.costoTotal),
+          typeof f.caucion === 'number' ? f.caucion : 0,
+          f.alertas || ''
+        ]);
+        rowMeta.push({ kind: f.kind || 'real' });
+      });
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      const colCount = header.length;
+      const merges = [{ s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } }];
+      for (let r = 0; r < rows.length; r++) {
+        const meta = rowMeta[r];
+        if (!meta) continue;
+        if (meta.kind === 'header') {
+          for (let c = 0; c < colCount; c++) {
+            const cell = efExcelGetOrCreateCell(ws, r, c);
+            efExcelMergeCellStyle(cell, {
+              font: { bold: true },
+              fill: efExcelSolidFill('F2F3F5'),
+              alignment: { vertical: 'center', wrapText: true }
+            });
+          }
+          continue;
+        }
+        if (meta.kind === 'titulo' || meta.kind === 'titulo_proy' || meta.kind === 'disclaimer') {
+          if (r > 0) merges.push({ s: { r, c: 0 }, e: { r, c: colCount - 1 } });
+          const cell = efExcelGetOrCreateCell(ws, r, 0);
+          efExcelMergeCellStyle(cell, {
+            font: meta.kind === 'disclaimer' ? { italic: true, sz: 9, color: { rgb: 'FF555555' } } : { italic: meta.kind === 'titulo', bold: meta.kind === 'titulo_proy' },
+            alignment: { wrapText: true, vertical: 'center' }
+          });
+          continue;
+        }
+        const fillRgb = meta.kind === 'total' ? 'DCE4EE' : (meta.kind === 'proy' ? 'FAFAFA' : null);
+        const font = meta.kind === 'total' ? { bold: true } : (meta.kind === 'proy' ? { italic: true } : {});
+        for (let c = 0; c < colCount; c++) {
+          const cell = efExcelGetOrCreateCell(ws, r, c);
+          const partial = { font: font, alignment: { vertical: 'center' } };
+          if (fillRgb) partial.fill = efExcelSolidFill(fillRgb);
+          if ((c >= 1 && c <= 3) || c === 8) {
+            if (cell && typeof cell.v === 'number') {
+              cell.z = EF_EXCEL_NUMFMT_ENTERO_AR;
+              partial.numFmt = EF_EXCEL_NUMFMT_ENTERO_AR;
+            }
+          }
+          if (c >= 4 && c <= 7) {
+            if (cell && typeof cell.v === 'number') {
+              cell.z = EF_EXCEL_NUMFMT_PCT_AR;
+              partial.numFmt = EF_EXCEL_NUMFMT_PCT_AR;
+            }
+          }
+          if (c === 9) partial.alignment = { wrapText: true, vertical: 'top' };
+          efExcelMergeCellStyle(cell, partial);
+        }
+      }
+      ws['!merges'] = merges;
+      ws['!cols'] = [
+        { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+        { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 18 },
+        { wch: 18 }, { wch: 48 }
+      ];
+      ws['!rows'] = [{ hpt: 28 }, { hpt: 22 }];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Flujo_por_mes');
+      const hoy = new Date();
+      const fecha = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
+      XLSX.writeFile(wb, 'Flujo_por_Mes_Fornitalia_' + fecha + '.xlsx', { cellStyles: true });
     }
 
     function exportarEvolucionExcel() {
@@ -7506,6 +7710,8 @@
         document.getElementById('evolucion-agrupar').addEventListener('change', renderEvolucion);
         document.getElementById('evolucion-periodo').addEventListener('change', renderEvolucion);
         document.getElementById('btn-exportar-evolucion').addEventListener('click', exportarEvolucionExcel);
+        const btnExportFlujo = document.getElementById('btn-exportar-flujo-mes');
+        if (btnExportFlujo) btnExportFlujo.addEventListener('click', exportarFlujoPorMesExcel);
         const efPeriodoEl = document.getElementById('ef-periodo');
         if (efPeriodoEl) efPeriodoEl.addEventListener('change', renderEstadoFinanciero);
         const btnExportEf = document.getElementById('btn-exportar-estado-financiero');
