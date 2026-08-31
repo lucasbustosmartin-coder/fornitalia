@@ -783,6 +783,7 @@
 .gp-hora-ent { font-weight: 700; }
 .gp-hora-tar { font-weight: 400; }
 .gp-hora-propia { font-weight: 400; font-style: italic; color: #475569; }
+.gp-hora-proy { color: #1e3a5f; }
 
 .gp-gantt td {
   border-bottom: 1px solid #f1f5f9;

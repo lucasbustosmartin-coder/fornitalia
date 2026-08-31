@@ -314,6 +314,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.gp_tarea TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.gp_tarea_hora TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.gp_entregable_hora TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.gp_dependencia TO authenticated;
+-- Horas propias del proyecto: sql/supabase_gp_proyecto_hora.sql (gp_proyecto_hora + gp_guardar_horas_proyecto).
 
 -- ========== 4. Catálogo de responsables (usuarios y perfiles) ==========
 -- nombre_usuario: ver sql/supabase_user_profiles_nombre_usuario.sql (Mi perfil / Seguridad).

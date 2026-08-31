@@ -61,6 +61,7 @@
     tareas: [],
     horas: [],
     horasEnt: [],
+    horasProy: [],
     dependencias: [],
     catalogos: { usuarios: [], perfiles: [] },
     soloEntregables: false,
@@ -298,7 +299,7 @@
     return diasEntre(inicio, fin);
   }
 
-  /** Peso del SPI / avance del proyecto: horas de tareas + horas propias del entregable. Sin horas, no diluye. */
+  /** Peso del SPI / avance: horas propias (proyecto o entregable) + hijas. Sin horas, no diluye. */
   function pesoHorasSpi(horas, estado) {
     var h = Number(horas);
     if (isFinite(h) && h > 0) return h;
@@ -346,13 +347,16 @@
     return null;
   }
 
+  function avanceHorasPropiasProyecto(p) {
+    if (!p) return 0;
+    if (p.estado === 'completado') return 100;
+    if (p.estado === 'cancelado') return null;
+    return clampPct(p.progreso_pct);
+  }
+
   function progresoProyecto(p) {
     if (!p) return 0;
     var ents = state.entregables.filter(function (e) { return e.estado !== 'cancelada'; });
-    if (!ents.length) {
-      if (p.estado === 'completado') return 100;
-      return clampPct(p.progreso_pct);
-    }
     var w = 0;
     var acc = 0;
     ents.forEach(function (e) {
@@ -363,15 +367,20 @@
       acc += wt * pr;
       w += wt;
     });
-    return w ? acc / w : 0;
+    var pp = avanceHorasPropiasProyecto(p);
+    var wp = pp == null ? 0 : pesoHorasSpi(horasPropiasProyecto(), p.estado);
+    if (wp > 0) {
+      acc += wp * pp;
+      w += wp;
+    }
+    if (w > 0) return acc / w;
+    if (p.estado === 'completado') return 100;
+    return clampPct(p.progreso_pct);
   }
 
   function spiProyecto(p) {
     if (!p) return 1;
     var ents = (state.entregables || []).filter(function (e) { return e.estado !== 'cancelada'; });
-    if (!ents.length) {
-      return spiDe(progresoProyecto(p), p.fecha_inicio, p.fecha_fin);
-    }
     var ev = 0;
     var pv = 0;
     ents.forEach(function (e) {
@@ -382,14 +391,19 @@
       ev += wt * pr;
       pv += wt * esperadoPct(e.fecha_inicio, e.fecha_fin);
     });
-    if (pv <= 0) return 1;
-    return ev / pv;
+    var pp = avanceHorasPropiasProyecto(p);
+    var wp = pp == null ? 0 : pesoHorasSpi(horasPropiasProyecto(), p.estado);
+    if (wp > 0) {
+      ev += wp * pp;
+      pv += wp * esperadoPct(p.fecha_inicio, p.fecha_fin);
+    }
+    if (pv > 0) return ev / pv;
+    return spiDe(progresoProyecto(p), p.fecha_inicio, p.fecha_fin);
   }
 
   function esperadoProyecto(p) {
     if (!p) return 0;
     var ents = (state.entregables || []).filter(function (e) { return e.estado !== 'cancelada'; });
-    if (!ents.length) return esperadoPct(p.fecha_inicio, p.fecha_fin);
     var pv = 0;
     var w = 0;
     ents.forEach(function (e) {
@@ -399,6 +413,12 @@
       pv += wt * esperadoPct(e.fecha_inicio, e.fecha_fin);
       w += wt;
     });
+    var pp = avanceHorasPropiasProyecto(p);
+    var wp = pp == null ? 0 : pesoHorasSpi(horasPropiasProyecto(), p.estado);
+    if (wp > 0) {
+      pv += wp * esperadoPct(p.fecha_inicio, p.fecha_fin);
+      w += wp;
+    }
     return w ? pv / w : esperadoPct(p.fecha_inicio, p.fecha_fin);
   }
 
@@ -415,6 +435,11 @@
 
   function horasFilasEntregable(entId) {
     return (state.horasEnt || []).filter(function (h) { return h.entregable_id === entId; });
+  }
+
+  function horasFilasProyecto(proyId) {
+    var id = proyId || state.selectedId;
+    return (state.horasProy || []).filter(function (h) { return h.proyecto_id === id; });
   }
 
   function horasDeTarea(t) {
@@ -485,6 +510,17 @@
     return 'Hay horas propias del entregable después del deadline (' + fuera.join(', ') + '). Ajustá las horas o el deadline del entregable.';
   }
 
+  function alertaDeadlineHorasProyecto(p, filasHoras) {
+    if (!p || p.estado === 'cancelado' || !p.fecha_fin) return null;
+    var horas = filasHoras || horasFilasProyecto(p.id);
+    var fuera = [];
+    (horas || []).forEach(function (h) {
+      if (h.fecha && h.fecha > p.fecha_fin) fuera.push(formatFecha(h.fecha));
+    });
+    if (!fuera.length) return null;
+    return 'Hay horas propias del proyecto después del deadline (' + fuera.join(', ') + '). Ajustá las horas o el deadline del proyecto.';
+  }
+
   function countDeadlineAlertas() {
     var n = 0;
     (state.tareas || []).forEach(function (t) {
@@ -493,6 +529,8 @@
     (state.entregables || []).forEach(function (e) {
       if (alertaDeadlineHorasEntregable(e)) n++;
     });
+    var p = proyectoSel();
+    if (p && alertaDeadlineHorasProyecto(p)) n++;
     return n;
   }
 
@@ -607,8 +645,28 @@
     if (rpc.error) throw rpc.error;
   }
 
-  function horasProyecto() {
+  async function guardarHorasProyecto(proyectoId, filas) {
+    var rpc = await client().rpc('gp_guardar_horas_proyecto', {
+      p_proyecto_id: proyectoId,
+      p_filas: filas || []
+    });
+    if (rpc.error) throw rpc.error;
+  }
+
+  function horasPropiasProyecto(p) {
+    p = p || proyectoSel();
+    if (!p || p.estado === 'cancelado') return 0;
     var sum = 0;
+    horasFilasProyecto(p.id).forEach(function (h) {
+      var n = Number(h.horas);
+      if (isFinite(n) && n > 0) sum += n;
+    });
+    return Math.round(sum * 100) / 100;
+  }
+
+  function horasProyecto(p) {
+    p = p || proyectoSel();
+    var sum = horasPropiasProyecto(p);
     (state.entregables || []).forEach(function (e) { sum += horasEntregable(e); });
     return Math.round(sum * 100) / 100;
   }
@@ -830,7 +888,7 @@
     ));
     aoa.push(filaTexto(
       'Horas consumidas (reales): ' + (k.horas ? formatHoras(k.horas) : '0 h') +
-        '  —  No es alocación planificada: son horas realmente trabajadas, por fecha en el entregable y/o en cada tarea.',
+        '  —  No es alocación planificada: son horas realmente trabajadas, por fecha en el proyecto, el entregable y/o cada tarea.',
       estiloNota
     ));
     aoa.push(filaTexto(
@@ -1047,8 +1105,12 @@
       state.dependencias = [];
       state.horas = [];
       state.horasEnt = [];
+      state.horasProy = [];
       return;
     }
+    var hpRes = await client().from('gp_proyecto_hora').select('*').eq('proyecto_id', state.selectedId).order('fecha');
+    if (hpRes.error) throw hpRes.error;
+    state.horasProy = hpRes.data || [];
     var eRes = await client().from('gp_entregable').select('*').eq('proyecto_id', state.selectedId).order('orden').order('fecha_inicio');
     if (eRes.error) throw eRes.error;
     state.entregables = eRes.data || [];
@@ -1264,11 +1326,23 @@
 
   function formProyecto(row) {
     var est = (row && row.estado) || 'planificado';
+    var proyIdGuardada = row ? row.id : null;
+    var filasInit = row
+      ? horasFilasProyecto(row.id).map(function (h) { return { fecha: h.fecha, horas: h.horas, observaciones: h.observaciones }; })
+      : [];
+    var propias = row ? horasPropiasProyecto(row) : 0;
+    var deHijos = row ? Math.round((horasProyecto(row) - propias) * 100) / 100 : 0;
+    var totalHint = row
+      ? '<p class="gp-field-hint">Total del proyecto: ' + esc(formatHoras(horasProyecto(row))) +
+        ' (propias ' + esc(formatHoras(propias)) + ' + entregables/tareas ' + esc(formatHoras(deHijos)) + ').</p>'
+      : '';
     abrirModal(row ? 'Editar proyecto' : 'Nuevo proyecto',
       camposFechasNombre(row, true, 'Nombre del proyecto') +
       camposResponsable(row) +
       '<div class="form-group"><label>Estado</label><select name="estado">' + optionsEstado(EST_PROY, est) + '</select></div>' +
-      '<div class="form-group"><label>Avance % (si no hay entregables)</label><input type="number" name="progreso_pct" min="0" max="100" step="1" value="' + esc(row && row.progreso_pct != null ? row.progreso_pct : 0) + '"></div>',
+      '<div class="form-group"><label>Avance % (sin entregables, o para las horas propias del proyecto)</label><input type="number" name="progreso_pct" min="0" max="100" step="1" value="' + esc(row && row.progreso_pct != null ? row.progreso_pct : 0) + '"></div>' +
+      htmlTablaHoras(filasInit, 'Horas reales propias del proyecto (no atribuidas a un entregable o tarea). El total del proyecto es estas más las de los entregables y las tareas.') +
+      (totalHint ? '<div class="form-group full">' + totalHint + '</div>' : ''),
       async function (form) {
         var p = payloadResponsable(form);
         var v = validarResponsable(p);
@@ -1276,6 +1350,8 @@
         var fi = form.querySelector('[name="fecha_inicio"]').value;
         var ff = form.querySelector('[name="fecha_fin"]').value;
         if (ff < fi) return 'La fecha final no puede ser anterior al inicio.';
+        var leidas = leerFilasHoras(form);
+        if (leidas.error) return leidas.error;
         var estado = form.querySelector('[name="estado"]').value;
         var payload = Object.assign({
           nombre: form.querySelector('[name="nombre"]').value.trim(),
@@ -1286,18 +1362,26 @@
           progreso_pct: syncPctConEstado(estado, form.querySelector('[name="progreso_pct"]').value)
         }, p);
         if (!payload.nombre) return 'El nombre es obligatorio.';
-        if (row) {
-          var up = await client().from('gp_proyecto').update(payload).eq('id', row.id);
+        var preview = Object.assign({}, row || {}, { fecha_fin: ff, estado: estado, id: proyIdGuardada });
+        var alertaH = alertaDeadlineHorasProyecto(preview, leidas.filas);
+        if (alertaH && !window.confirm(alertaH + '\n\n¿Guardar igual? Podés ajustar las horas o el deadline del proyecto.')) {
+          return 'Revisá el deadline del proyecto o las horas.';
+        }
+        if (proyIdGuardada) {
+          var up = await client().from('gp_proyecto').update(payload).eq('id', proyIdGuardada);
           if (up.error) throw up.error;
         } else {
           payload.orden = state.proyectos.length;
           var ins = await client().from('gp_proyecto').insert(payload).select('id').single();
           if (ins.error) throw ins.error;
-          state.selectedId = ins.data.id;
+          proyIdGuardada = ins.data.id;
+          state.selectedId = proyIdGuardada;
           localStorage.setItem(LS_PROY, state.selectedId);
         }
+        await guardarHorasProyecto(proyIdGuardada, leidas.filas);
         return null;
-      }
+      },
+      function (form) { bindHorasForm(form); }
     );
   }
 
@@ -1571,7 +1655,7 @@
     var p = proyectoSel();
     if (!p) return '<p class="gp-empty">Elegí un proyecto para ver el plan.</p>';
     if (!state.entregables.length) {
-      return '<p class="gp-empty">Este proyecto no tiene entregables. Agregá el primero para desplegar el plan.</p>';
+      return '<p class="gp-empty">Este proyecto no tiene entregables. Agregá el primero o cargá horas propias desde Editar proyecto.</p>';
     }
     var canEdit = can('editar_proyecto');
     var canDel = can('eliminar_proyecto');
@@ -1652,7 +1736,7 @@
     var banner = k.deadline
       ? '<div class="gp-dl-banner" role="status">' +
           '<span class="gp-alerta-dl" aria-hidden="true">' + ICO.warn + '</span>' +
-          'Hay ' + k.deadline + ' tarea(s) que superan el deadline del entregable. Revisá fechas u horas, o extendé el entregable.' +
+          'Hay ' + k.deadline + ' ítem(s) fuera de deadline (tarea, horas de entregable o del proyecto). Revisá fechas u horas.' +
         '</div>'
       : '';
     return banner + '<div class="gp-tabla-wrap"><table class="gp-tabla">' +
@@ -1789,7 +1873,7 @@
       '</div>' +
       '<div class="gp-onepager-horas">' +
         '<strong>Horas consumidas (reales):</strong> ' + (k.horas ? formatHoras(k.horas) : '0 h') +
-        '<span>No es alocación planificada: son horas realmente trabajadas, cargadas por fecha en el entregable y/o en cada tarea.</span>' +
+        '<span>No es alocación planificada: son horas realmente trabajadas, cargadas por fecha en el proyecto, el entregable y/o cada tarea.</span>' +
       '</div>' +
       '<div class="gp-evol">' +
         '<div class="gp-evol-label"><span>Evolución vs calendario</span><span>Real ' + k.pct.toFixed(0) + '% · Esperado ' + k.esperado.toFixed(0) + '%</span></div>' +
@@ -1816,10 +1900,29 @@
 
   function gruposHorasConciliacion() {
     var byFecha = {};
+    var p = proyectoSel();
     function pushItem(fecha, n, item) {
       if (!byFecha[fecha]) byFecha[fecha] = { fecha: fecha, horas: 0, items: [] };
       byFecha[fecha].horas += n;
       byFecha[fecha].items.push(item);
+    }
+    if (p && p.estado !== 'cancelado') {
+      (state.horasProy || []).forEach(function (h) {
+        if (h.proyecto_id !== p.id) return;
+        var n = Number(h.horas);
+        if (!isFinite(n) || n <= 0) return;
+        var fuera = !!(p.fecha_fin && h.fecha > p.fecha_fin);
+        pushItem(h.fecha, n, {
+          origen: 'proyecto',
+          entregable: { nombre: p.nombre },
+          tarea: null,
+          etiquetaTarea: 'Horas propias del proyecto',
+          horas: n,
+          observaciones: h.observaciones || '',
+          fuera: fuera,
+          alerta: alertaDeadlineHorasProyecto(p, [{ fecha: h.fecha, horas: n }])
+        });
+      });
     }
     (state.horasEnt || []).forEach(function (h) {
       var e = findById(state.entregables, h.entregable_id);
@@ -1828,6 +1931,7 @@
       if (!isFinite(n) || n <= 0) return;
       var fuera = !!(e.fecha_fin && h.fecha > e.fecha_fin);
       pushItem(h.fecha, n, {
+        origen: 'entregable',
         entregable: e,
         tarea: null,
         etiquetaTarea: 'Horas propias',
@@ -1847,6 +1951,7 @@
       var fueraHora = !!(e.fecha_fin && h.fecha > e.fecha_fin);
       var fueraTarea = !!(t.fecha_fin && e.fecha_fin && t.fecha_fin > e.fecha_fin);
       pushItem(h.fecha, n, {
+        origen: 'tarea',
         entregable: e,
         tarea: t,
         etiquetaTarea: t.nombre,
@@ -1860,8 +1965,10 @@
       var g = byFecha[k];
       g.horas = Math.round(g.horas * 100) / 100;
       g.items.sort(function (a, b) {
-        var na = (a.entregable.nombre || '') + (a.tarea ? '1' + a.tarea.nombre : '0');
-        var nb = (b.entregable.nombre || '') + (b.tarea ? '1' + b.tarea.nombre : '0');
+        var oa = a.origen === 'proyecto' ? '0' : (a.origen === 'tarea' ? '2' : '1');
+        var ob = b.origen === 'proyecto' ? '0' : (b.origen === 'tarea' ? '2' : '1');
+        var na = oa + (a.entregable.nombre || '') + (a.etiquetaTarea || '');
+        var nb = ob + (b.entregable.nombre || '') + (b.etiquetaTarea || '');
         return na.localeCompare(nb, 'es');
       });
       return g;
@@ -1873,7 +1980,7 @@
     if (!p) return '<p class="gp-empty">Elegí un proyecto para ver la conciliación de horas.</p>';
     var grupos = gruposHorasConciliacion();
     if (!grupos.length) {
-      return '<p class="gp-empty">No hay horas consumidas. Cargá fecha + horas reales en el entregable y/o en cada tarea.</p>';
+      return '<p class="gp-empty">No hay horas consumidas. Cargá fecha + horas reales en el proyecto, el entregable y/o cada tarea.</p>';
     }
     var total = 0;
     var nFuera = 0;
@@ -1892,7 +1999,7 @@
         rows += '<tr class="gp-hora-item' + (it.fuera ? ' gp-row-dl' : '') + '">' +
           '<td></td>' +
           '<td class="gp-hora-ent">' + esc(it.entregable.nombre) + '</td>' +
-          '<td class="' + (it.tarea ? 'gp-hora-tar' : 'gp-hora-propia') + '">' + esc(it.etiquetaTarea) + htmlAlertaDeadline(it.alerta) + '</td>' +
+          '<td class="' + (it.origen === 'tarea' ? 'gp-hora-tar' : 'gp-hora-propia' + (it.origen === 'proyecto' ? ' gp-hora-proy' : '')) + '">' + esc(it.etiquetaTarea) + htmlAlertaDeadline(it.alerta) + '</td>' +
           '<td class="gp-col-horas">' + esc(formatHoras(it.horas)) + '</td>' +
           '<td class="gp-hora-obs-cell">' + esc(it.observaciones || '—') + '</td>' +
           '<td class="' + (it.fuera ? 'gp-hora-fuera' : '') + '">' + (it.fuera ? 'Fuera de deadline' : '—') + '</td>' +
@@ -1902,11 +2009,11 @@
     var banner = nFuera
       ? '<div class="gp-dl-banner" role="status">' +
           '<span class="gp-alerta-dl" aria-hidden="true">' + ICO.warn + '</span>' +
-          nFuera + ' carga(s) de horas están fuera del deadline del entregable.' +
+          nFuera + ' carga(s) de horas están fuera del deadline del proyecto o del entregable.' +
         '</div>'
       : '';
     return banner +
-      '<p class="gp-field-hint" style="margin:0 0 0.65rem">Conciliación de horas consumidas (reales) por fecha. El total es la suma de horas propias del entregable más las de sus tareas.</p>' +
+      '<p class="gp-field-hint" style="margin:0 0 0.65rem">Conciliación de horas consumidas (reales) por fecha. El total es la suma de horas propias del proyecto más las de los entregables y las tareas.</p>' +
       '<div class="gp-tabla-wrap"><table class="gp-tabla gp-tabla-horas">' +
         '<thead><tr><th>Fecha</th><th>Entregable</th><th>Tarea</th><th>Horas cons.</th><th>Observaciones</th><th>Control</th></tr></thead>' +
         '<tbody>' + rows + '</tbody>' +
@@ -1932,7 +2039,7 @@
           'Gestión de Proyectos' +
         '</h1>' +
       '</div>' +
-      '<p style="color:#666;margin:0 0 1rem;font-size:0.92rem">Planes de trabajo: proyecto → entregables → tareas y dependencias. Las horas consumidas se cargan por fecha en el entregable y/o en las tareas (el total del entregable es la suma). Si una tarea supera el deadline del entregable, aparece una alerta para ajustar fechas.</p>' +
+      '<p style="color:#666;margin:0 0 1rem;font-size:0.92rem">Planes de trabajo: proyecto → entregables → tareas y dependencias. Las horas consumidas se cargan por fecha en el proyecto, el entregable y/o las tareas (el total del proyecto es la suma). Si una tarea o las horas superan el deadline, aparece una alerta para ajustar fechas.</p>' +
       (state.loading ? '<p class="loading">Cargando planes…</p>' : '') +
       renderCardsProyecto() +
       '<div class="gp-toolbar">' +
@@ -2074,8 +2181,8 @@
         rows.push([
           excelDate(g.fecha),
           it.entregable.nombre,
-          it.tarea ? it.tarea.nombre : null,
-          it.tarea ? 'Tarea' : 'Entregable',
+          it.origen === 'proyecto' ? 'Horas propias del proyecto' : (it.tarea ? it.tarea.nombre : null),
+          it.origen === 'proyecto' ? 'Proyecto' : (it.origen === 'tarea' ? 'Tarea' : 'Entregable'),
           excelHoras(it.horas),
           it.observaciones || '',
           it.fuera ? 'Sí' : 'No'
