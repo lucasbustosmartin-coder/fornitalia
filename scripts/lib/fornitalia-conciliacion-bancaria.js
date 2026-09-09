@@ -19,7 +19,10 @@
     eye: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
     x: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
-    refresh: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>'
+    refresh: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>',
+    download: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>',
+    link: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>',
+    undo: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.77-8.36L1 10"/></svg>'
   };
 
   var opts = { client: null, hasPerm: function () { return true; }, getRoot: function () { return null; } };
@@ -41,7 +44,8 @@
     matches: [],
     msg: '',
     err: '',
-    modal: null
+    modal: null,
+    manual: { bancoId: '', sistemaId: '', qBanco: '', qSistema: '', justif: '', sortBanco: { key: 'fecha', dir: 'desc' }, sortSistema: { key: 'fecha', dir: 'desc' } }
   };
 
   function client() { return opts.client; }
@@ -891,10 +895,17 @@
 
   async function setEstado(id, estado) {
     if (!can(PERM_CONFIRMAR)) return;
+    if (estado === 'sugerido') {
+      if (!confirm('¿Deshacer esta conciliación confirmada? La pareja vuelve a Sugeridos.')) return;
+    }
     try {
       var rpc = await client().rpc('cb_set_match_estado', { p_match_id: id, p_estado: estado });
       if (rpc.error) throw rpc.error;
       cerrarModal();
+      if (estado === 'sugerido') {
+        state.msg = 'Conciliación deshecha: la pareja volvió a Sugeridos.';
+        state.lista = 'sugeridos';
+      }
       await recargarTodo();
     } catch (e) {
       alert(errMsg(e));
@@ -1002,6 +1013,54 @@
     return { usedB: usedB, usedS: usedS };
   }
 
+  function idsConfirmados() {
+    var usedB = {};
+    var usedS = {};
+    (state.matches || []).forEach(function (m) {
+      if (m.estado === 'confirmado') {
+        usedB[m.banco_id] = true;
+        usedS[m.sistema_id] = true;
+      }
+    });
+    return { usedB: usedB, usedS: usedS };
+  }
+
+  function esMatchManual(m) {
+    return !!(m && (m.origen_match === 'manual' || m.criterio === 'manual'));
+  }
+
+  function diffMatch(m, b, s) {
+    if (m && m.diferencia != null && m.diferencia !== '') {
+      var d = Number(m.diferencia);
+      if (isFinite(d)) return Math.round(d * 100) / 100;
+    }
+    var nb = Number(b && b.monto);
+    var ns = Number(s && s.monto);
+    if (!isFinite(nb) || !isFinite(ns)) return null;
+    return Math.round((nb - ns) * 100) / 100;
+  }
+
+  function movLibreManual(origen) {
+    var ids = idsConfirmados();
+    var used = origen === 'banco' ? ids.usedB : ids.usedS;
+    var q = origen === 'banco' ? (state.manual.qBanco || '') : (state.manual.qSistema || '');
+    q = q.trim().toLowerCase();
+    return (origen === 'banco' ? bancoRows() : sistemaRows()).filter(function (m) {
+      if (used[m.id]) return false;
+      if (esApertura(m)) return false;
+      if (!q) return true;
+      return blobMov(m).toLowerCase().indexOf(q) >= 0;
+    });
+  }
+
+  function matchSugeridoDe(movId) {
+    var found = null;
+    (state.matches || []).forEach(function (m) {
+      if (m.estado === 'sugerido' && (m.banco_id === movId || m.sistema_id === movId)) found = m;
+    });
+    return found;
+  }
+
   function pasaFiltro(texto) {
     var q = (state.q || '').trim().toLowerCase();
     if (!q) return true;
@@ -1029,7 +1088,8 @@
       monto_fecha_lejana: 'Mismo importe, fecha lejana',
       monto_fecha_lejana_ambiguo: 'Mismo importe, fecha lejana (hay otros iguales)',
       monto_fecha_lejana_concepto: 'Mismo importe, fecha lejana y concepto',
-      monto_sin_fecha: 'Mismo monto'
+      monto_sin_fecha: 'Mismo monto',
+      manual: 'Conciliación manual'
     };
     return map[c] || c || 'Sugerido';
   }
@@ -1084,15 +1144,17 @@
 
   function valSolo(m, key) {
     if (key === 'tipo') return { v: m.tipo, t: 'txt' };
+    if (key === 'concepto') return { v: m.tipo || m.descripcion, t: 'txt' };
     if (key === 'descripcion') return { v: m.descripcion, t: 'txt' };
     if (key === 'contraparte') return { v: m.contraparte, t: 'txt' };
     if (key === 'monto') return { v: m.monto, t: 'num' };
+    if (key === 'sugerido') return { v: matchSugeridoDe(m.id) ? 1 : 0, t: 'num' };
     if (key === 'id') return { v: m.id_movimiento_banco || m.origen_id, t: 'txt' };
     return { v: m.fecha, t: 'fecha' };
   }
 
-  function ordenarFilas(arr, getter) {
-    var cur = sortActual();
+  function ordenarFilas(arr, getter, sortObj) {
+    var cur = sortObj || sortActual();
     var dir = cur.dir === 'asc' ? 1 : -1;
     return arr.slice().sort(function (a, b) {
       var va = getter(a, cur.key);
@@ -1103,14 +1165,55 @@
     });
   }
 
-  function thSort(key, label, extraCls) {
-    var cur = sortActual();
+  function htmlCriterioBadge(m, estado) {
+    var manual = esMatchManual(m);
+    var cls = manual ? 'cb-badge-manual' : (estado === 'confirmado' ? 'cb-badge-ok' : 'cb-badge-warn');
+    var b = findMov(m.banco_id);
+    var s = findMov(m.sistema_id);
+    var d = diffMatch(m, b, s);
+    var extra = '';
+    if (d != null && Math.round(Math.abs(d) * 100) > 100) {
+      extra = ' <span class="cb-badge cb-badge-warn">Dif. ' + esc(formatMonto(d)) + '</span>';
+    }
+    return '<span class="cb-badge ' + cls + '">' + esc(criterioLabel(m.criterio)) + '</span>' + extra;
+  }
+
+  function sortManual(origen) {
+    if (origen === 'sistema') {
+      if (!state.manual.sortSistema) state.manual.sortSistema = { key: 'fecha', dir: 'desc' };
+      return state.manual.sortSistema;
+    }
+    if (!state.manual.sortBanco) state.manual.sortBanco = { key: 'fecha', dir: 'desc' };
+    return state.manual.sortBanco;
+  }
+
+  function toggleSortManual(origen, key) {
+    if (!key) return;
+    var cur = sortManual(origen);
+    if (cur.key === key) {
+      cur.dir = cur.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      cur.key = key;
+      cur.dir = (key.indexOf('fecha') >= 0 || key.indexOf('monto') >= 0) ? 'desc' : 'asc';
+    }
+  }
+
+  function thSortWith(cur, key, label, extraCls, cb, extraData) {
     var activo = cur.key === key;
     var dirTxt = activo ? (cur.dir === 'asc' ? 'ascendente' : 'descendente') : 'sin ordenar';
     var ind = activo ? (cur.dir === 'asc' ? '▲' : '▼') : '↕';
     return '<th class="cb-th-sort ' + (extraCls || '') + (activo ? ' cb-th-sort-activo' : '') + '">' +
-      '<button type="button" class="cb-th-sort-btn" data-cb="sort" data-sort="' + esc(key) + '" title="Ordenar ' + esc(label) + ' (' + dirTxt + ')" aria-label="Ordenar por ' + esc(label) + ', ' + dirTxt + '">' +
+      '<button type="button" class="cb-th-sort-btn" data-cb="' + esc(cb || 'sort') + '" data-sort="' + esc(key) + '"' + (extraData || '') +
+      ' title="Ordenar ' + esc(label) + ' (' + dirTxt + ')" aria-label="Ordenar por ' + esc(label) + ', ' + dirTxt + '">' +
       esc(label) + '<span class="cb-sort-ind" aria-hidden="true">' + ind + '</span></button></th>';
+  }
+
+  function thSort(key, label, extraCls) {
+    return thSortWith(sortActual(), key, label, extraCls, 'sort', '');
+  }
+
+  function thSortManual(origen, key, label, extraCls) {
+    return thSortWith(sortManual(origen), key, label, extraCls, 'sort-manual', ' data-origen="' + esc(origen) + '"');
   }
 
   function renderTablaSugeridos(estado) {
@@ -1129,11 +1232,12 @@
         '<td>' + formatFecha(s && s.fecha) + '</td>' +
         '<td>' + esc((s && (s.descripcion || s.tipo)) || '—') + '</td>' +
         '<td class="cb-col-monto">' + htmlMonto(s && s.monto) + '</td>' +
-        '<td><span class="cb-badge ' + (estado === 'confirmado' ? 'cb-badge-ok' : 'cb-badge-warn') + '">' + esc(criterioLabel(m.criterio)) + '</span></td>' +
+        '<td>' + htmlCriterioBadge(m, estado) + '</td>' +
         '<td class="cb-col-acc">' +
           btnIcon('ver', m.id, 'Ver detalle de la conciliación', ICO.eye) +
           (estado === 'sugerido' && can(PERM_CONFIRMAR) ? btnIcon('ok', m.id, 'Confirmar conciliación', ICO.check) : '') +
           (estado === 'sugerido' && can(PERM_CONFIRMAR) ? btnIcon('no', m.id, 'Descartar sugerencia', ICO.x, 'cb-btn-danger') : '') +
+          (estado === 'confirmado' && can(PERM_CONFIRMAR) ? btnIcon('undo', m.id, 'Deshacer conciliación', ICO.undo, 'cb-btn-danger') : '') +
         '</td>' +
       '</tr>';
     });
@@ -1238,10 +1342,24 @@
       footer =
         '<button type="button" class="cb-btn cb-btn-danger" data-cb="no" data-id="' + esc(m.id) + '"><span class="btn-icon">' + ICO.x + '</span>Descartar</button>' +
         '<button type="button" class="cb-btn cb-btn-ok" data-cb="ok" data-id="' + esc(m.id) + '"><span class="btn-icon">' + ICO.check + '</span>Confirmar conciliación</button>';
+    } else if (m.estado === 'confirmado' && can(PERM_CONFIRMAR)) {
+      footer =
+        '<button type="button" class="cb-btn cb-btn-danger" data-cb="undo" data-id="' + esc(m.id) + '"><span class="btn-icon">' + ICO.undo + '</span>Deshacer conciliación</button>';
+    }
+    var d = diffMatch(m, b, s);
+    var meta = '<p class="cb-field-hint">' + esc(criterioLabel(m.criterio)) + (m.score != null ? ' · score ' + m.score : '') + '</p>';
+    if (d != null) {
+      meta += '<p class="cb-field-hint">Diferencia (extracto − tesorería): <strong>' + esc(formatMonto(d)) + '</strong></p>';
+    }
+    if (m.justificacion) {
+      meta += '<p class="cb-field-hint">Justificación: ' + esc(m.justificacion) + '</p>';
+    }
+    if (m.confirmado_at) {
+      meta += '<p class="cb-field-hint">Confirmado: ' + esc(formatFecha(isoAFechaArgentina(m.confirmado_at))) + '</p>';
     }
     abrirModal(
       'Detalle de conciliación',
-      '<p class="cb-field-hint">' + esc(criterioLabel(m.criterio)) + (m.score != null ? ' · score ' + m.score : '') + '</p>' +
+      meta +
       '<div class="cb-detalle">' + htmlDetalleMov(b, state.canal === CANAL_GAL ? 'Banco Galicia (extracto)' : 'Mercado Pago (extracto)') + htmlDetalleMov(s, 'Tesorería (sistema)') + '</div>',
       footer
     );
@@ -1257,12 +1375,12 @@
     );
   }
 
-  function abrirModal(titulo, bodyHtml, footerHtml) {
+  function abrirModal(titulo, bodyHtml, footerHtml, extraCls) {
     cerrarModal();
     var bd = document.createElement('div');
     bd.className = 'cb-modal-backdrop';
     bd.innerHTML =
-      '<div class="cb-modal" role="dialog" aria-modal="true">' +
+      '<div class="cb-modal ' + (extraCls || '') + '" role="dialog" aria-modal="true">' +
         '<div class="modal-header">' +
           '<h2>' + esc(titulo) + '</h2>' +
           '<button type="button" class="cb-btn cb-btn-ghost cb-btn-icon-only" data-cb="cerrar-modal" title="Cerrar" aria-label="Cerrar"><span class="btn-icon">' + ICO.x + '</span></button>' +
@@ -1275,21 +1393,35 @@
       '</div>';
     document.body.appendChild(bd);
     state.modal = bd;
-    bd.addEventListener('click', function (ev) {
-      if (ev.target === bd) { cerrarModal(); return; }
-      var t = ev.target.closest && ev.target.closest('[data-cb]');
-      if (!t || !bd.contains(t)) return;
-      var a = t.getAttribute('data-cb');
-      var id = t.getAttribute('data-id');
-      if (a === 'cerrar-modal') { ev.preventDefault(); cerrarModal(); return; }
-      if (a === 'ok') { ev.preventDefault(); setEstado(id, 'confirmado'); return; }
-      if (a === 'no') { ev.preventDefault(); setEstado(id, 'rechazado'); return; }
-    });
+    bd.addEventListener('click', onModalClick);
     function onEsc(ev) {
       if (ev.key === 'Escape') { ev.preventDefault(); cerrarModal(); }
     }
     document.addEventListener('keydown', onEsc);
     bd._cbEsc = onEsc;
+  }
+
+  function onModalClick(ev) {
+    var bd = state.modal;
+    if (!bd) return;
+    if (ev.target === bd) { cerrarModal(); return; }
+    var t = ev.target.closest && ev.target.closest('[data-cb]');
+    if (!t || !bd.contains(t)) return;
+    var a = t.getAttribute('data-cb');
+    var id = t.getAttribute('data-id');
+    if (a === 'cerrar-modal') { ev.preventDefault(); cerrarModal(); return; }
+    if (a === 'ok') { ev.preventDefault(); setEstado(id, 'confirmado'); return; }
+    if (a === 'no') { ev.preventDefault(); setEstado(id, 'rechazado'); return; }
+    if (a === 'undo') { ev.preventDefault(); setEstado(id, 'sugerido'); return; }
+    if (a === 'sort-manual') {
+      ev.preventDefault();
+      toggleSortManual(t.getAttribute('data-origen'), t.getAttribute('data-sort'));
+      refreshManualModal();
+      return;
+    }
+    if (a === 'pick-banco') { ev.preventDefault(); pickManual('banco', id); return; }
+    if (a === 'pick-sistema') { ev.preventDefault(); pickManual('sistema', id); return; }
+    if (a === 'manual-ok') { ev.preventDefault(); confirmarManual(); return; }
   }
 
   function cerrarModal() {
@@ -1298,6 +1430,326 @@
       if (state.modal.parentNode) state.modal.parentNode.removeChild(state.modal);
     }
     state.modal = null;
+  }
+
+  function htmlPickTabla(origen) {
+    var list = ordenarFilas(movLibreManual(origen), valSolo, sortManual(origen));
+    var sel = origen === 'banco' ? state.manual.bancoId : state.manual.sistemaId;
+    var action = origen === 'banco' ? 'pick-banco' : 'pick-sistema';
+    var html = '';
+    list.forEach(function (m) {
+      var sug = matchSugeridoDe(m.id);
+      html += '<tr class="cb-pick-row' + (sel === m.id ? ' cb-pick-sel' : '') + '" data-cb="' + action + '" data-id="' + esc(m.id) + '">' +
+        '<td>' + formatFecha(m.fecha) + '</td>' +
+        '<td>' + esc(m.tipo || m.descripcion || '—') + '</td>' +
+        '<td class="cb-col-monto">' + htmlMonto(m.monto) + '</td>' +
+        '<td>' + (sug ? '<span class="cb-badge cb-badge-warn">Sugerido</span>' : '') + '</td>' +
+      '</tr>';
+    });
+    if (!html) {
+      return '<p class="cb-empty">No hay movimientos disponibles' + ((origen === 'banco' ? state.manual.qBanco : state.manual.qSistema) ? ' con esa búsqueda.' : '.') + '</p>';
+    }
+    return '<div class="cb-tabla-wrap cb-pick-wrap"><table class="cb-tabla">' +
+      '<thead><tr>' +
+        thSortManual(origen, 'fecha', 'Fecha') +
+        thSortManual(origen, 'concepto', 'Concepto') +
+        thSortManual(origen, 'monto', 'Importe', 'cb-col-monto') +
+        thSortManual(origen, 'sugerido', 'Estado') +
+      '</tr></thead>' +
+      '<tbody>' + html + '</tbody></table></div>';
+  }
+
+  function htmlManualBody() {
+    var b = findMov(state.manual.bancoId);
+    var s = findMov(state.manual.sistemaId);
+    var d = (b && s) ? diffMatch(null, b, s) : null;
+    var absD = d != null ? Math.abs(d) : 0;
+    var warn = absD > 1;
+    var diffHtml = '';
+    if (b && s) {
+      diffHtml = '<div class="cb-diff-box' + (warn ? ' warn' : '') + '">' +
+        '<strong>Extracto:</strong> ' + esc(formatMonto(b.monto)) +
+        ' &nbsp;·&nbsp; <strong>Tesorería:</strong> ' + esc(formatMonto(s.monto)) +
+        ' &nbsp;·&nbsp; <strong>Diferencia:</strong> ' + esc(formatMonto(d)) +
+        (warn
+          ? '<br>La diferencia es mayor a $1. Queda registrada junto con la justificación.'
+          : '<br>Aunque el importe coincida (o difiera hasta $1), la pareja queda como conciliación manual.') +
+      '</div>';
+    } else {
+      diffHtml = '<div class="cb-diff-box">Elegí un movimiento del extracto y otro de tesorería. Si alguno está en Sugeridos, esa sugerencia se reemplaza al confirmar.</div>';
+    }
+    return '<p class="cb-field-hint">Podés conciliar a mano aunque la diferencia sea mayor a $1. La justificación, los importes y quién confirmó quedan guardados.</p>' +
+      '<div class="cb-manual-cols">' +
+        '<div class="cb-manual-col">' +
+          '<h3>Extracto bancario</h3>' +
+          '<div class="form-group"><label class="cb-just-label" for="cb-manual-qb">Buscar extracto</label>' +
+          '<input type="search" id="cb-manual-qb" value="' + esc(state.manual.qBanco) + '" placeholder="Fecha, importe, concepto…"></div>' +
+          htmlPickTabla('banco') +
+        '</div>' +
+        '<div class="cb-manual-col">' +
+          '<h3>Tesorería (sistema)</h3>' +
+          '<div class="form-group"><label class="cb-just-label" for="cb-manual-qs">Buscar tesorería</label>' +
+          '<input type="search" id="cb-manual-qs" value="' + esc(state.manual.qSistema) + '" placeholder="Fecha, importe, cliente…"></div>' +
+          htmlPickTabla('sistema') +
+        '</div>' +
+      '</div>' +
+      diffHtml +
+      '<label class="cb-just-label" for="cb-manual-just">Justificación de la diferencia / del cruce</label>' +
+      '<textarea id="cb-manual-just" class="cb-just-area" maxlength="800" placeholder="Ej.: comisión MP no reflejada en tesorería; mismo pago con distinto importe por redondeo; compensación de dos operaciones.">' + esc(state.manual.justif) + '</textarea>';
+  }
+
+  function bindManualInputs() {
+    if (!state.modal) return;
+    var qb = state.modal.querySelector('#cb-manual-qb');
+    var qs = state.modal.querySelector('#cb-manual-qs');
+    var ju = state.modal.querySelector('#cb-manual-just');
+    function bindSearch(el, campo) {
+      if (!el) return;
+      el.addEventListener('input', function () {
+        state.manual[campo] = el.value;
+        var pos = el.selectionStart;
+        refreshManualModal();
+        var n = state.modal && state.modal.querySelector(campo === 'qBanco' ? '#cb-manual-qb' : '#cb-manual-qs');
+        if (n) {
+          n.focus();
+          try { n.setSelectionRange(pos, pos); } catch (e2) { /* ignore */ }
+        }
+      });
+    }
+    bindSearch(qb, 'qBanco');
+    bindSearch(qs, 'qSistema');
+    if (ju) {
+      ju.addEventListener('input', function () { state.manual.justif = ju.value; });
+    }
+  }
+
+  function syncManualFromDom() {
+    if (!state.modal) return;
+    var ju = state.modal.querySelector('#cb-manual-just');
+    if (ju) state.manual.justif = ju.value;
+    var qb = state.modal.querySelector('#cb-manual-qb');
+    if (qb) state.manual.qBanco = qb.value;
+    var qs = state.modal.querySelector('#cb-manual-qs');
+    if (qs) state.manual.qSistema = qs.value;
+  }
+
+  function refreshManualModal() {
+    if (!state.modal) return;
+    syncManualFromDom();
+    var body = state.modal.querySelector('.modal-body');
+    if (body) body.innerHTML = htmlManualBody();
+    bindManualInputs();
+  }
+
+  function pickManual(lado, id) {
+    syncManualFromDom();
+    if (lado === 'banco') state.manual.bancoId = id;
+    else state.manual.sistemaId = id;
+    refreshManualModal();
+  }
+
+  function abrirManual() {
+    if (!can(PERM_CONFIRMAR)) return;
+    state.manual = {
+      bancoId: '',
+      sistemaId: '',
+      qBanco: '',
+      qSistema: '',
+      justif: '',
+      sortBanco: { key: 'fecha', dir: 'desc' },
+      sortSistema: { key: 'fecha', dir: 'desc' }
+    };
+    var footer = '<button type="button" class="cb-btn cb-btn-ok" data-cb="manual-ok"><span class="btn-icon">' + ICO.check + '</span>Confirmar conciliación manual</button>';
+    abrirModal('Conciliación manual', htmlManualBody(), footer, 'cb-modal-wide');
+    bindManualInputs();
+  }
+
+  async function confirmarManual() {
+    if (!can(PERM_CONFIRMAR)) return;
+    syncManualFromDom();
+    var bancoId = state.manual.bancoId;
+    var sistemaId = state.manual.sistemaId;
+    var just = (state.manual.justif || '').trim();
+    if (!bancoId || !sistemaId) {
+      alert('Elegí un movimiento del extracto y uno de tesorería.');
+      return;
+    }
+    if (just.length < 8) {
+      alert('Escribí una justificación de al menos 8 caracteres. Queda registrada junto con la diferencia.');
+      return;
+    }
+    try {
+      var rpc = await client().rpc('cb_confirmar_manual', {
+        p_canal: state.canal,
+        p_banco_id: bancoId,
+        p_sistema_id: sistemaId,
+        p_justificacion: just
+      });
+      if (rpc.error) throw rpc.error;
+      cerrarModal();
+      state.lista = 'confirmados';
+      state.msg = 'Conciliación manual confirmada. La justificación y la diferencia quedaron registradas.';
+      await recargarTodo();
+    } catch (e) {
+      alert(errMsg(e));
+    }
+  }
+
+  function excelDate(ymd) {
+    var s = String(ymd || '').slice(0, 10);
+    var p = s.split('-');
+    if (p.length !== 3) return null;
+    var y = Number(p[0]);
+    var m = Number(p[1]);
+    var d = Number(p[2]);
+    if (!y || !m || !d) return null;
+    return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000);
+  }
+
+  function excelNum(n) {
+    if (n == null || n === '') return null;
+    var v = Number(n);
+    return isFinite(v) ? v : null;
+  }
+
+  function listaLabel() {
+    if (state.lista === 'confirmados') return 'Confirmados';
+    if (state.lista === 'banco') return 'Solo banco';
+    if (state.lista === 'sistema') return 'Solo sistema';
+    return 'Sugeridos';
+  }
+
+  function canalLabel() {
+    return state.canal === CANAL_GAL ? 'Banco Galicia' : 'Mercado Pago';
+  }
+
+  function filasVisiblesMatch(estado) {
+    var rows = (state.matches || []).filter(function (m) {
+      return m.estado === estado && pasaFiltrosMatch(m);
+    });
+    return ordenarFilas(rows, valMatch);
+  }
+
+  function filasVisiblesSolo(origen) {
+    var ids = idsUsadosActivos();
+    var used = origen === 'banco' ? ids.usedB : ids.usedS;
+    var list = (origen === 'banco' ? bancoRows() : sistemaRows()).filter(function (m) {
+      return !used[m.id] && pasaFiltrosMov(m, origen);
+    });
+    return ordenarFilas(list, valSolo);
+  }
+
+  function aplicarFormatoExcel(ws, headerRow, dateCols, numCols) {
+    if (!ws['!ref']) return;
+    var range = global.XLSX.utils.decode_range(ws['!ref']);
+    var r;
+    var c;
+    for (r = 0; r <= range.e.r; r++) {
+      for (c = 0; c <= range.e.c; c++) {
+        var addr = global.XLSX.utils.encode_cell({ r: r, c: c });
+        var cell = ws[addr];
+        if (!cell) continue;
+        if (r === 0) {
+          cell.s = { font: { bold: true, sz: 13, color: { rgb: 'FF0F172A' } } };
+        }
+        if (r === headerRow) {
+          cell.s = {
+            font: { bold: true, color: { rgb: 'FFFFFFFF' } },
+            fill: { patternType: 'solid', fgColor: { rgb: 'FF1E293B' } },
+            alignment: { vertical: 'center', wrapText: true }
+          };
+        }
+        if (r > headerRow && dateCols.indexOf(c) >= 0 && typeof cell.v === 'number') {
+          cell.t = 'n';
+          cell.z = 'dd/mm/yyyy';
+        }
+        if (r > headerRow && numCols.indexOf(c) >= 0 && typeof cell.v === 'number') {
+          cell.t = 'n';
+          cell.z = '#,##0.00';
+        }
+      }
+    }
+  }
+
+  function exportarExcel() {
+    if (!global.XLSX) {
+      alert('No está disponible la librería Excel.');
+      return;
+    }
+    var headerRow = 7;
+    var aoa = [
+      ['Conciliación Bancaria — ' + canalLabel()],
+      ['Listado', listaLabel()],
+      ['Filtro mes', state.mes ? formatMesLabel(state.mes) : 'Todos'],
+      ['Filtro concepto extracto', state.concepto || 'Todos'],
+      ['Buscar', (state.q || '').trim() || '—'],
+      ['Exportado', formatFecha(fechaHoyYmd())],
+      []
+    ];
+    var dateCols = [];
+    var numCols = [];
+    var cols = [];
+    var esMatch = state.lista === 'sugeridos' || state.lista === 'confirmados';
+    if (esMatch) {
+      aoa.push(['Fecha banco', 'Extracto', 'Importe banco', 'Fecha sistema', 'Tesorería', 'Importe sistema', 'Diferencia', 'Criterio', 'Justificación', 'Estado', 'ID extracto', 'ID tesorería']);
+      dateCols = [0, 3];
+      numCols = [2, 5, 6];
+      cols = [{ wch: 12 }, { wch: 36 }, { wch: 14 }, { wch: 12 }, { wch: 36 }, { wch: 14 }, { wch: 12 }, { wch: 32 }, { wch: 40 }, { wch: 12 }, { wch: 22 }, { wch: 22 }];
+      var estado = state.lista === 'confirmados' ? 'confirmado' : 'sugerido';
+      var matches = filasVisiblesMatch(estado);
+      if (!matches.length) {
+        alert('No hay filas visibles con los filtros activos para exportar.');
+        return;
+      }
+      matches.forEach(function (m) {
+        var b = findMov(m.banco_id);
+        var s = findMov(m.sistema_id);
+        aoa.push([
+          excelDate(b && b.fecha),
+          (b && (b.tipo || b.descripcion)) || '',
+          excelNum(b && b.monto),
+          excelDate(s && s.fecha),
+          (s && (s.descripcion || s.tipo)) || '',
+          excelNum(s && s.monto),
+          excelNum(diffMatch(m, b, s)),
+          criterioLabel(m.criterio),
+          m.justificacion || '',
+          m.estado || '',
+          (b && (b.id_movimiento_banco || b.origen_id)) || '',
+          (s && s.origen_id) || ''
+        ]);
+      });
+    } else {
+      aoa.push(['Fecha', 'Tipo', 'Descripción', 'Contraparte', 'Importe', 'ID']);
+      dateCols = [0];
+      numCols = [4];
+      cols = [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 24 }, { wch: 14 }, { wch: 28 }];
+      var origen = state.lista === 'banco' ? 'banco' : 'sistema';
+      var movs = filasVisiblesSolo(origen);
+      if (!movs.length) {
+        alert('No hay filas visibles con los filtros activos para exportar.');
+        return;
+      }
+      movs.forEach(function (m) {
+        aoa.push([
+          excelDate(m.fecha),
+          m.tipo || '',
+          m.descripcion || '',
+          m.contraparte || '',
+          excelNum(m.monto),
+          m.id_movimiento_banco || m.origen_id || ''
+        ]);
+      });
+    }
+    var ws = global.XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = cols;
+    aplicarFormatoExcel(ws, headerRow, dateCols, numCols);
+    var wb = global.XLSX.utils.book_new();
+    var sheetName = listaLabel().slice(0, 31);
+    global.XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    var canalFile = state.canal === CANAL_GAL ? 'Galicia' : 'MP';
+    var listaFile = (state.lista || 'sugeridos').replace(/[^a-z]/g, '_');
+    global.XLSX.writeFile(wb, 'Conciliacion_Bancaria_' + canalFile + '_' + listaFile + '_' + fechaHoyYmd() + '.xlsx', { cellStyles: true, cellDates: false });
   }
 
   function renderFiltros() {
@@ -1312,24 +1764,28 @@
     conceptos.forEach(function (c) {
       conOpts += '<option value="' + esc(c) + '"' + (state.concepto === c ? ' selected' : '') + '>' + esc(c) + '</option>';
     });
+    var mesOn = !!state.mes;
+    var conOn = !!state.concepto;
+    var qOn = !!(state.q || '').trim();
     return '<div class="cb-filtros">' +
-      '<div class="form-group"><label for="cb-mes">Mes</label><select id="cb-mes" title="Filtrar por mes">' + mesOpts + '</select></div>' +
-      '<div class="form-group"><label for="cb-concepto">Concepto del extracto</label><select id="cb-concepto" title="Filtrar por concepto del extracto">' + conOpts + '</select></div>' +
-      '<div class="form-group"><label for="cb-q">Buscar</label><input type="search" id="cb-q" value="' + esc(state.q) + '" placeholder="Fecha, importe, cliente, ID…"></div>' +
+      (hayFiltrosActivos() ? '<span class="cb-filtros-flag" title="Hay filtros aplicados; el listado y el Excel respetan estos filtros">Filtros activos</span>' : '') +
+      '<div class="form-group' + (mesOn ? ' cb-filtro-activo' : '') + '"><label for="cb-mes">Mes</label><select id="cb-mes" title="Filtrar por mes">' + mesOpts + '</select></div>' +
+      '<div class="form-group' + (conOn ? ' cb-filtro-activo' : '') + '"><label for="cb-concepto">Concepto del extracto</label><select id="cb-concepto" title="Filtrar por concepto del extracto">' + conOpts + '</select></div>' +
+      '<div class="form-group' + (qOn ? ' cb-filtro-activo' : '') + '"><label for="cb-q">Buscar</label><input type="search" id="cb-q" value="' + esc(state.q) + '" placeholder="Fecha, importe, cliente, ID…"></div>' +
     '</div>';
   }
 
   function labelsCanal() {
     if (state.canal === CANAL_GAL) {
       return {
-        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia del sistema (mismo formato que Mercado Pago: Tipo, Fecha, Crédito, Débito). El extracto no duplica por fecha + débito/crédito + saldo. La app propone parejas por importe y, si hay varios iguales, por concepto de la descripción (para no cruzar impuestos); confirmá con el ojito.',
+        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia del sistema (mismo formato que Mercado Pago: Tipo, Fecha, Crédito, Débito). El extracto no duplica por fecha + débito/crédito + saldo. La app propone parejas por importe y concepto; también podés conciliar a mano (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
         btnBanco: 'Cargar extracto Galicia',
         btnSistema: 'Cargar tesorería Galicia',
         kpiBanco: 'Extracto Galicia'
       };
     }
     return {
-      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y el Excel de tesorería del sistema. La app propone parejas por importe y, si hay varios iguales, por concepto de la descripción (para no cruzar impuestos); confirmá con el ojito.',
+      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y el Excel de tesorería del sistema. La app propone parejas por importe y concepto; también podés conciliar a mano (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
       btnBanco: 'Cargar extracto Mercado Pago',
       btnSistema: 'Cargar tesorería Mercado Pago',
       kpiBanco: 'Extracto MP'
@@ -1349,9 +1805,11 @@
 
     return '<p class="cb-field-hint">' + esc(lab.hint) + '</p>' +
       '<div class="cb-toolbar"><div class="cb-acciones">' +
-        (canCargar ? '<button type="button" class="cb-btn cb-btn-excel" data-cb="up-banco"><span class="btn-icon">' + ICO.upload + '</span>' + esc(lab.btnBanco) + '</button>' : '') +
+        (canCargar ? '<button type="button" class="cb-btn cb-btn-navy" data-cb="up-banco"><span class="btn-icon">' + ICO.upload + '</span>' + esc(lab.btnBanco) + '</button>' : '') +
         (canCargar ? '<button type="button" class="cb-btn cb-btn-ghost" data-cb="up-sistema"><span class="btn-icon">' + ICO.upload + '</span>' + esc(lab.btnSistema) + '</button>' : '') +
+        (can(PERM_CONFIRMAR) ? '<button type="button" class="cb-btn cb-btn-ghost" data-cb="manual"><span class="btn-icon">' + ICO.link + '</span>Conciliación manual</button>' : '') +
         ((canCargar || can(PERM_CONFIRMAR)) ? '<button type="button" class="cb-btn cb-btn-ghost" data-cb="recalc"><span class="btn-icon">' + ICO.refresh + '</span>Recalcular sugerencias</button>' : '') +
+        '<button type="button" class="cb-btn cb-btn-excel" data-cb="xlsx"><span class="btn-icon">' + ICO.download + '</span>Excel</button>' +
       '</div></div>' +
       (state.msg ? '<p class="cb-msg-ok">' + esc(state.msg) + '</p>' : '') +
       renderFiltros() +
@@ -1437,10 +1895,13 @@
     if (a === 'up-banco') { onUpload('banco'); return; }
     if (a === 'up-sistema') { onUpload('sistema'); return; }
     if (a === 'recalc') { onRecalc(); return; }
+    if (a === 'manual') { abrirManual(); return; }
+    if (a === 'xlsx') { exportarExcel(); return; }
     if (a === 'ver') { abrirDetalleMatch(id); return; }
     if (a === 'ver-mov') { abrirDetalleMov(id); return; }
     if (a === 'ok') { setEstado(id, 'confirmado'); return; }
     if (a === 'no') { setEstado(id, 'rechazado'); return; }
+    if (a === 'undo') { setEstado(id, 'sugerido'); return; }
   }
 
   function ensureMounted() {
