@@ -431,7 +431,7 @@ COMMENT ON TABLE public.cb_movimiento IS
 COMMENT ON TABLE public.cb_match IS
   'Parejas sugeridas o confirmadas entre un movimiento de banco y uno de tesorería, por canal. origen_match=manual guarda justificación y diferencia de importe.';
 COMMENT ON FUNCTION public.cb_guardar_movimientos(text, text, jsonb) IS
-  'Upsert de movimientos de conciliación. SECURITY DEFINER para created_by.';
+  'Upsert incremental de movimientos. Nunca borra filas previas: si (canal, origen, origen_id) ya existe, actualiza datos; si no, inserta. SECURITY DEFINER para created_by.';
 COMMENT ON FUNCTION public.cb_reemplazar_sugerencias(text, jsonb) IS
   'Borra sugeridos del canal y carga las nuevas parejas propuestas. No toca confirmados ni rechazados.';
 COMMENT ON FUNCTION public.cb_set_match_estado(uuid, text) IS

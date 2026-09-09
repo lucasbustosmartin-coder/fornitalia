@@ -318,10 +318,17 @@
   margin-bottom: 0.85rem;
 }
 
+.cb-manual-filtros { margin: 0 0 0.85rem; }
+
 .cb-manual-col h3 {
   margin: 0 0 0.45rem;
   font-size: 0.92rem;
   color: #334155;
+}
+
+.cb-manual-count {
+  font-weight: 600;
+  color: #64748b;
 }
 
 .cb-pick-wrap { max-height: 240px; }
@@ -356,6 +363,20 @@
   color: #475569;
   margin-bottom: 0.25rem;
 }
+
+.cb-manual-col input[type="search"] {
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: inherit;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.cb-pick-wrap .cb-tabla { min-width: 100%; }
 
 .cb-just-area {
   width: 100%;

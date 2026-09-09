@@ -45,7 +45,7 @@
     msg: '',
     err: '',
     modal: null,
-    manual: { bancoId: '', sistemaId: '', qBanco: '', qSistema: '', justif: '', sortBanco: { key: 'fecha', dir: 'desc' }, sortSistema: { key: 'fecha', dir: 'desc' } }
+    manual: { bancoId: '', sistemaId: '', qBanco: '', qSistema: '', mes: '', concepto: '', justif: '', sortBanco: { key: 'fecha', dir: 'desc' }, sortSistema: { key: 'fecha', dir: 'desc' } }
   };
 
   function client() { return opts.client; }
@@ -741,13 +741,40 @@
     return out;
   }
 
+  var SUPABASE_PAGE = 1000;
+
+  async function fetchAllCanal(table, orderCols) {
+    var all = [];
+    var offset = 0;
+    for (;;) {
+      var q = client().from(table).select('*').eq('canal', state.canal);
+      (orderCols || []).forEach(function (col) {
+        q = q.order(col.name, { ascending: col.asc !== false });
+      });
+      var res = await q.range(offset, offset + SUPABASE_PAGE - 1);
+      if (res.error) throw res.error;
+      var chunk = res.data || [];
+      all = all.concat(chunk);
+      if (chunk.length < SUPABASE_PAGE) break;
+      offset += SUPABASE_PAGE;
+    }
+    return all;
+  }
+
+  function countOrigen(origen) {
+    return (state.movimientos || []).filter(function (m) {
+      return m.canal === state.canal && m.origen === origen;
+    }).length;
+  }
+
   async function cargarDatos() {
-    var mov = await client().from('cb_movimiento').select('*').eq('canal', state.canal).order('fecha').order('origen_id');
-    if (mov.error) throw mov.error;
-    state.movimientos = mov.data || [];
-    var mt = await client().from('cb_match').select('*').eq('canal', state.canal).order('created_at', { ascending: false });
-    if (mt.error) throw mt.error;
-    state.matches = mt.data || [];
+    state.movimientos = await fetchAllCanal('cb_movimiento', [
+      { name: 'fecha', asc: true },
+      { name: 'origen_id', asc: true }
+    ]);
+    state.matches = await fetchAllCanal('cb_match', [
+      { name: 'created_at', asc: false }
+    ]);
   }
 
   async function guardarFilas(origen, filas) {
@@ -846,8 +873,13 @@
           state.canal = canalAntes;
           throw new Error(parsed.error);
         }
+        await cargarDatos();
+        var nAntes = countOrigen(origen);
         await guardarFilas(origen, parsed.filas);
         await cargarDatos();
+        var nDespues = countOrigen(origen);
+        var nNuevos = Math.max(0, nDespues - nAntes);
+        var nYa = Math.max(0, parsed.filas.length - nNuevos);
         var nSug = 0;
         if (bancoRows().length && sistemaRows().length) nSug = await regenerarSugerencias();
         await cargarDatos();
@@ -857,14 +889,19 @@
         var extraOrigen = origen !== origenPedido
           ? (origen === 'sistema' ? ' Detecté tesorería del sistema.' : ' Detecté extracto del banco.')
           : '';
+        var extraDup = nNuevos
+          ? (nYa ? ' ' + nNuevos + ' nuevas; ' + nYa + ' ya estaban (no se duplican).' : ' ' + nNuevos + ' nuevas.')
+          : ' Ninguna nueva: las ' + parsed.filas.length + ' ya estaban (no se duplican).';
+        extraDup += ' No se borró ningún movimiento anterior.';
+        var extraSug = nSug ? ' Sugerencias: ' + nSug + '.' : '';
         if (origen === 'banco' && state.canal === CANAL_GAL) {
-          state.msg = 'Extracto Galicia: ' + parsed.filas.length + ' movimiento(s) (fecha + débito/crédito + saldo, sin duplicar).' + extraOrigen + extraCanal + (nSug ? ' Sugerencias: ' + nSug + '.' : '');
+          state.msg = 'Extracto Galicia: ' + parsed.filas.length + ' filas leídas (clave fecha + débito/crédito + saldo).' + extraDup + extraOrigen + extraCanal + extraSug;
         } else if (origen === 'banco') {
-          state.msg = 'Extracto Mercado Pago: ' + parsed.filas.length + ' movimiento(s) por Número de Movimiento (sin duplicar).' + extraOrigen + extraCanal + (nSug ? ' Sugerencias: ' + nSug + '.' : '');
+          state.msg = 'Extracto Mercado Pago: ' + parsed.filas.length + ' filas leídas (Número de Movimiento).' + extraDup + extraOrigen + extraCanal + extraSug;
         } else if (state.canal === CANAL_GAL) {
-          state.msg = 'Tesorería Galicia: ' + parsed.filas.length + ' movimiento(s).' + extraOrigen + extraCanal + (nSug ? ' Sugerencias: ' + nSug + '.' : '');
+          state.msg = 'Tesorería Galicia: ' + parsed.filas.length + ' filas leídas.' + extraDup + extraOrigen + extraCanal + extraSug;
         } else {
-          state.msg = 'Tesorería Mercado Pago: ' + parsed.filas.length + ' movimiento(s).' + extraOrigen + extraCanal + (nSug ? ' Sugerencias: ' + nSug + '.' : '');
+          state.msg = 'Tesorería Mercado Pago: ' + parsed.filas.length + ' filas leídas.' + extraDup + extraOrigen + extraCanal + extraSug;
         }
       } catch (e) {
         state.err = errMsg(e);
@@ -1040,14 +1077,25 @@
     return Math.round((nb - ns) * 100) / 100;
   }
 
+  function hayFiltrosManualActivos() {
+    var m = state.manual || {};
+    return !!(m.mes || m.concepto || (m.qBanco || '').trim() || (m.qSistema || '').trim());
+  }
+
   function movLibreManual(origen) {
     var ids = idsConfirmados();
     var used = origen === 'banco' ? ids.usedB : ids.usedS;
     var q = origen === 'banco' ? (state.manual.qBanco || '') : (state.manual.qSistema || '');
     q = q.trim().toLowerCase();
+    var mes = state.manual.mes || '';
+    var concepto = state.manual.concepto || '';
+    var sel = origen === 'banco' ? state.manual.bancoId : state.manual.sistemaId;
     return (origen === 'banco' ? bancoRows() : sistemaRows()).filter(function (m) {
       if (used[m.id]) return false;
       if (esApertura(m)) return false;
+      if (sel && m.id === sel) return true;
+      if (mes && mesYYYYMM(m.fecha) !== mes) return false;
+      if (origen === 'banco' && concepto && String(m.tipo || '').trim() !== concepto) return false;
       if (!q) return true;
       return blobMov(m).toLowerCase().indexOf(q) >= 0;
     });
@@ -1447,7 +1495,9 @@
       '</tr>';
     });
     if (!html) {
-      return '<p class="cb-empty">No hay movimientos disponibles' + ((origen === 'banco' ? state.manual.qBanco : state.manual.qSistema) ? ' con esa búsqueda.' : '.') + '</p>';
+      var hayFiltro = !!(state.manual.mes || (origen === 'banco' && state.manual.concepto) ||
+        ((origen === 'banco' ? state.manual.qBanco : state.manual.qSistema) || '').trim());
+      return '<p class="cb-empty">No hay movimientos disponibles' + (hayFiltro ? ' con esos filtros.' : '.') + '</p>';
     }
     return '<div class="cb-tabla-wrap cb-pick-wrap"><table class="cb-tabla">' +
       '<thead><tr>' +
@@ -1457,6 +1507,28 @@
         thSortManual(origen, 'sugerido', 'Estado') +
       '</tr></thead>' +
       '<tbody>' + html + '</tbody></table></div>';
+  }
+
+  function htmlFiltrosManual() {
+    var meses = opcionesMes();
+    var conceptos = opcionesConcepto();
+    var mesOpts = '<option value="">Todos los meses</option>';
+    meses.forEach(function (ym) {
+      mesOpts += '<option value="' + esc(ym) + '"' + (state.manual.mes === ym ? ' selected' : '') + '>' + esc(formatMesLabel(ym)) + '</option>';
+    });
+    var conOpts = '<option value="">Todos los conceptos</option>';
+    conceptos.forEach(function (c) {
+      conOpts += '<option value="' + esc(c) + '"' + (state.manual.concepto === c ? ' selected' : '') + '>' + esc(c) + '</option>';
+    });
+    var mesOn = !!state.manual.mes;
+    var conOn = !!state.manual.concepto;
+    return '<div class="cb-filtros cb-manual-filtros">' +
+      (hayFiltrosManualActivos() ? '<span class="cb-filtros-flag" title="Hay filtros aplicados en este modal">Filtros activos</span>' : '') +
+      '<div class="form-group' + (mesOn ? ' cb-filtro-activo' : '') + '"><label for="cb-manual-mes">Mes</label>' +
+      '<select id="cb-manual-mes" title="Filtrar extracto y tesorería por mes">' + mesOpts + '</select></div>' +
+      '<div class="form-group' + (conOn ? ' cb-filtro-activo' : '') + '"><label for="cb-manual-concepto">Concepto del extracto</label>' +
+      '<select id="cb-manual-concepto" title="Filtrar el extracto por concepto">' + conOpts + '</select></div>' +
+    '</div>';
   }
 
   function htmlManualBody() {
@@ -1478,17 +1550,20 @@
     } else {
       diffHtml = '<div class="cb-diff-box">Elegí un movimiento del extracto y otro de tesorería. Si alguno está en Sugeridos, esa sugerencia se reemplaza al confirmar.</div>';
     }
-    return '<p class="cb-field-hint">Podés conciliar a mano aunque la diferencia sea mayor a $1. La justificación, los importes y quién confirmó quedan guardados.</p>' +
+    var nB = movLibreManual('banco').length;
+    var nS = movLibreManual('sistema').length;
+    return '<p class="cb-field-hint">Podés conciliar a mano aunque la diferencia sea mayor a $1. La justificación, los importes y quién confirmó quedan guardados. Mes y concepto son los mismos filtros de la vista; si ya los tenías aplicados, arrancan acá.</p>' +
+      htmlFiltrosManual() +
       '<div class="cb-manual-cols">' +
         '<div class="cb-manual-col">' +
-          '<h3>Extracto bancario</h3>' +
-          '<div class="form-group"><label class="cb-just-label" for="cb-manual-qb">Buscar extracto</label>' +
+          '<h3>Extracto bancario <span class="cb-manual-count">(' + nB + ')</span></h3>' +
+          '<div class="form-group' + ((state.manual.qBanco || '').trim() ? ' cb-filtro-activo' : '') + '"><label class="cb-just-label" for="cb-manual-qb">Buscar extracto</label>' +
           '<input type="search" id="cb-manual-qb" value="' + esc(state.manual.qBanco) + '" placeholder="Fecha, importe, concepto…"></div>' +
           htmlPickTabla('banco') +
         '</div>' +
         '<div class="cb-manual-col">' +
-          '<h3>Tesorería (sistema)</h3>' +
-          '<div class="form-group"><label class="cb-just-label" for="cb-manual-qs">Buscar tesorería</label>' +
+          '<h3>Tesorería (sistema) <span class="cb-manual-count">(' + nS + ')</span></h3>' +
+          '<div class="form-group' + ((state.manual.qSistema || '').trim() ? ' cb-filtro-activo' : '') + '"><label class="cb-just-label" for="cb-manual-qs">Buscar tesorería</label>' +
           '<input type="search" id="cb-manual-qs" value="' + esc(state.manual.qSistema) + '" placeholder="Fecha, importe, cliente…"></div>' +
           htmlPickTabla('sistema') +
         '</div>' +
@@ -1503,6 +1578,8 @@
     var qb = state.modal.querySelector('#cb-manual-qb');
     var qs = state.modal.querySelector('#cb-manual-qs');
     var ju = state.modal.querySelector('#cb-manual-just');
+    var mesEl = state.modal.querySelector('#cb-manual-mes');
+    var conEl = state.modal.querySelector('#cb-manual-concepto');
     function bindSearch(el, campo) {
       if (!el) return;
       el.addEventListener('input', function () {
@@ -1518,6 +1595,18 @@
     }
     bindSearch(qb, 'qBanco');
     bindSearch(qs, 'qSistema');
+    if (mesEl) {
+      mesEl.addEventListener('change', function () {
+        state.manual.mes = mesEl.value || '';
+        refreshManualModal();
+      });
+    }
+    if (conEl) {
+      conEl.addEventListener('change', function () {
+        state.manual.concepto = conEl.value || '';
+        refreshManualModal();
+      });
+    }
     if (ju) {
       ju.addEventListener('input', function () { state.manual.justif = ju.value; });
     }
@@ -1531,6 +1620,10 @@
     if (qb) state.manual.qBanco = qb.value;
     var qs = state.modal.querySelector('#cb-manual-qs');
     if (qs) state.manual.qSistema = qs.value;
+    var mesEl = state.modal.querySelector('#cb-manual-mes');
+    if (mesEl) state.manual.mes = mesEl.value || '';
+    var conEl = state.modal.querySelector('#cb-manual-concepto');
+    if (conEl) state.manual.concepto = conEl.value || '';
   }
 
   function refreshManualModal() {
@@ -1553,8 +1646,10 @@
     state.manual = {
       bancoId: '',
       sistemaId: '',
-      qBanco: '',
-      qSistema: '',
+      qBanco: state.q || '',
+      qSistema: state.q || '',
+      mes: state.mes || '',
+      concepto: state.concepto || '',
       justif: '',
       sortBanco: { key: 'fecha', dir: 'desc' },
       sortSistema: { key: 'fecha', dir: 'desc' }
@@ -1778,14 +1873,14 @@
   function labelsCanal() {
     if (state.canal === CANAL_GAL) {
       return {
-        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia del sistema (mismo formato que Mercado Pago: Tipo, Fecha, Crédito, Débito). El extracto no duplica por fecha + débito/crédito + saldo. La app propone parejas por importe y concepto; también podés conciliar a mano (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia del sistema (mismo formato que Mercado Pago: Tipo, Fecha, Crédito, Débito). Cada carga es incremental: nunca borra lo ya cargado; si la fila ya existe (fecha + débito/crédito + saldo) no se inserta de nuevo. La app propone parejas por importe y concepto; también podés conciliar a mano (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
         btnBanco: 'Cargar extracto Galicia',
         btnSistema: 'Cargar tesorería Galicia',
         kpiBanco: 'Extracto Galicia'
       };
     }
     return {
-      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y el Excel de tesorería del sistema. La app propone parejas por importe y concepto; también podés conciliar a mano (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y el Excel de tesorería del sistema. Cada carga es incremental: nunca borra lo ya cargado; si el Número de Movimiento ya existe no se inserta de nuevo. La app propone parejas por importe y concepto; también podés conciliar a mano (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
       btnBanco: 'Cargar extracto Mercado Pago',
       btnSistema: 'Cargar tesorería Mercado Pago',
       kpiBanco: 'Extracto MP'
