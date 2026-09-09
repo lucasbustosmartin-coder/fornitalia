@@ -190,8 +190,14 @@
     return '';
   }
 
+  function esAperturaDeCajaTexto(tipo, desc) {
+    var t = String(tipo || '').toLowerCase();
+    var d = String(desc || '').toLowerCase();
+    return t.indexOf('apertura de caja') >= 0 || d.indexOf('apertura de caja') >= 0;
+  }
+
   function esApertura(m) {
-    return String(m && m.tipo || '').toLowerCase().indexOf('apertura') >= 0;
+    return esAperturaDeCajaTexto(m && m.tipo, m && m.descripcion);
   }
 
   function mismoImporte(a, b) {
@@ -481,6 +487,7 @@
     }
     var counts = {};
     var filas = [];
+    var omitidasApertura = 0;
     for (var r = 1; r < rows.length; r++) {
       var row = rows[r] || [];
       var tipo = String(cell(row, map, ['Tipo']) || '').trim();
@@ -495,6 +502,10 @@
       var saldo = parseMonto(cell(row, map, ['Saldo (ARS)', 'Saldo']));
       var obs = String(cell(row, map, ['Observaciones']) || '').trim();
       if (!tipo && !fecha && cred == null && deb == null) continue;
+      if (esAperturaDeCajaTexto(tipo, desc)) {
+        omitidasApertura += 1;
+        continue;
+      }
       var monto = 0;
       if (cred != null && cred !== 0) monto = cred;
       else if (deb != null && deb !== 0) monto = -Math.abs(deb);
@@ -527,8 +538,16 @@
         }
       });
     }
-    if (!filas.length) return { error: 'No encontré filas de tesorería para cargar.', filas: [] };
-    return { error: null, filas: filas };
+    if (!filas.length) {
+      return {
+        error: omitidasApertura
+          ? 'El archivo solo tenía Apertura de Caja; ese tipo no se carga.'
+          : 'No encontré filas de tesorería para cargar.',
+        filas: [],
+        omitidasApertura: omitidasApertura
+      };
+    }
+    return { error: null, filas: filas, omitidasApertura: omitidasApertura };
   }
 
   function textoMov(m) {
@@ -893,6 +912,9 @@
           ? (nYa ? ' ' + nNuevos + ' nuevas; ' + nYa + ' ya estaban (no se duplican).' : ' ' + nNuevos + ' nuevas.')
           : ' Ninguna nueva: las ' + parsed.filas.length + ' ya estaban (no se duplican).';
         extraDup += ' No se borró ningún movimiento anterior.';
+        if (parsed.omitidasApertura) {
+          extraDup += ' Se omitieron ' + parsed.omitidasApertura + ' Apertura de Caja (no se cargan).';
+        }
         var extraSug = nSug ? ' Sugerencias: ' + nSug + '.' : '';
         if (origen === 'banco' && state.canal === CANAL_GAL) {
           state.msg = 'Extracto Galicia: ' + parsed.filas.length + ' filas leídas (clave fecha + débito/crédito + saldo).' + extraDup + extraOrigen + extraCanal + extraSug;
@@ -1873,14 +1895,14 @@
   function labelsCanal() {
     if (state.canal === CANAL_GAL) {
       return {
-        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia del sistema (mismo formato que Mercado Pago: Tipo, Fecha, Crédito, Débito). Cada carga es incremental: nunca borra lo ya cargado; si la fila ya existe (fecha + débito/crédito + saldo) no se inserta de nuevo. La app propone parejas por importe y concepto; también podés conciliar a mano (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia del sistema (mismo formato que Mercado Pago: Tipo, Fecha, Crédito, Débito). Cada carga es incremental: nunca borra lo ya cargado; si la fila ya existe (fecha + débito/crédito + saldo) no se inserta de nuevo. Apertura de Caja no se sube. La app propone parejas por importe y concepto; también podés conciliar a mano (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
         btnBanco: 'Cargar extracto Galicia',
         btnSistema: 'Cargar tesorería Galicia',
         kpiBanco: 'Extracto Galicia'
       };
     }
     return {
-      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y el Excel de tesorería del sistema. Cada carga es incremental: nunca borra lo ya cargado; si el Número de Movimiento ya existe no se inserta de nuevo. La app propone parejas por importe y concepto; también podés conciliar a mano (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y el Excel de tesorería del sistema. Cada carga es incremental: nunca borra lo ya cargado; si el Número de Movimiento ya existe no se inserta de nuevo. Apertura de Caja no se sube. La app propone parejas por importe y concepto; también podés conciliar a mano (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
       btnBanco: 'Cargar extracto Mercado Pago',
       btnSistema: 'Cargar tesorería Mercado Pago',
       kpiBanco: 'Extracto MP'
