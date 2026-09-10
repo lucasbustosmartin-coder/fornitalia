@@ -13,7 +13,9 @@ En este proyecto las **fechas de negocio** (día contable, filtros, agrupación 
 
 - **Evitar** `CURRENT_DATE` como único default de **día contable** si la sesión no está alineada al negocio.
 - Patrón canónico: `public.fecha_hoy_argentina()` en `sql/helpers_fecha_argentina.sql`. Derivar día desde `timestamptz`: `(campo AT TIME ZONE 'America/Argentina/Buenos_Aires')::date`.
-- **Gestión de Proyectos** (`gp_proyecto`, `gp_entregable`, `gp_tarea`, `gp_tarea_hora`, `gp_entregable_hora`): `fecha_inicio` / `fecha_fin` y `*.fecha` de horas consumidas (tarea y propias del entregable) con `DEFAULT public.fecha_hoy_argentina()`. El guardado de horas usa `gp_guardar_horas_tarea` / `gp_guardar_horas_entregable` (fecha de negocio Argentina). El módulo `scripts/lib/fornitalia-gestion-proyectos.js` usa `America/Argentina/Buenos_Aires` para “hoy”, vencidas y horas; Excel del plan escribe serial de ese día + `dd/mm/yyyy` (no `Date` UTC); PDF/HTML arma `dd/mm/aaaa` desde YYYY-MM-DD.
+- **Gestión de Proyectos** (`gp_proyecto`, `gp_entregable`, `gp_tarea`, `gp_tarea_hora`, `gp_entregable_hora`, `gp_proyecto_hora`): `fecha_inicio` / `fecha_fin` y `*.fecha` de horas consumidas con `DEFAULT public.fecha_hoy_argentina()`.
+- **Conciliación Bancaria** (`cb_movimiento.fecha`): día de negocio Argentina. El extracto de Mercado Pago trae timestamp UTC (`Fecha de Pago`); se convierte a calendario `America/Argentina/Buenos_Aires`. Tesorería usa la fecha del Excel (dd/mm/aaaa o serial de día).
+- **Saldos extractos** (`eb_saldo_extracto.fecha_desde` / `fecha_hasta`): período del resumen de cuenta (Galicia PDF) en calendario Argentina. Defaults `public.fecha_hoy_argentina()`. El gráfico y los filtros agrupan por mes de `fecha_hasta`.
 
 ## Regla Cursor (no omitir)
 

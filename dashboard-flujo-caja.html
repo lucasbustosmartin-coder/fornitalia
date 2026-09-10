@@ -13,6 +13,8 @@
   <script src="scripts/lib/fornitalia-gestion-proyectos.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css">
   <script src="scripts/lib/fornitalia-conciliacion-bancaria.js"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css">
+  <script src="scripts/lib/fornitalia-saldos-extractos.js"></script>
   <style>
     * { box-sizing: border-box; }
     body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f5f5f5; display: flex; flex-direction: column; min-height: 100vh; }
@@ -848,6 +850,10 @@
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11M20 10v11"/><path d="M8 14v3M12 14v3M16 14v3"/></svg></span>
         <span class="menu-label">Conciliación Bancaria</span>
       </button>
+      <button type="button" class="menu-item" id="menu-saldos-extractos" title="Saldos extractos" aria-label="Saldos extractos" style="display:none;">
+        <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 14 12 9 16 13 21 6"/></svg></span>
+        <span class="menu-label">Saldos extractos</span>
+      </button>
       <button type="button" class="menu-item" id="menu-reportes" title="Reportes" aria-label="Reportes" style="display:none;">
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M8 9h2"/></svg></span>
         <span class="menu-label">Reportes</span>
@@ -1198,6 +1204,7 @@
   </div>
   <div id="view-gestion-proyectos" class="card vista-gp" style="display:none;"></div>
   <div id="view-conciliacion-bancaria" class="card vista-cb" style="display:none;"></div>
+  <div id="view-saldos-extractos" class="card vista-se" style="display:none;"></div>
   <div id="view-reportes" class="card" style="display:none;">
     <h1 class="vista-titulo">
       <span class="vista-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M8 9h2"/></svg></span>
@@ -1740,7 +1747,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.15';
+    const APP_VERSION = '2.16';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1769,6 +1776,7 @@
     const PERM_VER_REPORTES = 'ver_reportes';
     const PERM_VER_GESTION_PROYECTOS = 'ver_gestion_proyectos';
     const PERM_VER_CONCILIACION_BANCARIA = 'ver_conciliacion_bancaria';
+    const PERM_VER_SALDOS_EXTRACTOS = 'ver_saldos_extractos';
 
     /** Solapas del dashboard → permiso granular. */
     const PANEL_PERMISO = {
@@ -1970,6 +1978,7 @@
       const cfg = hasPerm(PERM_VER_CONFIGURACION);
       const gp = hasPerm(PERM_VER_GESTION_PROYECTOS);
       const cb = hasPerm(PERM_VER_CONCILIACION_BANCARIA);
+      const se = hasPerm(PERM_VER_SALDOS_EXTRACTOS);
       const carga = puedeCargarNormalizado();
 
       const setVis = (id, visible) => {
@@ -1981,6 +1990,7 @@
       setVis('menu-configuracion', cfg);
       setVis('menu-gestion-proyectos', gp);
       setVis('menu-conciliacion-bancaria', cb);
+      setVis('menu-saldos-extractos', se);
       setVis('menu-seguridad', sec);
       setVis('menu-mi-perfil', true);
       setVis('menu-cerrar-sesion', true);
@@ -2061,6 +2071,14 @@
         document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
         document.getElementById('menu-home')?.classList.add('menu-item-active');
       }
+      const vSe = document.getElementById('view-saldos-extractos');
+      if (vSe && vSe.style.display === 'block' && !se) {
+        vSe.style.display = 'none';
+        const vd = document.getElementById('view-dashboard');
+        if (vd) vd.style.display = 'block';
+        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+        document.getElementById('menu-home')?.classList.add('menu-item-active');
+      }
     }
 
     function puedeExportarReportes() {
@@ -2074,12 +2092,14 @@
       const vs = document.getElementById('view-seguridad');
       const vgp = document.getElementById('view-gestion-proyectos');
       const vcb = document.getElementById('view-conciliacion-bancaria');
+      const vse = document.getElementById('view-saldos-extractos');
       if (vd) vd.style.display = idVista === 'dashboard' ? 'block' : 'none';
       if (vn) vn.style.display = idVista === 'novedades' ? 'block' : 'none';
       if (vr) vr.style.display = idVista === 'reportes' ? 'block' : 'none';
       if (vs) vs.style.display = idVista === 'seguridad' ? 'block' : 'none';
       if (vgp) vgp.style.display = idVista === 'gestion-proyectos' ? 'block' : 'none';
       if (vcb) vcb.style.display = idVista === 'conciliacion-bancaria' ? 'block' : 'none';
+      if (vse) vse.style.display = idVista === 'saldos-extractos' ? 'block' : 'none';
     }
 
     function actualizarReportesMatrizStats() {
@@ -2154,7 +2174,7 @@
       {
         id: 'menus',
         titulo: 'Menús laterales',
-        operar: ['ver_novedades', 'ver_configuracion', 'ver_reportes', 'ver_gestion_proyectos', 'ver_conciliacion_bancaria'],
+        operar: ['ver_novedades', 'ver_configuracion', 'ver_reportes', 'ver_gestion_proyectos', 'ver_conciliacion_bancaria', 'ver_saldos_extractos'],
       },
       {
         id: 'gestion-proyectos',
@@ -2165,6 +2185,11 @@
         id: 'conciliacion-bancaria',
         titulo: 'Conciliación Bancaria',
         operar: ['cargar_conciliacion_bancaria', 'confirmar_conciliacion_bancaria'],
+      },
+      {
+        id: 'saldos-extractos',
+        titulo: 'Saldos extractos',
+        operar: ['cargar_saldos_extractos', 'exportar_saldos_extractos'],
       },
       {
         id: 'acciones',
@@ -7563,6 +7588,13 @@
             getRoot: () => document.getElementById('view-conciliacion-bancaria'),
           });
         }
+        if (window.FornitaliaSaldosExtractos) {
+          window.FornitaliaSaldosExtractos.init({
+            client,
+            hasPerm,
+            getRoot: () => document.getElementById('view-saldos-extractos'),
+          });
+        }
         document.getElementById('menu-home')?.addEventListener('click', (e) => {
           e.preventDefault();
           mostrarVistaPrincipal('dashboard');
@@ -7584,6 +7616,14 @@
           document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
           document.getElementById('menu-conciliacion-bancaria')?.classList.add('menu-item-active');
           if (window.FornitaliaConciliacionBancaria) window.FornitaliaConciliacionBancaria.show();
+        });
+        document.getElementById('menu-saldos-extractos')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (!hasPerm(PERM_VER_SALDOS_EXTRACTOS)) return;
+          mostrarVistaPrincipal('saldos-extractos');
+          document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+          document.getElementById('menu-saldos-extractos')?.classList.add('menu-item-active');
+          if (window.FornitaliaSaldosExtractos) window.FornitaliaSaldosExtractos.show();
         });
         document.getElementById('menu-reportes')?.addEventListener('click', (e) => {
           e.preventDefault();

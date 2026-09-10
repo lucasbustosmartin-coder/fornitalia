@@ -1,0 +1,259 @@
+/* Saldos de extractos bancarios – Fornitalia */
+
+.vista-se { padding: 1.25rem 1.5rem 2rem; }
+
+.se-header { margin: 0 0 0.35rem; }
+
+.se-hint {
+  color: #64748b;
+  font-size: 0.92rem;
+  margin: 0 0 1rem;
+  max-width: 54rem;
+  line-height: 1.45;
+}
+
+.se-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin: 0 0 1rem;
+}
+
+.se-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.se-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.25rem;
+  min-width: 44px;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-family: inherit;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+}
+
+.se-btn .btn-icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.se-btn .btn-icon svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: none;
+}
+
+.se-btn-excel {
+  background: #0d7d3d;
+  border-color: #0d7d3d;
+  color: #fff;
+}
+
+.se-btn-excel:hover { background: #0a5c2e; }
+
+.se-btn-navy {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+
+.se-btn-navy:hover { background: #1e293b; }
+
+.se-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: flex-end;
+}
+
+.se-filtros .form-group { margin: 0; }
+
+.se-filtros label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.25rem;
+}
+
+.se-filtros select {
+  min-height: 2.25rem;
+  min-width: 11rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: inherit;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.se-filtro-activo label { color: #9a3412; }
+
+.se-filtro-activo select {
+  background: #fff7ed;
+  border-color: #ea580c;
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2);
+  color: #9a3412;
+  font-weight: 600;
+}
+
+.se-filtros-flag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: #fff7ed;
+  border: 1px solid #ea580c;
+  color: #9a3412;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.se-resumen {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.se-resumen-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+}
+
+.se-resumen-card .lab {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.se-resumen-card .val {
+  margin: 0.25rem 0 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.se-resumen-card .sub {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.se-chart-wrap {
+  height: 280px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.se-empty {
+  color: #64748b;
+  font-size: 0.95rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.se-msg-ok {
+  color: #166534;
+  font-size: 0.9rem;
+  margin: 0 0 0.75rem;
+  white-space: pre-wrap;
+}
+
+.se-msg-err {
+  color: #b91c1c;
+  font-size: 0.9rem;
+  margin: 0 0 0.75rem;
+  white-space: pre-wrap;
+}
+
+.se-tabla-wrap {
+  overflow: auto;
+  max-height: min(70vh, 640px);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.se-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  min-width: 52rem;
+}
+
+.se-tabla th,
+.se-tabla td {
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+}
+
+.se-tabla thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #1e293b;
+  color: #fff;
+  font-weight: 600;
+  text-align: left;
+  box-shadow: 0 1px 0 #0f172a;
+  background-clip: padding-box;
+}
+
+.se-tabla thead th.se-col-monto {
+  text-align: right;
+}
+
+.se-col-monto {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.se-monto-pos { color: #0d7d3d; }
+.se-monto-neg { color: #b91c1c; }
+
+@media (max-width: 768px) {
+  .vista-se { padding: 1rem 0.75rem 1.5rem; }
+  .se-resumen { grid-template-columns: 1fr 1fr; }
+  .se-filtros select { min-width: 100%; max-width: 100%; width: 100%; }
+  .se-filtros .form-group { width: 100%; }
+  .se-acciones { width: 100%; }
+  .se-acciones .se-btn { flex: 1 1 auto; min-height: 44px; }
+  .se-filtros-flag { width: 100%; justify-content: center; }
+  .se-chart-wrap { height: 240px; }
+}
+
+@media (max-width: 480px) {
+  .se-resumen { grid-template-columns: 1fr; }
+}
