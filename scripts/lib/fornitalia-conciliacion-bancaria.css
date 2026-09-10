@@ -191,7 +191,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.88rem;
-  min-width: 52rem;
+  min-width: 68rem;
 }
 
 .cb-tabla th,
@@ -334,11 +334,32 @@
 .cb-pick-wrap { max-height: 240px; }
 
 .cb-pick-row { cursor: pointer; }
-.cb-pick-row td { padding-top: 0.7rem; padding-bottom: 0.7rem; }
+.cb-pick-row td { padding-top: 0.7rem; padding-bottom: 0.7rem; min-height: 44px; }
 .cb-pick-row:hover { background: #f8fafc; }
 .cb-pick-row.cb-pick-sel {
   background: #fff7ed;
   box-shadow: inset 3px 0 0 #ea580c;
+}
+.cb-pick-check {
+  width: 2.25rem;
+  text-align: center;
+  font-weight: 700;
+  color: #ea580c;
+}
+.cb-tabla thead th.cb-pick-check {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #1e293b;
+  color: #fff;
+}
+.cb-manual-sel {
+  font-weight: 600;
+  color: #c2410c;
+  font-size: 0.85rem;
+}
+.cb-detalle-grupo {
+  grid-template-columns: 1fr 1fr;
 }
 
 .cb-diff-box {

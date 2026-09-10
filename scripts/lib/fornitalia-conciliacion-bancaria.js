@@ -45,7 +45,7 @@
     msg: '',
     err: '',
     modal: null,
-    manual: { bancoId: '', sistemaId: '', qBanco: '', qSistema: '', mes: '', concepto: '', justif: '', sortBanco: { key: 'fecha', dir: 'desc' }, sortSistema: { key: 'fecha', dir: 'desc' } }
+    manual: { bancoIds: [], sistemaIds: [], qBanco: '', qSistema: '', mes: '', concepto: '', justif: '', sortBanco: { key: 'fecha', dir: 'desc' }, sortSistema: { key: 'fecha', dir: 'desc' } }
   };
 
   function client() { return opts.client; }
@@ -146,7 +146,7 @@
   function parseMonto(v) {
     if (v == null || v === '') return null;
     if (typeof v === 'number' && isFinite(v)) return Math.round(v * 100) / 100;
-    var s = String(v).trim().replace(/\s/g, '');
+    var s = String(v).trim().replace(/\s/g, '').replace(/^\$/, '');
     if (!s) return null;
     if (s.indexOf(',') >= 0 && s.indexOf('.') >= 0) {
       if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g, '').replace(',', '.');
@@ -295,9 +295,53 @@
     return map['fecha'] != null && map['tipo'] != null && (map['credito'] != null || map['debito'] != null);
   }
 
+  function esMapaTesoreriaCierre(map) {
+    return map['fecha'] != null && map['tipo'] != null && map['monto'] != null &&
+      map['credito'] == null && map['debito'] == null;
+  }
+
+  function esFilaPieTesoreria(fechaRaw, tipo) {
+    var f = String(fechaRaw || '').trim().toLowerCase();
+    var t = String(tipo || '').trim().toLowerCase();
+    if (!f && !t) return true;
+    if (/^total\b/.test(f) || /^total\b/.test(t)) return true;
+    if (/^\$/.test(f) || /^\$/.test(t)) return true;
+    return false;
+  }
+
+  function prefijoAntesDeGuionBajo(archivo) {
+    var base = String(archivo || '').split(/[\\/]/).pop() || '';
+    var punto = base.lastIndexOf('.');
+    if (punto > 0) base = base.slice(0, punto);
+    var i = base.indexOf('_');
+    if (i <= 0) return '';
+    return base.slice(0, i).trim();
+  }
+
+  function errorPrefijoCierreCanal(archivo, canalTab) {
+    var pref = prefijoAntesDeGuionBajo(archivo);
+    var prefN = normHeader(pref);
+    var esper = canalTab === CANAL_GAL ? 'Galicia' : 'MP';
+    var ok = canalTab === CANAL_GAL ? prefN === 'galicia' : prefN === 'mp';
+    if (ok) return '';
+    return 'En ' + (canalTab === CANAL_GAL ? 'Banco Galicia' : 'Mercado Pago') +
+      ' el cierre de caja tiene que llamarse ' + esper + '_… (primera palabra antes del _). ' +
+      'Este archivo empieza por «' + (pref || 'sin _') + '».';
+  }
+
   function detectarCanalTesoreria(wb, archivo) {
     var names = wb.SheetNames || [];
     var blob = names.map(normHeader).join(' ') + ' ' + normHeader(archivo || '');
+    var i;
+    var j;
+    for (i = 0; i < names.length; i++) {
+      var info = filasHoja(wb, names[i]);
+      var rows = info.rows || [];
+      for (j = 0; j < Math.min(rows.length, 200); j++) {
+        blob += ' ' + ((rows[j] || []).join(' '));
+      }
+    }
+    blob = normHeader(blob);
     if (blob.indexOf('galicia') >= 0) return CANAL_GAL;
     if (blob.indexOf('mercadopago') >= 0 || blob.indexOf('mercado pago') >= 0) return CANAL_MP;
     return state.canal;
@@ -311,7 +355,7 @@
     var i;
     for (i = 0; i < names.length; i++) {
       var info = filasHoja(wb, names[i]);
-      if (esMapaTesoreria(info.map)) {
+      if (esMapaTesoreria(info.map) || esMapaTesoreriaCierre(info.map)) {
         return { clase: 'sistema', canal: detectarCanalTesoreria(wb, archivo), hoja: names[i] };
       }
     }
@@ -477,11 +521,12 @@
     var rows = global.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' });
     if (!rows.length) return { error: 'El Excel de tesorería no tiene filas.', filas: [] };
     var map = mapHeaders(rows[0]);
-    if (!esMapaTesoreria(map)) {
+    var esCierre = esMapaTesoreriaCierre(map);
+    if (!esMapaTesoreria(map) && !esCierre) {
       return {
         error: state.canal === CANAL_GAL
-          ? 'No reconocí la tesorería de Galicia. Esperaba Tipo, Fecha, Crédito, Débito, Descripción (p. ej. tesoreria_transferencia_galicia).'
-          : 'No reconocí la tesorería de Mercado Pago. Esperaba Tipo, Fecha, Crédito, Débito, Descripción.',
+          ? 'No reconocí la tesorería de Galicia. Esperaba Tipo, Fecha, Crédito, Débito (p. ej. tesoreria_transferencia_galicia) o el cierre de caja (Fecha, Tipo, Monto).'
+          : 'No reconocí la tesorería de Mercado Pago. Esperaba Tipo, Fecha, Crédito, Débito o el cierre de caja (Fecha, Tipo, Monto; p. ej. cierre_CIERRE-…).',
         filas: []
       };
     }
@@ -491,7 +536,9 @@
     for (var r = 1; r < rows.length; r++) {
       var row = rows[r] || [];
       var tipo = String(cell(row, map, ['Tipo']) || '').trim();
-      var fecha = parseFechaCelda(cell(row, map, ['Fecha']));
+      var fechaRaw = cell(row, map, ['Fecha']);
+      if (esFilaPieTesoreria(fechaRaw, tipo)) continue;
+      var fecha = parseFechaCelda(fechaRaw);
       var hora = parseHora(cell(row, map, ['Hora']));
       var desc = String(cell(row, map, ['Descripción', 'Descripcion']) || '').trim();
       var cliente = String(cell(row, map, ['Cliente']) || '').trim();
@@ -499,17 +546,37 @@
       var cta = String(cell(row, map, ['Cuenta Contable']) || '').trim();
       var cred = parseMonto(cell(row, map, ['Crédito', 'Credito']));
       var deb = parseMonto(cell(row, map, ['Débito', 'Debito']));
-      var saldo = parseMonto(cell(row, map, ['Saldo (ARS)', 'Saldo']));
+      var saldo = parseMonto(cell(row, map, ['Saldo (ARS)', 'Saldo (USD)', 'Saldo']));
       var obs = String(cell(row, map, ['Observaciones']) || '').trim();
-      if (!tipo && !fecha && cred == null && deb == null) continue;
+      var caja = String(cell(row, map, ['Caja']) || '').trim();
+      var usuario = String(cell(row, map, ['Usuario']) || '').trim();
+      var status = String(cell(row, map, ['Status', 'Estado']) || '').trim();
+      var monedaFila = String(cell(row, map, ['Moneda']) || '').trim() || 'ARS';
       if (esAperturaDeCajaTexto(tipo, desc)) {
         omitidasApertura += 1;
         continue;
       }
+      if (esCierre) {
+        if (normHeader(status) === 'pendiente') continue;
+        if (!fecha) continue;
+        var montoCierre = parseMonto(cell(row, map, ['Monto']));
+        var tipoN = tipo.toLowerCase();
+        if (tipoN.indexOf('egreso') >= 0 && montoCierre != null) {
+          deb = Math.abs(montoCierre);
+          cred = null;
+        } else if (tipoN.indexOf('ingreso') >= 0 && montoCierre != null) {
+          cred = montoCierre;
+          deb = null;
+        }
+      }
+      if (!tipo && !fecha && cred == null && deb == null) continue;
+      if (esCierre && cred == null && deb == null) continue;
       var monto = 0;
       if (cred != null && cred !== 0) monto = cred;
       else if (deb != null && deb !== 0) monto = -Math.abs(deb);
-      var base = [tipo, fecha, hora, desc, cliente, cred == null ? '' : cred, deb == null ? '' : deb, saldo == null ? '' : saldo].join('|');
+      var base = esCierre
+        ? [tipo, fecha, desc, cliente, cred == null ? '' : cred, deb == null ? '' : deb].join('|')
+        : [tipo, fecha, hora, desc, cliente, cred == null ? '' : cred, deb == null ? '' : deb, saldo == null ? '' : saldo].join('|');
       counts[base] = (counts[base] || 0) + 1;
       var origenId = 'tes|' + base + '#' + counts[base];
       var fechaHora = null;
@@ -522,7 +589,7 @@
         descripcion: desc || null,
         contraparte: cliente || null,
         monto: Math.round(monto * 100) / 100,
-        moneda: 'ARS',
+        moneda: monedaFila || 'ARS',
         categoria: cat || null,
         cuenta_contable: cta || null,
         credito: cred,
@@ -534,7 +601,9 @@
         fila_excel: r + 1,
         raw: {
           tipo: tipo, fecha: fecha, hora: hora, categoria: cat, cuenta_contable: cta,
-          descripcion: desc, cliente: cliente, credito: cred, debito: deb, saldo: saldo, observaciones: obs
+          descripcion: desc, cliente: cliente, credito: cred, debito: deb, saldo: saldo, observaciones: obs,
+          caja: caja || null, usuario: usuario || null, status: status || null,
+          formato: esCierre ? 'cierre' : 'tesoreria'
         }
       });
     }
@@ -547,7 +616,7 @@
         omitidasApertura: omitidasApertura
       };
     }
-    return { error: null, filas: filas, omitidasApertura: omitidasApertura };
+    return { error: null, filas: filas, omitidasApertura: omitidasApertura, formatoCierre: esCierre };
   }
 
   function textoMov(m) {
@@ -680,8 +749,8 @@
     var rejected = {};
     (matches || []).forEach(function (m) {
       if (m.estado === 'confirmado') {
-        lockedB[m.banco_id] = true;
-        lockedS[m.sistema_id] = true;
+        idsMatchLado(m, 'banco').forEach(function (id) { lockedB[id] = true; });
+        idsMatchLado(m, 'sistema').forEach(function (id) { lockedS[id] = true; });
       }
       if (m.estado === 'rechazado') rejected[m.banco_id + '|' + m.sistema_id] = true;
     });
@@ -778,6 +847,38 @@
       offset += SUPABASE_PAGE;
     }
     return all;
+  }
+
+  function claveDedupTesoreria(m) {
+    var monto = Number(m && m.monto);
+    var montoKey = isFinite(monto) ? (Math.round(monto * 100) / 100).toFixed(2) : '';
+    return [
+      String((m && m.fecha) || '').slice(0, 10),
+      montoKey,
+      normTxt(m && m.descripcion),
+      normTxt(m && m.categoria),
+      normTxt(m && m.contraparte)
+    ].join('|');
+  }
+
+  function filtrarTesoreriaYaCargada(filas) {
+    var bag = {};
+    sistemaRows().forEach(function (m) {
+      var k = claveDedupTesoreria(m);
+      bag[k] = (bag[k] || 0) + 1;
+    });
+    var out = [];
+    var nYa = 0;
+    (filas || []).forEach(function (f) {
+      var k = claveDedupTesoreria(f);
+      if ((bag[k] || 0) > 0) {
+        bag[k] -= 1;
+        nYa += 1;
+      } else {
+        out.push(f);
+      }
+    });
+    return { filas: out, nYa: nYa };
   }
 
   function countOrigen(origen) {
@@ -878,7 +979,19 @@
         var canalAntes = state.canal;
         var origenPedido = origen;
         var detArch = detectarArchivo(wb, file.name);
-        if (detArch.clase === 'banco' || detArch.clase === 'sistema') {
+        var esCierreTes = false;
+        if (detArch.clase === 'sistema' && detArch.hoja) {
+          esCierreTes = esMapaTesoreriaCierre(filasHoja(wb, detArch.hoja).map);
+        }
+        if (esCierreTes) {
+          var errPref = errorPrefijoCierreCanal(file.name, canalAntes);
+          if (errPref) {
+            state.canal = canalAntes;
+            throw new Error(errPref);
+          }
+          origen = 'sistema';
+          state.canal = canalAntes;
+        } else if (detArch.clase === 'banco' || detArch.clase === 'sistema') {
           origen = detArch.clase === 'banco' ? 'banco' : 'sistema';
           state.canal = detArch.canal;
         }
@@ -893,12 +1006,19 @@
           throw new Error(parsed.error);
         }
         await cargarDatos();
+        var nLeidas = parsed.filas.length;
+        var nYaContenido = 0;
+        if (origen === 'sistema') {
+          var filDup = filtrarTesoreriaYaCargada(parsed.filas);
+          parsed.filas = filDup.filas;
+          nYaContenido = filDup.nYa;
+        }
         var nAntes = countOrigen(origen);
-        await guardarFilas(origen, parsed.filas);
+        if (parsed.filas.length) await guardarFilas(origen, parsed.filas);
         await cargarDatos();
         var nDespues = countOrigen(origen);
         var nNuevos = Math.max(0, nDespues - nAntes);
-        var nYa = Math.max(0, parsed.filas.length - nNuevos);
+        var nYa = Math.max(0, nLeidas - nNuevos);
         var nSug = 0;
         if (bancoRows().length && sistemaRows().length) nSug = await regenerarSugerencias();
         await cargarDatos();
@@ -910,20 +1030,26 @@
           : '';
         var extraDup = nNuevos
           ? (nYa ? ' ' + nNuevos + ' nuevas; ' + nYa + ' ya estaban (no se duplican).' : ' ' + nNuevos + ' nuevas.')
-          : ' Ninguna nueva: las ' + parsed.filas.length + ' ya estaban (no se duplican).';
+          : ' Ninguna nueva: las ' + nLeidas + ' ya estaban (no se duplican).';
         extraDup += ' No se borró ningún movimiento anterior.';
+        if (nYaContenido) {
+          extraDup += ' ' + nYaContenido + ' coincidían con tesorería ya cargada (misma fecha, monto, descripción, categoría y cliente).';
+        }
+        if (parsed.formatoCierre) {
+          extraDup = ' Cierre de caja (caja ya cerrada).' + extraDup;
+        }
         if (parsed.omitidasApertura) {
           extraDup += ' Se omitieron ' + parsed.omitidasApertura + ' Apertura de Caja (no se cargan).';
         }
         var extraSug = nSug ? ' Sugerencias: ' + nSug + '.' : '';
         if (origen === 'banco' && state.canal === CANAL_GAL) {
-          state.msg = 'Extracto Galicia: ' + parsed.filas.length + ' filas leídas (clave fecha + débito/crédito + saldo).' + extraDup + extraOrigen + extraCanal + extraSug;
+          state.msg = 'Extracto Galicia: ' + nLeidas + ' filas leídas (clave fecha + débito/crédito + saldo).' + extraDup + extraOrigen + extraCanal + extraSug;
         } else if (origen === 'banco') {
-          state.msg = 'Extracto Mercado Pago: ' + parsed.filas.length + ' filas leídas (Número de Movimiento).' + extraDup + extraOrigen + extraCanal + extraSug;
+          state.msg = 'Extracto Mercado Pago: ' + nLeidas + ' filas leídas (Número de Movimiento).' + extraDup + extraOrigen + extraCanal + extraSug;
         } else if (state.canal === CANAL_GAL) {
-          state.msg = 'Tesorería Galicia: ' + parsed.filas.length + ' filas leídas.' + extraDup + extraOrigen + extraCanal + extraSug;
+          state.msg = 'Tesorería Galicia: ' + nLeidas + ' filas leídas.' + extraDup + extraOrigen + extraCanal + extraSug;
         } else {
-          state.msg = 'Tesorería Mercado Pago: ' + parsed.filas.length + ' filas leídas.' + extraDup + extraOrigen + extraCanal + extraSug;
+          state.msg = 'Tesorería Mercado Pago: ' + nLeidas + ' filas leídas.' + extraDup + extraOrigen + extraCanal + extraSug;
         }
       } catch (e) {
         state.err = errMsg(e);
@@ -1024,11 +1150,12 @@
   }
 
   function pasaFiltrosMatch(match) {
-    var b = findMov(match.banco_id);
-    var s = findMov(match.sistema_id);
-    if (!pasaFiltro(blobMov(b) + ' ' + blobMov(s) + ' ' + criterioLabel(match.criterio))) return false;
-    if (!pasaFiltroMes(b && b.fecha)) return false;
-    if (!pasaFiltroConceptoBanco(b)) return false;
+    var bs = movsMatchLado(match, 'banco');
+    var ss = movsMatchLado(match, 'sistema');
+    var blob = bs.concat(ss).map(blobMov).join(' ') + ' ' + criterioLabel(match.criterio) + ' ' + (match.justificacion || '');
+    if (!pasaFiltro(blob)) return false;
+    if (state.mes && !bs.some(function (b) { return pasaFiltroMes(b && b.fecha); })) return false;
+    if (state.concepto && !bs.some(function (b) { return pasaFiltroConceptoBanco(b); })) return false;
     return true;
   }
 
@@ -1048,8 +1175,8 @@
     var usedS = {};
     (state.matches || []).forEach(function (m) {
       if (m.estado === 'sugerido' || m.estado === 'confirmado') {
-        usedB[m.banco_id] = true;
-        usedS[m.sistema_id] = true;
+        idsMatchLado(m, 'banco').forEach(function (id) { usedB[id] = true; });
+        idsMatchLado(m, 'sistema').forEach(function (id) { usedS[id] = true; });
       }
       if (!pasaFiltrosMatch(m)) return;
       if (m.estado === 'sugerido') sug++;
@@ -1065,8 +1192,8 @@
     var usedS = {};
     (state.matches || []).forEach(function (m) {
       if (m.estado === 'sugerido' || m.estado === 'confirmado') {
-        usedB[m.banco_id] = true;
-        usedS[m.sistema_id] = true;
+        idsMatchLado(m, 'banco').forEach(function (id) { usedB[id] = true; });
+        idsMatchLado(m, 'sistema').forEach(function (id) { usedS[id] = true; });
       }
     });
     return { usedB: usedB, usedS: usedS };
@@ -1077,8 +1204,8 @@
     var usedS = {};
     (state.matches || []).forEach(function (m) {
       if (m.estado === 'confirmado') {
-        usedB[m.banco_id] = true;
-        usedS[m.sistema_id] = true;
+        idsMatchLado(m, 'banco').forEach(function (id) { usedB[id] = true; });
+        idsMatchLado(m, 'sistema').forEach(function (id) { usedS[id] = true; });
       }
     });
     return { usedB: usedB, usedS: usedS };
@@ -1088,10 +1215,104 @@
     return !!(m && (m.origen_match === 'manual' || m.criterio === 'manual'));
   }
 
+  function idsMatchLado(m, origen) {
+    if (!m) return [];
+    var arr = origen === 'banco' ? m.banco_ids : m.sistema_ids;
+    var primary = origen === 'banco' ? m.banco_id : m.sistema_id;
+    var out = [];
+    function push(id) {
+      if (id && out.indexOf(id) < 0) out.push(id);
+    }
+    if (Array.isArray(arr) && arr.length) arr.forEach(push);
+    else push(primary);
+    return out;
+  }
+
+  function movsMatchLado(m, origen) {
+    return idsMatchLado(m, origen).map(findMov).filter(Boolean);
+  }
+
+  function idsSelManual(origen) {
+    var arr = origen === 'banco' ? (state.manual && state.manual.bancoIds) : (state.manual && state.manual.sistemaIds);
+    return Array.isArray(arr) ? arr.slice() : [];
+  }
+
+  function sumaMontos(movs) {
+    var t = 0;
+    var ok = false;
+    (movs || []).forEach(function (x) {
+      var n = Number(x && x.monto);
+      if (isFinite(n)) {
+        t += n;
+        ok = true;
+      }
+    });
+    return ok ? Math.round(t * 100) / 100 : null;
+  }
+
+  function fechaGrupo(movs) {
+    var best = '';
+    (movs || []).forEach(function (x) {
+      var f = x && x.fecha;
+      if (f && (!best || String(f) < String(best))) best = f;
+    });
+    return best;
+  }
+
+  function labelGrupo(movs, esBanco) {
+    if (!movs || !movs.length) return '—';
+    var first = esBanco
+      ? (movs[0].tipo || movs[0].descripcion || '—')
+      : (movs[0].descripcion || movs[0].tipo || '—');
+    if (movs.length === 1) return first;
+    return first + ' +' + (movs.length - 1);
+  }
+
+  function valoresCampo(movs, campo) {
+    var vals = [];
+    (movs || []).forEach(function (x) {
+      var v = String((x && x[campo]) || '').trim();
+      if (v && vals.indexOf(v) < 0) vals.push(v);
+    });
+    return vals;
+  }
+
+  function labelCampoGrupo(movs, campo) {
+    var vals = valoresCampo(movs, campo);
+    if (!vals.length) return '—';
+    if (vals.length === 1) return vals[0];
+    return vals[0] + ' +' + (vals.length - 1);
+  }
+
+  function textoCampoGrupo(movs, campo) {
+    return valoresCampo(movs, campo).join(' | ');
+  }
+
+  function textoGrupo(movs, esBanco) {
+    return (movs || []).map(function (x) {
+      return esBanco ? (x.tipo || x.descripcion || '') : (x.descripcion || x.tipo || '');
+    }).filter(Boolean).join(' | ');
+  }
+
+  function idsOrigenGrupo(movs) {
+    return (movs || []).map(function (x) {
+      return x.id_movimiento_banco || x.origen_id || '';
+    }).filter(Boolean).join(' | ');
+  }
+
+  function esGrupoMatch(m) {
+    return idsMatchLado(m, 'banco').length > 1 || idsMatchLado(m, 'sistema').length > 1;
+  }
+
   function diffMatch(m, b, s) {
     if (m && m.diferencia != null && m.diferencia !== '') {
       var d = Number(m.diferencia);
       if (isFinite(d)) return Math.round(d * 100) / 100;
+    }
+    if (m) {
+      var sb = sumaMontos(movsMatchLado(m, 'banco'));
+      var ss = sumaMontos(movsMatchLado(m, 'sistema'));
+      if (sb != null && ss != null) return Math.round((sb - ss) * 100) / 100;
     }
     var nb = Number(b && b.monto);
     var ns = Number(s && s.monto);
@@ -1111,11 +1332,11 @@
     q = q.trim().toLowerCase();
     var mes = state.manual.mes || '';
     var concepto = state.manual.concepto || '';
-    var sel = origen === 'banco' ? state.manual.bancoId : state.manual.sistemaId;
+    var sels = idsSelManual(origen);
     return (origen === 'banco' ? bancoRows() : sistemaRows()).filter(function (m) {
       if (used[m.id]) return false;
       if (esApertura(m)) return false;
-      if (sel && m.id === sel) return true;
+      if (sels.indexOf(m.id) >= 0) return true;
       if (mes && mesYYYYMM(m.fecha) !== mes) return false;
       if (origen === 'banco' && concepto && String(m.tipo || '').trim() !== concepto) return false;
       if (!q) return true;
@@ -1126,7 +1347,7 @@
   function matchSugeridoDe(movId) {
     var found = null;
     (state.matches || []).forEach(function (m) {
-      if (m.estado === 'sugerido' && (m.banco_id === movId || m.sistema_id === movId)) found = m;
+      if (m.estado === 'sugerido' && (idsMatchLado(m, 'banco').indexOf(movId) >= 0 || idsMatchLado(m, 'sistema').indexOf(movId) >= 0)) found = m;
     });
     return found;
   }
@@ -1166,7 +1387,7 @@
 
   function blobMov(m) {
     if (!m) return '';
-    return [m.fecha, m.tipo, m.descripcion, m.contraparte, m.origen_id, m.id_movimiento_banco, m.monto, m.categoria].join(' ');
+    return [m.fecha, m.tipo, m.descripcion, m.contraparte, m.origen_id, m.id_movimiento_banco, m.monto, m.categoria, m.cuenta_contable].join(' ');
   }
 
   function sortActual() {
@@ -1201,15 +1422,17 @@
   }
 
   function valMatch(m, key) {
-    var b = findMov(m.banco_id);
-    var s = findMov(m.sistema_id);
-    if (key === 'banco') return { v: b && (b.tipo || b.descripcion), t: 'txt' };
-    if (key === 'monto_banco') return { v: b && b.monto, t: 'num' };
-    if (key === 'fecha_sistema') return { v: s && s.fecha, t: 'fecha' };
-    if (key === 'sistema') return { v: s && (s.descripcion || s.tipo), t: 'txt' };
-    if (key === 'monto_sistema') return { v: s && s.monto, t: 'num' };
+    var bs = movsMatchLado(m, 'banco');
+    var ss = movsMatchLado(m, 'sistema');
+    if (key === 'banco') return { v: labelGrupo(bs, true), t: 'txt' };
+    if (key === 'monto_banco') return { v: sumaMontos(bs), t: 'num' };
+    if (key === 'fecha_sistema') return { v: fechaGrupo(ss), t: 'fecha' };
+    if (key === 'sistema') return { v: labelGrupo(ss, false), t: 'txt' };
+    if (key === 'categoria_sistema') return { v: labelCampoGrupo(ss, 'categoria'), t: 'txt' };
+    if (key === 'cuenta_sistema') return { v: labelCampoGrupo(ss, 'cuenta_contable'), t: 'txt' };
+    if (key === 'monto_sistema') return { v: sumaMontos(ss), t: 'num' };
     if (key === 'criterio') return { v: criterioLabel(m.criterio), t: 'txt' };
-    return { v: b && b.fecha, t: 'fecha' };
+    return { v: fechaGrupo(bs), t: 'fecha' };
   }
 
   function valSolo(m, key) {
@@ -1238,12 +1461,15 @@
   function htmlCriterioBadge(m, estado) {
     var manual = esMatchManual(m);
     var cls = manual ? 'cb-badge-manual' : (estado === 'confirmado' ? 'cb-badge-ok' : 'cb-badge-warn');
-    var b = findMov(m.banco_id);
-    var s = findMov(m.sistema_id);
-    var d = diffMatch(m, b, s);
+    var bs = movsMatchLado(m, 'banco');
+    var ss = movsMatchLado(m, 'sistema');
+    var d = diffMatch(m);
     var extra = '';
+    if (esGrupoMatch(m)) {
+      extra += ' <span class="cb-badge cb-badge-manual">' + bs.length + '×' + ss.length + '</span>';
+    }
     if (d != null && Math.round(Math.abs(d) * 100) > 100) {
-      extra = ' <span class="cb-badge cb-badge-warn">Dif. ' + esc(formatMonto(d)) + '</span>';
+      extra += ' <span class="cb-badge cb-badge-warn">Dif. ' + esc(formatMonto(d)) + '</span>';
     }
     return '<span class="cb-badge ' + cls + '">' + esc(criterioLabel(m.criterio)) + '</span>' + extra;
   }
@@ -1293,15 +1519,17 @@
     rows = ordenarFilas(rows, valMatch);
     var html = '';
     rows.forEach(function (m) {
-      var b = findMov(m.banco_id);
-      var s = findMov(m.sistema_id);
+      var bs = movsMatchLado(m, 'banco');
+      var ss = movsMatchLado(m, 'sistema');
       html += '<tr>' +
-        '<td>' + formatFecha(b && b.fecha) + '</td>' +
-        '<td>' + esc((b && (b.tipo || b.descripcion)) || '—') + '</td>' +
-        '<td class="cb-col-monto">' + htmlMonto(b && b.monto) + '</td>' +
-        '<td>' + formatFecha(s && s.fecha) + '</td>' +
-        '<td>' + esc((s && (s.descripcion || s.tipo)) || '—') + '</td>' +
-        '<td class="cb-col-monto">' + htmlMonto(s && s.monto) + '</td>' +
+        '<td>' + formatFecha(fechaGrupo(bs)) + '</td>' +
+        '<td>' + esc(labelGrupo(bs, true)) + '</td>' +
+        '<td class="cb-col-monto">' + htmlMonto(sumaMontos(bs)) + '</td>' +
+        '<td>' + formatFecha(fechaGrupo(ss)) + '</td>' +
+        '<td>' + esc(labelGrupo(ss, false)) + '</td>' +
+        '<td>' + esc(labelCampoGrupo(ss, 'categoria')) + '</td>' +
+        '<td>' + esc(labelCampoGrupo(ss, 'cuenta_contable')) + '</td>' +
+        '<td class="cb-col-monto">' + htmlMonto(sumaMontos(ss)) + '</td>' +
         '<td>' + htmlCriterioBadge(m, estado) + '</td>' +
         '<td class="cb-col-acc">' +
           btnIcon('ver', m.id, 'Ver detalle de la conciliación', ICO.eye) +
@@ -1325,6 +1553,8 @@
         thSort('monto_banco', 'Importe', 'cb-col-monto') +
         thSort('fecha_sistema', 'Fecha sistema') +
         thSort('sistema', 'Sistema') +
+        thSort('categoria_sistema', 'Categoría') +
+        thSort('cuenta_sistema', 'Cuenta contable') +
         thSort('monto_sistema', 'Importe', 'cb-col-monto') +
         thSort('criterio', 'Criterio') +
         '<th class="cb-col-acc">Acciones</th>' +
@@ -1405,8 +1635,8 @@
     var m = null;
     (state.matches || []).forEach(function (x) { if (x.id === id) m = x; });
     if (!m) return;
-    var b = findMov(m.banco_id);
-    var s = findMov(m.sistema_id);
+    var bs = movsMatchLado(m, 'banco');
+    var ss = movsMatchLado(m, 'sistema');
     var footer = '';
     if (m.estado === 'sugerido' && can(PERM_CONFIRMAR)) {
       footer =
@@ -1416,10 +1646,11 @@
       footer =
         '<button type="button" class="cb-btn cb-btn-danger" data-cb="undo" data-id="' + esc(m.id) + '"><span class="btn-icon">' + ICO.undo + '</span>Deshacer conciliación</button>';
     }
-    var d = diffMatch(m, b, s);
-    var meta = '<p class="cb-field-hint">' + esc(criterioLabel(m.criterio)) + (m.score != null ? ' · score ' + m.score : '') + '</p>';
+    var d = diffMatch(m);
+    var meta = '<p class="cb-field-hint">' + esc(criterioLabel(m.criterio)) + (m.score != null ? ' · score ' + m.score : '') +
+      (esGrupoMatch(m) ? ' · grupo ' + bs.length + ' extractos × ' + ss.length + ' tesorería' : '') + '</p>';
     if (d != null) {
-      meta += '<p class="cb-field-hint">Diferencia (extracto − tesorería): <strong>' + esc(formatMonto(d)) + '</strong></p>';
+      meta += '<p class="cb-field-hint">Diferencia (suma extracto − suma tesorería): <strong>' + esc(formatMonto(d)) + '</strong></p>';
     }
     if (m.justificacion) {
       meta += '<p class="cb-field-hint">Justificación: ' + esc(m.justificacion) + '</p>';
@@ -1427,10 +1658,17 @@
     if (m.confirmado_at) {
       meta += '<p class="cb-field-hint">Confirmado: ' + esc(formatFecha(isoAFechaArgentina(m.confirmado_at))) + '</p>';
     }
+    var titB = state.canal === CANAL_GAL ? 'Banco Galicia (extracto)' : 'Mercado Pago (extracto)';
+    var bloquesB = bs.length ? bs.map(function (x, i) {
+      return htmlDetalleMov(x, bs.length > 1 ? titB + ' (' + (i + 1) + '/' + bs.length + ')' : titB);
+    }).join('') : htmlDetalleMov(null, titB);
+    var bloquesS = ss.length ? ss.map(function (x, i) {
+      return htmlDetalleMov(x, ss.length > 1 ? 'Tesorería (sistema) (' + (i + 1) + '/' + ss.length + ')' : 'Tesorería (sistema)');
+    }).join('') : htmlDetalleMov(null, 'Tesorería (sistema)');
     abrirModal(
       'Detalle de conciliación',
       meta +
-      '<div class="cb-detalle">' + htmlDetalleMov(b, state.canal === CANAL_GAL ? 'Banco Galicia (extracto)' : 'Mercado Pago (extracto)') + htmlDetalleMov(s, 'Tesorería (sistema)') + '</div>',
+      '<div class="cb-detalle' + (bs.length + ss.length > 2 ? ' cb-detalle-grupo' : '') + '">' + bloquesB + bloquesS + '</div>',
       footer
     );
   }
@@ -1504,12 +1742,14 @@
 
   function htmlPickTabla(origen) {
     var list = ordenarFilas(movLibreManual(origen), valSolo, sortManual(origen));
-    var sel = origen === 'banco' ? state.manual.bancoId : state.manual.sistemaId;
+    var sels = idsSelManual(origen);
     var action = origen === 'banco' ? 'pick-banco' : 'pick-sistema';
     var html = '';
     list.forEach(function (m) {
       var sug = matchSugeridoDe(m.id);
-      html += '<tr class="cb-pick-row' + (sel === m.id ? ' cb-pick-sel' : '') + '" data-cb="' + action + '" data-id="' + esc(m.id) + '">' +
+      var sel = sels.indexOf(m.id) >= 0;
+      html += '<tr class="cb-pick-row' + (sel ? ' cb-pick-sel' : '') + '" data-cb="' + action + '" data-id="' + esc(m.id) + '" aria-pressed="' + (sel ? 'true' : 'false') + '">' +
+        '<td class="cb-pick-check" aria-hidden="true">' + (sel ? '✓' : '') + '</td>' +
         '<td>' + formatFecha(m.fecha) + '</td>' +
         '<td>' + esc(m.tipo || m.descripcion || '—') + '</td>' +
         '<td class="cb-col-monto">' + htmlMonto(m.monto) + '</td>' +
@@ -1523,6 +1763,7 @@
     }
     return '<div class="cb-tabla-wrap cb-pick-wrap"><table class="cb-tabla">' +
       '<thead><tr>' +
+        '<th class="cb-pick-check" aria-hidden="true"></th>' +
         thSortManual(origen, 'fecha', 'Fecha') +
         thSortManual(origen, 'concepto', 'Concepto') +
         thSortManual(origen, 'monto', 'Importe', 'cb-col-monto') +
@@ -1554,37 +1795,45 @@
   }
 
   function htmlManualBody() {
-    var b = findMov(state.manual.bancoId);
-    var s = findMov(state.manual.sistemaId);
-    var d = (b && s) ? diffMatch(null, b, s) : null;
+    var banks = idsSelManual('banco').map(findMov).filter(Boolean);
+    var sist = idsSelManual('sistema').map(findMov).filter(Boolean);
+    var sumB = sumaMontos(banks);
+    var sumS = sumaMontos(sist);
+    var d = (banks.length && sist.length && sumB != null && sumS != null)
+      ? Math.round((sumB - sumS) * 100) / 100
+      : null;
     var absD = d != null ? Math.abs(d) : 0;
     var warn = absD > 1;
     var diffHtml = '';
-    if (b && s) {
+    if (banks.length && sist.length) {
       diffHtml = '<div class="cb-diff-box' + (warn ? ' warn' : '') + '">' +
-        '<strong>Extracto:</strong> ' + esc(formatMonto(b.monto)) +
-        ' &nbsp;·&nbsp; <strong>Tesorería:</strong> ' + esc(formatMonto(s.monto)) +
+        '<strong>Extracto (' + banks.length + '):</strong> ' + esc(formatMonto(sumB)) +
+        ' &nbsp;·&nbsp; <strong>Tesorería (' + sist.length + '):</strong> ' + esc(formatMonto(sumS)) +
         ' &nbsp;·&nbsp; <strong>Diferencia:</strong> ' + esc(formatMonto(d)) +
         (warn
           ? '<br>La diferencia es mayor a $1. Queda registrada junto con la justificación.'
-          : '<br>Aunque el importe coincida (o difiera hasta $1), la pareja queda como conciliación manual.') +
+          : '<br>Aunque el importe coincida (o difiera hasta $1), el grupo queda como conciliación manual.') +
       '</div>';
     } else {
-      diffHtml = '<div class="cb-diff-box">Elegí un movimiento del extracto y otro de tesorería. Si alguno está en Sugeridos, esa sugerencia se reemplaza al confirmar.</div>';
+      diffHtml = '<div class="cb-diff-box">Elegí uno o más movimientos del extracto y uno o más de tesorería (clic para sumar o quitar). Si alguno está en Sugeridos, esa sugerencia se reemplaza al confirmar.</div>';
     }
     var nB = movLibreManual('banco').length;
     var nS = movLibreManual('sistema').length;
-    return '<p class="cb-field-hint">Podés conciliar a mano aunque la diferencia sea mayor a $1. La justificación, los importes y quién confirmó quedan guardados. Mes y concepto son los mismos filtros de la vista; si ya los tenías aplicados, arrancan acá.</p>' +
+    var selB = banks.length;
+    var selS = sist.length;
+    return '<p class="cb-field-hint">Podés conciliar varios extractos con una o más tesorerías. La diferencia es la suma del extracto menos la suma de tesorería. La justificación, los importes y quién confirmó quedan guardados. Mes y concepto son los mismos filtros de la vista; si ya los tenías aplicados, arrancan acá.</p>' +
       htmlFiltrosManual() +
       '<div class="cb-manual-cols">' +
         '<div class="cb-manual-col">' +
-          '<h3>Extracto bancario <span class="cb-manual-count">(' + nB + ')</span></h3>' +
+          '<h3>Extracto bancario <span class="cb-manual-count">(' + nB + ')</span>' +
+            (selB ? ' <span class="cb-manual-sel">' + selB + ' elegidos</span>' : '') + '</h3>' +
           '<div class="form-group' + ((state.manual.qBanco || '').trim() ? ' cb-filtro-activo' : '') + '"><label class="cb-just-label" for="cb-manual-qb">Buscar extracto</label>' +
           '<input type="search" id="cb-manual-qb" value="' + esc(state.manual.qBanco) + '" placeholder="Fecha, importe, concepto…"></div>' +
           htmlPickTabla('banco') +
         '</div>' +
         '<div class="cb-manual-col">' +
-          '<h3>Tesorería (sistema) <span class="cb-manual-count">(' + nS + ')</span></h3>' +
+          '<h3>Tesorería (sistema) <span class="cb-manual-count">(' + nS + ')</span>' +
+            (selS ? ' <span class="cb-manual-sel">' + selS + ' elegidos</span>' : '') + '</h3>' +
           '<div class="form-group' + ((state.manual.qSistema || '').trim() ? ' cb-filtro-activo' : '') + '"><label class="cb-just-label" for="cb-manual-qs">Buscar tesorería</label>' +
           '<input type="search" id="cb-manual-qs" value="' + esc(state.manual.qSistema) + '" placeholder="Fecha, importe, cliente…"></div>' +
           htmlPickTabla('sistema') +
@@ -1658,16 +1907,20 @@
 
   function pickManual(lado, id) {
     syncManualFromDom();
-    if (lado === 'banco') state.manual.bancoId = id;
-    else state.manual.sistemaId = id;
+    var arr = lado === 'banco' ? idsSelManual('banco') : idsSelManual('sistema');
+    var i = arr.indexOf(id);
+    if (i >= 0) arr.splice(i, 1);
+    else arr.push(id);
+    if (lado === 'banco') state.manual.bancoIds = arr;
+    else state.manual.sistemaIds = arr;
     refreshManualModal();
   }
 
   function abrirManual() {
     if (!can(PERM_CONFIRMAR)) return;
     state.manual = {
-      bancoId: '',
-      sistemaId: '',
+      bancoIds: [],
+      sistemaIds: [],
       qBanco: state.q || '',
       qSistema: state.q || '',
       mes: state.mes || '',
@@ -1684,11 +1937,11 @@
   async function confirmarManual() {
     if (!can(PERM_CONFIRMAR)) return;
     syncManualFromDom();
-    var bancoId = state.manual.bancoId;
-    var sistemaId = state.manual.sistemaId;
+    var bancoIds = idsSelManual('banco');
+    var sistemaIds = idsSelManual('sistema');
     var just = (state.manual.justif || '').trim();
-    if (!bancoId || !sistemaId) {
-      alert('Elegí un movimiento del extracto y uno de tesorería.');
+    if (!bancoIds.length || !sistemaIds.length) {
+      alert('Elegí al menos un movimiento del extracto y uno de tesorería.');
       return;
     }
     if (just.length < 8) {
@@ -1696,10 +1949,10 @@
       return;
     }
     try {
-      var rpc = await client().rpc('cb_confirmar_manual', {
+      var rpc = await client().rpc('cb_confirmar_manual_grupo', {
         p_canal: state.canal,
-        p_banco_id: bancoId,
-        p_sistema_id: sistemaId,
+        p_banco_ids: bancoIds,
+        p_sistema_ids: sistemaIds,
         p_justificacion: just
       });
       if (rpc.error) throw rpc.error;
@@ -1808,10 +2061,10 @@
     var cols = [];
     var esMatch = state.lista === 'sugeridos' || state.lista === 'confirmados';
     if (esMatch) {
-      aoa.push(['Fecha banco', 'Extracto', 'Importe banco', 'Fecha sistema', 'Tesorería', 'Importe sistema', 'Diferencia', 'Criterio', 'Justificación', 'Estado', 'ID extracto', 'ID tesorería']);
+      aoa.push(['Fecha banco', 'Extracto', 'Importe banco', 'Fecha sistema', 'Tesorería', 'Categoría', 'Cuenta contable', 'Importe sistema', 'Diferencia', 'Criterio', 'Justificación', 'Estado', 'ID extracto', 'ID tesorería']);
       dateCols = [0, 3];
-      numCols = [2, 5, 6];
-      cols = [{ wch: 12 }, { wch: 36 }, { wch: 14 }, { wch: 12 }, { wch: 36 }, { wch: 14 }, { wch: 12 }, { wch: 32 }, { wch: 40 }, { wch: 12 }, { wch: 22 }, { wch: 22 }];
+      numCols = [2, 7, 8];
+      cols = [{ wch: 12 }, { wch: 36 }, { wch: 14 }, { wch: 12 }, { wch: 36 }, { wch: 22 }, { wch: 24 }, { wch: 14 }, { wch: 12 }, { wch: 32 }, { wch: 40 }, { wch: 12 }, { wch: 22 }, { wch: 22 }];
       var estado = state.lista === 'confirmados' ? 'confirmado' : 'sugerido';
       var matches = filasVisiblesMatch(estado);
       if (!matches.length) {
@@ -1819,21 +2072,23 @@
         return;
       }
       matches.forEach(function (m) {
-        var b = findMov(m.banco_id);
-        var s = findMov(m.sistema_id);
+        var bs = movsMatchLado(m, 'banco');
+        var ss = movsMatchLado(m, 'sistema');
         aoa.push([
-          excelDate(b && b.fecha),
-          (b && (b.tipo || b.descripcion)) || '',
-          excelNum(b && b.monto),
-          excelDate(s && s.fecha),
-          (s && (s.descripcion || s.tipo)) || '',
-          excelNum(s && s.monto),
-          excelNum(diffMatch(m, b, s)),
-          criterioLabel(m.criterio),
+          excelDate(fechaGrupo(bs)),
+          textoGrupo(bs, true),
+          excelNum(sumaMontos(bs)),
+          excelDate(fechaGrupo(ss)),
+          textoGrupo(ss, false),
+          textoCampoGrupo(ss, 'categoria'),
+          textoCampoGrupo(ss, 'cuenta_contable'),
+          excelNum(sumaMontos(ss)),
+          excelNum(diffMatch(m)),
+          criterioLabel(m.criterio) + (esGrupoMatch(m) ? ' (' + bs.length + '×' + ss.length + ')' : ''),
           m.justificacion || '',
           m.estado || '',
-          (b && (b.id_movimiento_banco || b.origen_id)) || '',
-          (s && s.origen_id) || ''
+          idsOrigenGrupo(bs),
+          idsOrigenGrupo(ss)
         ]);
       });
     } else {
@@ -1895,14 +2150,14 @@
   function labelsCanal() {
     if (state.canal === CANAL_GAL) {
       return {
-        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia del sistema (mismo formato que Mercado Pago: Tipo, Fecha, Crédito, Débito). Cada carga es incremental: nunca borra lo ya cargado; si la fila ya existe (fecha + débito/crédito + saldo) no se inserta de nuevo. Apertura de Caja no se sube. La app propone parejas por importe y concepto; también podés conciliar a mano (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia del sistema (Tipo, Fecha, Crédito, Débito) o el Excel de cierre de caja nombrado Galicia_CIERRE-… (Fecha, Tipo, Monto). Cada carga es incremental: nunca borra lo ya cargado. Apertura de Caja y filas Pendiente del cierre no se suben. La app propone parejas por importe y concepto; también podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
         btnBanco: 'Cargar extracto Galicia',
         btnSistema: 'Cargar tesorería Galicia',
         kpiBanco: 'Extracto Galicia'
       };
     }
     return {
-      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y el Excel de tesorería del sistema. Cada carga es incremental: nunca borra lo ya cargado; si el Número de Movimiento ya existe no se inserta de nuevo. Apertura de Caja no se sube. La app propone parejas por importe y concepto; también podés conciliar a mano (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y el Excel de tesorería del sistema, o el cierre de caja nombrado MP_CIERRE-… (mismos movimientos ya cerrados, columna Monto). Cada carga es incremental: nunca borra lo ya cargado. Apertura de Caja y filas Pendiente del cierre no se suben. La app propone parejas por importe y concepto; también podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
       btnBanco: 'Cargar extracto Mercado Pago',
       btnSistema: 'Cargar tesorería Mercado Pago',
       kpiBanco: 'Extracto MP'
