@@ -22,7 +22,8 @@
     refresh: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>',
     download: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>',
     link: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>',
-    undo: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.77-8.36L1 10"/></svg>'
+    undo: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.77-8.36L1 10"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>'
   };
 
   var opts = { client: null, hasPerm: function () { return true; }, getRoot: function () { return null; } };
@@ -1097,6 +1098,22 @@
     }
   }
 
+  async function borrarMovimientoSistema(id) {
+    if (!can(PERM_CARGAR)) return;
+    var m = findMov(id);
+    if (!m || m.origen !== 'sistema') return;
+    var det = (formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + ' · ' + (m.descripcion || m.tipo || '')).trim();
+    if (!confirm('¿Eliminar este movimiento de tesorería?\n\n' + det + '\n\nNo se puede deshacer. Si lo necesitás, volvé a cargar el Excel.')) return;
+    try {
+      var rpc = await client().rpc('cb_borrar_movimiento_sistema', { p_id: id });
+      if (rpc.error) throw rpc.error;
+      state.msg = 'Movimiento de tesorería eliminado.';
+      await recargarTodo();
+    } catch (e) {
+      alert(errMsg(e));
+    }
+  }
+
   function mesYYYYMM(ymd) {
     var s = String(ymd || '').slice(0, 7);
     return /^\d{4}-\d{2}$/.test(s) ? s : '';
@@ -1578,7 +1595,12 @@
         '<td>' + esc(m.contraparte || '—') + '</td>' +
         '<td class="cb-col-monto">' + htmlMonto(m.monto) + '</td>' +
         '<td>' + esc(m.id_movimiento_banco || m.origen_id || '—') + '</td>' +
-        '<td class="cb-col-acc">' + btnIcon('ver-mov', m.id, 'Ver detalle del movimiento', ICO.eye) + '</td>' +
+        '<td class="cb-col-acc">' +
+          btnIcon('ver-mov', m.id, 'Ver detalle del movimiento', ICO.eye) +
+          (origen === 'sistema' && can(PERM_CARGAR)
+            ? btnIcon('del-mov', m.id, 'Eliminar movimiento de tesorería', ICO.trash, 'cb-btn-danger')
+            : '') +
+        '</td>' +
       '</tr>';
     });
     if (!html) {
@@ -1594,7 +1616,7 @@
         thSort('contraparte', 'Contraparte') +
         thSort('monto', 'Importe', 'cb-col-monto') +
         thSort('id', 'ID') +
-        '<th class="cb-col-acc"></th>' +
+        '<th class="cb-col-acc">Acciones</th>' +
       '</tr></thead>' +
       '<tbody>' + html + '</tbody></table></div>';
   }
@@ -2271,6 +2293,7 @@
     if (a === 'xlsx') { exportarExcel(); return; }
     if (a === 'ver') { abrirDetalleMatch(id); return; }
     if (a === 'ver-mov') { abrirDetalleMov(id); return; }
+    if (a === 'del-mov') { borrarMovimientoSistema(id); return; }
     if (a === 'ok') { setEstado(id, 'confirmado'); return; }
     if (a === 'no') { setEstado(id, 'rechazado'); return; }
     if (a === 'undo') { setEstado(id, 'sugerido'); return; }
