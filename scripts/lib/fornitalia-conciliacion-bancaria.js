@@ -39,7 +39,8 @@
       sugeridos: { key: 'fecha_banco', dir: 'desc' },
       confirmados: { key: 'fecha_banco', dir: 'desc' },
       banco: { key: 'fecha', dir: 'desc' },
-      sistema: { key: 'fecha', dir: 'desc' }
+      sistema: { key: 'fecha', dir: 'desc' },
+      anulados: { key: 'fecha', dir: 'desc' }
     },
     movimientos: [],
     matches: [],
@@ -229,8 +230,87 @@
     return (state.movimientos || []).filter(function (m) { return m.canal === state.canal; });
   }
 
-  function bancoRows() {
+  function bancoRowsTodos() {
     return movimientosCanal().filter(function (m) { return m.origen === 'banco'; });
+  }
+
+  function esTextoAnulacionMp(tipo) {
+    var t = normTxt(tipo);
+    return /\banulacion\b|\bdevolucion\b/.test(t);
+  }
+
+  function paresMpAutoanulados(banco) {
+    if (state.canal !== CANAL_MP) return [];
+    var groups = {};
+    (banco || []).forEach(function (m) {
+      var k = String(m.id_operacion_relacionada || '').trim();
+      if (!k) return;
+      if (!groups[k]) groups[k] = [];
+      groups[k].push(m);
+    });
+    var pares = [];
+    Object.keys(groups).forEach(function (opRel) {
+      var rows = groups[opRel];
+      var used = {};
+      var ordered = rows.slice().sort(function (a, b) {
+        return (esTextoAnulacionMp(a.tipo) ? 0 : 1) - (esTextoAnulacionMp(b.tipo) ? 0 : 1);
+      });
+      ordered.forEach(function (a) {
+        if (used[a.id]) return;
+        var ma = Number(a.monto);
+        if (!isFinite(ma) || Math.round(ma * 100) === 0) return;
+        var best = null;
+        var bestScore = 1e9;
+        rows.forEach(function (b) {
+          if (used[b.id] || b.id === a.id) return;
+          var mb = Number(b.monto);
+          if (!isFinite(mb)) return;
+          if (Math.round((ma + mb) * 100) !== 0) return;
+          var tipoBonus = esTextoAnulacionMp(a.tipo) !== esTextoAnulacionMp(b.tipo) ? 0 : 100;
+          var sc = tipoBonus * 1000 + Math.abs(daysBetween(a.fecha, b.fecha));
+          if (sc < bestScore) {
+            bestScore = sc;
+            best = b;
+          }
+        });
+        if (!best) return;
+        used[a.id] = true;
+        used[best.id] = true;
+        var orig = a;
+        var anul = best;
+        if (esTextoAnulacionMp(a.tipo) && !esTextoAnulacionMp(best.tipo)) {
+          orig = best;
+          anul = a;
+        } else if (esTextoAnulacionMp(best.tipo) && !esTextoAnulacionMp(a.tipo)) {
+          orig = a;
+          anul = best;
+        } else if (String(best.fecha || '') < String(a.fecha || '')) {
+          orig = best;
+          anul = a;
+        }
+        pares.push({
+          id: orig.id + '|' + anul.id,
+          a: orig,
+          b: anul,
+          opRel: opRel
+        });
+      });
+    });
+    return pares;
+  }
+
+  function mapaIdsMpAnulados() {
+    var map = {};
+    paresMpAutoanulados(bancoRowsTodos()).forEach(function (p) {
+      map[p.a.id] = p;
+      map[p.b.id] = p;
+    });
+    return map;
+  }
+
+  function bancoRows() {
+    var anul = mapaIdsMpAnulados();
+    return bancoRowsTodos().filter(function (m) { return !anul[m.id]; });
   }
 
   function sistemaRows() {
@@ -650,6 +730,15 @@
     return tags;
   }
 
+  function familiaTag(tag) {
+    if (tag === 'sircreb') return 'iibb';
+    return tag;
+  }
+
+  function tagsParaScore(txt) {
+    return tagsConcepto(txt).map(familiaTag);
+  }
+
   var STOP_DESC = {
     el: 1, la: 1, los: 1, las: 1, de: 1, del: 1, y: 1, en: 1, por: 1, para: 1, con: 1,
     un: 1, una: 1, al: 1, pago: 1, clau: 1, impuesto: 1, impuestos: 1, perc: 1, percep: 1,
@@ -666,9 +755,9 @@
   function scoreDescripcion(b, s) {
     var tb = textoMov(b);
     var ts = textoMov(s);
-    var tagsB = tagsConcepto(tb);
-    var tagsS = tagsConcepto(ts);
-    var tax = { sircreb: 1, iibb: 1, iva: 1, ganancias: 1, ley25413: 1 };
+    var tagsB = tagsParaScore(tb);
+    var tagsS = tagsParaScore(ts);
+    var tax = { iibb: 1, iva: 1, ganancias: 1, ley25413: 1 };
     var tagHit = 0;
     tagsB.forEach(function (tag) {
       if (tagsS.indexOf(tag) >= 0) tagHit += 100;
@@ -719,7 +808,7 @@
       return Math.abs(daysBetween(b.fecha, a.fecha)) - Math.abs(daysBetween(b.fecha, c.fecha));
     });
     var best = ranked[0];
-    if (scoreDescripcion(b, best) < 0) return null;
+    if (cands.length > 1 && scoreDescripcion(b, best) < 0) return null;
     return best;
   }
 
@@ -924,11 +1013,24 @@
     return Number(rpc.data || 0);
   }
 
+  function matchSugeridoEsAnulado(m) {
+    if (!m || m.estado !== 'sugerido') return false;
+    var an = mapaIdsMpAnulados();
+    return idsMatchLado(m, 'banco').some(function (id) { return !!an[id]; });
+  }
+
   async function recargarTodo() {
     state.loading = true;
     renderShell();
     try {
       await cargarDatos();
+      if (state.canal === CANAL_MP && (can(PERM_CARGAR) || can(PERM_CONFIRMAR))) {
+        var haySugAnul = (state.matches || []).some(matchSugeridoEsAnulado);
+        if (haySugAnul) {
+          await regenerarSugerencias();
+          await cargarDatos();
+        }
+      }
       state.err = '';
     } catch (e) {
       state.err = 'No se pudo cargar Conciliación Bancaria: ' + errMsg(e);
@@ -1183,6 +1285,15 @@
     return true;
   }
 
+  function pasaFiltrosParAnulado(p) {
+    if (!p || !p.a || !p.b) return false;
+    var blob = blobMov(p.a) + ' ' + blobMov(p.b) + ' ' + (p.opRel || '');
+    if (!pasaFiltro(blob)) return false;
+    if (state.mes && !pasaFiltroMes(p.a.fecha) && !pasaFiltroMes(p.b.fecha)) return false;
+    if (state.concepto && !pasaFiltroConceptoBanco(p.a) && !pasaFiltroConceptoBanco(p.b)) return false;
+    return true;
+  }
+
   function kpis() {
     var b = bancoRows().filter(function (x) { return pasaFiltrosMov(x, 'banco'); });
     var s = sistemaRows().filter(function (x) { return pasaFiltrosMov(x, 'sistema'); });
@@ -1191,6 +1302,7 @@
     var usedB = {};
     var usedS = {};
     (state.matches || []).forEach(function (m) {
+      if (matchSugeridoEsAnulado(m)) return;
       if (m.estado === 'sugerido' || m.estado === 'confirmado') {
         idsMatchLado(m, 'banco').forEach(function (id) { usedB[id] = true; });
         idsMatchLado(m, 'sistema').forEach(function (id) { usedS[id] = true; });
@@ -1201,13 +1313,20 @@
     });
     var soloB = b.filter(function (x) { return !usedB[x.id]; }).length;
     var soloS = s.filter(function (x) { return !usedS[x.id]; }).length;
-    return { banco: b.length, sistema: s.length, sugeridos: sug, confirmados: conf, soloB: soloB, soloS: soloS };
+    var anulados = 0;
+    if (state.canal === CANAL_MP) {
+      paresMpAutoanulados(bancoRowsTodos()).forEach(function (p) {
+        if (pasaFiltrosParAnulado(p)) anulados++;
+      });
+    }
+    return { banco: b.length, sistema: s.length, sugeridos: sug, confirmados: conf, soloB: soloB, soloS: soloS, anulados: anulados };
   }
 
   function idsUsadosActivos() {
     var usedB = {};
     var usedS = {};
     (state.matches || []).forEach(function (m) {
+      if (matchSugeridoEsAnulado(m)) return;
       if (m.estado === 'sugerido' || m.estado === 'confirmado') {
         idsMatchLado(m, 'banco').forEach(function (id) { usedB[id] = true; });
         idsMatchLado(m, 'sistema').forEach(function (id) { usedS[id] = true; });
@@ -1409,7 +1528,7 @@
 
   function sortActual() {
     if (!state.sort[state.lista]) {
-      state.sort[state.lista] = (state.lista === 'banco' || state.lista === 'sistema')
+      state.sort[state.lista] = (state.lista === 'banco' || state.lista === 'sistema' || state.lista === 'anulados')
         ? { key: 'fecha', dir: 'desc' }
         : { key: 'fecha_banco', dir: 'desc' };
     }
@@ -1461,6 +1580,16 @@
     if (key === 'sugerido') return { v: matchSugeridoDe(m.id) ? 1 : 0, t: 'num' };
     if (key === 'id') return { v: m.id_movimiento_banco || m.origen_id, t: 'txt' };
     return { v: m.fecha, t: 'fecha' };
+  }
+
+  function valAnulado(p, key) {
+    if (key === 'tipo') return { v: p.a && p.a.tipo, t: 'txt' };
+    if (key === 'descripcion') return { v: p.b && p.b.tipo, t: 'txt' };
+    if (key === 'monto') return { v: p.a && p.a.monto, t: 'num' };
+    if (key === 'monto_anula') return { v: p.b && p.b.monto, t: 'num' };
+    if (key === 'fecha_anula') return { v: p.b && p.b.fecha, t: 'fecha' };
+    if (key === 'id') return { v: p.opRel, t: 'txt' };
+    return { v: p.a && p.a.fecha, t: 'fecha' };
   }
 
   function ordenarFilas(arr, getter, sortObj) {
@@ -1530,10 +1659,7 @@
   }
 
   function renderTablaSugeridos(estado) {
-    var rows = (state.matches || []).filter(function (m) {
-      return m.estado === estado && pasaFiltrosMatch(m);
-    });
-    rows = ordenarFilas(rows, valMatch);
+    var rows = filasVisiblesMatch(estado);
     var html = '';
     rows.forEach(function (m) {
       var bs = movsMatchLado(m, 'banco');
@@ -1621,6 +1747,50 @@
       '<tbody>' + html + '</tbody></table></div>';
   }
 
+  function filasVisiblesAnulados() {
+    return ordenarFilas(
+      paresMpAutoanulados(bancoRowsTodos()).filter(pasaFiltrosParAnulado),
+      valAnulado
+    );
+  }
+
+  function renderTablaAnulados() {
+    var rows = filasVisiblesAnulados();
+    var html = '';
+    rows.forEach(function (p) {
+      html += '<tr>' +
+        '<td>' + formatFecha(p.a.fecha) + '</td>' +
+        '<td>' + esc(p.a.tipo || p.a.descripcion || '—') + '</td>' +
+        '<td class="cb-col-monto">' + htmlMonto(p.a.monto) + '</td>' +
+        '<td>' + formatFecha(p.b.fecha) + '</td>' +
+        '<td>' + esc(p.b.tipo || p.b.descripcion || '—') + '</td>' +
+        '<td class="cb-col-monto">' + htmlMonto(p.b.monto) + '</td>' +
+        '<td>' + esc(p.opRel || '—') + '</td>' +
+        '<td class="cb-col-acc">' +
+          btnIcon('ver-par-anulado', p.id, 'Ver el par anulado', ICO.eye) +
+        '</td>' +
+      '</tr>';
+    });
+    if (!html) {
+      return '<p class="cb-empty">' + (hayFiltrosActivos()
+        ? 'No hay pares anulados con el mes o concepto elegidos.'
+        : 'No hay movimientos de Mercado Pago que se autoanulen (mismo ID de operación relacionada e importes opuestos).') + '</p>';
+    }
+    return '<p class="cb-field-hint">Pares del extracto con la misma operación relacionada e importes opuestos (cobro/devolución, impuesto/anulación, etc.). No entran a la conciliación: en tesorería no existen.</p>' +
+      '<div class="cb-tabla-wrap"><table class="cb-tabla">' +
+      '<thead><tr>' +
+        thSort('fecha', 'Fecha') +
+        thSort('tipo', 'Movimiento') +
+        thSort('monto', 'Importe', 'cb-col-monto') +
+        thSort('fecha_anula', 'Fecha anulación') +
+        thSort('descripcion', 'Anulación') +
+        thSort('monto_anula', 'Importe', 'cb-col-monto') +
+        thSort('id', 'Operación relacionada') +
+        '<th class="cb-col-acc">Acciones</th>' +
+      '</tr></thead>' +
+      '<tbody>' + html + '</tbody></table></div>';
+  }
+
   function dlCampo(label, val) {
     return '<dt>' + esc(label) + '</dt><dd>' + esc(val == null || val === '' ? '—' : String(val)) + '</dd>';
   }
@@ -1701,6 +1871,23 @@
     abrirModal(
       'Detalle del movimiento',
       '<div class="cb-detalle" style="grid-template-columns:1fr">' + htmlDetalleMov(m, m.origen === 'banco' ? 'Extracto banco' : 'Tesorería sistema') + '</div>',
+      ''
+    );
+  }
+
+  function abrirDetalleParAnulado(pairId) {
+    var found = null;
+    paresMpAutoanulados(bancoRowsTodos()).forEach(function (p) {
+      if (p.id === pairId) found = p;
+    });
+    if (!found) return;
+    abrirModal(
+      'Par anulado Mercado Pago',
+      '<p class="cb-field-hint">Operación relacionada: <strong>' + esc(found.opRel) + '</strong>. Importes opuestos; no se concilian con tesorería.</p>' +
+      '<div class="cb-detalle">' +
+        htmlDetalleMov(found.a, 'Movimiento') +
+        htmlDetalleMov(found.b, 'Anulación') +
+      '</div>',
       ''
     );
   }
@@ -2008,6 +2195,7 @@
     if (state.lista === 'confirmados') return 'Confirmados';
     if (state.lista === 'banco') return 'Solo banco';
     if (state.lista === 'sistema') return 'Solo sistema';
+    if (state.lista === 'anulados') return 'Mercado Pago Anulados';
     return 'Sugeridos';
   }
 
@@ -2017,7 +2205,9 @@
 
   function filasVisiblesMatch(estado) {
     var rows = (state.matches || []).filter(function (m) {
-      return m.estado === estado && pasaFiltrosMatch(m);
+      if (m.estado !== estado || !pasaFiltrosMatch(m)) return false;
+      if (matchSugeridoEsAnulado(m)) return false;
+      return true;
     });
     return ordenarFilas(rows, valMatch);
   }
@@ -2113,6 +2303,29 @@
           idsOrigenGrupo(ss)
         ]);
       });
+    } else if (state.lista === 'anulados') {
+      aoa.push(['Fecha', 'Movimiento', 'Importe', 'Fecha anulación', 'Anulación', 'Importe anulación', 'Operación relacionada', 'ID movimiento', 'ID anulación']);
+      dateCols = [0, 3];
+      numCols = [2, 5];
+      cols = [{ wch: 12 }, { wch: 40 }, { wch: 14 }, { wch: 14 }, { wch: 40 }, { wch: 16 }, { wch: 22 }, { wch: 22 }, { wch: 22 }];
+      var pares = filasVisiblesAnulados();
+      if (!pares.length) {
+        alert('No hay filas visibles con los filtros activos para exportar.');
+        return;
+      }
+      pares.forEach(function (p) {
+        aoa.push([
+          excelDate(p.a.fecha),
+          p.a.tipo || p.a.descripcion || '',
+          excelNum(p.a.monto),
+          excelDate(p.b.fecha),
+          p.b.tipo || p.b.descripcion || '',
+          excelNum(p.b.monto),
+          p.opRel || '',
+          p.a.id_movimiento_banco || p.a.origen_id || '',
+          p.b.id_movimiento_banco || p.b.origen_id || ''
+        ]);
+      });
     } else {
       aoa.push(['Fecha', 'Tipo', 'Descripción', 'Contraparte', 'Importe', 'ID']);
       dateCols = [0];
@@ -2179,7 +2392,7 @@
       };
     }
     return {
-      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y el Excel de tesorería del sistema, o el cierre de caja nombrado MP_CIERRE-… (mismos movimientos ya cerrados, columna Monto). Cada carga es incremental: nunca borra lo ya cargado. Apertura de Caja y filas Pendiente del cierre no se suben. La app propone parejas por importe y concepto; también podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y el Excel de tesorería del sistema, o el cierre de caja nombrado MP_CIERRE-… (mismos movimientos ya cerrados, columna Monto). Cada carga es incremental: nunca borra lo ya cargado. Apertura de Caja y filas Pendiente del cierre no se suben. Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. La app propone parejas por importe y concepto; también podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
       btnBanco: 'Cargar extracto Mercado Pago',
       btnSistema: 'Cargar tesorería Mercado Pago',
       kpiBanco: 'Extracto MP'
@@ -2187,6 +2400,7 @@
   }
 
   function renderCanal() {
+    if (state.canal !== CANAL_MP && state.lista === 'anulados') state.lista = 'sugeridos';
     syncFiltrosConOpciones();
     var k = kpis();
     var lab = labelsCanal();
@@ -2195,6 +2409,7 @@
     if (state.lista === 'sugeridos') listaHtml = renderTablaSugeridos('sugerido');
     else if (state.lista === 'confirmados') listaHtml = renderTablaSugeridos('confirmado');
     else if (state.lista === 'banco') listaHtml = renderTablaSolo('banco');
+    else if (state.lista === 'anulados') listaHtml = renderTablaAnulados();
     else listaHtml = renderTablaSolo('sistema');
 
     return '<p class="cb-field-hint">' + esc(lab.hint) + '</p>' +
@@ -2214,12 +2429,18 @@
         '<div class="cb-resumen-card"><p class="lab">Confirmados</p><p class="val">' + k.confirmados + '</p></div>' +
         '<div class="cb-resumen-card"><p class="lab">Solo banco</p><p class="val">' + k.soloB + '</p></div>' +
         '<div class="cb-resumen-card"><p class="lab">Solo sistema</p><p class="val">' + k.soloS + '</p></div>' +
+        (state.canal === CANAL_MP
+          ? '<div class="cb-resumen-card"><p class="lab">Anulados</p><p class="val">' + k.anulados + '</p></div>'
+          : '') +
       '</div>' +
       '<div class="cb-tabs">' +
         '<button type="button" class="' + (state.lista === 'sugeridos' ? 'activo' : '') + '" data-cb="lista" data-lista="sugeridos">Sugeridos</button>' +
         '<button type="button" class="' + (state.lista === 'confirmados' ? 'activo' : '') + '" data-cb="lista" data-lista="confirmados">Confirmados</button>' +
         '<button type="button" class="' + (state.lista === 'banco' ? 'activo' : '') + '" data-cb="lista" data-lista="banco">Solo banco</button>' +
         '<button type="button" class="' + (state.lista === 'sistema' ? 'activo' : '') + '" data-cb="lista" data-lista="sistema">Solo sistema</button>' +
+        (state.canal === CANAL_MP
+          ? '<button type="button" class="' + (state.lista === 'anulados' ? 'activo' : '') + '" data-cb="lista" data-lista="anulados">Mercado Pago Anulados</button>'
+          : '') +
       '</div>' +
       listaHtml;
   }
@@ -2293,6 +2514,7 @@
     if (a === 'xlsx') { exportarExcel(); return; }
     if (a === 'ver') { abrirDetalleMatch(id); return; }
     if (a === 'ver-mov') { abrirDetalleMov(id); return; }
+    if (a === 'ver-par-anulado') { abrirDetalleParAnulado(id); return; }
     if (a === 'del-mov') { borrarMovimientoSistema(id); return; }
     if (a === 'ok') { setEstado(id, 'confirmado'); return; }
     if (a === 'no') { setEstado(id, 'rechazado'); return; }
