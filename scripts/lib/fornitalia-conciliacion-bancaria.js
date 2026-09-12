@@ -549,7 +549,9 @@
       var contraparte = ley1 || obs || '';
       var descFull = desc;
       if (ley1 && desc.indexOf(ley1) < 0) descFull = desc ? (desc + ' · ' + ley1) : ley1;
-      var base = ['gal', fecha, deb == null ? '' : deb, cred == null ? '' : cred, saldo == null ? '' : saldo, desc].join('|');
+      var debKey = deb == null ? '' : String(Math.round(deb * 100) / 100);
+      var credKey = cred == null ? '' : String(Math.round(cred * 100) / 100);
+      var base = ['gal', fecha, debKey, credKey, desc, comprob || ''].join('|');
       counts[base] = (counts[base] || 0) + 1;
       var origenId = base + '#' + counts[base];
       var fechaHora = null;
@@ -971,6 +973,37 @@
     return { filas: out, nYa: nYa };
   }
 
+  function claveDedupExtractoGalicia(m) {
+    var monto = Number(m && m.monto);
+    var montoKey = isFinite(monto) ? (Math.round(monto * 100) / 100).toFixed(2) : '';
+    return [
+      String((m && m.fecha) || '').slice(0, 10),
+      montoKey,
+      normTxt(m && m.descripcion),
+      String((m && m.id_movimiento_banco) || '').trim()
+    ].join('|');
+  }
+
+  function filtrarExtractoGaliciaYaCargado(filas) {
+    var bag = {};
+    bancoRowsTodos().forEach(function (m) {
+      var k = claveDedupExtractoGalicia(m);
+      bag[k] = (bag[k] || 0) + 1;
+    });
+    var out = [];
+    var nYa = 0;
+    (filas || []).forEach(function (f) {
+      var k = claveDedupExtractoGalicia(f);
+      if ((bag[k] || 0) > 0) {
+        bag[k] -= 1;
+        nYa += 1;
+      } else {
+        out.push(f);
+      }
+    });
+    return { filas: out, nYa: nYa };
+  }
+
   function countOrigen(origen) {
     return (state.movimientos || []).filter(function (m) {
       return m.canal === state.canal && m.origen === origen;
@@ -1115,6 +1148,10 @@
           var filDup = filtrarTesoreriaYaCargada(parsed.filas);
           parsed.filas = filDup.filas;
           nYaContenido = filDup.nYa;
+        } else if (origen === 'banco' && state.canal === CANAL_GAL) {
+          var filDupGal = filtrarExtractoGaliciaYaCargado(parsed.filas);
+          parsed.filas = filDupGal.filas;
+          nYaContenido = filDupGal.nYa;
         }
         var nAntes = countOrigen(origen);
         if (parsed.filas.length) await guardarFilas(origen, parsed.filas);
@@ -1135,8 +1172,10 @@
           ? (nYa ? ' ' + nNuevos + ' nuevas; ' + nYa + ' ya estaban (no se duplican).' : ' ' + nNuevos + ' nuevas.')
           : ' Ninguna nueva: las ' + nLeidas + ' ya estaban (no se duplican).';
         extraDup += ' No se borró ningún movimiento anterior.';
-        if (nYaContenido) {
+        if (nYaContenido && origen === 'sistema') {
           extraDup += ' ' + nYaContenido + ' coincidían con tesorería ya cargada (misma fecha, monto, descripción, categoría y cliente).';
+        } else if (nYaContenido) {
+          extraDup += ' ' + nYaContenido + ' coincidían con extracto Galicia ya cargado (misma fecha, importe y descripción; el saldo del banco cambia entre archivos).';
         }
         if (parsed.formatoCierre) {
           extraDup = ' Cierre de caja (caja ya cerrada).' + extraDup;
@@ -1146,7 +1185,7 @@
         }
         var extraSug = nSug ? ' Sugerencias: ' + nSug + '.' : '';
         if (origen === 'banco' && state.canal === CANAL_GAL) {
-          state.msg = 'Extracto Galicia: ' + nLeidas + ' filas leídas (clave fecha + débito/crédito + saldo).' + extraDup + extraOrigen + extraCanal + extraSug;
+          state.msg = 'Extracto Galicia: ' + nLeidas + ' filas leídas (fecha + débito/crédito + descripción; no se duplica si el saldo cambió).' + extraDup + extraOrigen + extraCanal + extraSug;
         } else if (origen === 'banco') {
           state.msg = 'Extracto Mercado Pago: ' + nLeidas + ' filas leídas (Número de Movimiento).' + extraDup + extraOrigen + extraCanal + extraSug;
         } else if (state.canal === CANAL_GAL) {
@@ -2385,7 +2424,7 @@
   function labelsCanal() {
     if (state.canal === CANAL_GAL) {
       return {
-        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia del sistema (Tipo, Fecha, Crédito, Débito) o el Excel de cierre de caja nombrado Galicia_CIERRE-… (Fecha, Tipo, Monto). Cada carga es incremental: nunca borra lo ya cargado. Apertura de Caja y filas Pendiente del cierre no se suben. La app propone parejas por importe y concepto; también podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia del sistema (Tipo, Fecha, Crédito, Débito) o el Excel de cierre de caja nombrado Galicia_CIERRE-… (Fecha, Tipo, Monto). Cada carga es incremental: nunca borra lo ya cargado. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican. Apertura de Caja y filas Pendiente del cierre no se suben. La app propone parejas por importe y concepto; también podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
         btnBanco: 'Cargar extracto Galicia',
         btnSistema: 'Cargar tesorería Galicia',
         kpiBanco: 'Extracto Galicia'
