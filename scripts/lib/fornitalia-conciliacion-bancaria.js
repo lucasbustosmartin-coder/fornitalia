@@ -382,11 +382,12 @@
   }
 
   function mapaTesoreriaTieneIdCierre(map) {
-    return !!(map && map['id'] != null);
+    return !!(map && Object.prototype.hasOwnProperty.call(map, 'id'));
   }
 
-  function origenIdEsCierreConId(origenId) {
-    return String(origenId || '').indexOf('cierre|') === 0;
+  function origenIdEsTesoreriaConId(origenId) {
+    var s = String(origenId || '');
+    return s.indexOf('id|') === 0 || s.indexOf('cierre|') === 0;
   }
 
   function canalPorCaja(caja) {
@@ -684,14 +685,14 @@
       if (cred != null && cred !== 0) monto = cred;
       else if (deb != null && deb !== 0) monto = -Math.abs(deb);
       var origenId;
-      if (esCierre && idCierre) {
+      if (idCierre) {
         if (idsVistos[idCierre]) {
           omitidasIdDup += 1;
           continue;
         }
         idsVistos[idCierre] = true;
         tieneIdCierre = true;
-        origenId = 'cierre|' + idCierre;
+        origenId = 'id|' + idCierre;
       } else {
         var base = esCierre
           ? [tipo, fecha, desc, cliente, cred == null ? '' : cred, deb == null ? '' : deb].join('|')
@@ -997,7 +998,8 @@
       montoKey,
       normTxt(m && m.descripcion),
       normTxt(m && m.categoria),
-      normTxt(m && m.contraparte)
+      normTxt(m && m.contraparte),
+      normTxt(m && m.cuenta_contable)
     ].join('|');
   }
 
@@ -1025,7 +1027,7 @@
     var conId = [];
     var sinId = [];
     (filas || []).forEach(function (f) {
-      if (origenIdEsCierreConId(f.origen_id)) conId.push(f);
+      if (origenIdEsTesoreriaConId(f.origen_id)) conId.push(f);
       else sinId.push(f);
     });
     var filDup = filtrarTesoreriaYaCargada(sinId);
@@ -1109,8 +1111,19 @@
     return total;
   }
 
+  async function adoptarIdTesoreria(canal, filas) {
+    var parte = (filas || []).filter(function (f) { return origenIdEsTesoreriaConId(f.origen_id); });
+    if (!parte.length) return 0;
+    var rpc = await client().rpc('cb_adoptar_id_tesoreria', {
+      p_canal: canal,
+      p_filas: parte
+    });
+    if (rpc.error) throw rpc.error;
+    return Number(rpc.data || 0);
+  }
+
   async function retirarTesoreriaDuplicadaCierre(canal, filas) {
-    var ids = (filas || []).map(function (f) { return f.origen_id; }).filter(origenIdEsCierreConId);
+    var ids = (filas || []).map(function (f) { return f.origen_id; }).filter(origenIdEsTesoreriaConId);
     if (!ids.length) return 0;
     var rpc = await client().rpc('cb_retirar_tesoreria_duplicada_por_cierre', {
       p_canal: canal,
@@ -1253,6 +1266,7 @@
             await cargarDatos();
             var parte = agrup.groups[canalSave];
             if (parte.length) {
+              await adoptarIdTesoreria(canalSave, parte);
               await guardarFilas(origen, parte);
               nRetiradas += await retirarTesoreriaDuplicadaCierre(canalSave, parte);
             }

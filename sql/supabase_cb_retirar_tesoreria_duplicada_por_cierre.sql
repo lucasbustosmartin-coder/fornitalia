@@ -1,6 +1,5 @@
--- Al recargar un cierre de caja con Id único, quita tesorería vieja (tesoreria_*.xlsx)
--- del mismo canal que coincide en fecha, monto, descripción, categoría y cliente,
--- para no dejar el mismo movimiento dos veces (una con hash y otra con Id).
+-- Al recargar tesorería/cierre con Id, quita filas hash (tes|…) del mismo canal
+-- que coinciden en fecha, monto, descripción y cliente (categoría/cuenta pueden haber cambiado).
 
 CREATE OR REPLACE FUNCTION public.cb_retirar_tesoreria_duplicada_por_cierre(
   p_canal text,
@@ -30,6 +29,7 @@ BEGIN
   FROM public.cb_movimiento s
   WHERE s.canal = p_canal
     AND s.origen = 'sistema'
+    AND s.origen_id NOT LIKE 'id|%'
     AND s.origen_id NOT LIKE 'cierre|%'
     AND EXISTS (
       SELECT 1
@@ -37,11 +37,10 @@ BEGIN
       WHERE c.canal = p_canal
         AND c.origen = 'sistema'
         AND c.origen_id = ANY (COALESCE(p_origen_ids, ARRAY[]::text[]))
-        AND c.origen_id LIKE 'cierre|%'
+        AND (c.origen_id LIKE 'id|%' OR c.origen_id LIKE 'cierre|%')
         AND c.fecha = s.fecha
         AND c.monto = s.monto
         AND COALESCE(c.descripcion, '') = COALESCE(s.descripcion, '')
-        AND COALESCE(c.categoria, '') = COALESCE(s.categoria, '')
         AND COALESCE(c.contraparte, '') = COALESCE(s.contraparte, '')
     );
 
@@ -65,4 +64,4 @@ GRANT EXECUTE ON FUNCTION public.cb_retirar_tesoreria_duplicada_por_cierre(text,
 REVOKE EXECUTE ON FUNCTION public.cb_retirar_tesoreria_duplicada_por_cierre(text, text[]) FROM PUBLIC;
 
 COMMENT ON FUNCTION public.cb_retirar_tesoreria_duplicada_por_cierre(text, text[]) IS
-  'Tras cargar un cierre con Id, elimina tesorería del mismo canal sin ese Id que duplica fecha/monto/descripcion/categoría/cliente.';
+  'Tras cargar tesorería con Id, elimina hash tes| del mismo fecha/monto/descripcion/cliente.';
