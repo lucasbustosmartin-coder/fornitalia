@@ -40,6 +40,7 @@
       confirmados: { key: 'fecha_banco', dir: 'desc' },
       banco: { key: 'fecha', dir: 'desc' },
       sistema: { key: 'fecha', dir: 'desc' },
+      bajas: { key: 'fecha', dir: 'desc' },
       anulados: { key: 'fecha', dir: 'desc' }
     },
     movimientos: [],
@@ -323,13 +324,36 @@
     return map;
   }
 
+  function esPendienteBaja(m) {
+    return !!(m && (m.pendiente_baja === true || m.pendiente_baja === 'true'));
+  }
+
+  function idTesoreriaVisible(m) {
+    var s = String((m && m.origen_id) || '');
+    if (s.indexOf('id|') === 0) return s.slice(3);
+    if (s.indexOf('cierre|') === 0) return s.slice(7);
+    return s || '—';
+  }
+
   function bancoRows() {
     var anul = mapaIdsMpAnulados();
     return bancoRowsTodos().filter(function (m) { return !anul[m.id]; });
   }
 
-  function sistemaRows() {
+  function sistemaRowsTodos() {
     return movimientosCanal().filter(function (m) { return m.origen === 'sistema'; });
+  }
+
+  function sistemaRows() {
+    return sistemaRowsTodos().filter(function (m) { return !esPendienteBaja(m); });
+  }
+
+  function sistemaRowsBaja() {
+    return sistemaRowsTodos().filter(esPendienteBaja);
+  }
+
+  function matchConTesoreriaPendienteBaja(m) {
+    return idsMatchLado(m, 'sistema').some(function (id) { return esPendienteBaja(findMov(id)); });
   }
 
   function findMov(id) {
@@ -930,7 +954,7 @@
     var lockedS = {};
     var rejected = {};
     (matches || []).forEach(function (m) {
-      if (m.estado === 'confirmado') {
+      if (m.estado === 'confirmado' && !matchConTesoreriaPendienteBaja(m)) {
         idsMatchLado(m, 'banco').forEach(function (id) { lockedB[id] = true; });
         idsMatchLado(m, 'sistema').forEach(function (id) { lockedS[id] = true; });
       }
@@ -1147,6 +1171,17 @@
     return Number(rpc.data || 0);
   }
 
+  async function marcarTesoreriaAbiertaAusente(canal, filas) {
+    var ids = (filas || []).map(function (f) { return f.origen_id; }).filter(origenIdEsTesoreriaConId);
+    if (!ids.length) return 0;
+    var rpc = await client().rpc('cb_marcar_tesoreria_abierta_ausente', {
+      p_canal: canal,
+      p_origen_ids: ids
+    });
+    if (rpc.error) throw rpc.error;
+    return Number(rpc.data || 0);
+  }
+
   async function retirarTesoreriaDuplicadaCierre(canal, filas) {
     var ids = (filas || []).map(function (f) { return f.origen_id; }).filter(origenIdEsTesoreriaConId);
     if (!ids.length) return 0;
@@ -1281,6 +1316,7 @@
         }
         var nAntes = countOrigen(origen);
         var nRetiradas = 0;
+        var nBajas = 0;
         var nSug = 0;
         if (origen === 'sistema' && parsed.tieneIdCierre) {
           var agrup = gruposCanalTesoreria(parsed.filas, state.canal);
@@ -1294,6 +1330,9 @@
               await adoptarIdTesoreria(canalSave, parte);
               await guardarFilas(origen, parte);
               nRetiradas += await retirarTesoreriaDuplicadaCierre(canalSave, parte);
+              if (!parsed.formatoCierre) {
+                nBajas += await marcarTesoreriaAbiertaAusente(canalSave, parte);
+              }
             }
             await cargarDatos();
             if (bancoRows().length && sistemaRows().length) nSug += await regenerarSugerencias();
@@ -1322,6 +1361,7 @@
             : ' Tesorería con Id único: alta o actualización si cambió algún dato.';
           if (parsed.formatoCierre) extraDup += ' No hace falta el prefijo MP_/Galicia_ si la columna Caja indica el medio.';
           if (nRetiradas) extraDup += ' Se retiraron ' + nRetiradas + ' tesorerías viejas del mismo movimiento (sin Id).';
+          if (nBajas) extraDup += ' ' + nBajas + ' de tesorería abierta no vinieron en el archivo: están en A eliminar.';
         } else {
           extraDup = nNuevos
             ? (nYa ? ' ' + nNuevos + ' nuevas; ' + nYa + ' ya estaban (no se duplican).' : ' ' + nNuevos + ' nuevas.')
@@ -1360,6 +1400,7 @@
         } else {
           state.msg = 'Tesorería Mercado Pago: ' + nLeidas + ' filas leídas.' + extraDup + extraOrigen + extraCanal + extraSug;
         }
+        if (nBajas) state.lista = 'bajas';
       } catch (e) {
         state.err = errMsg(e);
       } finally {
@@ -1419,6 +1460,61 @@
       await recargarTodo();
     } catch (e) {
       alert(errMsg(e));
+    }
+  }
+
+  function textoBajaTesoreria(m) {
+    return 'Id: ' + idTesoreriaVisible(m) +
+      '\nFecha: ' + formatFecha(m.fecha) +
+      '\nImporte: ' + formatMonto(m.monto) +
+      '\nCategoría: ' + (valorCatCta(m.categoria) || '—') +
+      '\nCuenta contable: ' + (valorCatCta(m.cuenta_contable) || '—') +
+      '\nDescripción: ' + (m.descripcion || m.tipo || '—');
+  }
+
+  function matchActivoDe(movId) {
+    var found = null;
+    (state.matches || []).forEach(function (m) {
+      if ((m.estado === 'sugerido' || m.estado === 'confirmado') &&
+          (idsMatchLado(m, 'banco').indexOf(movId) >= 0 || idsMatchLado(m, 'sistema').indexOf(movId) >= 0)) {
+        found = m;
+      }
+    });
+    return found;
+  }
+
+  async function confirmarBajaTesoreria(id) {
+    if (!can(PERM_CARGAR)) return;
+    var m = findMov(id);
+    if (!m || !esPendienteBaja(m)) return;
+    var extra = matchActivoDe(id) ? '\n\nEstá conciliado: se elimina también la pareja.' : '';
+    if (!confirm('¿Eliminar definitivamente este movimiento de tesorería?\n\n' + textoBajaTesoreria(m) + extra + '\n\nNo se puede deshacer.')) return;
+    try {
+      var rpc = await client().rpc('cb_confirmar_baja_tesoreria', { p_id: id });
+      if (rpc.error) throw rpc.error;
+      state.msg = 'Tesorería eliminada (Id ' + idTesoreriaVisible(m) + ').';
+      await recargarTodo();
+    } catch (e) {
+      alert(errMsg(e));
+    }
+  }
+
+  async function confirmarBajasTesoreriaVisibles() {
+    if (!can(PERM_CARGAR)) return;
+    var list = filasVisiblesBaja();
+    if (!list.length) return;
+    if (!confirm('¿Eliminar definitivamente los ' + list.length + ' movimientos visibles en A eliminar?\n\nTambién se borran las conciliaciones asociadas. No se puede deshacer.')) return;
+    try {
+      var i;
+      for (i = 0; i < list.length; i++) {
+        var rpc = await client().rpc('cb_confirmar_baja_tesoreria', { p_id: list[i].id });
+        if (rpc.error) throw rpc.error;
+      }
+      state.msg = 'Se eliminaron ' + list.length + ' movimientos de tesorería abierta.';
+      await recargarTodo();
+    } catch (e) {
+      alert(errMsg(e));
+      await recargarTodo();
     }
   }
 
@@ -1508,7 +1604,7 @@
     var usedB = {};
     var usedS = {};
     (state.matches || []).forEach(function (m) {
-      if (matchSugeridoEsAnulado(m)) return;
+      if (matchSugeridoEsAnulado(m) || matchConTesoreriaPendienteBaja(m)) return;
       if (m.estado === 'sugerido' || m.estado === 'confirmado') {
         idsMatchLado(m, 'banco').forEach(function (id) { usedB[id] = true; });
         idsMatchLado(m, 'sistema').forEach(function (id) { usedS[id] = true; });
@@ -1525,14 +1621,15 @@
         if (pasaFiltrosParAnulado(p)) anulados++;
       });
     }
-    return { banco: b.length, sistema: s.length, sugeridos: sug, confirmados: conf, soloB: soloB, soloS: soloS, anulados: anulados };
+    var bajas = sistemaRowsBaja().filter(function (x) { return pasaFiltrosMov(x, 'sistema'); }).length;
+    return { banco: b.length, sistema: s.length, sugeridos: sug, confirmados: conf, soloB: soloB, soloS: soloS, anulados: anulados, bajas: bajas };
   }
 
   function idsUsadosActivos() {
     var usedB = {};
     var usedS = {};
     (state.matches || []).forEach(function (m) {
-      if (matchSugeridoEsAnulado(m)) return;
+      if (matchSugeridoEsAnulado(m) || matchConTesoreriaPendienteBaja(m)) return;
       if (m.estado === 'sugerido' || m.estado === 'confirmado') {
         idsMatchLado(m, 'banco').forEach(function (id) { usedB[id] = true; });
         idsMatchLado(m, 'sistema').forEach(function (id) { usedS[id] = true; });
@@ -1545,10 +1642,9 @@
     var usedB = {};
     var usedS = {};
     (state.matches || []).forEach(function (m) {
-      if (m.estado === 'confirmado') {
-        idsMatchLado(m, 'banco').forEach(function (id) { usedB[id] = true; });
-        idsMatchLado(m, 'sistema').forEach(function (id) { usedS[id] = true; });
-      }
+      if (m.estado !== 'confirmado' || matchConTesoreriaPendienteBaja(m)) return;
+      idsMatchLado(m, 'banco').forEach(function (id) { usedB[id] = true; });
+      idsMatchLado(m, 'sistema').forEach(function (id) { usedS[id] = true; });
     });
     return { usedB: usedB, usedS: usedS };
   }
@@ -1747,7 +1843,7 @@
 
   function sortActual() {
     if (!state.sort[state.lista]) {
-      state.sort[state.lista] = (state.lista === 'banco' || state.lista === 'sistema' || state.lista === 'anulados')
+      state.sort[state.lista] = (state.lista === 'banco' || state.lista === 'sistema' || state.lista === 'anulados' || state.lista === 'bajas')
         ? { key: 'fecha', dir: 'desc' }
         : { key: 'fecha_banco', dir: 'desc' };
     }
@@ -1797,7 +1893,7 @@
     if (key === 'contraparte') return { v: m.contraparte, t: 'txt' };
     if (key === 'monto') return { v: m.monto, t: 'num' };
     if (key === 'sugerido') return { v: matchSugeridoDe(m.id) ? 1 : 0, t: 'num' };
-    if (key === 'id') return { v: m.id_movimiento_banco || m.origen_id, t: 'txt' };
+    if (key === 'id') return { v: m.id_movimiento_banco || idTesoreriaVisible(m), t: 'txt' };
     if (key === 'categoria') return { v: valorCatCta(m.categoria), t: 'txt' };
     if (key === 'cuenta_contable') return { v: valorCatCta(m.cuenta_contable), t: 'txt' };
     return { v: m.fecha, t: 'fecha' };
@@ -1979,6 +2075,51 @@
           : '') +
         thSort('monto', 'Importe', 'cb-col-monto') +
         thSort('id', 'ID') +
+        '<th class="cb-col-acc">Acciones</th>' +
+      '</tr></thead>' +
+      '<tbody>' + html +       '</tbody></table></div>';
+  }
+
+  function filasVisiblesBaja() {
+    return ordenarFilas(
+      sistemaRowsBaja().filter(function (m) { return pasaFiltrosMov(m, 'sistema'); }),
+      valSolo
+    );
+  }
+
+  function renderTablaBajas() {
+    var list = filasVisiblesBaja();
+    var html = '';
+    list.forEach(function (m) {
+      html += '<tr>' +
+        '<td>' + esc(idTesoreriaVisible(m)) + '</td>' +
+        '<td>' + formatFecha(m.fecha) + '</td>' +
+        '<td class="cb-col-monto">' + htmlMonto(m.monto) + '</td>' +
+        '<td>' + celdaCatCta(m.categoria) + '</td>' +
+        '<td>' + celdaCatCta(m.cuenta_contable) + '</td>' +
+        '<td>' + esc(m.descripcion || m.tipo || '—') + '</td>' +
+        '<td class="cb-col-acc">' +
+          btnIcon('ver-mov', m.id, 'Ver detalle del movimiento', ICO.eye) +
+          (can(PERM_CARGAR)
+            ? btnIcon('baja-ok', m.id, 'Confirmar eliminación definitiva', ICO.trash, 'cb-btn-danger')
+            : '') +
+        '</td>' +
+      '</tr>';
+    });
+    if (!html) {
+      return '<p class="cb-empty">' + (hayFiltrosActivos()
+        ? 'No hay tesorería a eliminar con el mes o búsqueda elegidos.'
+        : 'No hay tesorería abierta ausente. Al cargar tesoreria_*.xlsx con Id, los movimientos que ya no vengan aparecen acá para confirmar la baja.') + '</p>';
+    }
+    return '<p class="cb-field-hint">Tesorería abierta que ya no vino en el último Excel. Revisá Id, fecha, importe, categoría, cuenta y descripción; la baja es definitiva y también borra la conciliación asociada, si la hay.</p>' +
+      '<div class="cb-tabla-wrap"><table class="cb-tabla">' +
+      '<thead><tr>' +
+        thSort('id', 'Id') +
+        thSort('fecha', 'Fecha') +
+        thSort('monto', 'Importe', 'cb-col-monto') +
+        thSort('categoria', 'Categoría') +
+        thSort('cuenta_contable', 'Cuenta contable') +
+        thSort('descripcion', 'Descripción') +
         '<th class="cb-col-acc">Acciones</th>' +
       '</tr></thead>' +
       '<tbody>' + html + '</tbody></table></div>';
@@ -2440,6 +2581,7 @@
     if (state.lista === 'banco') return 'Solo banco';
     if (state.lista === 'sistema') return 'Solo sistema';
     if (state.lista === 'anulados') return 'Mercado Pago Anulados';
+    if (state.lista === 'bajas') return 'A eliminar';
     return 'Sugeridos';
   }
 
@@ -2450,7 +2592,7 @@
   function filasVisiblesMatch(estado) {
     var rows = (state.matches || []).filter(function (m) {
       if (m.estado !== estado || !pasaFiltrosMatch(m)) return false;
-      if (matchSugeridoEsAnulado(m)) return false;
+      if (matchSugeridoEsAnulado(m) || matchConTesoreriaPendienteBaja(m)) return false;
       return true;
     });
     return ordenarFilas(rows, valMatch);
@@ -2570,6 +2712,26 @@
           p.b.id_movimiento_banco || p.b.origen_id || ''
         ]);
       });
+    } else if (state.lista === 'bajas') {
+      aoa.push(['Id', 'Fecha', 'Importe', 'Categoría', 'Cuenta contable', 'Descripción']);
+      dateCols = [1];
+      numCols = [2];
+      cols = [{ wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 28 }, { wch: 44 }];
+      var bajas = filasVisiblesBaja();
+      if (!bajas.length) {
+        alert('No hay filas visibles con los filtros activos para exportar.');
+        return;
+      }
+      bajas.forEach(function (m) {
+        aoa.push([
+          idTesoreriaVisible(m),
+          excelDate(m.fecha),
+          excelNum(m.monto),
+          valorCatCta(m.categoria) || null,
+          valorCatCta(m.cuenta_contable) || null,
+          m.descripcion || m.tipo || ''
+        ]);
+      });
     } else {
       var origen = state.lista === 'banco' ? 'banco' : 'sistema';
       var esSis = origen === 'sistema';
@@ -2637,14 +2799,14 @@
   function labelsCanal() {
     if (state.canal === CANAL_GAL) {
       return {
-        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia (tesoreria_transferencia_galicia_…: Tipo, Fecha, Crédito, Débito e Id) o el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. La columna Caja, si viene, define el canal. Apertura de Caja y filas Pendiente no se suben. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto; primero fecha cercana y después lejana. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia (tesoreria_transferencia_galicia_…: Tipo, Fecha, Crédito, Débito e Id) o el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa A eliminar para confirmar la baja. La columna Caja, si viene, define el canal. Apertura de Caja y filas Pendiente no se suben. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto; primero fecha cercana y después lejana. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
         btnBanco: 'Cargar extracto Galicia',
         btnSistema: 'Cargar tesorería Galicia',
         kpiBanco: 'Extracto Galicia'
       };
     }
     return {
-      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (tesoreria_mercadopago_…: Tipo, Fecha, Crédito, Débito e Id) o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-… o MP_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Apertura de Caja y filas Pendiente no se suben. Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto; primero fecha cercana y después lejana. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (tesoreria_mercadopago_…: Tipo, Fecha, Crédito, Débito e Id) o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-… o MP_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa A eliminar para confirmar la baja. Apertura de Caja y filas Pendiente no se suben. Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto; primero fecha cercana y después lejana. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
       btnBanco: 'Cargar extracto Mercado Pago',
       btnSistema: 'Cargar tesorería Mercado Pago',
       kpiBanco: 'Extracto MP'
@@ -2662,6 +2824,7 @@
     else if (state.lista === 'confirmados') listaHtml = renderTablaSugeridos('confirmado');
     else if (state.lista === 'banco') listaHtml = renderTablaSolo('banco');
     else if (state.lista === 'anulados') listaHtml = renderTablaAnulados();
+    else if (state.lista === 'bajas') listaHtml = renderTablaBajas();
     else listaHtml = renderTablaSolo('sistema');
 
     return '<p class="cb-field-hint">' + esc(lab.hint) + '</p>' +
@@ -2670,6 +2833,9 @@
         (canCargar ? '<button type="button" class="cb-btn cb-btn-ghost" data-cb="up-sistema"><span class="btn-icon">' + ICO.upload + '</span>' + esc(lab.btnSistema) + '</button>' : '') +
         (can(PERM_CONFIRMAR) ? '<button type="button" class="cb-btn cb-btn-ghost" data-cb="manual"><span class="btn-icon">' + ICO.link + '</span>Conciliación manual</button>' : '') +
         ((canCargar || can(PERM_CONFIRMAR)) ? '<button type="button" class="cb-btn cb-btn-ghost" data-cb="recalc"><span class="btn-icon">' + ICO.refresh + '</span>Recalcular sugerencias</button>' : '') +
+        (canCargar && state.lista === 'bajas' && k.bajas
+          ? '<button type="button" class="cb-btn cb-btn-danger" data-cb="baja-all"><span class="btn-icon">' + ICO.trash + '</span>Eliminar visibles</button>'
+          : '') +
         '<button type="button" class="cb-btn cb-btn-excel" data-cb="xlsx"><span class="btn-icon">' + ICO.download + '</span>Excel</button>' +
       '</div></div>' +
       (state.msg ? '<p class="cb-msg-ok">' + esc(state.msg) + '</p>' : '') +
@@ -2684,12 +2850,14 @@
         (state.canal === CANAL_MP
           ? '<div class="cb-resumen-card"><p class="lab">Anulados</p><p class="val">' + k.anulados + '</p></div>'
           : '') +
+        '<div class="cb-resumen-card' + (k.bajas ? ' cb-resumen-warn' : '') + '" data-cb="lista" data-lista="bajas" role="button" tabindex="0" title="Ver tesorería a eliminar"><p class="lab">A eliminar</p><p class="val">' + k.bajas + '</p></div>' +
       '</div>' +
       '<div class="cb-tabs">' +
         '<button type="button" class="' + (state.lista === 'sugeridos' ? 'activo' : '') + '" data-cb="lista" data-lista="sugeridos">Sugeridos</button>' +
         '<button type="button" class="' + (state.lista === 'confirmados' ? 'activo' : '') + '" data-cb="lista" data-lista="confirmados">Confirmados</button>' +
         '<button type="button" class="' + (state.lista === 'banco' ? 'activo' : '') + '" data-cb="lista" data-lista="banco">Solo banco</button>' +
         '<button type="button" class="' + (state.lista === 'sistema' ? 'activo' : '') + '" data-cb="lista" data-lista="sistema">Solo sistema</button>' +
+        '<button type="button" class="' + (state.lista === 'bajas' ? 'activo' : '') + (k.bajas ? ' cb-tab-warn' : '') + '" data-cb="lista" data-lista="bajas">A eliminar' + (k.bajas ? ' (' + k.bajas + ')' : '') + '</button>' +
         (state.canal === CANAL_MP
           ? '<button type="button" class="' + (state.lista === 'anulados' ? 'activo' : '') + '" data-cb="lista" data-lista="anulados">Mercado Pago Anulados</button>'
           : '') +
@@ -2768,6 +2936,8 @@
     if (a === 'ver-mov') { abrirDetalleMov(id); return; }
     if (a === 'ver-par-anulado') { abrirDetalleParAnulado(id); return; }
     if (a === 'del-mov') { borrarMovimientoSistema(id); return; }
+    if (a === 'baja-ok') { confirmarBajaTesoreria(id); return; }
+    if (a === 'baja-all') { confirmarBajasTesoreriaVisibles(); return; }
     if (a === 'ok') { setEstado(id, 'confirmado'); return; }
     if (a === 'no') { setEstado(id, 'rechazado'); return; }
     if (a === 'undo') { setEstado(id, 'sugerido'); return; }

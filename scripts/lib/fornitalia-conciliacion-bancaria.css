@@ -122,6 +122,18 @@
   color: #fff;
 }
 
+.cb-tabs button.cb-tab-warn {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.cb-tabs button.cb-tab-warn.activo {
+  background: #92400e;
+  border-color: #92400e;
+  color: #fff;
+}
+
 .cb-tabs .tab-icon {
   display: inline-flex;
   width: 16px;
@@ -163,6 +175,19 @@
   font-size: 1.25rem;
   font-weight: 700;
   color: #0f172a;
+}
+
+.cb-resumen-card.cb-resumen-warn {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.cb-resumen-card[data-cb] {
+  cursor: pointer;
+}
+
+.cb-resumen-card.cb-resumen-warn .val {
+  color: #92400e;
 }
 
 .cb-empty {
