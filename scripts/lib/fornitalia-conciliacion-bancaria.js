@@ -335,6 +335,7 @@
   }
 
   function esMapaExtractoGalicia(map) {
+    if (esMapaTesoreria(map) || esMapaTesoreriaCierre(map)) return false;
     return map['fecha'] != null && map['descripcion'] != null && map['saldo'] != null &&
       (map['debitos'] != null || map['creditos'] != null);
   }
@@ -399,6 +400,14 @@
     return '';
   }
 
+  function canalPorArchivoTesoreria(archivo) {
+    var t = normHeader(archivo);
+    if (!t) return '';
+    if (t.indexOf('galicia') >= 0) return CANAL_GAL;
+    if (t.indexOf('mercadopago') >= 0 || t.indexOf('mercado pago') >= 0) return CANAL_MP;
+    return '';
+  }
+
   function esFilaPieTesoreria(fechaRaw, tipo) {
     var f = String(fechaRaw || '').trim().toLowerCase();
     var t = String(tipo || '').trim().toLowerCase();
@@ -447,9 +456,6 @@
   }
 
   function detectarArchivo(wb, archivo) {
-    var det = detectarTipoExtracto(wb);
-    if (det.tipo === 'mp') return { clase: 'banco', canal: CANAL_MP, hoja: det.hoja };
-    if (det.tipo === 'galicia') return { clase: 'banco', canal: CANAL_GAL, hoja: det.hoja };
     var names = wb.SheetNames || [];
     var i;
     for (i = 0; i < names.length; i++) {
@@ -458,6 +464,9 @@
         return { clase: 'sistema', canal: detectarCanalTesoreria(wb, archivo), hoja: names[i] };
       }
     }
+    var det = detectarTipoExtracto(wb);
+    if (det.tipo === 'mp') return { clase: 'banco', canal: CANAL_MP, hoja: det.hoja };
+    if (det.tipo === 'galicia') return { clase: 'banco', canal: CANAL_GAL, hoja: det.hoja };
     return { clase: '', canal: state.canal, hoja: names[0] || '' };
   }
 
@@ -626,8 +635,8 @@
     if (!esMapaTesoreria(map) && !esCierre) {
       return {
         error: state.canal === CANAL_GAL
-          ? 'No reconocí la tesorería de Galicia. Esperaba Tipo, Fecha, Crédito, Débito (p. ej. tesoreria_transferencia_galicia) o el cierre de caja (Fecha, Tipo, Monto).'
-          : 'No reconocí la tesorería de Mercado Pago. Esperaba Tipo, Fecha, Crédito, Débito o el cierre de caja (Fecha, Tipo, Monto; p. ej. cierre_CIERRE-…).',
+          ? 'No reconocí la tesorería de Galicia. Esperaba Tipo, Fecha, Crédito, Débito e Id (p. ej. tesoreria_transferencia_galicia) o el cierre de caja (Fecha, Tipo, Monto e Id).'
+          : 'No reconocí la tesorería de Mercado Pago. Esperaba Tipo, Fecha, Crédito, Débito e Id o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-…).',
         filas: []
       };
     }
@@ -637,7 +646,10 @@
     var omitidasApertura = 0;
     var omitidasCaja = 0;
     var omitidasIdDup = 0;
+    var omitidasSinId = 0;
     var tieneIdCierre = false;
+    var exigeId = mapaTesoreriaTieneIdCierre(map);
+    var canalArchivo = canalPorArchivoTesoreria(archivo);
     for (var r = 1; r < rows.length; r++) {
       var row = rows[r] || [];
       var tipo = String(cell(row, map, ['Tipo']) || '').trim();
@@ -685,6 +697,10 @@
       if (cred != null && cred !== 0) monto = cred;
       else if (deb != null && deb !== 0) monto = -Math.abs(deb);
       var origenId;
+      if (exigeId && !idCierre) {
+        omitidasSinId += 1;
+        continue;
+      }
       if (idCierre) {
         if (idsVistos[idCierre]) {
           omitidasIdDup += 1;
@@ -704,7 +720,7 @@
       if (fecha) fechaHora = fecha + 'T' + (hora || '00:00') + ':00-03:00';
       filas.push({
         origen_id: origenId,
-        canal: canalPorCaja(caja) || null,
+        canal: canalPorCaja(caja) || canalArchivo || null,
         fecha: fecha || fechaHoyYmd(),
         fecha_hora: fechaHora,
         tipo: tipo || null,
@@ -732,12 +748,15 @@
     }
     if (!filas.length) {
       return {
-        error: omitidasApertura && !omitidasCaja
+        error: omitidasApertura && !omitidasCaja && !omitidasSinId
           ? 'El archivo solo tenía Apertura de Caja; ese tipo no se carga.'
-          : 'No encontré filas de tesorería para cargar.',
+          : (exigeId && omitidasSinId && !omitidasApertura
+            ? 'El archivo tiene columna Id pero ninguna fila con Id para cargar.'
+            : 'No encontré filas de tesorería para cargar.'),
         filas: [],
         omitidasApertura: omitidasApertura,
-        omitidasCaja: omitidasCaja
+        omitidasCaja: omitidasCaja,
+        omitidasSinId: omitidasSinId
       };
     }
     return {
@@ -746,6 +765,7 @@
       omitidasApertura: omitidasApertura,
       omitidasCaja: omitidasCaja,
       omitidasIdDup: omitidasIdDup,
+      omitidasSinId: omitidasSinId,
       formatoCierre: esCierre,
       tieneIdCierre: tieneIdCierre
     };
@@ -1292,8 +1312,10 @@
           : '';
         var extraDup;
         if (parsed.tieneIdCierre) {
-          extraDup = ' Cierre de caja con Id único: alta o actualización sin duplicar.';
-          extraDup += ' No hace falta el prefijo MP_/Galicia_ si la columna Caja indica el medio.';
+          extraDup = parsed.formatoCierre
+            ? ' Cierre de caja con Id único: alta o actualización sin duplicar.'
+            : ' Tesorería con Id único: alta o actualización si cambió algún dato.';
+          if (parsed.formatoCierre) extraDup += ' No hace falta el prefijo MP_/Galicia_ si la columna Caja indica el medio.';
           if (nRetiradas) extraDup += ' Se retiraron ' + nRetiradas + ' tesorerías viejas del mismo movimiento (sin Id).';
         } else {
           extraDup = nNuevos
@@ -1315,13 +1337,19 @@
         if (parsed.omitidasCaja) {
           extraDup += ' Se omitieron ' + parsed.omitidasCaja + ' filas de cajas que no son Mercado Pago ni Galicia.';
         }
+        if (parsed.omitidasSinId) {
+          extraDup += ' Se omitieron ' + parsed.omitidasSinId + ' filas sin Id.';
+        }
         var extraSug = nSug ? ' Sugerencias: ' + nSug + '.' : '';
         if (origen === 'banco' && state.canal === CANAL_GAL) {
           state.msg = 'Extracto Galicia: ' + nLeidas + ' filas leídas (fecha + débito/crédito + descripción; no se duplica si el saldo cambió).' + extraDup + extraOrigen + extraCanal + extraSug;
         } else if (origen === 'banco') {
           state.msg = 'Extracto Mercado Pago: ' + nLeidas + ' filas leídas (Número de Movimiento).' + extraDup + extraOrigen + extraCanal + extraSug;
-        } else if (parsed.tieneIdCierre) {
+        } else if (parsed.tieneIdCierre && parsed.formatoCierre) {
           state.msg = 'Tesorería cierre de caja: ' + nLeidas + ' filas leídas (Id único).' + extraDup + extraOrigen + extraCanal + extraSug;
+        } else if (parsed.tieneIdCierre) {
+          state.msg = (state.canal === CANAL_GAL ? 'Tesorería Galicia: ' : 'Tesorería Mercado Pago: ') +
+            nLeidas + ' filas leídas (Id único).' + extraDup + extraOrigen + extraCanal + extraSug;
         } else if (state.canal === CANAL_GAL) {
           state.msg = 'Tesorería Galicia: ' + nLeidas + ' filas leídas.' + extraDup + extraOrigen + extraCanal + extraSug;
         } else {
@@ -2593,14 +2621,14 @@
   function labelsCanal() {
     if (state.canal === CANAL_GAL) {
       return {
-        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia del sistema (Tipo, Fecha, Crédito, Débito) o el Excel de cierre de caja (Fecha, Tipo, Monto e Id único; p. ej. cierre_CIERRE-…). El Id evita duplicados y actualiza si el movimiento ya estaba. La columna Caja (Transferencia Galicia) define el canal: no hace falta prefijo Galicia_ en el nombre. Apertura de Caja y filas Pendiente no se suben. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican. La app propone parejas por importe y concepto; también podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia (tesoreria_transferencia_galicia_…: Tipo, Fecha, Crédito, Débito e Id) o el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. La columna Caja, si viene, define el canal. Apertura de Caja y filas Pendiente no se suben. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican. La app propone parejas por importe y concepto; también podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
         btnBanco: 'Cargar extracto Galicia',
         btnSistema: 'Cargar tesorería Galicia',
         kpiBanco: 'Extracto Galicia'
       };
     }
     return {
-      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y el Excel de tesorería del sistema, o el cierre de caja (Fecha, Tipo, Monto e Id único; p. ej. cierre_CIERRE-… o MP_CIERRE-…). El Id evita duplicados y actualiza si el movimiento ya estaba. La columna Caja (Mercado Pago) define el canal. Apertura de Caja y filas Pendiente no se suben. Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. La app propone parejas por importe y concepto; también podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (tesoreria_mercadopago_…: Tipo, Fecha, Crédito, Débito e Id) o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-… o MP_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Apertura de Caja y filas Pendiente no se suben. Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. La app propone parejas por importe y concepto; también podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
       btnBanco: 'Cargar extracto Mercado Pago',
       btnSistema: 'Cargar tesorería Mercado Pago',
       kpiBanco: 'Extracto MP'
