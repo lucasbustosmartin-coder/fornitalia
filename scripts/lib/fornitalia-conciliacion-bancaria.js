@@ -2362,7 +2362,8 @@
     cerrarModalFiltros();
     cerrarModal();
     var bd = document.createElement('div');
-    bd.className = 'cb-modal-backdrop';
+    var wide = String(extraCls || '').indexOf('cb-modal-wide') >= 0;
+    bd.className = 'cb-modal-backdrop' + (wide ? ' cb-modal-backdrop-wide' : '');
     bd.innerHTML =
       '<div class="cb-modal ' + (extraCls || '') + '" role="dialog" aria-modal="true">' +
         '<div class="modal-header">' +
