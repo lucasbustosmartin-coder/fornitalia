@@ -282,6 +282,7 @@ const datosLog = [
   ['15/09/2026', '17:22', 'Despliegue v2.27 producción', 'Push a main y Vercel --prod: solapa A eliminar para tesorería abierta cuyo Id no vino en el último tesoreria_*.xlsx; baja confirmada (y pareja asociada). APP_VERSION 2.27.', 'Despliegue'],
   ['15/09/2026', '17:49', 'Filtros amplios en modal (conciliación)', 'Conciliación Bancaria: los filtros pasan a un modal (mes extracto, mes sistema, categoría, cuenta contable) con opciones dinámicas y badge de cantidad activa. El buscar sigue amplio en la toolbar. Conciliación manual replica el mismo esquema (hereda filtros de la vista). Cache-bust JS/CSS ?v=2.28.', 'Implementacion'],
   ['15/09/2026', '18:11', 'Modal conciliación manual a casi fullscreen', 'El modal de Conciliación manual pasa a casi todo el viewport (márgenes mínimos) para que la columna derecha (tesorería) no quede aplastada. Grilla 1fr / 1.2fr con minmax(0), tablas pick más altas y sticky thead intacto. Cache-bust ?v=2.29.', 'Ajuste'],
+  ['__HOY__', '__AHORA__', 'Despliegue v2.28 producción', 'Push a main y Vercel --prod: filtros amplios en modal (mes extracto, mes sistema, categoría, cuenta contable) en Conciliación Bancaria y manual; modal manual casi fullscreen. APP_VERSION 2.28.', 'Despliegue'],
 ];
 
 const datosLogParaExcel = preservarFechasHistoricasLog(projectRoot, outPath, datosLog);
@@ -456,6 +457,7 @@ const versiones = [
   ['2.25', '15/09/2026', 'Despliegue v2.25: Conciliación Bancaria — tesorería abierta tesoreria_*.xlsx (Mercado Pago y Galicia) con columna Id: alta o actualización por origen_id id|{Id}; filas sin Id no se cargan. Se eliminaron 318 tesorerías de esa interfaz sin Id y 303 parejas. Detección prioriza tesorería vs extracto Galicia. sql/supabase_cb_borrar_tesoreria_abierta_sin_id.sql. Producción Vercel.'],
   ['2.26', '15/09/2026', 'Despliegue v2.26: Conciliación Bancaria — tolerancia de match según tamaño del importe (centavos / $1 / $10 / $100); primero fecha cercana y después lejana; badge verde si coinciden monto y fecha exactos. Producción Vercel.'],
   ['2.27', '15/09/2026', 'Despliegue v2.27: Conciliación Bancaria — al cargar tesorería abierta (tesoreria_*.xlsx con Id), los Ids que ya no vienen van a la solapa A eliminar para confirmar la baja definitiva (Id, fecha, importe, categoría, cuenta, descripción). sql/supabase_cb_tesoreria_abierta_pendiente_baja.sql. Producción Vercel.'],
+  ['2.28', '__HOY__', 'Despliegue v2.28: Conciliación Bancaria — filtros en modal (mes extracto, mes sistema, categoría, cuenta contable) con badge; buscar amplio en toolbar; mismo esquema en Conciliación manual. Modal manual casi fullscreen para columna tesorería. Producción Vercel.'],
 ];
 const versionesParaExcel = preservarFechasHistoricasVersiones(projectRoot, outPath, versiones);
 const wsVersiones = XLSX.utils.aoa_to_sheet(versionesParaExcel);
