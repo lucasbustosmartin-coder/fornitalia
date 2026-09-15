@@ -202,19 +202,34 @@
     return esAperturaDeCajaTexto(m && m.tipo, m && m.descripcion);
   }
 
-  function mismoImporte(a, b) {
-    var na = Number(a);
-    var nb = Number(b);
-    if (!isFinite(na) || !isFinite(nb)) return false;
-    return Math.round(Math.abs(na - nb) * 100) <= 100;
+  function centsImporte(n) {
+    var v = Number(n);
+    if (!isFinite(v)) return null;
+    return Math.round(v * 100);
   }
 
-  function countMismoImporte(arr, monto) {
-    var n = 0;
-    (arr || []).forEach(function (x) {
-      if (mismoImporte(x.monto, monto)) n++;
-    });
-    return n;
+  function mismoImporteExacto(a, b) {
+    var ca = centsImporte(a);
+    var cb = centsImporte(b);
+    return ca != null && cb != null && ca === cb;
+  }
+
+  function toleranciaImporte(monto) {
+    var a = Math.abs(Number(monto));
+    if (!isFinite(a)) return 0.01;
+    if (a < 100) return 0.01;
+    if (a < 10000) return 1;
+    if (a < 1000000) return 10;
+    return 100;
+  }
+
+  function mismoImporte(a, b) {
+    var ca = centsImporte(a);
+    var cb = centsImporte(b);
+    if (ca == null || cb == null) return false;
+    var tol = Math.min(toleranciaImporte(a), toleranciaImporte(b));
+    var tolCents = Math.round(tol * 100);
+    return Math.abs(ca - cb) <= tolCents;
   }
 
   function daysBetween(a, b) {
@@ -860,10 +875,14 @@
     return tagHit + overlap * 8 + nom;
   }
 
-  function candidatosMonto(b, S, usedS, rejected, ventana) {
+  function candidatosMonto(b, S, usedS, rejected, ventana, opts) {
+    opts = opts || {};
     return S.filter(function (s) {
-      if (usedS[s.id] || !mismoImporte(s.monto, b.monto) || rejected[b.id + '|' + s.id]) return false;
+      if (usedS[s.id] || rejected[b.id + '|' + s.id]) return false;
+      var okMonto = opts.exact ? mismoImporteExacto(b.monto, s.monto) : mismoImporte(b.monto, s.monto);
+      if (!okMonto) return false;
       var d = Math.abs(daysBetween(b.fecha, s.fecha));
+      if (ventana === 'mismo_dia') return d === 0;
       if (ventana === 'cerca') return d <= 14;
       if (ventana === 'lejos') return d > 14;
       return true;
@@ -895,8 +914,10 @@
     });
   }
 
-  function criterioPorDesc(b, s, d, ambiguo, lejos) {
+  function criterioPorDesc(b, s, d, ambiguo, lejos, exacto) {
     var sc = scoreDescripcion(b, s);
+    if (exacto && d === 0 && sc >= 50) return 'monto_y_fecha_concepto_exacto';
+    if (exacto && d === 0) return 'monto_y_fecha_exacto';
     if (d === 0 && sc >= 50) return 'monto_y_fecha_concepto';
     if (d === 0) return 'monto_y_fecha';
     if (sc >= 50) return lejos ? 'monto_fecha_lejana_concepto' : 'monto_fecha_cercana_concepto';
@@ -930,7 +951,7 @@
       return true;
     }
 
-    function pairar(b, s, ambiguo, lejos) {
+    function pairar(b, s, ambiguo, lejos, exacto) {
       if (!s) return false;
       var d = Math.abs(daysBetween(b.fecha, s.fecha));
       var sc = scoreDescripcion(b, s);
@@ -939,53 +960,37 @@
       else if (d <= 7) base = 90;
       else if (d <= 14) base = 70;
       else base = 40;
+      if (exacto) base += 15;
       if (sc >= 50) base += 10;
       if (ambiguo && sc < 50) base -= 10;
-      return tryPair(b, s, base, criterioPorDesc(b, s, d, ambiguo, lejos || d > 14));
+      return tryPair(b, s, base, criterioPorDesc(b, s, d, ambiguo, lejos || d > 14, exacto));
     }
 
-    bancosOrdenConcepto(B, S).forEach(function (b) {
-      if (usedB[b.id]) return;
-      if (countMismoImporte(B, b.monto) !== 1 || countMismoImporte(S, b.monto) !== 1) return;
-      var s = elegirCandidato(b, candidatosMonto(b, S, usedS, rejected, 'todas'));
-      if (!s) return;
-      pairar(b, s, false, Math.abs(daysBetween(b.fecha, s.fecha)) > 14);
-    });
-
-    bancosOrdenConcepto(B, S).forEach(function (b) {
-      if (usedB[b.id]) return;
-      var cands = candidatosMonto(b, S, usedS, rejected, 'todas').filter(function (s) {
-        return scoreDescripcion(b, s) >= 50;
+    function pasar(ventana, opts) {
+      opts = opts || {};
+      bancosOrdenConcepto(B, S).forEach(function (b) {
+        if (usedB[b.id]) return;
+        var cands = candidatosMonto(b, S, usedS, rejected, ventana, opts);
+        if (opts.requireConcepto) {
+          cands = cands.filter(function (s) { return scoreDescripcion(b, s) >= 50; });
+        }
+        if (opts.requireUnique && cands.length !== 1) return;
+        var s = elegirCandidato(b, cands);
+        if (!s) return;
+        var d = Math.abs(daysBetween(b.fecha, s.fecha));
+        pairar(b, s, cands.length > 1, d > 14, !!opts.exact);
       });
-      var s = elegirCandidato(b, cands);
-      if (!s) return;
-      pairar(b, s, cands.length > 1, Math.abs(daysBetween(b.fecha, s.fecha)) > 14);
-    });
+    }
 
-    bancosOrdenConcepto(B, S).forEach(function (b) {
-      if (usedB[b.id]) return;
-      var cands = candidatosMonto(b, S, usedS, rejected, 'cerca');
-      var s = elegirCandidato(b, cands);
-      if (!s) return;
-      pairar(b, s, cands.length > 1, false);
-    });
-
-    bancosOrdenConcepto(B, S).forEach(function (b) {
-      if (usedB[b.id]) return;
-      var cands = candidatosMonto(b, S, usedS, rejected, 'lejos');
-      var s = elegirCandidato(b, cands);
-      if (!s) return;
-      pairar(b, s, cands.length > 1, true);
-    });
-
-    bancosOrdenConcepto(B, S).forEach(function (b) {
-      if (usedB[b.id]) return;
-      var cands = candidatosMonto(b, S, usedS, rejected, 'todas');
-      if (cands.length !== 1) return;
-      var s = elegirCandidato(b, cands);
-      if (!s) return;
-      pairar(b, s, false, Math.abs(daysBetween(b.fecha, s.fecha)) > 14);
-    });
+    pasar('mismo_dia', { exact: true });
+    pasar('cerca', { exact: true });
+    pasar('cerca', { requireConcepto: true });
+    pasar('cerca', { requireUnique: true });
+    pasar('cerca', {});
+    pasar('lejos', { exact: true });
+    pasar('lejos', { requireConcepto: true });
+    pasar('lejos', { requireUnique: true });
+    pasar('lejos', {});
 
     return out;
   }
@@ -1719,7 +1724,9 @@
   function criterioLabel(c) {
     var map = {
       monto_y_fecha: 'Mismo monto y fecha',
+      monto_y_fecha_exacto: 'Mismo monto y fecha (exacto)',
       monto_y_fecha_concepto: 'Mismo monto, fecha y concepto',
+      monto_y_fecha_concepto_exacto: 'Mismo monto, fecha y concepto (exacto)',
       monto_unico: 'Monto único (fecha distinta)',
       monto_fecha_cercana: 'Mismo monto, fecha cercana',
       monto_fecha_cercana_ambiguo: 'Mismo monto, fecha cercana (hay otros iguales)',
@@ -1818,9 +1825,18 @@
     });
   }
 
+  function esMatchMontoFechaExacto(m) {
+    var bs = movsMatchLado(m, 'banco');
+    var ss = movsMatchLado(m, 'sistema');
+    if (bs.length !== 1 || ss.length !== 1) return false;
+    if (!mismoImporteExacto(bs[0].monto, ss[0].monto)) return false;
+    return String(bs[0].fecha || '').slice(0, 10) === String(ss[0].fecha || '').slice(0, 10);
+  }
+
   function htmlCriterioBadge(m, estado) {
     var manual = esMatchManual(m);
-    var cls = manual ? 'cb-badge-manual' : (estado === 'confirmado' ? 'cb-badge-ok' : 'cb-badge-warn');
+    var exacto = !manual && esMatchMontoFechaExacto(m);
+    var cls = manual ? 'cb-badge-manual' : ((estado === 'confirmado' || exacto) ? 'cb-badge-ok' : 'cb-badge-warn');
     var bs = movsMatchLado(m, 'banco');
     var ss = movsMatchLado(m, 'sistema');
     var d = diffMatch(m);
@@ -1828,7 +1844,7 @@
     if (esGrupoMatch(m)) {
       extra += ' <span class="cb-badge cb-badge-manual">' + bs.length + '×' + ss.length + '</span>';
     }
-    if (d != null && Math.round(Math.abs(d) * 100) > 100) {
+    if (!exacto && d != null && Math.round(Math.abs(d) * 100) > 0) {
       extra += ' <span class="cb-badge cb-badge-warn">Dif. ' + esc(formatMonto(d)) + '</span>';
     }
     return '<span class="cb-badge ' + cls + '">' + esc(criterioLabel(m.criterio)) + '</span>' + extra;
@@ -2187,7 +2203,7 @@
           ? '<td>' + celdaCatCta(m.categoria) + '</td><td>' + celdaCatCta(m.cuenta_contable) + '</td>'
           : '') +
         '<td class="cb-col-monto">' + htmlMonto(m.monto) + '</td>' +
-        '<td>' + (sug ? '<span class="cb-badge cb-badge-warn">Sugerido</span>' : '') + '</td>' +
+        '<td>' + (sug ? '<span class="cb-badge ' + (esMatchMontoFechaExacto(sug) ? 'cb-badge-ok' : 'cb-badge-warn') + '">Sugerido</span>' : '') + '</td>' +
       '</tr>';
     });
     if (!html) {
@@ -2621,14 +2637,14 @@
   function labelsCanal() {
     if (state.canal === CANAL_GAL) {
       return {
-        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia (tesoreria_transferencia_galicia_…: Tipo, Fecha, Crédito, Débito e Id) o el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. La columna Caja, si viene, define el canal. Apertura de Caja y filas Pendiente no se suben. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican. La app propone parejas por importe y concepto; también podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia (tesoreria_transferencia_galicia_…: Tipo, Fecha, Crédito, Débito e Id) o el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. La columna Caja, si viene, define el canal. Apertura de Caja y filas Pendiente no se suben. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto; primero fecha cercana y después lejana. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
         btnBanco: 'Cargar extracto Galicia',
         btnSistema: 'Cargar tesorería Galicia',
         kpiBanco: 'Extracto Galicia'
       };
     }
     return {
-      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (tesoreria_mercadopago_…: Tipo, Fecha, Crédito, Débito e Id) o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-… o MP_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Apertura de Caja y filas Pendiente no se suben. Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. La app propone parejas por importe y concepto; también podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (tesoreria_mercadopago_…: Tipo, Fecha, Crédito, Débito e Id) o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-… o MP_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Apertura de Caja y filas Pendiente no se suben. Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto; primero fecha cercana y después lejana. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
       btnBanco: 'Cargar extracto Mercado Pago',
       btnSistema: 'Cargar tesorería Mercado Pago',
       kpiBanco: 'Extracto MP'
