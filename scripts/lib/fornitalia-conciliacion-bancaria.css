@@ -397,7 +397,8 @@
   box-sizing: border-box;
 }
 
-.cb-pick-wrap .cb-tabla { min-width: 100%; }
+.cb-pick-wrap .cb-tabla { min-width: 28rem; }
+.cb-pick-wrap.cb-pick-sistema .cb-tabla { min-width: 44rem; }
 
 .cb-just-area {
   width: 100%;

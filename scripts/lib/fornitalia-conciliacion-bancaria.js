@@ -1577,10 +1577,21 @@
     return first + ' +' + (movs.length - 1);
   }
 
+  function valorCatCta(v) {
+    var s = String(v == null ? '' : v).trim();
+    if (!s || s === '-' || s === '—') return '';
+    return s;
+  }
+
+  function celdaCatCta(v) {
+    return esc(valorCatCta(v) || '—');
+  }
+
   function valoresCampo(movs, campo) {
     var vals = [];
     (movs || []).forEach(function (x) {
-      var v = String((x && x[campo]) || '').trim();
+      var raw = x && x[campo];
+      var v = (campo === 'categoria' || campo === 'cuenta_contable') ? valorCatCta(raw) : String(raw || '').trim();
       if (v && vals.indexOf(v) < 0) vals.push(v);
     });
     return vals;
@@ -1752,6 +1763,8 @@
     if (key === 'monto') return { v: m.monto, t: 'num' };
     if (key === 'sugerido') return { v: matchSugeridoDe(m.id) ? 1 : 0, t: 'num' };
     if (key === 'id') return { v: m.id_movimiento_banco || m.origen_id, t: 'txt' };
+    if (key === 'categoria') return { v: valorCatCta(m.categoria), t: 'txt' };
+    if (key === 'cuenta_contable') return { v: valorCatCta(m.cuenta_contable), t: 'txt' };
     return { v: m.fecha, t: 'fecha' };
   }
 
@@ -1885,6 +1898,7 @@
       return !used[m.id] && pasaFiltrosMov(m, origen);
     });
     list = ordenarFilas(list, valSolo);
+    var esSis = origen === 'sistema';
     var html = '';
     list.forEach(function (m) {
       html += '<tr>' +
@@ -1892,11 +1906,14 @@
         '<td>' + esc(m.tipo || '—') + '</td>' +
         '<td>' + esc(m.descripcion || '—') + '</td>' +
         '<td>' + esc(m.contraparte || '—') + '</td>' +
+        (esSis
+          ? '<td>' + celdaCatCta(m.categoria) + '</td><td>' + celdaCatCta(m.cuenta_contable) + '</td>'
+          : '') +
         '<td class="cb-col-monto">' + htmlMonto(m.monto) + '</td>' +
         '<td>' + esc(m.id_movimiento_banco || m.origen_id || '—') + '</td>' +
         '<td class="cb-col-acc">' +
           btnIcon('ver-mov', m.id, 'Ver detalle del movimiento', ICO.eye) +
-          (origen === 'sistema' && can(PERM_CARGAR)
+          (esSis && can(PERM_CARGAR)
             ? btnIcon('del-mov', m.id, 'Eliminar movimiento de tesorería', ICO.trash, 'cb-btn-danger')
             : '') +
         '</td>' +
@@ -1913,6 +1930,9 @@
         thSort('tipo', 'Tipo') +
         thSort('descripcion', 'Descripción') +
         thSort('contraparte', 'Contraparte') +
+        (esSis
+          ? thSort('categoria', 'Categoría') + thSort('cuenta_contable', 'Cuenta contable')
+          : '') +
         thSort('monto', 'Importe', 'cb-col-monto') +
         thSort('id', 'ID') +
         '<th class="cb-col-acc">Acciones</th>' +
@@ -1982,8 +2002,8 @@
       dlCampo('Descripción', m.descripcion) +
       dlCampo('Contraparte / cliente', m.contraparte) +
       dlCampo('Importe', formatMonto(m.monto) + ' ' + (m.moneda || 'ARS')) +
-      dlCampo('Categoría', m.categoria) +
-      dlCampo('Cuenta contable', m.cuenta_contable) +
+      dlCampo('Categoría', valorCatCta(m.categoria) || '—') +
+      dlCampo('Cuenta contable', valorCatCta(m.cuenta_contable) || '—') +
       dlCampo('Crédito', m.credito != null ? formatMonto(m.credito) : '') +
       dlCampo('Débito', m.debito != null ? formatMonto(m.debito) : '') +
       dlCampo('Saldo', m.saldo != null ? formatMonto(m.saldo) : '') +
@@ -2126,6 +2146,7 @@
     var list = ordenarFilas(movLibreManual(origen), valSolo, sortManual(origen));
     var sels = idsSelManual(origen);
     var action = origen === 'banco' ? 'pick-banco' : 'pick-sistema';
+    var esSis = origen === 'sistema';
     var html = '';
     list.forEach(function (m) {
       var sug = matchSugeridoDe(m.id);
@@ -2134,6 +2155,9 @@
         '<td class="cb-pick-check" aria-hidden="true">' + (sel ? '✓' : '') + '</td>' +
         '<td>' + formatFecha(m.fecha) + '</td>' +
         '<td>' + esc(m.tipo || m.descripcion || '—') + '</td>' +
+        (esSis
+          ? '<td>' + celdaCatCta(m.categoria) + '</td><td>' + celdaCatCta(m.cuenta_contable) + '</td>'
+          : '') +
         '<td class="cb-col-monto">' + htmlMonto(m.monto) + '</td>' +
         '<td>' + (sug ? '<span class="cb-badge cb-badge-warn">Sugerido</span>' : '') + '</td>' +
       '</tr>';
@@ -2143,11 +2167,14 @@
         ((origen === 'banco' ? state.manual.qBanco : state.manual.qSistema) || '').trim());
       return '<p class="cb-empty">No hay movimientos disponibles' + (hayFiltro ? ' con esos filtros.' : '.') + '</p>';
     }
-    return '<div class="cb-tabla-wrap cb-pick-wrap"><table class="cb-tabla">' +
+    return '<div class="cb-tabla-wrap cb-pick-wrap' + (esSis ? ' cb-pick-sistema' : '') + '"><table class="cb-tabla">' +
       '<thead><tr>' +
         '<th class="cb-pick-check" aria-hidden="true"></th>' +
         thSortManual(origen, 'fecha', 'Fecha') +
         thSortManual(origen, 'concepto', 'Concepto') +
+        (esSis
+          ? thSortManual(origen, 'categoria', 'Categoría') + thSortManual(origen, 'cuenta_contable', 'Cuenta contable')
+          : '') +
         thSortManual(origen, 'monto', 'Importe', 'cb-col-monto') +
         thSortManual(origen, 'sugerido', 'Estado') +
       '</tr></thead>' +
@@ -2500,25 +2527,33 @@
         ]);
       });
     } else {
-      aoa.push(['Fecha', 'Tipo', 'Descripción', 'Contraparte', 'Importe', 'ID']);
-      dateCols = [0];
-      numCols = [4];
-      cols = [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 24 }, { wch: 14 }, { wch: 28 }];
       var origen = state.lista === 'banco' ? 'banco' : 'sistema';
+      var esSis = origen === 'sistema';
+      aoa.push(esSis
+        ? ['Fecha', 'Tipo', 'Descripción', 'Contraparte', 'Categoría', 'Cuenta contable', 'Importe', 'ID']
+        : ['Fecha', 'Tipo', 'Descripción', 'Contraparte', 'Importe', 'ID']);
+      dateCols = [0];
+      numCols = esSis ? [6] : [4];
+      cols = esSis
+        ? [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 24 }, { wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 28 }]
+        : [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 24 }, { wch: 14 }, { wch: 28 }];
       var movs = filasVisiblesSolo(origen);
       if (!movs.length) {
         alert('No hay filas visibles con los filtros activos para exportar.');
         return;
       }
       movs.forEach(function (m) {
-        aoa.push([
+        var fila = [
           excelDate(m.fecha),
           m.tipo || '',
           m.descripcion || '',
-          m.contraparte || '',
-          excelNum(m.monto),
-          m.id_movimiento_banco || m.origen_id || ''
-        ]);
+          m.contraparte || ''
+        ];
+        if (esSis) {
+          fila.push(valorCatCta(m.categoria) || null, valorCatCta(m.cuenta_contable) || null);
+        }
+        fila.push(excelNum(m.monto), m.id_movimiento_banco || m.origen_id || '');
+        aoa.push(fila);
       });
     }
     var ws = global.XLSX.utils.aoa_to_sheet(aoa);
