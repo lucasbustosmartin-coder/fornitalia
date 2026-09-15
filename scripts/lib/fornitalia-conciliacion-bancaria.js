@@ -23,7 +23,8 @@
     download: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>',
     link: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>',
     undo: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 105.77-8.36L1 10"/></svg>',
-    trash: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>'
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>',
+    filter: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>'
   };
 
   var opts = { client: null, hasPerm: function () { return true; }, getRoot: function () { return null; } };
@@ -33,8 +34,10 @@
     canal: CANAL_MP,
     lista: 'sugeridos',
     q: '',
-    mes: '',
-    concepto: '',
+    mesExtracto: '',
+    mesSistema: '',
+    categoria: '',
+    cuenta: '',
     sort: {
       sugeridos: { key: 'fecha_banco', dir: 'desc' },
       confirmados: { key: 'fecha_banco', dir: 'desc' },
@@ -48,7 +51,21 @@
     msg: '',
     err: '',
     modal: null,
-    manual: { bancoIds: [], sistemaIds: [], qBanco: '', qSistema: '', mes: '', concepto: '', justif: '', sortBanco: { key: 'fecha', dir: 'desc' }, sortSistema: { key: 'fecha', dir: 'desc' } }
+    modalFiltros: null,
+    filtrosDraft: null,
+    manual: {
+      bancoIds: [],
+      sistemaIds: [],
+      qBanco: '',
+      qSistema: '',
+      mesExtracto: '',
+      mesSistema: '',
+      categoria: '',
+      cuenta: '',
+      justif: '',
+      sortBanco: { key: 'fecha', dir: 'desc' },
+      sortSistema: { key: 'fecha', dir: 'desc' }
+    }
   };
 
   function client() { return opts.client; }
@@ -1529,45 +1546,100 @@
     return p[1] + '/' + p[0];
   }
 
-  function opcionesMes() {
+  function sortTxtEs(a, b) {
+    return String(a || '').localeCompare(String(b || ''), 'es', { sensitivity: 'base' });
+  }
+
+  function opcionesMesExtracto() {
     var set = {};
-    movimientosCanal().forEach(function (m) {
+    bancoRows().forEach(function (m) {
       var ym = mesYYYYMM(m.fecha);
       if (ym) set[ym] = true;
     });
     return Object.keys(set).sort().reverse();
   }
 
-  function opcionesConcepto() {
+  function opcionesMesSistema() {
     var set = {};
-    bancoRows().forEach(function (m) {
-      var t = String(m.tipo || '').trim();
-      if (t) set[t] = true;
+    sistemaRowsTodos().forEach(function (m) {
+      var ym = mesYYYYMM(m.fecha);
+      if (ym) set[ym] = true;
     });
-    return Object.keys(set).sort(function (a, b) {
-      return a.localeCompare(b, 'es', { sensitivity: 'base' });
+    return Object.keys(set).sort().reverse();
+  }
+
+  function opcionesCategoria(filtro) {
+    var f = filtro || {};
+    var set = {};
+    sistemaRowsTodos().forEach(function (m) {
+      if (f.mesSistema && mesYYYYMM(m.fecha) !== f.mesSistema) return;
+      var v = valorCatCta(m.categoria);
+      if (v) set[v] = true;
     });
+    return Object.keys(set).sort(sortTxtEs);
+  }
+
+  function opcionesCuenta(filtro) {
+    var f = filtro || {};
+    var set = {};
+    sistemaRowsTodos().forEach(function (m) {
+      if (f.mesSistema && mesYYYYMM(m.fecha) !== f.mesSistema) return;
+      if (f.categoria && valorCatCta(m.categoria) !== f.categoria) return;
+      var v = valorCatCta(m.cuenta_contable);
+      if (v) set[v] = true;
+    });
+    return Object.keys(set).sort(sortTxtEs);
+  }
+
+  function syncCamposFiltro(src) {
+    if (!src) return;
+    var mesesExt = opcionesMesExtracto();
+    if (src.mesExtracto && mesesExt.indexOf(src.mesExtracto) < 0) src.mesExtracto = '';
+    var mesesSis = opcionesMesSistema();
+    if (src.mesSistema && mesesSis.indexOf(src.mesSistema) < 0) src.mesSistema = '';
+    var cats = opcionesCategoria({ mesSistema: src.mesSistema || '' });
+    if (src.categoria && cats.indexOf(src.categoria) < 0) src.categoria = '';
+    var ctas = opcionesCuenta({ mesSistema: src.mesSistema || '', categoria: src.categoria || '' });
+    if (src.cuenta && ctas.indexOf(src.cuenta) < 0) src.cuenta = '';
   }
 
   function syncFiltrosConOpciones() {
-    var meses = opcionesMes();
-    if (state.mes && meses.indexOf(state.mes) < 0) state.mes = '';
-    var cons = opcionesConcepto();
-    if (state.concepto && cons.indexOf(state.concepto) < 0) state.concepto = '';
+    syncCamposFiltro(state);
+    syncCamposFiltro(state.manual);
+    if (state.filtrosDraft) syncCamposFiltro(state.filtrosDraft);
+  }
+
+  function contarFiltrosEstructurales(src) {
+    var s = src || {};
+    var n = 0;
+    if (s.mesExtracto) n++;
+    if (s.mesSistema) n++;
+    if (s.categoria) n++;
+    if (s.cuenta) n++;
+    return n;
+  }
+
+  function hayFiltrosEstructuralesActivos() {
+    return contarFiltrosEstructurales(state) > 0;
   }
 
   function hayFiltrosActivos() {
-    return !!(state.mes || state.concepto || (state.q || '').trim());
+    return hayFiltrosEstructuralesActivos() || !!(state.q || '').trim();
   }
 
-  function pasaFiltroMes(fecha) {
-    if (!state.mes) return true;
-    return mesYYYYMM(fecha) === state.mes;
+  function pasaFiltroMesValor(fecha, ym) {
+    if (!ym) return true;
+    return mesYYYYMM(fecha) === ym;
   }
 
-  function pasaFiltroConceptoBanco(m) {
-    if (!state.concepto) return true;
-    return String(m && m.tipo || '').trim() === state.concepto;
+  function pasaFiltroCategoriaValor(m, cat) {
+    if (!cat) return true;
+    return valorCatCta(m && m.categoria) === cat;
+  }
+
+  function pasaFiltroCuentaValor(m, cta) {
+    if (!cta) return true;
+    return valorCatCta(m && m.cuenta_contable) === cta;
   }
 
   function pasaFiltrosMatch(match) {
@@ -1575,24 +1647,29 @@
     var ss = movsMatchLado(match, 'sistema');
     var blob = bs.concat(ss).map(blobMov).join(' ') + ' ' + criterioLabel(match.criterio) + ' ' + (match.justificacion || '');
     if (!pasaFiltro(blob)) return false;
-    if (state.mes && !bs.some(function (b) { return pasaFiltroMes(b && b.fecha); })) return false;
-    if (state.concepto && !bs.some(function (b) { return pasaFiltroConceptoBanco(b); })) return false;
+    if (state.mesExtracto && !bs.some(function (b) { return pasaFiltroMesValor(b && b.fecha, state.mesExtracto); })) return false;
+    if (state.mesSistema && !ss.some(function (s) { return pasaFiltroMesValor(s && s.fecha, state.mesSistema); })) return false;
+    if (state.categoria && !ss.some(function (s) { return pasaFiltroCategoriaValor(s, state.categoria); })) return false;
+    if (state.cuenta && !ss.some(function (s) { return pasaFiltroCuentaValor(s, state.cuenta); })) return false;
     return true;
   }
 
   function pasaFiltrosMov(m, origen) {
     if (!pasaFiltro(blobMov(m))) return false;
-    if (!pasaFiltroMes(m && m.fecha)) return false;
-    if (origen === 'banco' && !pasaFiltroConceptoBanco(m)) return false;
-    return true;
+    if (origen === 'banco') {
+      return pasaFiltroMesValor(m && m.fecha, state.mesExtracto);
+    }
+    return pasaFiltroMesValor(m && m.fecha, state.mesSistema) &&
+      pasaFiltroCategoriaValor(m, state.categoria) &&
+      pasaFiltroCuentaValor(m, state.cuenta);
   }
 
   function pasaFiltrosParAnulado(p) {
     if (!p || !p.a || !p.b) return false;
     var blob = blobMov(p.a) + ' ' + blobMov(p.b) + ' ' + (p.opRel || '');
     if (!pasaFiltro(blob)) return false;
-    if (state.mes && !pasaFiltroMes(p.a.fecha) && !pasaFiltroMes(p.b.fecha)) return false;
-    if (state.concepto && !pasaFiltroConceptoBanco(p.a) && !pasaFiltroConceptoBanco(p.b)) return false;
+    if (state.mesExtracto && !pasaFiltroMesValor(p.a.fecha, state.mesExtracto) && !pasaFiltroMesValor(p.b.fecha, state.mesExtracto)) return false;
+    if (state.mesSistema || state.categoria || state.cuenta) return false;
     return true;
   }
 
@@ -1769,9 +1846,13 @@
     return Math.round((nb - ns) * 100) / 100;
   }
 
+  function hayFiltrosManualEstructuralesActivos() {
+    return contarFiltrosEstructurales(state.manual) > 0;
+  }
+
   function hayFiltrosManualActivos() {
     var m = state.manual || {};
-    return !!(m.mes || m.concepto || (m.qBanco || '').trim() || (m.qSistema || '').trim());
+    return hayFiltrosManualEstructuralesActivos() || !!(m.qBanco || '').trim() || !!(m.qSistema || '').trim();
   }
 
   function movLibreManual(origen) {
@@ -1779,15 +1860,22 @@
     var used = origen === 'banco' ? ids.usedB : ids.usedS;
     var q = origen === 'banco' ? (state.manual.qBanco || '') : (state.manual.qSistema || '');
     q = q.trim().toLowerCase();
-    var mes = state.manual.mes || '';
-    var concepto = state.manual.concepto || '';
+    var mesExtracto = state.manual.mesExtracto || '';
+    var mesSistema = state.manual.mesSistema || '';
+    var categoria = state.manual.categoria || '';
+    var cuenta = state.manual.cuenta || '';
     var sels = idsSelManual(origen);
     return (origen === 'banco' ? bancoRows() : sistemaRows()).filter(function (m) {
       if (used[m.id]) return false;
       if (esApertura(m)) return false;
       if (sels.indexOf(m.id) >= 0) return true;
-      if (mes && mesYYYYMM(m.fecha) !== mes) return false;
-      if (origen === 'banco' && concepto && String(m.tipo || '').trim() !== concepto) return false;
+      if (origen === 'banco') {
+        if (mesExtracto && mesYYYYMM(m.fecha) !== mesExtracto) return false;
+      } else {
+        if (mesSistema && mesYYYYMM(m.fecha) !== mesSistema) return false;
+        if (categoria && valorCatCta(m.categoria) !== categoria) return false;
+        if (cuenta && valorCatCta(m.cuenta_contable) !== cuenta) return false;
+      }
       if (!q) return true;
       return blobMov(m).toLowerCase().indexOf(q) >= 0;
     });
@@ -2271,6 +2359,7 @@
   }
 
   function abrirModal(titulo, bodyHtml, footerHtml, extraCls) {
+    cerrarModalFiltros();
     cerrarModal();
     var bd = document.createElement('div');
     bd.className = 'cb-modal-backdrop';
@@ -2290,7 +2379,10 @@
     state.modal = bd;
     bd.addEventListener('click', onModalClick);
     function onEsc(ev) {
-      if (ev.key === 'Escape') { ev.preventDefault(); cerrarModal(); }
+      if (ev.key !== 'Escape') return;
+      if (state.modalFiltros) return;
+      ev.preventDefault();
+      cerrarModal();
     }
     document.addEventListener('keydown', onEsc);
     bd._cbEsc = onEsc;
@@ -2317,14 +2409,182 @@
     if (a === 'pick-banco') { ev.preventDefault(); pickManual('banco', id); return; }
     if (a === 'pick-sistema') { ev.preventDefault(); pickManual('sistema', id); return; }
     if (a === 'manual-ok') { ev.preventDefault(); confirmarManual(); return; }
+    if (a === 'filtros-manual') { ev.preventDefault(); abrirModalFiltros('manual'); return; }
   }
 
   function cerrarModal() {
+    cerrarModalFiltros();
     if (state.modal) {
       if (state.modal._cbEsc) document.removeEventListener('keydown', state.modal._cbEsc);
       if (state.modal.parentNode) state.modal.parentNode.removeChild(state.modal);
     }
     state.modal = null;
+  }
+
+  function htmlOpcionesSelect(valores, seleccionado, placeholder) {
+    var html = '<option value="">' + esc(placeholder) + '</option>';
+    (valores || []).forEach(function (v) {
+      html += '<option value="' + esc(v) + '"' + (seleccionado === v ? ' selected' : '') + '>' + esc(v) + '</option>';
+    });
+    return html;
+  }
+
+  function htmlOpcionesMesSelect(valores, seleccionado, placeholder) {
+    var html = '<option value="">' + esc(placeholder) + '</option>';
+    (valores || []).forEach(function (ym) {
+      html += '<option value="' + esc(ym) + '"' + (seleccionado === ym ? ' selected' : '') + '>' + esc(formatMesLabel(ym)) + '</option>';
+    });
+    return html;
+  }
+
+  function htmlCuerpoModalFiltros() {
+    syncFiltrosConOpciones();
+    var d = state.filtrosDraft || {};
+    var filtroDyn = { mesSistema: d.mesSistema || '', categoria: d.categoria || '' };
+    var mesExtOpts = htmlOpcionesMesSelect(opcionesMesExtracto(), d.mesExtracto || '', 'Todos los meses');
+    var mesSisOpts = htmlOpcionesMesSelect(opcionesMesSistema(), d.mesSistema || '', 'Todos los meses');
+    var catOpts = htmlOpcionesSelect(opcionesCategoria(filtroDyn), d.categoria || '', 'Todas las categorías');
+    var ctaOpts = htmlOpcionesSelect(opcionesCuenta(filtroDyn), d.cuenta || '', 'Todas las cuentas');
+    var mesExtOn = !!d.mesExtracto;
+    var mesSisOn = !!d.mesSistema;
+    var catOn = !!d.categoria;
+    var ctaOn = !!d.cuenta;
+    return '<p class="cb-field-hint">Filtrá por mes del extracto, mes de tesorería, categoría y cuenta contable. El buscar de la pantalla sigue libre y no se restringe acá.</p>' +
+      '<div class="cb-filtros-modal-grid">' +
+        '<div class="form-group' + (mesExtOn ? ' cb-filtro-activo' : '') + '"><label for="cb-filtro-mes-extracto">Mes de extracto</label>' +
+          '<select id="cb-filtro-mes-extracto" title="Filtrar por mes del extracto bancario">' + mesExtOpts + '</select></div>' +
+        '<div class="form-group' + (mesSisOn ? ' cb-filtro-activo' : '') + '"><label for="cb-filtro-mes-sistema">Mes de sistema</label>' +
+          '<select id="cb-filtro-mes-sistema" title="Filtrar por mes de tesorería">' + mesSisOpts + '</select></div>' +
+        '<div class="form-group' + (catOn ? ' cb-filtro-activo' : '') + '"><label for="cb-filtro-categoria">Categoría</label>' +
+          '<select id="cb-filtro-categoria" title="Filtrar por categoría de tesorería">' + catOpts + '</select></div>' +
+        '<div class="form-group' + (ctaOn ? ' cb-filtro-activo' : '') + '"><label for="cb-filtro-cuenta">Cuenta contable</label>' +
+          '<select id="cb-filtro-cuenta" title="Filtrar por cuenta contable de tesorería">' + ctaOpts + '</select></div>' +
+      '</div>';
+  }
+
+  function bindModalFiltrosInputs() {
+    var bd = state.modalFiltros;
+    if (!bd || !state.filtrosDraft) return;
+    function bindSel(id, campo, cascada) {
+      var el = bd.querySelector(id);
+      if (!el) return;
+      el.addEventListener('change', function () {
+        state.filtrosDraft[campo] = el.value || '';
+        if (cascada) {
+          if (campo === 'mesSistema' || campo === 'categoria') {
+            syncCamposFiltro(state.filtrosDraft);
+            refreshModalFiltros();
+          }
+        }
+      });
+    }
+    bindSel('#cb-filtro-mes-extracto', 'mesExtracto', false);
+    bindSel('#cb-filtro-mes-sistema', 'mesSistema', true);
+    bindSel('#cb-filtro-categoria', 'categoria', true);
+    bindSel('#cb-filtro-cuenta', 'cuenta', false);
+  }
+
+  function refreshModalFiltros() {
+    if (!state.modalFiltros) return;
+    var body = state.modalFiltros.querySelector('.modal-body');
+    if (body) body.innerHTML = htmlCuerpoModalFiltros();
+    bindModalFiltrosInputs();
+  }
+
+  function onModalFiltrosClick(ev) {
+    var bd = state.modalFiltros;
+    if (!bd) return;
+    if (ev.target === bd) { cerrarModalFiltros(); return; }
+    var t = ev.target.closest && ev.target.closest('[data-cb]');
+    if (!t || !bd.contains(t)) return;
+    var a = t.getAttribute('data-cb');
+    if (a === 'cerrar-filtros') { ev.preventDefault(); cerrarModalFiltros(); return; }
+    if (a === 'limpiar-filtros') {
+      ev.preventDefault();
+      if (!state.filtrosDraft) return;
+      state.filtrosDraft.mesExtracto = '';
+      state.filtrosDraft.mesSistema = '';
+      state.filtrosDraft.categoria = '';
+      state.filtrosDraft.cuenta = '';
+      refreshModalFiltros();
+      return;
+    }
+    if (a === 'aplicar-filtros') {
+      ev.preventDefault();
+      aplicarFiltrosModal();
+    }
+  }
+
+  function aplicarFiltrosModal() {
+    var d = state.filtrosDraft;
+    if (!d) { cerrarModalFiltros(); return; }
+    syncCamposFiltro(d);
+    var target = d.target === 'manual' ? 'manual' : 'vista';
+    var dest = target === 'manual' ? state.manual : state;
+    dest.mesExtracto = d.mesExtracto || '';
+    dest.mesSistema = d.mesSistema || '';
+    dest.categoria = d.categoria || '';
+    dest.cuenta = d.cuenta || '';
+    cerrarModalFiltros();
+    if (target === 'manual') refreshManualModal();
+    else renderShell();
+  }
+
+  function abrirModalFiltros(target) {
+    syncFiltrosConOpciones();
+    cerrarModalFiltros();
+    var src = target === 'manual' ? (state.manual || {}) : state;
+    state.filtrosDraft = {
+      target: target === 'manual' ? 'manual' : 'vista',
+      mesExtracto: src.mesExtracto || '',
+      mesSistema: src.mesSistema || '',
+      categoria: src.categoria || '',
+      cuenta: src.cuenta || ''
+    };
+    var bd = document.createElement('div');
+    bd.className = 'cb-modal-backdrop cb-modal-filtros-backdrop';
+    bd.innerHTML =
+      '<div class="cb-modal cb-modal-filtros" role="dialog" aria-modal="true" aria-labelledby="cb-filtros-titulo">' +
+        '<div class="modal-header">' +
+          '<h2 id="cb-filtros-titulo">Filtros</h2>' +
+          '<button type="button" class="cb-btn cb-btn-ghost cb-btn-icon-only" data-cb="cerrar-filtros" title="Cerrar" aria-label="Cerrar"><span class="btn-icon">' + ICO.x + '</span></button>' +
+        '</div>' +
+        '<div class="modal-body">' + htmlCuerpoModalFiltros() + '</div>' +
+        '<div class="modal-footer">' +
+          '<button type="button" class="cb-btn cb-btn-ghost" data-cb="limpiar-filtros"><span class="btn-icon">' + ICO.trash + '</span>Limpiar</button>' +
+          '<button type="button" class="cb-btn cb-btn-ghost" data-cb="cerrar-filtros"><span class="btn-icon">' + ICO.x + '</span>Cancelar</button>' +
+          '<button type="button" class="cb-btn cb-btn-ok" data-cb="aplicar-filtros"><span class="btn-icon">' + ICO.check + '</span>Aplicar</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(bd);
+    state.modalFiltros = bd;
+    bd.addEventListener('click', onModalFiltrosClick);
+    function onEsc(ev) {
+      if (ev.key === 'Escape') { ev.preventDefault(); cerrarModalFiltros(); }
+    }
+    document.addEventListener('keydown', onEsc);
+    bd._cbEsc = onEsc;
+    bindModalFiltrosInputs();
+  }
+
+  function cerrarModalFiltros() {
+    if (state.modalFiltros) {
+      if (state.modalFiltros._cbEsc) document.removeEventListener('keydown', state.modalFiltros._cbEsc);
+      if (state.modalFiltros.parentNode) state.modalFiltros.parentNode.removeChild(state.modalFiltros);
+    }
+    state.modalFiltros = null;
+    state.filtrosDraft = null;
+  }
+
+  function htmlBtnFiltros(target, nActivos) {
+    var action = target === 'manual' ? 'filtros-manual' : 'filtros';
+    var title = nActivos
+      ? (nActivos + ' filtro' + (nActivos === 1 ? '' : 's') + ' activo' + (nActivos === 1 ? '' : 's'))
+      : 'Abrir filtros';
+    return '<button type="button" class="cb-btn cb-btn-ghost' + (nActivos ? ' cb-btn-filtros-on' : '') + '" data-cb="' + action + '" title="' + esc(title) + '" aria-label="' + esc(title) + '">' +
+      '<span class="btn-icon">' + ICO.filter + '</span>Filtros' +
+      (nActivos ? '<span class="cb-filtros-count">' + nActivos + '</span>' : '') +
+    '</button>';
   }
 
   function htmlPickTabla(origen) {
@@ -2348,8 +2608,8 @@
       '</tr>';
     });
     if (!html) {
-      var hayFiltro = !!(state.manual.mes || (origen === 'banco' && state.manual.concepto) ||
-        ((origen === 'banco' ? state.manual.qBanco : state.manual.qSistema) || '').trim());
+      var hayFiltro = hayFiltrosManualEstructuralesActivos() ||
+        !!((origen === 'banco' ? state.manual.qBanco : state.manual.qSistema) || '').trim();
       return '<p class="cb-empty">No hay movimientos disponibles' + (hayFiltro ? ' con esos filtros.' : '.') + '</p>';
     }
     return '<div class="cb-tabla-wrap cb-pick-wrap' + (esSis ? ' cb-pick-sistema' : '') + '"><table class="cb-tabla">' +
@@ -2367,24 +2627,10 @@
   }
 
   function htmlFiltrosManual() {
-    var meses = opcionesMes();
-    var conceptos = opcionesConcepto();
-    var mesOpts = '<option value="">Todos los meses</option>';
-    meses.forEach(function (ym) {
-      mesOpts += '<option value="' + esc(ym) + '"' + (state.manual.mes === ym ? ' selected' : '') + '>' + esc(formatMesLabel(ym)) + '</option>';
-    });
-    var conOpts = '<option value="">Todos los conceptos</option>';
-    conceptos.forEach(function (c) {
-      conOpts += '<option value="' + esc(c) + '"' + (state.manual.concepto === c ? ' selected' : '') + '>' + esc(c) + '</option>';
-    });
-    var mesOn = !!state.manual.mes;
-    var conOn = !!state.manual.concepto;
+    var n = contarFiltrosEstructurales(state.manual);
     return '<div class="cb-filtros cb-manual-filtros">' +
-      (hayFiltrosManualActivos() ? '<span class="cb-filtros-flag" title="Hay filtros aplicados en este modal">Filtros activos</span>' : '') +
-      '<div class="form-group' + (mesOn ? ' cb-filtro-activo' : '') + '"><label for="cb-manual-mes">Mes</label>' +
-      '<select id="cb-manual-mes" title="Filtrar extracto y tesorería por mes">' + mesOpts + '</select></div>' +
-      '<div class="form-group' + (conOn ? ' cb-filtro-activo' : '') + '"><label for="cb-manual-concepto">Concepto del extracto</label>' +
-      '<select id="cb-manual-concepto" title="Filtrar el extracto por concepto">' + conOpts + '</select></div>' +
+      htmlBtnFiltros('manual', n) +
+      (n ? '<span class="cb-filtros-flag" title="Hay filtros aplicados en este modal">Filtros activos</span>' : '') +
     '</div>';
   }
 
@@ -2415,7 +2661,7 @@
     var nS = movLibreManual('sistema').length;
     var selB = banks.length;
     var selS = sist.length;
-    return '<p class="cb-field-hint">Podés conciliar varios extractos con una o más tesorerías. La diferencia es la suma del extracto menos la suma de tesorería. La justificación, los importes y quién confirmó quedan guardados. Mes y concepto son los mismos filtros de la vista; si ya los tenías aplicados, arrancan acá.</p>' +
+    return '<p class="cb-field-hint">Podés conciliar varios extractos con una o más tesorerías. La diferencia es la suma del extracto menos la suma de tesorería. La justificación, los importes y quién confirmó quedan guardados. Los filtros (mes extracto/sistema, categoría y cuenta) son los mismos de la vista; si ya los tenías aplicados, arrancan acá. El buscar por lado sigue amplio.</p>' +
       htmlFiltrosManual() +
       '<div class="cb-manual-cols">' +
         '<div class="cb-manual-col">' +
@@ -2443,8 +2689,6 @@
     var qb = state.modal.querySelector('#cb-manual-qb');
     var qs = state.modal.querySelector('#cb-manual-qs');
     var ju = state.modal.querySelector('#cb-manual-just');
-    var mesEl = state.modal.querySelector('#cb-manual-mes');
-    var conEl = state.modal.querySelector('#cb-manual-concepto');
     function bindSearch(el, campo) {
       if (!el) return;
       el.addEventListener('input', function () {
@@ -2460,18 +2704,6 @@
     }
     bindSearch(qb, 'qBanco');
     bindSearch(qs, 'qSistema');
-    if (mesEl) {
-      mesEl.addEventListener('change', function () {
-        state.manual.mes = mesEl.value || '';
-        refreshManualModal();
-      });
-    }
-    if (conEl) {
-      conEl.addEventListener('change', function () {
-        state.manual.concepto = conEl.value || '';
-        refreshManualModal();
-      });
-    }
     if (ju) {
       ju.addEventListener('input', function () { state.manual.justif = ju.value; });
     }
@@ -2485,10 +2717,6 @@
     if (qb) state.manual.qBanco = qb.value;
     var qs = state.modal.querySelector('#cb-manual-qs');
     if (qs) state.manual.qSistema = qs.value;
-    var mesEl = state.modal.querySelector('#cb-manual-mes');
-    if (mesEl) state.manual.mes = mesEl.value || '';
-    var conEl = state.modal.querySelector('#cb-manual-concepto');
-    if (conEl) state.manual.concepto = conEl.value || '';
   }
 
   function refreshManualModal() {
@@ -2517,8 +2745,10 @@
       sistemaIds: [],
       qBanco: state.q || '',
       qSistema: state.q || '',
-      mes: state.mes || '',
-      concepto: state.concepto || '',
+      mesExtracto: state.mesExtracto || '',
+      mesSistema: state.mesSistema || '',
+      categoria: state.categoria || '',
+      cuenta: state.cuenta || '',
       justif: '',
       sortBanco: { key: 'fecha', dir: 'desc' },
       sortSistema: { key: 'fecha', dir: 'desc' }
@@ -2644,12 +2874,14 @@
       alert('No está disponible la librería Excel.');
       return;
     }
-    var headerRow = 7;
+    var headerRow = 9;
     var aoa = [
       ['Conciliación Bancaria — ' + canalLabel()],
       ['Listado', listaLabel()],
-      ['Filtro mes', state.mes ? formatMesLabel(state.mes) : 'Todos'],
-      ['Filtro concepto extracto', state.concepto || 'Todos'],
+      ['Filtro mes extracto', state.mesExtracto ? formatMesLabel(state.mesExtracto) : 'Todos'],
+      ['Filtro mes sistema', state.mesSistema ? formatMesLabel(state.mesSistema) : 'Todos'],
+      ['Filtro categoría', state.categoria || 'Todas'],
+      ['Filtro cuenta contable', state.cuenta || 'Todas'],
       ['Buscar', (state.q || '').trim() || '—'],
       ['Exportado', formatFecha(fechaHoyYmd())],
       []
@@ -2775,24 +3007,12 @@
 
   function renderFiltros() {
     syncFiltrosConOpciones();
-    var meses = opcionesMes();
-    var conceptos = opcionesConcepto();
-    var mesOpts = '<option value="">Todos los meses</option>';
-    meses.forEach(function (ym) {
-      mesOpts += '<option value="' + esc(ym) + '"' + (state.mes === ym ? ' selected' : '') + '>' + esc(formatMesLabel(ym)) + '</option>';
-    });
-    var conOpts = '<option value="">Todos los conceptos</option>';
-    conceptos.forEach(function (c) {
-      conOpts += '<option value="' + esc(c) + '"' + (state.concepto === c ? ' selected' : '') + '>' + esc(c) + '</option>';
-    });
-    var mesOn = !!state.mes;
-    var conOn = !!state.concepto;
+    var n = contarFiltrosEstructurales(state);
     var qOn = !!(state.q || '').trim();
     return '<div class="cb-filtros">' +
-      (hayFiltrosActivos() ? '<span class="cb-filtros-flag" title="Hay filtros aplicados; el listado y el Excel respetan estos filtros">Filtros activos</span>' : '') +
-      '<div class="form-group' + (mesOn ? ' cb-filtro-activo' : '') + '"><label for="cb-mes">Mes</label><select id="cb-mes" title="Filtrar por mes">' + mesOpts + '</select></div>' +
-      '<div class="form-group' + (conOn ? ' cb-filtro-activo' : '') + '"><label for="cb-concepto">Concepto del extracto</label><select id="cb-concepto" title="Filtrar por concepto del extracto">' + conOpts + '</select></div>' +
-      '<div class="form-group' + (qOn ? ' cb-filtro-activo' : '') + '"><label for="cb-q">Buscar</label><input type="search" id="cb-q" value="' + esc(state.q) + '" placeholder="Fecha, importe, cliente, ID…"></div>' +
+      htmlBtnFiltros('vista', n) +
+      (n ? '<span class="cb-filtros-flag" title="Hay filtros aplicados; el listado y el Excel respetan estos filtros">Filtros activos</span>' : '') +
+      '<div class="form-group cb-filtro-buscar' + (qOn ? ' cb-filtro-activo' : '') + '"><label for="cb-q">Buscar</label><input type="search" id="cb-q" value="' + esc(state.q) + '" placeholder="Fecha, importe, cliente, ID, categoría…" title="Búsqueda amplia sobre el listado visible"></div>' +
     '</div>';
   }
 
@@ -2894,37 +3114,26 @@
         }
       });
     }
-    var mesEl = el.querySelector('#cb-mes');
-    if (mesEl) {
-      mesEl.addEventListener('change', function () {
-        state.mes = mesEl.value || '';
-        renderShell();
-      });
-    }
-    var conEl = el.querySelector('#cb-concepto');
-    if (conEl) {
-      conEl.addEventListener('change', function () {
-        state.concepto = conEl.value || '';
-        renderShell();
-      });
-    }
   }
 
   function onClick(ev) {
     var t = ev.target.closest && ev.target.closest('[data-cb]');
     if (!t) return;
     var rootEl = root();
-    if (rootEl && !rootEl.contains(t) && !(state.modal && state.modal.contains(t))) return;
+    if (rootEl && !rootEl.contains(t) && !(state.modal && state.modal.contains(t)) && !(state.modalFiltros && state.modalFiltros.contains(t))) return;
     var a = t.getAttribute('data-cb');
     var id = t.getAttribute('data-id');
     if (a === 'canal') {
       state.canal = t.getAttribute('data-canal') || CANAL_MP;
       state.lista = 'sugeridos';
-      state.mes = '';
-      state.concepto = '';
+      state.mesExtracto = '';
+      state.mesSistema = '';
+      state.categoria = '';
+      state.cuenta = '';
       recargarTodo();
       return;
     }
+    if (a === 'filtros') { abrirModalFiltros('vista'); return; }
     if (a === 'lista') { state.lista = t.getAttribute('data-lista') || 'sugeridos'; renderShell(); return; }
     if (a === 'sort') { toggleSort(t.getAttribute('data-sort')); renderShell(); return; }
     if (a === 'up-banco') { onUpload('banco'); return; }

@@ -475,7 +475,8 @@
   box-sizing: border-box;
 }
 
-.cb-filtros input[type="search"] {
+.cb-filtros input[type="search"],
+.cb-filtro-buscar input[type="search"] {
   min-width: 16rem;
 }
 
@@ -492,6 +493,68 @@
   box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2);
   color: #9a3412;
   font-weight: 600;
+}
+
+.cb-btn-filtros-on {
+  border-color: #ea580c;
+  color: #9a3412;
+  background: #fff7ed;
+}
+
+.cb-filtros-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  margin-left: 0.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: #ea580c;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.cb-modal-filtros-backdrop {
+  z-index: 20050;
+}
+
+.cb-modal-filtros {
+  width: min(560px, 100%);
+  max-height: min(90vh, 640px);
+}
+
+.cb-filtros-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem 0.75rem;
+}
+
+.cb-filtros-modal-grid .form-group {
+  margin: 0;
+}
+
+.cb-filtros-modal-grid label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.25rem;
+}
+
+.cb-filtros-modal-grid select {
+  width: 100%;
+  min-height: 2.25rem;
+  min-width: 0;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: inherit;
+  background: #fff;
+  box-sizing: border-box;
 }
 
 .cb-modal-backdrop {
@@ -588,12 +651,16 @@
   .cb-filtros input[type="search"],
   .cb-filtros select { min-width: 100%; max-width: 100%; width: 100%; }
   .cb-filtros .form-group { width: 100%; }
+  .cb-filtros .cb-btn { min-height: 44px; }
   .cb-acciones { width: 100%; }
   .cb-acciones .cb-btn { flex: 1 1 auto; }
   .cb-manual-cols { grid-template-columns: 1fr; }
   .cb-filtros-flag { width: 100%; justify-content: center; }
+  .cb-filtros-modal-grid { grid-template-columns: 1fr; }
+  .cb-modal-filtros .modal-footer .cb-btn { min-height: 44px; flex: 1 1 auto; }
 }
 
 @media (max-width: 480px) {
   .cb-resumen { grid-template-columns: 1fr; }
+  .cb-filtros { flex-direction: column; align-items: stretch; }
 }
