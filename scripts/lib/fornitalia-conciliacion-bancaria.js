@@ -79,7 +79,17 @@
 
   function errMsg(e) {
     if (!e) return 'Error desconocido.';
-    return e.message || e.error_description || String(e);
+    var raw = e.message || e.error_description || String(e);
+    var low = String(raw).toLowerCase();
+    if (
+      low.indexOf('statement timeout') >= 0 ||
+      low.indexOf('canceling statement due to statement timeout') >= 0 ||
+      low.indexOf('canceling statement due to conflict with recovery') >= 0 ||
+      (e.code && String(e.code) === '57014')
+    ) {
+      return 'La carga tardó demasiado en el servidor (timeout). Probá de nuevo; si el archivo es muy grande, esperá a que termine el lote. Si se repite, avisá para revisar índices en Supabase.';
+    }
+    return raw;
   }
 
   function pad2(n) { return String(n).padStart(2, '0'); }
@@ -1161,8 +1171,11 @@
     ]);
   }
 
+  /** Lotes chicos: cierre Galicia puede superar 2.000 filas y un solo RPC hace timeout. */
+  var CB_UPLOAD_CHUNK = 100;
+
   async function guardarFilas(origen, filas) {
-    var chunk = 250;
+    var chunk = CB_UPLOAD_CHUNK;
     var total = 0;
     for (var i = 0; i < filas.length; i += chunk) {
       var parte = filas.slice(i, i + chunk);
@@ -1177,20 +1190,41 @@
     return total;
   }
 
-  async function adoptarIdTesoreria(canal, filas) {
-    var parte = (filas || []).filter(function (f) { return origenIdEsTesoreriaConId(f.origen_id); });
-    if (!parte.length) return 0;
-    var rpc = await client().rpc('cb_adoptar_id_tesoreria', {
-      p_canal: canal,
-      p_filas: parte
+  function filasAdoptarPayload(filas) {
+    return (filas || []).filter(function (f) {
+      return origenIdEsTesoreriaConId(f.origen_id);
+    }).map(function (f) {
+      return {
+        origen_id: f.origen_id,
+        fecha: f.fecha,
+        monto: f.monto,
+        descripcion: f.descripcion || '',
+        contraparte: f.contraparte || ''
+      };
     });
-    if (rpc.error) throw rpc.error;
-    return Number(rpc.data || 0);
+  }
+
+  async function adoptarIdTesoreria(canal, filas) {
+    var parte = filasAdoptarPayload(filas);
+    if (!parte.length) return 0;
+    var total = 0;
+    var chunk = CB_UPLOAD_CHUNK;
+    for (var i = 0; i < parte.length; i += chunk) {
+      var lote = parte.slice(i, i + chunk);
+      var rpc = await client().rpc('cb_adoptar_id_tesoreria', {
+        p_canal: canal,
+        p_filas: lote
+      });
+      if (rpc.error) throw rpc.error;
+      total += Number(rpc.data || 0);
+    }
+    return total;
   }
 
   async function marcarTesoreriaAbiertaAusente(canal, filas) {
     var ids = (filas || []).map(function (f) { return f.origen_id; }).filter(origenIdEsTesoreriaConId);
     if (!ids.length) return 0;
+    // Un solo RPC: la RPC marca ausentes contra el set completo del archivo.
     var rpc = await client().rpc('cb_marcar_tesoreria_abierta_ausente', {
       p_canal: canal,
       p_origen_ids: ids
@@ -1202,12 +1236,18 @@
   async function retirarTesoreriaDuplicadaCierre(canal, filas) {
     var ids = (filas || []).map(function (f) { return f.origen_id; }).filter(origenIdEsTesoreriaConId);
     if (!ids.length) return 0;
-    var rpc = await client().rpc('cb_retirar_tesoreria_duplicada_por_cierre', {
-      p_canal: canal,
-      p_origen_ids: ids
-    });
-    if (rpc.error) throw rpc.error;
-    return Number(rpc.data || 0);
+    var total = 0;
+    var chunk = CB_UPLOAD_CHUNK;
+    for (var i = 0; i < ids.length; i += chunk) {
+      var lote = ids.slice(i, i + chunk);
+      var rpc = await client().rpc('cb_retirar_tesoreria_duplicada_por_cierre', {
+        p_canal: canal,
+        p_origen_ids: lote
+      });
+      if (rpc.error) throw rpc.error;
+      total += Number(rpc.data || 0);
+    }
+    return total;
   }
 
   async function regenerarSugerencias() {
