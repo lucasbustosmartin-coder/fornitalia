@@ -1491,6 +1491,22 @@
     }
   }
 
+  async function borrarMovimientoBancoGalicia(id) {
+    if (!can(PERM_CARGAR)) return;
+    var m = findMov(id);
+    if (!m || m.origen !== 'banco' || m.canal !== CANAL_GAL) return;
+    var det = (formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + ' · ' + (m.descripcion || m.tipo || '')).trim();
+    if (!confirm('¿Eliminar este movimiento del extracto Galicia?\n\n' + det + '\n\nNo se puede deshacer. Si lo necesitás, volvé a cargar el Excel del banco.')) return;
+    try {
+      var rpc = await client().rpc('cb_borrar_movimiento_banco_galicia', { p_id: id });
+      if (rpc.error) throw rpc.error;
+      state.msg = 'Movimiento del extracto Galicia eliminado.';
+      await recargarTodo();
+    } catch (e) {
+      alert(errMsg(e));
+    }
+  }
+
   function textoBajaTesoreria(m) {
     return 'Id: ' + idTesoreriaVisible(m) +
       '\nFecha: ' + formatFecha(m.fecha) +
@@ -2154,6 +2170,9 @@
           btnIcon('ver-mov', m.id, 'Ver detalle del movimiento', ICO.eye) +
           (esSis && can(PERM_CARGAR)
             ? btnIcon('del-mov', m.id, 'Eliminar movimiento de tesorería', ICO.trash, 'cb-btn-danger')
+            : '') +
+          (!esSis && state.canal === CANAL_GAL && can(PERM_CARGAR)
+            ? btnIcon('del-mov-banco', m.id, 'Eliminar movimiento del extracto Galicia', ICO.trash, 'cb-btn-danger')
             : '') +
         '</td>' +
       '</tr>';
@@ -3157,6 +3176,7 @@
     if (a === 'ver-mov') { abrirDetalleMov(id); return; }
     if (a === 'ver-par-anulado') { abrirDetalleParAnulado(id); return; }
     if (a === 'del-mov') { borrarMovimientoSistema(id); return; }
+    if (a === 'del-mov-banco') { borrarMovimientoBancoGalicia(id); return; }
     if (a === 'baja-ok') { confirmarBajaTesoreria(id); return; }
     if (a === 'baja-all') { confirmarBajasTesoreriaVisibles(); return; }
     if (a === 'ok') { setEstado(id, 'confirmado'); return; }
