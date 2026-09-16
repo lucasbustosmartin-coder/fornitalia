@@ -1,0 +1,29 @@
+---
+description: Antes de editar, verificar que main local esté al día con el último publicado (GitHub/Vercel)
+alwaysApply: true
+---
+
+# Main local alineado con lo publicado (no omitir)
+
+**Antes de implementar, corregir o desplegar**, comprobar que el `main` local sea el **último publicado**. No trabajar sobre una versión vieja (pasó con v2.27 vs v2.28 en producción).
+
+## Qué es “último publicado”
+
+- **GitHub:** `origin/main` (`https://github.com/lucasbustosmartin-coder/fornitalia.git`).
+- **Producción:** [fornitalia.vercel.app](https://fornitalia.vercel.app) se despliega desde `main`.
+- **Versión de app:** `APP_VERSION` en `dashboard-flujo-caja.html` (sidebar). Tiene que coincidir con `origin/main` y con lo desplegado.
+
+## Checklist (cada sesión / cada tarea de código)
+
+1. `git fetch origin`
+2. `git status -sb` y `git rev-list --left-right --count HEAD...origin/main`
+3. Si **local está behind** `origin/main`: **no editar todavía**. Traer el remoto (`git pull --ff-only origin main` si el working tree lo permite; si hay cambios locales, stash o resguardar, pull, reaplicar encima de esa base).
+4. Si **local está ahead** o hay commits no pusheados: no asumir que producción es el working tree.
+5. Confirmar `APP_VERSION` local = el de `origin/main` (salvo que esta misma tarea lo esté incrementando para un despliegue).
+
+## Prohibido
+
+- Implementar un fix o feature sobre un `main` desactualizado y luego mezclar a ciegas.
+- Tratar el working tree sucio como “la versión en Vercel”.
+
+Si el pull no es fast-forward o hay conflicto con trabajo en curso, parar, alinear con `origin/main` y reaplicar el cambio **sobre esa versión**.

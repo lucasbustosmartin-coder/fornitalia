@@ -10,6 +10,8 @@ RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
+SET statement_timeout = '60s'
+SET lock_timeout = '30s'
 AS $$
 DECLARE
   n integer := 0;

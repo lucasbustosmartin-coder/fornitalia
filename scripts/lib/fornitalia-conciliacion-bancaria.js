@@ -1161,11 +1161,12 @@
     ]);
   }
 
+  var CB_RPC_CHUNK = 250;
+
   async function guardarFilas(origen, filas) {
-    var chunk = 250;
     var total = 0;
-    for (var i = 0; i < filas.length; i += chunk) {
-      var parte = filas.slice(i, i + chunk);
+    for (var i = 0; i < filas.length; i += CB_RPC_CHUNK) {
+      var parte = filas.slice(i, i + CB_RPC_CHUNK);
       var rpc = await client().rpc('cb_guardar_movimientos', {
         p_canal: state.canal,
         p_origen: origen,
@@ -1180,12 +1181,17 @@
   async function adoptarIdTesoreria(canal, filas) {
     var parte = (filas || []).filter(function (f) { return origenIdEsTesoreriaConId(f.origen_id); });
     if (!parte.length) return 0;
-    var rpc = await client().rpc('cb_adoptar_id_tesoreria', {
-      p_canal: canal,
-      p_filas: parte
-    });
-    if (rpc.error) throw rpc.error;
-    return Number(rpc.data || 0);
+    var total = 0;
+    var i;
+    for (i = 0; i < parte.length; i += CB_RPC_CHUNK) {
+      var rpc = await client().rpc('cb_adoptar_id_tesoreria', {
+        p_canal: canal,
+        p_filas: parte.slice(i, i + CB_RPC_CHUNK)
+      });
+      if (rpc.error) throw rpc.error;
+      total += Number(rpc.data || 0);
+    }
+    return total;
   }
 
   async function marcarTesoreriaAbiertaAusente(canal, filas) {
@@ -1202,12 +1208,17 @@
   async function retirarTesoreriaDuplicadaCierre(canal, filas) {
     var ids = (filas || []).map(function (f) { return f.origen_id; }).filter(origenIdEsTesoreriaConId);
     if (!ids.length) return 0;
-    var rpc = await client().rpc('cb_retirar_tesoreria_duplicada_por_cierre', {
-      p_canal: canal,
-      p_origen_ids: ids
-    });
-    if (rpc.error) throw rpc.error;
-    return Number(rpc.data || 0);
+    var total = 0;
+    var i;
+    for (i = 0; i < ids.length; i += CB_RPC_CHUNK) {
+      var rpc = await client().rpc('cb_retirar_tesoreria_duplicada_por_cierre', {
+        p_canal: canal,
+        p_origen_ids: ids.slice(i, i + CB_RPC_CHUNK)
+      });
+      if (rpc.error) throw rpc.error;
+      total += Number(rpc.data || 0);
+    }
+    return total;
   }
 
   async function regenerarSugerencias() {

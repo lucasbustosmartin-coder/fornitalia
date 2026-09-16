@@ -36,34 +36,36 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE
-  v_ids uuid[];
 BEGIN
-  IF NEW.estado IS NULL OR NEW.estado NOT IN ('sugerido', 'confirmado') THEN
-    RETURN NEW;
-  END IF;
-  v_ids := public.cb_match_ids_lado(NEW, 'banco') || public.cb_match_ids_lado(NEW, 'sistema');
+  -- Un movimiento no puede estar en dos conciliaciones activas.
+  -- Statement-level: un scan al final del INSERT/UPDATE (evita timeout al recálcular sugerencias).
   IF EXISTS (
     SELECT 1
-    FROM public.cb_match m
-    WHERE m.id <> NEW.id
-      AND m.estado IN ('sugerido', 'confirmado')
-      AND (
-        public.cb_match_ids_lado(m, 'banco') && v_ids
-        OR public.cb_match_ids_lado(m, 'sistema') && v_ids
-      )
+    FROM (
+      SELECT m.id, x AS mov_id
+      FROM public.cb_match m
+      CROSS JOIN LATERAL unnest(
+        ARRAY[m.banco_id, m.sistema_id]
+        || COALESCE(m.banco_ids, ARRAY[]::uuid[])
+        || COALESCE(m.sistema_ids, ARRAY[]::uuid[])
+      ) AS x
+      WHERE m.estado IN ('sugerido', 'confirmado')
+        AND x IS NOT NULL
+    ) s
+    GROUP BY s.mov_id
+    HAVING count(DISTINCT s.id) > 1
   ) THEN
     RAISE EXCEPTION 'Uno de los movimientos ya está en otra conciliación activa.';
   END IF;
-  RETURN NEW;
+  RETURN NULL;
 END;
 $$;
 
 DROP TRIGGER IF EXISTS trg_cb_match_sin_solapamiento ON public.cb_match;
 CREATE TRIGGER trg_cb_match_sin_solapamiento
-  AFTER INSERT OR UPDATE OF estado, banco_id, sistema_id, banco_ids, sistema_ids
+  AFTER INSERT OR UPDATE
   ON public.cb_match
-  FOR EACH ROW
+  FOR EACH STATEMENT
   EXECUTE FUNCTION public.cb_match_sin_solapamiento();
 
 CREATE OR REPLACE FUNCTION public.cb_confirmar_manual_grupo(

@@ -47,10 +47,13 @@ Salida: `Bitacora_tareas.xlsx`.
 
 ---
 
+**Alinear con lo publicado (no omitir):** antes de editar código o de este flujo, `git fetch origin` y verificar que `main` local no esté detrás de `origin/main` (regla **sync-main-publicado**). Si está behind, traer el remoto y reaplicar encima; no implementar sobre una versión vieja.
+
 # Flujo cuando el usuario indique desplegar (versionado y despliegue)
 
 Cuando el usuario diga que desplegar (ej. "desplegar", "listo desplegar", "OK desplegar"), aplicar **siempre** los siguientes pasos en este orden:
 
+0. **Verificar main = último publicado** (`git fetch origin`; local no behind `origin/main`). Ver regla **sync-main-publicado**.
 1. **Incrementar versión en el dashboard**  
    En `dashboard-flujo-caja.html`, actualizar la constante `APP_VERSION` (buscar `const APP_VERSION = 'X.Y'`) al **siguiente número de versión** (ej. 1.9 → 1.10). Esa versión se muestra abajo en el sidebar.
 

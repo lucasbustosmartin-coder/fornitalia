@@ -9,6 +9,8 @@ RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
+SET statement_timeout = '60s'
+SET lock_timeout = '30s'
 AS $$
 DECLARE
   n integer := 0;
@@ -24,25 +26,22 @@ BEGIN
     RAISE EXCEPTION 'Canal inválido.';
   END IF;
 
-  SELECT coalesce(array_agg(s.id), ARRAY[]::uuid[])
+  SELECT coalesce(array_agg(DISTINCT s.id), ARRAY[]::uuid[])
   INTO ids
   FROM public.cb_movimiento s
+  INNER JOIN public.cb_movimiento c
+    ON c.canal = s.canal
+   AND c.origen = 'sistema'
+   AND c.origen_id = ANY (COALESCE(p_origen_ids, ARRAY[]::text[]))
+   AND (c.origen_id LIKE 'id|%' OR c.origen_id LIKE 'cierre|%')
+   AND c.fecha = s.fecha
+   AND c.monto = s.monto
+   AND COALESCE(c.descripcion, '') = COALESCE(s.descripcion, '')
+   AND COALESCE(c.contraparte, '') = COALESCE(s.contraparte, '')
   WHERE s.canal = p_canal
     AND s.origen = 'sistema'
     AND s.origen_id NOT LIKE 'id|%'
-    AND s.origen_id NOT LIKE 'cierre|%'
-    AND EXISTS (
-      SELECT 1
-      FROM public.cb_movimiento c
-      WHERE c.canal = p_canal
-        AND c.origen = 'sistema'
-        AND c.origen_id = ANY (COALESCE(p_origen_ids, ARRAY[]::text[]))
-        AND (c.origen_id LIKE 'id|%' OR c.origen_id LIKE 'cierre|%')
-        AND c.fecha = s.fecha
-        AND c.monto = s.monto
-        AND COALESCE(c.descripcion, '') = COALESCE(s.descripcion, '')
-        AND COALESCE(c.contraparte, '') = COALESCE(s.contraparte, '')
-    );
+    AND s.origen_id NOT LIKE 'cierre|%';
 
   IF ids IS NULL OR coalesce(array_length(ids, 1), 0) = 0 THEN
     RETURN 0;
