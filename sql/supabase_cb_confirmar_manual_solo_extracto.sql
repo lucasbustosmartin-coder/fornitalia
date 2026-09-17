@@ -1,76 +1,12 @@
--- Conciliación manual N:M: varios extractos vs una o más tesorerías,
--- o dos o más extractos entre sí (crédito/débito sin tesorería).
--- Requiere sql/supabase_conciliacion_bancaria.sql y sql/supabase_conciliacion_bancaria_manual.sql.
+-- Conciliación manual: dos o más movimientos del mismo extracto, sin tesorería.
+-- Caso típico: el cliente transfiere por error y la empresa lo devuelve;
+-- crédito y débito quedan solo en el extracto.
 
 ALTER TABLE public.cb_match
-  ADD COLUMN IF NOT EXISTS banco_ids uuid[],
-  ADD COLUMN IF NOT EXISTS sistema_ids uuid[],
   ALTER COLUMN sistema_id DROP NOT NULL;
 
-COMMENT ON COLUMN public.cb_match.banco_ids IS
-  'Todos los movimientos de extracto del grupo (manual N:M). Si es null, vale solo banco_id.';
-COMMENT ON COLUMN public.cb_match.sistema_ids IS
-  'Todos los movimientos de tesorería del grupo (manual N:M). Si es null, vale solo sistema_id.';
 COMMENT ON COLUMN public.cb_match.sistema_id IS
   'Movimiento de tesorería (o NULL si la conciliación es solo entre extractos).';
-
-DROP INDEX IF EXISTS public.idx_cb_match_banco_activo;
-DROP INDEX IF EXISTS public.idx_cb_match_sistema_activo;
-
-CREATE OR REPLACE FUNCTION public.cb_match_ids_lado(p_match public.cb_match, p_lado text)
-RETURNS uuid[]
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT CASE
-    WHEN p_lado = 'banco' THEN
-      ARRAY(SELECT DISTINCT x FROM unnest(
-        ARRAY[p_match.banco_id] || COALESCE(p_match.banco_ids, ARRAY[]::uuid[])
-      ) AS x WHERE x IS NOT NULL)
-    ELSE
-      ARRAY(SELECT DISTINCT x FROM unnest(
-        ARRAY[p_match.sistema_id] || COALESCE(p_match.sistema_ids, ARRAY[]::uuid[])
-      ) AS x WHERE x IS NOT NULL)
-  END;
-$$;
-
-CREATE OR REPLACE FUNCTION public.cb_match_sin_solapamiento()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  -- Un movimiento no puede estar en dos conciliaciones activas.
-  -- Statement-level: un scan al final del INSERT/UPDATE (evita timeout al recálcular sugerencias).
-  IF EXISTS (
-    SELECT 1
-    FROM (
-      SELECT m.id, x AS mov_id
-      FROM public.cb_match m
-      CROSS JOIN LATERAL unnest(
-        ARRAY[m.banco_id, m.sistema_id]
-        || COALESCE(m.banco_ids, ARRAY[]::uuid[])
-        || COALESCE(m.sistema_ids, ARRAY[]::uuid[])
-      ) AS x
-      WHERE m.estado IN ('sugerido', 'confirmado')
-        AND x IS NOT NULL
-    ) s
-    GROUP BY s.mov_id
-    HAVING count(DISTINCT s.id) > 1
-  ) THEN
-    RAISE EXCEPTION 'Uno de los movimientos ya está en otra conciliación activa.';
-  END IF;
-  RETURN NULL;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_cb_match_sin_solapamiento ON public.cb_match;
-CREATE TRIGGER trg_cb_match_sin_solapamiento
-  AFTER INSERT OR UPDATE
-  ON public.cb_match
-  FOR EACH STATEMENT
-  EXECUTE FUNCTION public.cb_match_sin_solapamiento();
 
 CREATE OR REPLACE FUNCTION public.cb_confirmar_manual_grupo(
   p_canal text,
@@ -143,7 +79,7 @@ BEGIN
     RAISE EXCEPTION 'Algún movimiento del extracto no existe o no es de este canal.';
   END IF;
 
-  IF COALESCE(cardinality(v_sist), 0) > 0 THEN
+  IF v_n_s > 0 THEN
     SELECT count(*) INTO v_n_s
     FROM public.cb_movimiento
     WHERE id = ANY(v_sist) AND canal = p_canal AND origen = 'sistema';
@@ -158,8 +94,8 @@ BEGIN
       AND (
         public.cb_match_ids_lado(m, 'banco') && v_bancos
         OR public.cb_match_ids_lado(m, 'sistema') && v_bancos
-        OR (COALESCE(cardinality(v_sist), 0) > 0 AND public.cb_match_ids_lado(m, 'banco') && v_sist)
-        OR (COALESCE(cardinality(v_sist), 0) > 0 AND public.cb_match_ids_lado(m, 'sistema') && v_sist)
+        OR (v_n_s > 0 AND public.cb_match_ids_lado(m, 'banco') && v_sist)
+        OR (v_n_s > 0 AND public.cb_match_ids_lado(m, 'sistema') && v_sist)
       )
   ) THEN
     RAISE EXCEPTION 'Uno de los movimientos ya está conciliado. Deshacé esa conciliación primero.';
@@ -198,31 +134,5 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.cb_confirmar_manual(
-  p_canal text,
-  p_banco_id uuid,
-  p_sistema_id uuid,
-  p_justificacion text
-)
-RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  RETURN public.cb_confirmar_manual_grupo(
-    p_canal,
-    ARRAY[p_banco_id],
-    ARRAY[p_sistema_id],
-    p_justificacion
-  );
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.cb_confirmar_manual_grupo(text, uuid[], uuid[], text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.cb_confirmar_manual(text, uuid, uuid, text) TO authenticated;
-REVOKE EXECUTE ON FUNCTION public.cb_confirmar_manual_grupo(text, uuid[], uuid[], text) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.cb_confirmar_manual(text, uuid, uuid, text) FROM PUBLIC;
-
 COMMENT ON FUNCTION public.cb_confirmar_manual_grupo(text, uuid[], uuid[], text) IS
-  'Confirma conciliación manual N:M: extractos vs tesorerías, o dos o más extractos entre sí (crédito/débito sin contrapartida en tesorería). Justificación obligatoria. Diferencia = suma extracto − suma tesorería.';
+  'Confirma conciliación manual N:M: extractos vs tesorerías, o dos o más extractos entre sí (crédito/débito sin contrapartida en tesorería). Justificación obligatoria. Diferencia = suma extracto − suma tesorería (0 si no hay tesorería).';

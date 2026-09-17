@@ -1695,9 +1695,13 @@
     var blob = bs.concat(ss).map(blobMov).join(' ') + ' ' + criterioLabel(match.criterio) + ' ' + (match.justificacion || '');
     if (!pasaFiltro(blob)) return false;
     if (state.mesExtracto && !bs.some(function (b) { return pasaFiltroMesValor(b && b.fecha, state.mesExtracto); })) return false;
-    if (state.mesSistema && !ss.some(function (s) { return pasaFiltroMesValor(s && s.fecha, state.mesSistema); })) return false;
-    if (state.categoria && !ss.some(function (s) { return pasaFiltroCategoriaValor(s, state.categoria); })) return false;
-    if (state.cuenta && !ss.some(function (s) { return pasaFiltroCuentaValor(s, state.cuenta); })) return false;
+    if (ss.length) {
+      if (state.mesSistema && !ss.some(function (s) { return pasaFiltroMesValor(s && s.fecha, state.mesSistema); })) return false;
+      if (state.categoria && !ss.some(function (s) { return pasaFiltroCategoriaValor(s, state.categoria); })) return false;
+      if (state.cuenta && !ss.some(function (s) { return pasaFiltroCuentaValor(s, state.cuenta); })) return false;
+    } else if (state.categoria || state.cuenta) {
+      return false;
+    }
     return true;
   }
 
@@ -1877,6 +1881,10 @@
     return idsMatchLado(m, 'banco').length > 1 || idsMatchLado(m, 'sistema').length > 1;
   }
 
+  function esMatchSoloExtracto(m) {
+    return idsMatchLado(m, 'banco').length >= 2 && idsMatchLado(m, 'sistema').length === 0;
+  }
+
   function diffMatch(m, b, s) {
     if (m && m.diferencia != null && m.diferencia !== '') {
       var d = Number(m.diferencia);
@@ -1885,6 +1893,7 @@
     if (m) {
       var sb = sumaMontos(movsMatchLado(m, 'banco'));
       var ss = sumaMontos(movsMatchLado(m, 'sistema'));
+      if (ss == null && idsMatchLado(m, 'sistema').length === 0) ss = 0;
       if (sb != null && ss != null) return Math.round((sb - ss) * 100) / 100;
     }
     var nb = Number(b && b.monto);
@@ -2072,7 +2081,9 @@
     var ss = movsMatchLado(m, 'sistema');
     var d = diffMatch(m);
     var extra = '';
-    if (esGrupoMatch(m)) {
+    if (esMatchSoloExtracto(m)) {
+      extra += ' <span class="cb-badge cb-badge-manual">solo extracto</span>';
+    } else if (esGrupoMatch(m)) {
       extra += ' <span class="cb-badge cb-badge-manual">' + bs.length + '×' + ss.length + '</span>';
     }
     if (!exacto && d != null && Math.round(Math.abs(d) * 100) > 0) {
@@ -2130,7 +2141,7 @@
         '<td>' + esc(labelGrupo(bs, true)) + '</td>' +
         '<td class="cb-col-monto">' + htmlMonto(sumaMontos(bs)) + '</td>' +
         '<td>' + formatFecha(fechaGrupo(ss)) + '</td>' +
-        '<td>' + esc(labelGrupo(ss, false)) + '</td>' +
+        '<td>' + esc(esMatchSoloExtracto(m) ? 'Sin tesorería' : labelGrupo(ss, false)) + '</td>' +
         '<td>' + esc(labelCampoGrupo(ss, 'categoria')) + '</td>' +
         '<td>' + esc(labelCampoGrupo(ss, 'cuenta_contable')) + '</td>' +
         '<td class="cb-col-monto">' + htmlMonto(sumaMontos(ss)) + '</td>' +
@@ -2356,9 +2367,13 @@
     }
     var d = diffMatch(m);
     var meta = '<p class="cb-field-hint">' + esc(criterioLabel(m.criterio)) + (m.score != null ? ' · score ' + m.score : '') +
-      (esGrupoMatch(m) ? ' · grupo ' + bs.length + ' extractos × ' + ss.length + ' tesorería' : '') + '</p>';
+      (esMatchSoloExtracto(m)
+        ? ' · ' + bs.length + ' movimientos del extracto (sin tesorería)'
+        : (esGrupoMatch(m) ? ' · grupo ' + bs.length + ' extractos × ' + ss.length + ' tesorería' : '')) + '</p>';
     if (d != null) {
-      meta += '<p class="cb-field-hint">Diferencia (suma extracto − suma tesorería): <strong>' + esc(formatMonto(d)) + '</strong></p>';
+      meta += '<p class="cb-field-hint">' + (esMatchSoloExtracto(m)
+        ? 'Suma neta del extracto: <strong>' + esc(formatMonto(d)) + '</strong>'
+        : 'Diferencia (suma extracto − suma tesorería): <strong>' + esc(formatMonto(d)) + '</strong>') + '</p>';
     }
     if (m.justificacion) {
       meta += '<p class="cb-field-hint">Justificación: ' + esc(m.justificacion) + '</p>';
@@ -2370,13 +2385,22 @@
     var bloquesB = bs.length ? bs.map(function (x, i) {
       return htmlDetalleMov(x, bs.length > 1 ? titB + ' (' + (i + 1) + '/' + bs.length + ')' : titB);
     }).join('') : htmlDetalleMov(null, titB);
-    var bloquesS = ss.length ? ss.map(function (x, i) {
-      return htmlDetalleMov(x, ss.length > 1 ? 'Tesorería (sistema) (' + (i + 1) + '/' + ss.length + ')' : 'Tesorería (sistema)');
-    }).join('') : htmlDetalleMov(null, 'Tesorería (sistema)');
+    var bloquesS = '';
+    if (esMatchSoloExtracto(m) || !ss.length) {
+      if (esMatchSoloExtracto(m)) {
+        bloquesS = '<div class="cb-detalle-bloque"><h3>Tesorería (sistema)</h3><p>Sin contrapartida en tesorería: el crédito y el débito se compensan en el extracto.</p></div>';
+      } else {
+        bloquesS = htmlDetalleMov(null, 'Tesorería (sistema)');
+      }
+    } else {
+      bloquesS = ss.map(function (x, i) {
+        return htmlDetalleMov(x, ss.length > 1 ? 'Tesorería (sistema) (' + (i + 1) + '/' + ss.length + ')' : 'Tesorería (sistema)');
+      }).join('');
+    }
     abrirModal(
       'Detalle de conciliación',
       meta +
-      '<div class="cb-detalle' + (bs.length + ss.length > 2 ? ' cb-detalle-grupo' : '') + '">' + bloquesB + bloquesS + '</div>',
+      '<div class="cb-detalle' + (bs.length > 1 || ss.length > 1 ? ' cb-detalle-grupo' : '') + '">' + bloquesB + bloquesS + '</div>',
       footer
     );
   }
@@ -2690,13 +2714,21 @@
     var sist = idsSelManual('sistema').map(findMov).filter(Boolean);
     var sumB = sumaMontos(banks);
     var sumS = sumaMontos(sist);
-    var d = (banks.length && sist.length && sumB != null && sumS != null)
-      ? Math.round((sumB - sumS) * 100) / 100
-      : null;
+    var soloExtracto = banks.length >= 2 && !sist.length;
+    var d = null;
+    if (soloExtracto && sumB != null) d = sumB;
+    else if (banks.length && sist.length && sumB != null && sumS != null) d = Math.round((sumB - sumS) * 100) / 100;
     var absD = d != null ? Math.abs(d) : 0;
     var warn = absD > 1;
     var diffHtml = '';
-    if (banks.length && sist.length) {
+    if (soloExtracto) {
+      diffHtml = '<div class="cb-diff-box' + (warn ? ' warn' : '') + '">' +
+        '<strong>Solo extracto (' + banks.length + '):</strong> suma neta ' + esc(formatMonto(sumB)) +
+        (warn
+          ? '<br>La suma neta no cierra en cero. Queda registrada junto con la justificación (p. ej. comisión o diferencia de centavos).'
+          : '<br>Crédito y débito del extracto se compensan; no hay contrapartida en tesorería.') +
+      '</div>';
+    } else if (banks.length && sist.length) {
       diffHtml = '<div class="cb-diff-box' + (warn ? ' warn' : '') + '">' +
         '<strong>Extracto (' + banks.length + '):</strong> ' + esc(formatMonto(sumB)) +
         ' &nbsp;·&nbsp; <strong>Tesorería (' + sist.length + '):</strong> ' + esc(formatMonto(sumS)) +
@@ -2706,13 +2738,13 @@
           : '<br>Aunque el importe coincida (o difiera hasta $1), el grupo queda como conciliación manual.') +
       '</div>';
     } else {
-      diffHtml = '<div class="cb-diff-box">Elegí uno o más movimientos del extracto y uno o más de tesorería (clic para sumar o quitar). Si alguno está en Sugeridos, esa sugerencia se reemplaza al confirmar.</div>';
+      diffHtml = '<div class="cb-diff-box">Elegí uno o más movimientos del extracto y uno o más de tesorería, o <strong>dos o más del extracto</strong> si el crédito y el débito se compensan entre sí (transferencia por error y devolución, sin tesorería). Clic para sumar o quitar. Si alguno está en Sugeridos, esa sugerencia se reemplaza al confirmar.</div>';
     }
     var nB = movLibreManual('banco').length;
     var nS = movLibreManual('sistema').length;
     var selB = banks.length;
     var selS = sist.length;
-    return '<p class="cb-field-hint">Podés conciliar varios extractos con una o más tesorerías. La diferencia es la suma del extracto menos la suma de tesorería. La justificación, los importes y quién confirmó quedan guardados. Los filtros (mes extracto/sistema, categoría y cuenta) son los mismos de la vista; si ya los tenías aplicados, arrancan acá. El buscar por lado sigue amplio.</p>' +
+    return '<p class="cb-field-hint">Podés conciliar varios extractos con una o más tesorerías, o cruzar dos movimientos del mismo extracto cuando no hay contrapartida en el sistema (crédito recibido por error y débito de la devolución). La diferencia es la suma del extracto menos la suma de tesorería (o la suma neta si no hay tesorería). La justificación, los importes y quién confirmó quedan guardados. Los filtros (mes extracto/sistema, categoría y cuenta) son los mismos de la vista; si ya los tenías aplicados, arrancan acá. El buscar por lado sigue amplio.</p>' +
       htmlFiltrosManual() +
       '<div class="cb-manual-cols">' +
         '<div class="cb-manual-col">' +
@@ -2732,7 +2764,7 @@
       '</div>' +
       diffHtml +
       '<label class="cb-just-label" for="cb-manual-just">Justificación de la diferencia / del cruce</label>' +
-      '<textarea id="cb-manual-just" class="cb-just-area" maxlength="800" placeholder="Ej.: comisión MP no reflejada en tesorería; mismo pago con distinto importe por redondeo; compensación de dos operaciones.">' + esc(state.manual.justif) + '</textarea>';
+      '<textarea id="cb-manual-just" class="cb-just-area" maxlength="800" placeholder="Ej.: transferencia recibida por error y devolución; no está en tesorería. Comisión MP no reflejada; mismo pago con distinto importe por redondeo.">' + esc(state.manual.justif) + '</textarea>';
   }
 
   function bindManualInputs() {
@@ -2815,8 +2847,12 @@
     var bancoIds = idsSelManual('banco');
     var sistemaIds = idsSelManual('sistema');
     var just = (state.manual.justif || '').trim();
-    if (!bancoIds.length || !sistemaIds.length) {
-      alert('Elegí al menos un movimiento del extracto y uno de tesorería.');
+    if (!bancoIds.length) {
+      alert('Elegí al menos un movimiento del extracto.');
+      return;
+    }
+    if (!sistemaIds.length && bancoIds.length < 2) {
+      alert('Sin tesorería, elegí al menos dos movimientos del extracto (crédito y débito). O elegí también tesorería.');
       return;
     }
     if (just.length < 8) {
@@ -2833,7 +2869,9 @@
       if (rpc.error) throw rpc.error;
       cerrarModal();
       state.lista = 'confirmados';
-      state.msg = 'Conciliación manual confirmada. La justificación y la diferencia quedaron registradas.';
+      state.msg = sistemaIds.length
+        ? 'Conciliación manual confirmada. La justificación y la diferencia quedaron registradas.'
+        : 'Conciliación manual confirmada: crédito y débito del extracto, sin tesorería.';
       await recargarTodo();
     } catch (e) {
       alert(errMsg(e));
@@ -2960,12 +2998,12 @@
           textoGrupo(bs, true),
           excelNum(sumaMontos(bs)),
           excelDate(fechaGrupo(ss)),
-          textoGrupo(ss, false),
+          esMatchSoloExtracto(m) ? 'Sin tesorería' : textoGrupo(ss, false),
           textoCampoGrupo(ss, 'categoria'),
           textoCampoGrupo(ss, 'cuenta_contable'),
           excelNum(sumaMontos(ss)),
           excelNum(diffMatch(m)),
-          criterioLabel(m.criterio) + (esGrupoMatch(m) ? ' (' + bs.length + '×' + ss.length + ')' : ''),
+          criterioLabel(m.criterio) + (esMatchSoloExtracto(m) ? ' (solo extracto)' : (esGrupoMatch(m) ? ' (' + bs.length + '×' + ss.length + ')' : '')),
           m.justificacion || '',
           m.estado || '',
           idsOrigenGrupo(bs),
@@ -3070,14 +3108,14 @@
   function labelsCanal() {
     if (state.canal === CANAL_GAL) {
       return {
-        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia (tesoreria_transferencia_galicia_…: Tipo, Fecha, Crédito, Débito e Id) o el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa A eliminar para confirmar la baja. La columna Caja, si viene, define el canal. Apertura de Caja y filas Pendiente no se suben. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto; primero fecha cercana y después lejana. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia (tesoreria_transferencia_galicia_…: Tipo, Fecha, Crédito, Débito e Id) o el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa A eliminar para confirmar la baja. La columna Caja, si viene, define el canal. Apertura de Caja y filas Pendiente no se suben. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto; primero fecha cercana y después lejana. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1), o dos o más movimientos del mismo extracto si el crédito y el débito se compensan y no hay tesorería (transferencia por error y devolución). El Excel exporta el listado visible con los filtros activos.',
         btnBanco: 'Cargar extracto Galicia',
         btnSistema: 'Cargar tesorería Galicia',
         kpiBanco: 'Extracto Galicia'
       };
     }
     return {
-      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (tesoreria_mercadopago_…: Tipo, Fecha, Crédito, Débito e Id) o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-… o MP_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa A eliminar para confirmar la baja. Apertura de Caja y filas Pendiente no se suben. Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto; primero fecha cercana y después lejana. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1). El Excel exporta el listado visible con los filtros activos.',
+      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (tesoreria_mercadopago_…: Tipo, Fecha, Crédito, Débito e Id) o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-… o MP_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa A eliminar para confirmar la baja. Apertura de Caja y filas Pendiente no se suben. Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto; primero fecha cercana y después lejana. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1), o dos o más movimientos del mismo extracto si el crédito y el débito se compensan y no hay tesorería (transferencia por error y devolución). El Excel exporta el listado visible con los filtros activos.',
       btnBanco: 'Cargar extracto Mercado Pago',
       btnSistema: 'Cargar tesorería Mercado Pago',
       kpiBanco: 'Extracto MP'
