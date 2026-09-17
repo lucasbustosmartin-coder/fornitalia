@@ -33,8 +33,13 @@
     check: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
     x: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
     clock: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    paperclip: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>',
+    eye: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
     warn: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
   };
+
+  var GP_BUCKET = 'gp-archivos';
+  var GP_ARCH_MAX = 20 * 1024 * 1024;
 
   var EST_PROY = [
     { v: 'planificado', l: 'Planificado' },
@@ -62,6 +67,9 @@
     horas: [],
     horasEnt: [],
     horasProy: [],
+    archivosProy: [],
+    archivosEnt: [],
+    archivosTar: [],
     dependencias: [],
     catalogos: { usuarios: [], perfiles: [] },
     soloEntregables: false,
@@ -653,6 +661,232 @@
     if (rpc.error) throw rpc.error;
   }
 
+  function archivosFilasProyecto(pid) {
+    return (state.archivosProy || []).filter(function (a) { return a.proyecto_id === pid; });
+  }
+  function archivosFilasEntregable(eid) {
+    return (state.archivosEnt || []).filter(function (a) { return a.entregable_id === eid; });
+  }
+  function archivosFilasTarea(tid) {
+    return (state.archivosTar || []).filter(function (a) { return a.tarea_id === tid; });
+  }
+
+  function safeArchName(name) {
+    var base = String(name || 'archivo').replace(/\\/g, '/').split('/').pop() || 'archivo';
+    return base.replace(/[^\w.\-]+/g, '_').replace(/_+/g, '_').slice(0, 80) || 'archivo';
+  }
+
+  function uuidArch() {
+    if (global.crypto && typeof global.crypto.randomUUID === 'function') return global.crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
+  function htmlFilaArchivo(row) {
+    row = row || {};
+    var id = row.id || '';
+    var path = row.storage_path || '';
+    var nom = row.nombre_archivo || '';
+    var archivoCell = id
+      ? '<span class="gp-arch-nombre" title="' + esc(nom) + '">' + esc(nom) + '</span>' +
+        '<button type="button" class="gp-btn gp-btn-ghost gp-btn-icon-only" data-gp="ver-archivo" data-path="' + esc(path) + '" title="Ver archivo" aria-label="Ver archivo"><span class="btn-icon">' + ICO.eye + '</span></button>' +
+        '<input type="hidden" class="gp-arch-id" value="' + esc(id) + '">' +
+        '<input type="hidden" class="gp-arch-path" value="' + esc(path) + '">' +
+        '<input type="hidden" class="gp-arch-nombre-orig" value="' + esc(nom) + '">'
+      : '<input type="file" class="gp-arch-file">';
+    return '<tr class="gp-arch-row">' +
+      '<td><input type="date" class="gp-arch-fecha" value="' + esc(row.fecha || fechaHoyYmd()) + '"></td>' +
+      '<td><input type="text" class="gp-arch-desc" maxlength="500" placeholder="Qué es este archivo" value="' + esc(row.descripcion || '') + '"></td>' +
+      '<td class="gp-arch-file-cell">' + archivoCell + '</td>' +
+      '<td><button type="button" class="gp-btn gp-btn-ghost gp-btn-icon-only" data-gp="del-arch-row" title="Quitar archivo" aria-label="Quitar archivo"><span class="btn-icon">' + ICO.x + '</span></button></td>' +
+    '</tr>';
+  }
+
+  function htmlTablaArchivos(filas) {
+    var list = filas && filas.length ? filas : [{}];
+    return '<div class="form-group full">' +
+      '<label>Archivos adjuntos</label>' +
+      '<p class="gp-field-hint">Fecha (calendario Argentina), descripción y archivo. Máximo 20 MB. Se guardan en Storage de Supabase y se abren con enlace temporario.</p>' +
+      '<div class="gp-horas-form-wrap"><table class="gp-horas-form gp-archivos-form">' +
+        '<thead><tr><th>Fecha</th><th>Descripción</th><th>Archivo adjunto</th><th></th></tr></thead>' +
+        '<tbody>' + list.map(htmlFilaArchivo).join('') + '</tbody>' +
+      '</table></div>' +
+      '<button type="button" class="gp-btn gp-btn-ghost" data-gp="add-arch-row"><span class="btn-icon">' + ICO.plus + '</span>Agregar archivo</button>' +
+    '</div>';
+  }
+
+  function bindArchivosForm(form) {
+    form.addEventListener('click', function (ev) {
+      var add = ev.target.closest && ev.target.closest('[data-gp="add-arch-row"]');
+      if (add && form.contains(add)) {
+        ev.preventDefault();
+        var tbody = form.querySelector('.gp-archivos-form tbody');
+        if (tbody) tbody.insertAdjacentHTML('beforeend', htmlFilaArchivo({}));
+        return;
+      }
+      var ver = ev.target.closest && ev.target.closest('[data-gp="ver-archivo"]');
+      if (ver && form.contains(ver)) {
+        ev.preventDefault();
+        abrirArchivoStorage(ver.getAttribute('data-path'));
+        return;
+      }
+      var del = ev.target.closest && ev.target.closest('[data-gp="del-arch-row"]');
+      if (del && form.contains(del)) {
+        ev.preventDefault();
+        var tr = del.closest('tr');
+        var body = form.querySelector('.gp-archivos-form tbody');
+        if (!tr || !body) return;
+        if (body.querySelectorAll('tr').length <= 1) {
+          body.insertAdjacentHTML('beforeend', htmlFilaArchivo({}));
+        }
+        body.removeChild(tr);
+      }
+    });
+  }
+
+  async function abrirArchivoStorage(path) {
+    if (!path) {
+      alert('No hay archivo para abrir.');
+      return;
+    }
+    try {
+      var res = await client().storage.from(GP_BUCKET).createSignedUrl(path, 120);
+      if (res.error) throw res.error;
+      if (!res.data || !res.data.signedUrl) throw new Error('No se pudo generar el enlace.');
+      window.open(res.data.signedUrl, '_blank', 'noopener');
+    } catch (e) {
+      alert('No se pudo abrir el archivo: ' + errMsg(e));
+    }
+  }
+
+  async function borrarStoragePaths(paths) {
+    var list = (paths || []).filter(Boolean);
+    if (!list.length) return;
+    var res = await client().storage.from(GP_BUCKET).remove(list);
+    if (res.error) throw res.error;
+  }
+
+  async function subirArchivoStorage(nivel, parentId, file) {
+    if (!file) throw new Error('Falta el archivo.');
+    if (file.size > GP_ARCH_MAX) throw new Error('El archivo «' + file.name + '» supera 20 MB.');
+    var path = nivel + '/' + parentId + '/' + uuidArch() + '_' + safeArchName(file.name);
+    var up = await client().storage.from(GP_BUCKET).upload(path, file, {
+      cacheControl: '3600',
+      upsert: false
+    });
+    if (up.error) throw up.error;
+    return path;
+  }
+
+  async function guardarArchivos(cfg, parentId, form) {
+    var rows = form.querySelectorAll('.gp-arch-row');
+    var actuales = cfg.listar(parentId);
+    var keep = {};
+    var i;
+    for (i = 0; i < rows.length; i++) {
+      var tr = rows[i];
+      var idEl = tr.querySelector('.gp-arch-id');
+      var fechaEl = tr.querySelector('.gp-arch-fecha');
+      var descEl = tr.querySelector('.gp-arch-desc');
+      var fileEl = tr.querySelector('.gp-arch-file');
+      var id = idEl ? String(idEl.value || '').trim() : '';
+      var fecha = fechaEl ? fechaEl.value : '';
+      var desc = descEl ? String(descEl.value || '').trim() : '';
+      var file = fileEl && fileEl.files && fileEl.files[0] ? fileEl.files[0] : null;
+      if (!id && !file && !desc) continue;
+      if (!fecha) throw new Error('Cada archivo necesita una fecha.');
+      if (!id && !file) throw new Error('La fila del ' + formatFecha(fecha) + ' no tiene archivo adjunto.');
+      if (id) {
+        keep[id] = true;
+        var up = await client().from(cfg.tabla).update({
+          fecha: fecha,
+          descripcion: desc || null
+        }).eq('id', id);
+        if (up.error) throw up.error;
+      } else {
+        var path = await subirArchivoStorage(cfg.nivel, parentId, file);
+        var payload = {
+          fecha: fecha,
+          descripcion: desc || null,
+          nombre_archivo: file.name,
+          storage_path: path,
+          mime_type: file.type || null,
+          size_bytes: file.size
+        };
+        payload[cfg.fk] = parentId;
+        var ins = await client().from(cfg.tabla).insert(payload);
+        if (ins.error) {
+          try { await borrarStoragePaths([path]); } catch (eDel) { /* ignore */ }
+          throw ins.error;
+        }
+      }
+    }
+    var aBorrar = [];
+    actuales.forEach(function (a) {
+      if (!keep[a.id]) aBorrar.push(a);
+    });
+    for (i = 0; i < aBorrar.length; i++) {
+      var del = await client().from(cfg.tabla).delete().eq('id', aBorrar[i].id);
+      if (del.error) throw del.error;
+      try { await borrarStoragePaths([aBorrar[i].storage_path]); } catch (eSt) { /* ignore */ }
+    }
+  }
+
+  var CFG_ARCH_PROY = { tabla: 'gp_proyecto_archivo', fk: 'proyecto_id', nivel: 'proyecto', listar: archivosFilasProyecto };
+  var CFG_ARCH_ENT = { tabla: 'gp_entregable_archivo', fk: 'entregable_id', nivel: 'entregable', listar: archivosFilasEntregable };
+  var CFG_ARCH_TAR = { tabla: 'gp_tarea_archivo', fk: 'tarea_id', nivel: 'tarea', listar: archivosFilasTarea };
+
+  function listaArchivosProyecto() {
+    var p = proyectoSel();
+    var out = [];
+    if (!p) return out;
+    archivosFilasProyecto(p.id).forEach(function (a) {
+      out.push({ fecha: a.fecha, nivel: 'Proyecto', entregable: '—', tarea: '—', descripcion: a.descripcion, nombre: a.nombre_archivo, path: a.storage_path });
+    });
+    (state.entregables || []).forEach(function (e) {
+      archivosFilasEntregable(e.id).forEach(function (a) {
+        out.push({ fecha: a.fecha, nivel: 'Entregable', entregable: e.nombre, tarea: '—', descripcion: a.descripcion, nombre: a.nombre_archivo, path: a.storage_path });
+      });
+      tareasDe(e.id).forEach(function (t) {
+        archivosFilasTarea(t.id).forEach(function (a) {
+          out.push({ fecha: a.fecha, nivel: 'Tarea', entregable: e.nombre, tarea: t.nombre, descripcion: a.descripcion, nombre: a.nombre_archivo, path: a.storage_path });
+        });
+      });
+    });
+    out.sort(function (a, b) {
+      if (a.fecha === b.fecha) return (a.nombre || '').localeCompare(b.nombre || '');
+      return String(a.fecha) < String(b.fecha) ? 1 : -1;
+    });
+    return out;
+  }
+
+  function renderArchivos() {
+    var p = proyectoSel();
+    if (!p) return '<p class="gp-empty">Elegí un proyecto para ver los archivos.</p>';
+    var list = listaArchivosProyecto();
+    if (!list.length) {
+      return '<p class="gp-empty">No hay archivos. Adjuntá fecha + descripción + archivo en el proyecto, el entregable o cada tarea.</p>';
+    }
+    var rows = list.map(function (a) {
+      return '<tr>' +
+        '<td>' + formatFecha(a.fecha) + '</td>' +
+        '<td>' + esc(a.nivel) + '</td>' +
+        '<td>' + esc(a.entregable) + '</td>' +
+        '<td>' + esc(a.tarea) + '</td>' +
+        '<td class="gp-hora-obs-cell">' + esc(a.descripcion || '—') + '</td>' +
+        '<td class="gp-arch-file-cell"><span class="gp-arch-nombre" title="' + esc(a.nombre) + '">' + esc(a.nombre) + '</span>' +
+          '<button type="button" class="gp-btn gp-btn-ghost gp-btn-icon-only" data-gp="ver-archivo" data-path="' + esc(a.path) + '" title="Ver archivo" aria-label="Ver archivo"><span class="btn-icon">' + ICO.eye + '</span></button></td>' +
+      '</tr>';
+    }).join('');
+    return '<p class="gp-field-hint" style="margin:0 0 0.65rem">Archivos del proyecto, los entregables y las tareas. La fecha es día de negocio Argentina.</p>' +
+      '<div class="gp-tabla-wrap"><table class="gp-tabla gp-tabla-horas">' +
+        '<thead><tr><th>Fecha</th><th>Nivel</th><th>Entregable</th><th>Tarea</th><th>Descripción</th><th>Archivo</th></tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table></div>';
+  }
+
   function horasPropiasProyecto(p) {
     p = p || proyectoSel();
     if (!p || p.estado === 'cancelado') return 0;
@@ -1106,11 +1340,17 @@
       state.horas = [];
       state.horasEnt = [];
       state.horasProy = [];
+      state.archivosProy = [];
+      state.archivosEnt = [];
+      state.archivosTar = [];
       return;
     }
     var hpRes = await client().from('gp_proyecto_hora').select('*').eq('proyecto_id', state.selectedId).order('fecha');
     if (hpRes.error) throw hpRes.error;
     state.horasProy = hpRes.data || [];
+    var apRes = await client().from('gp_proyecto_archivo').select('*').eq('proyecto_id', state.selectedId).order('fecha');
+    if (apRes.error) throw apRes.error;
+    state.archivosProy = apRes.data || [];
     var eRes = await client().from('gp_entregable').select('*').eq('proyecto_id', state.selectedId).order('orden').order('fecha_inicio');
     if (eRes.error) throw eRes.error;
     state.entregables = eRes.data || [];
@@ -1120,6 +1360,8 @@
       state.dependencias = [];
       state.horas = [];
       state.horasEnt = [];
+      state.archivosEnt = [];
+      state.archivosTar = [];
       return;
     }
     var tRes = await client().from('gp_tarea').select('*').in('entregable_id', ids).order('orden').order('fecha_inicio');
@@ -1131,14 +1373,21 @@
     var heRes = await client().from('gp_entregable_hora').select('*').in('entregable_id', ids).order('fecha');
     if (heRes.error) throw heRes.error;
     state.horasEnt = heRes.data || [];
+    var aeRes = await client().from('gp_entregable_archivo').select('*').in('entregable_id', ids).order('fecha');
+    if (aeRes.error) throw aeRes.error;
+    state.archivosEnt = aeRes.data || [];
     var tIds = state.tareas.map(function (t) { return t.id; });
     if (!tIds.length) {
       state.horas = [];
+      state.archivosTar = [];
       return;
     }
     var hRes = await client().from('gp_tarea_hora').select('*').in('tarea_id', tIds).order('fecha');
     if (hRes.error) throw hRes.error;
     state.horas = hRes.data || [];
+    var atRes = await client().from('gp_tarea_archivo').select('*').in('tarea_id', tIds).order('fecha');
+    if (atRes.error) throw atRes.error;
+    state.archivosTar = atRes.data || [];
   }
 
   async function recargarTodo() {
@@ -1342,6 +1591,7 @@
       '<div class="form-group"><label>Estado</label><select name="estado">' + optionsEstado(EST_PROY, est) + '</select></div>' +
       '<div class="form-group"><label>Avance % (sin entregables, o para las horas propias del proyecto)</label><input type="number" name="progreso_pct" min="0" max="100" step="1" value="' + esc(row && row.progreso_pct != null ? row.progreso_pct : 0) + '"></div>' +
       htmlTablaHoras(filasInit, 'Horas reales propias del proyecto (no atribuidas a un entregable o tarea). El total del proyecto es estas más las de los entregables y las tareas.') +
+      htmlTablaArchivos(row ? archivosFilasProyecto(row.id) : []) +
       (totalHint ? '<div class="form-group full">' + totalHint + '</div>' : ''),
       async function (form) {
         var p = payloadResponsable(form);
@@ -1379,9 +1629,10 @@
           localStorage.setItem(LS_PROY, state.selectedId);
         }
         await guardarHorasProyecto(proyIdGuardada, leidas.filas);
+        await guardarArchivos(CFG_ARCH_PROY, proyIdGuardada, form);
         return null;
       },
-      function (form) { bindHorasForm(form); }
+      function (form) { bindHorasForm(form); bindArchivosForm(form); }
     );
   }
 
@@ -1403,6 +1654,7 @@
       '<div class="form-group"><label>Estado</label><select name="estado">' + optionsEstado(EST_ITEM, est) + '</select></div>' +
       '<div class="form-group"><label>Avance % (si no hay tareas)</label><input type="number" name="progreso_pct" min="0" max="100" step="1" value="' + esc(row && row.progreso_pct != null ? row.progreso_pct : 0) + '"></div>' +
       htmlTablaHoras(filasInit, 'Horas reales propias del entregable (también si no hay tareas). El total del entregable es estas más las de las tareas.') +
+      htmlTablaArchivos(row ? archivosFilasEntregable(row.id) : []) +
       (totalHint ? '<div class="form-group full">' + totalHint + '</div>' : ''),
       async function (form) {
         var p = payloadResponsable(form);
@@ -1446,9 +1698,10 @@
           entIdGuardada = ins.data.id;
         }
         await guardarHorasEntregable(entIdGuardada, leidas.filas);
+        await guardarArchivos(CFG_ARCH_ENT, entIdGuardada, form);
         return null;
       },
-      function (form) { bindHorasForm(form); }
+      function (form) { bindHorasForm(form); bindArchivosForm(form); }
     );
   }
 
@@ -1464,7 +1717,8 @@
       camposResponsable(row) +
       '<div class="form-group"><label>Estado</label><select name="estado">' + optionsEstado(EST_ITEM, est) + '</select></div>' +
       '<div class="form-group"><label>Avance %</label><input type="number" name="progreso_pct" min="0" max="100" step="1" value="' + esc(row && row.progreso_pct != null ? row.progreso_pct : 0) + '"></div>' +
-      htmlTablaHoras(filasInit, 'Horas reales de esta tarea. El total del entregable es estas más las horas propias del entregable.'),
+      htmlTablaHoras(filasInit, 'Horas reales de esta tarea. El total del entregable es estas más las horas propias del entregable.') +
+      htmlTablaArchivos(row ? archivosFilasTarea(row.id) : []),
       async function (form) {
         var p = payloadResponsable(form);
         var v = validarResponsable(p);
@@ -1505,9 +1759,10 @@
           tareaIdGuardada = ins.data.id;
         }
         await guardarHorasTarea(tareaIdGuardada, leidas.filas);
+        await guardarArchivos(CFG_ARCH_TAR, tareaIdGuardada, form);
         return null;
       },
-      function (form) { bindHorasForm(form); }
+      function (form) { bindHorasForm(form); bindArchivosForm(form); }
     );
   }
 
@@ -1539,6 +1794,18 @@
 
   async function eliminar(tabla, id, msg) {
     if (!confirm(msg)) return;
+    var paths = [];
+    if (tabla === 'gp_proyecto') {
+      paths = listaArchivosProyecto().map(function (a) { return a.path; });
+    } else if (tabla === 'gp_entregable') {
+      paths = archivosFilasEntregable(id).map(function (a) { return a.storage_path; });
+      tareasDe(id).forEach(function (t) {
+        archivosFilasTarea(t.id).forEach(function (a) { paths.push(a.storage_path); });
+      });
+    } else if (tabla === 'gp_tarea') {
+      paths = archivosFilasTarea(id).map(function (a) { return a.storage_path; });
+    }
+    try { await borrarStoragePaths(paths); } catch (eSt) { /* se borra igual el registro */ }
     var res = await client().from(tabla).delete().eq('id', id);
     if (res.error) {
       alert('No se pudo eliminar: ' + errMsg(res.error));
@@ -2039,7 +2306,7 @@
           'Gestión de Proyectos' +
         '</h1>' +
       '</div>' +
-      '<p style="color:#666;margin:0 0 1rem;font-size:0.92rem">Planes de trabajo: proyecto → entregables → tareas y dependencias. Las horas consumidas se cargan por fecha en el proyecto, el entregable y/o las tareas (el total del proyecto es la suma). Si una tarea o las horas superan el deadline, aparece una alerta para ajustar fechas.</p>' +
+      '<p style="color:#666;margin:0 0 1rem;font-size:0.92rem">Planes de trabajo: proyecto → entregables → tareas y dependencias. Las horas consumidas y los archivos se cargan por fecha en el proyecto, el entregable y/o las tareas. Si una tarea o las horas superan el deadline, aparece una alerta para ajustar fechas.</p>' +
       (state.loading ? '<p class="loading">Cargando planes…</p>' : '') +
       renderCardsProyecto() +
       '<div class="gp-toolbar">' +
@@ -2062,10 +2329,12 @@
         '<button type="button" class="' + (state.tab === 'plan' ? 'activo' : '') + '" data-gp="tab" data-tab="plan"><span class="tab-icon">' + ICO.list + '</span>To-Do / Plan</button>' +
         '<button type="button" class="' + (state.tab === 'gantt' ? 'activo' : '') + '" data-gp="tab" data-tab="gantt"><span class="tab-icon">' + ICO.gantt + '</span>Gantt</button>' +
         '<button type="button" class="' + (state.tab === 'horas' ? 'activo' : '') + '" data-gp="tab" data-tab="horas"><span class="tab-icon">' + ICO.clock + '</span>Horas cons.</button>' +
+        '<button type="button" class="' + (state.tab === 'archivos' ? 'activo' : '') + '" data-gp="tab" data-tab="archivos"><span class="tab-icon">' + ICO.paperclip + '</span>Archivos</button>' +
       '</div>' : '') +
       '<div class="gp-panel' + (state.tab === 'plan' ? ' activo' : '') + '" id="gp-panel-plan">' + (p ? renderPlanTabla() : '') + '</div>' +
       '<div class="gp-panel' + (state.tab === 'gantt' ? ' activo' : '') + '" id="gp-panel-gantt">' + (p ? renderGantt() : '') + '</div>' +
-      '<div class="gp-panel' + (state.tab === 'horas' ? ' activo' : '') + '" id="gp-panel-horas">' + (p ? renderHorasConciliacion() : '') + '</div>';
+      '<div class="gp-panel' + (state.tab === 'horas' ? ' activo' : '') + '" id="gp-panel-horas">' + (p ? renderHorasConciliacion() : '') + '</div>' +
+      '<div class="gp-panel' + (state.tab === 'archivos' ? ' activo' : '') + '" id="gp-panel-archivos">' + (p ? renderArchivos() : '') + '</div>';
   }
 
   function findById(arr, id) {
@@ -2080,6 +2349,7 @@
     var id = t.getAttribute('data-id');
     if (a === 'cerrar-modal') { cerrarModal(); return; }
     if (a === 'tab') { state.tab = t.getAttribute('data-tab') || 'plan'; renderShell(); return; }
+    if (a === 'ver-archivo') { abrirArchivoStorage(t.getAttribute('data-path')); return; }
     if (a === 'sel-proy') {
       state.selectedId = id;
       localStorage.setItem(LS_PROY, id);
@@ -2192,6 +2462,21 @@
     return rows;
   }
 
+  function filasArchivosExcel() {
+    var rows = [['Fecha', 'Nivel', 'Entregable', 'Tarea', 'Descripción', 'Nombre archivo']];
+    listaArchivosProyecto().forEach(function (a) {
+      rows.push([
+        excelDate(a.fecha),
+        a.nivel,
+        a.entregable === '—' ? '' : a.entregable,
+        a.tarea === '—' ? '' : a.tarea,
+        a.descripcion || '',
+        a.nombre || ''
+      ]);
+    });
+    return rows;
+  }
+
   function exportarExcel() {
     if (!global.XLSX) {
       alert('No está disponible la librería Excel.');
@@ -2244,11 +2529,18 @@
       { wch: 12 }, { wch: 28 }, { wch: 28 }, { wch: 14 }, { wch: 16 }, { wch: 36 }, { wch: 18 }
     ];
 
+    var wsArch = XLSX.utils.aoa_to_sheet(filasArchivosExcel());
+    estilarHojaTabla(wsArch, 0, { tipoCol: 1, nombreCol: 2, wrapCols: [2, 3, 4, 5], dateCols: [0] });
+    wsArch['!cols'] = [
+      { wch: 12 }, { wch: 12 }, { wch: 28 }, { wch: 28 }, { wch: 36 }, { wch: 32 }
+    ];
+
     var wsGantt = hojaGanttExcel(p, k);
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
     XLSX.utils.book_append_sheet(wb, wsPlan, 'Plan');
     XLSX.utils.book_append_sheet(wb, wsHoras, 'Horas cons.');
+    XLSX.utils.book_append_sheet(wb, wsArch, 'Archivos');
     XLSX.utils.book_append_sheet(wb, wsGantt, 'Gantt');
     var safe = (p.nombre || 'plan').replace(/[^\w\-]+/g, '_').slice(0, 40);
     XLSX.writeFile(wb, 'Plan_Trabajo_' + safe + '_' + fechaHoyYmd() + '.xlsx', { cellStyles: true, cellDates: false });

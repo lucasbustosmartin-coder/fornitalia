@@ -389,6 +389,43 @@
   font-size: 16px;
 }
 
+.gp-archivos-form th:nth-child(2),
+.gp-archivos-form td:nth-child(2) {
+  min-width: 12rem;
+}
+
+.gp-archivos-form th:nth-child(3),
+.gp-archivos-form td:nth-child(3) {
+  min-width: 12rem;
+}
+
+.gp-arch-file-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 12rem;
+}
+
+.gp-arch-nombre {
+  display: inline-block;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.gp-archivos-form input[type="file"] {
+  width: 100%;
+  min-height: 44px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .gp-arch-nombre { max-width: 8rem; }
+}
+
 .gp-field-hint {
   margin: 0.3rem 0 0;
   font-size: 0.8rem;
