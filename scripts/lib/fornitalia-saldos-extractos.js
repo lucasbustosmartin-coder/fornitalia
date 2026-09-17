@@ -1,6 +1,7 @@
 /**
  * Saldos de extractos – Fornitalia
- * Galicia (resumen PDF) y Mercado Pago (Carta de saldo MP_Saldos_…).
+ * Galicia (resumen PDF), Mercado Pago (Carta de saldo MP_Saldos_…)
+ * y cajas físicas Galicia-f (ARS) / Morba-s/f (ARS).
  * window.FornitaliaSaldosExtractos.init({ client, hasPerm, getRoot })
  */
 (function (global) {
@@ -9,6 +10,10 @@
   var ZONA_AR = 'America/Argentina/Buenos_Aires';
   var CANAL_GAL = 'galicia';
   var CANAL_MP = 'mercadopago';
+  var CANAL_GF = 'galicia_facturada';
+  var LABEL_GF = 'Galicia-f (ARS)';
+  var CANAL_MOR = 'morba_sf';
+  var LABEL_MOR = 'Morba-s/f (ARS)';
   var CANAL_CONS = 'consolidado';
   var PERM_VER = 'ver_saldos_extractos';
   var PERM_CARGAR = 'cargar_saldos_extractos';
@@ -409,18 +414,26 @@
     return meses.map(function (ym) {
       var g = ultimoSaldoHasta(CANAL_GAL, ym);
       var m = ultimoSaldoHasta(CANAL_MP, ym);
+      var gfRow = ultimoSaldoHasta(CANAL_GF, ym);
+      var morRow = ultimoSaldoHasta(CANAL_MOR, ym);
       var gal = g && mesYYYYMM(g.fecha_hasta) <= ym ? Number(g.saldo_final) : null;
       var mp = m && mesYYYYMM(m.fecha_hasta) <= ym ? Number(m.saldo_final) : null;
+      var gf = gfRow && mesYYYYMM(gfRow.fecha_hasta) <= ym ? Number(gfRow.saldo_final) : null;
+      var mor = morRow && mesYYYYMM(morRow.fecha_hasta) <= ym ? Number(morRow.saldo_final) : null;
       if (gal != null && !isFinite(gal)) gal = null;
       if (mp != null && !isFinite(mp)) mp = null;
-      var total = round2((gal || 0) + (mp || 0));
-      if (gal == null && mp == null) total = null;
+      if (gf != null && !isFinite(gf)) gf = null;
+      if (mor != null && !isFinite(mor)) mor = null;
+      var total = round2((gal || 0) + (mp || 0) + (gf || 0) + (mor || 0));
+      if (gal == null && mp == null && gf == null && mor == null) total = null;
       var vari = (prevTotal != null && total != null) ? round2(total - prevTotal) : null;
       if (total != null) prevTotal = total;
       return {
         mes: ym,
         galicia: gal,
         mercadopago: mp,
+        galicia_facturada: gf,
+        morba_sf: mor,
         total: total,
         variacion: vari
       };
@@ -662,6 +675,26 @@
             tension: 0.15,
             pointRadius: 3,
             fill: false
+          },
+          {
+            label: LABEL_GF,
+            data: meses.map(function (x) { return x.galicia_facturada; }),
+            borderColor: '#b45309',
+            backgroundColor: 'transparent',
+            borderDash: [2, 3],
+            tension: 0.15,
+            pointRadius: 3,
+            fill: false
+          },
+          {
+            label: LABEL_MOR,
+            data: meses.map(function (x) { return x.morba_sf; }),
+            borderColor: '#7c3aed',
+            backgroundColor: 'transparent',
+            borderDash: [4, 3],
+            tension: 0.15,
+            pointRadius: 3,
+            fill: false
           }
         ]
       },
@@ -743,15 +776,17 @@
         return;
       }
       aoa = [['Saldos extractos — Posición consolidada']].concat(meta);
-      aoa.push(['Mes', 'Galicia', 'Mercado Pago', 'Total', 'Variación']);
+      aoa.push(['Mes', 'Galicia', 'Mercado Pago', LABEL_GF, LABEL_MOR, 'Total', 'Variación']);
       dateCols = [];
-      numCols = [1, 2, 3, 4];
-      cols = [{ wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }];
+      numCols = [1, 2, 3, 4, 5, 6];
+      cols = [{ wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 }];
       meses.forEach(function (x) {
         aoa.push([
           formatMesLabel(x.mes),
           excelNum(x.galicia),
           excelNum(x.mercadopago),
+          excelNum(x.galicia_facturada),
+          excelNum(x.morba_sf),
           excelNum(x.total),
           excelNum(x.variacion)
         ]);
@@ -783,7 +818,7 @@
       });
       sheetName = 'Saldos MP';
       fileName = 'Saldos_Extractos_MercadoPago.xlsx';
-    } else {
+    } else if (state.canal === CANAL_GAL) {
       var rowsG = conAnterior(filasCanal(CANAL_GAL));
       if (!rowsG.length) {
         alert('No hay saldos visibles con el período elegido.');
@@ -810,6 +845,54 @@
       });
       sheetName = 'Saldos Galicia';
       fileName = 'Saldos_Extractos_Galicia.xlsx';
+    } else if (state.canal === CANAL_GF) {
+      var rowsGf = conAnterior(filasCanal(CANAL_GF));
+      if (!rowsGf.length) {
+        alert('No hay saldos visibles con el período elegido.');
+        return;
+      }
+      aoa = [['Saldos extractos — ' + LABEL_GF]].concat(meta);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Archivo']);
+      dateCols = [0, 1, 2];
+      numCols = [3, 4, 5];
+      cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 40 }];
+      rowsGf.forEach(function (r) {
+        aoa.push([
+          excelDate(r.fecha_hasta),
+          excelDate(r.fecha_desde),
+          excelDate(r.fecha_hasta),
+          excelNum(saldoInicialMostrar(r)),
+          excelNum(r.saldo_final),
+          excelNum(variacionFila(r)),
+          r.archivo || ''
+        ]);
+      });
+      sheetName = LABEL_GF;
+      fileName = 'Saldos_Extractos_Galicia-f_ARS.xlsx';
+    } else if (state.canal === CANAL_MOR) {
+      var rowsMor = conAnterior(filasCanal(CANAL_MOR));
+      if (!rowsMor.length) {
+        alert('No hay saldos visibles con el período elegido.');
+        return;
+      }
+      aoa = [['Saldos extractos — ' + LABEL_MOR]].concat(meta);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Archivo']);
+      dateCols = [0, 1, 2];
+      numCols = [3, 4, 5];
+      cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 40 }];
+      rowsMor.forEach(function (r) {
+        aoa.push([
+          excelDate(r.fecha_hasta),
+          excelDate(r.fecha_desde),
+          excelDate(r.fecha_hasta),
+          excelNum(saldoInicialMostrar(r)),
+          excelNum(r.saldo_final),
+          excelNum(variacionFila(r)),
+          r.archivo || ''
+        ]);
+      });
+      sheetName = 'Morba-sf (ARS)';
+      fileName = 'Saldos_Extractos_Morba-sf_ARS.xlsx';
     }
 
     var ws = global.XLSX.utils.aoa_to_sheet(aoa);
@@ -910,9 +993,40 @@
       '</tr></thead><tbody>' + html + '</tbody></table></div>';
   }
 
+  function renderTablaCajaFisica(canal, label, hintCarga) {
+    var list = conAnterior(filasCanal(canal));
+    if (!list.length) {
+      return '<p class="se-empty">' + ((state.rows || []).some(function (r) { return r.canal === canal; })
+        ? 'No hay cortes de ' + esc(label) + ' en el período elegido.'
+        : 'Todavía no hay saldo de ' + esc(label) + '. Cargá ' + esc(hintCarga) + ' en el menú Cajas (físicas).') + '</p>';
+    }
+    var html = '';
+    list.forEach(function (r) {
+      html += '<tr>' +
+        '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
+        '<td>' + formatFecha(r.fecha_desde) + '</td>' +
+        '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
+        '<td class="se-col-monto">' + htmlMonto(saldoInicialMostrar(r)) + '</td>' +
+        '<td class="se-col-monto">' + htmlMonto(r.saldo_final) + '</td>' +
+        '<td class="se-col-monto">' + htmlMonto(variacionFila(r), 'var') + '</td>' +
+        '<td>' + esc(r.archivo || '—') + '</td>' +
+      '</tr>';
+    });
+    return '<div class="se-tabla-wrap"><table class="se-tabla">' +
+      '<thead><tr>' +
+        '<th>Cierre</th><th>Desde</th><th>Hasta</th>' +
+        '<th class="se-col-monto">Saldo inicial</th><th class="se-col-monto">Saldo final</th>' +
+        '<th class="se-col-monto">Variación</th><th>Archivo</th>' +
+      '</tr></thead><tbody>' + html + '</tbody></table></div>';
+  }
+
+  function renderTablaGf(rows) {
+    return renderTablaCajaFisica(CANAL_GF, LABEL_GF, 'tesoreria_efectivo_pesos_… o cierre_PES-…');
+  }
+
   function renderTablaConsolidado(meses) {
     if (!meses.length) {
-      return '<p class="se-empty">No hay saldos para consolidar. Cargá resúmenes de Galicia y/o cartas MP_Saldos_…</p>';
+      return '<p class="se-empty">No hay saldos para consolidar. Cargá Galicia, Mercado Pago y/o las cajas físicas (' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ').</p>';
     }
     var html = '';
     meses.slice().reverse().forEach(function (x) {
@@ -920,6 +1034,8 @@
         '<td>' + esc(formatMesLabel(x.mes)) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.galicia) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.mercadopago) + '</td>' +
+        '<td class="se-col-monto">' + htmlMonto(x.galicia_facturada) + '</td>' +
+        '<td class="se-col-monto">' + htmlMonto(x.morba_sf) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.total) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.variacion, 'var') + '</td>' +
       '</tr>';
@@ -929,6 +1045,8 @@
         '<th>Mes</th>' +
         '<th class="se-col-monto">Galicia</th>' +
         '<th class="se-col-monto">Mercado Pago</th>' +
+        '<th class="se-col-monto">' + esc(LABEL_GF) + '</th>' +
+        '<th class="se-col-monto">' + esc(LABEL_MOR) + '</th>' +
         '<th class="se-col-monto">Total</th>' +
         '<th class="se-col-monto">Variación</th>' +
       '</tr></thead><tbody>' + html + '</tbody></table></div>';
@@ -954,7 +1072,13 @@
     if (state.canal === CANAL_GAL) {
       return 'Resúmenes de <strong>Banco Galicia</strong> (PDF <em>Extracto_Cuentas_Galicia_…</em>): saldo inicial y de cierre del período. Elegí uno o varios; se leen de a uno y se guardan juntos, sin duplicar ni borrar lo anterior.';
     }
-    return 'Posición <strong>consolidada al mes</strong>: último saldo de Galicia más último saldo de Mercado Pago (si un canal no tiene corte ese mes, se arrastra el anterior). El promedio de saldo es cuánto dinero queda en promedio en las cuentas.';
+    if (state.canal === CANAL_GF) {
+      return 'Saldo de <strong>' + esc(LABEL_GF) + '</strong> (caja física / efectivo pesos). No se carga acá: se actualiza al importar <em>tesoreria_efectivo_pesos_…</em> o <em>cierre_PES-…</em> en el menú <strong>Cajas (físicas)</strong>.';
+    }
+    if (state.canal === CANAL_MOR) {
+      return 'Saldo de <strong>' + esc(LABEL_MOR) + '</strong> (caja física / Transferencia Morba). No se carga acá: se actualiza al importar <em>tesoreria_transferencia_morba_…</em> o <em>cierre_MOR-…</em> en el menú <strong>Cajas (físicas)</strong>.';
+    }
+    return 'Posición <strong>consolidada al mes</strong>: último saldo de Galicia, Mercado Pago, ' + esc(LABEL_GF) + ' y ' + esc(LABEL_MOR) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). El promedio de saldo es cuánto dinero queda en promedio.';
   }
 
   function renderShell() {
@@ -971,6 +1095,8 @@
     var hayChart = false;
     var rowsMp = filasCanal(CANAL_MP);
     var rowsGal = filasCanal(CANAL_GAL);
+    var rowsGf = filasCanal(CANAL_GF);
+    var rowsMor = filasCanal(CANAL_MOR);
     var meses = filasConsolidado();
 
     if (state.canal === CANAL_MP) {
@@ -981,6 +1107,14 @@
       kpisHtml = renderKpis(kpisCanal(rowsGal), 'Resúmenes');
       tabla = renderTablaGalicia(rowsGal);
       hayChart = !!rowsGal.length;
+    } else if (state.canal === CANAL_GF) {
+      kpisHtml = renderKpis(kpisCanal(rowsGf), 'Cortes');
+      tabla = renderTablaGf(rowsGf);
+      hayChart = !!rowsGf.length;
+    } else if (state.canal === CANAL_MOR) {
+      kpisHtml = renderKpis(kpisCanal(rowsMor), 'Cortes');
+      tabla = renderTablaCajaFisica(CANAL_MOR, LABEL_MOR, 'tesoreria_transferencia_morba_… o cierre_MOR-…');
+      hayChart = !!rowsMor.length;
     } else {
       kpisHtml = renderKpis(kpisConsolidado(meses), 'Meses');
       tabla = renderTablaConsolidado(meses);
@@ -1005,6 +1139,8 @@
       '<div class="se-tabs">' +
         '<button type="button" class="' + (state.canal === CANAL_MP ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_MP + '">Mercado Pago</button>' +
         '<button type="button" class="' + (state.canal === CANAL_GAL ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_GAL + '">Banco Galicia</button>' +
+        '<button type="button" class="' + (state.canal === CANAL_GF ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_GF + '">' + esc(LABEL_GF) + '</button>' +
+        '<button type="button" class="' + (state.canal === CANAL_MOR ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_MOR + '">' + esc(LABEL_MOR) + '</button>' +
         '<button type="button" class="' + (state.canal === CANAL_CONS ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_CONS + '">Consolidado</button>' +
       '</div>' +
       '<div class="se-toolbar">' +
@@ -1020,6 +1156,8 @@
 
     if (state.canal === CANAL_MP && hayChart) pintarChartCanal(rowsMp, 'Serie de saldos Mercado Pago (carta de saldo)', 'Saldo total (ARS)');
     else if (state.canal === CANAL_GAL && hayChart) pintarChartCanal(rowsGal, 'Serie de saldos Galicia (resumen de cuenta)', 'Saldo de cierre (ARS)');
+    else if (state.canal === CANAL_GF && hayChart) pintarChartCanal(rowsGf, 'Serie de saldos ' + LABEL_GF + ' (caja física)', 'Saldo de caja (ARS)');
+    else if (state.canal === CANAL_MOR && hayChart) pintarChartCanal(rowsMor, 'Serie de saldos ' + LABEL_MOR + ' (caja física)', 'Saldo de caja (ARS)');
     else if (state.canal === CANAL_CONS && hayChart) pintarChartConsolidado(meses);
 
     var dEl = el.querySelector('#se-mes-desde');
@@ -1072,5 +1210,5 @@
     recargar();
   }
 
-  global.FornitaliaSaldosExtractos = { init: init, show: show };
+  global.FornitaliaSaldosExtractos = { init: init, show: show, recargar: recargar };
 })(typeof window !== 'undefined' ? window : this);

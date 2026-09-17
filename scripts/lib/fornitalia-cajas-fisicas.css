@@ -1,0 +1,429 @@
+/* Cajas (físicas) – Fornitalia */
+
+.vista-cf { padding: 1.25rem 1.5rem 2rem; }
+
+.cf-header { margin: 0 0 0.35rem; }
+
+.cf-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin: 0 0 1rem;
+}
+
+.cf-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.cf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.25rem;
+  min-width: 44px;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-family: inherit;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+}
+
+.cf-btn .btn-icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.cf-btn .btn-icon svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: none;
+}
+
+.cf-btn-excel {
+  background: #0d7d3d;
+  border-color: #0d7d3d;
+  color: #fff;
+}
+
+.cf-btn-excel:hover { background: #0a5c2e; }
+
+.cf-btn-navy {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+
+.cf-btn-navy:hover { background: #1e293b; }
+
+.cf-btn-ghost {
+  background: #fff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.cf-btn-ghost:hover { background: #f1f5f9; }
+
+.cf-btn-danger {
+  background: #fff;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.cf-btn-danger:hover { background: #fef2f2; }
+
+.cf-btn-icon-only {
+  padding: 0.35rem;
+  width: 2.25rem;
+}
+
+.cf-field-hint {
+  color: #64748b;
+  font-size: 0.92rem;
+  margin: 0 0 1rem;
+  max-width: 62rem;
+  line-height: 1.45;
+}
+
+.cf-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 1rem;
+}
+
+.cf-tabs button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.cf-tabs button.activo {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #fff;
+}
+
+.cf-tabs button.cf-tab-warn {
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.cf-tabs button.cf-tab-warn.activo {
+  background: #b45309;
+  border-color: #b45309;
+  color: #fff;
+}
+
+.cf-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: flex-end;
+  margin: 0 0 0.75rem;
+}
+
+.cf-filtros .form-group { margin: 0; }
+
+.cf-filtros label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.2rem;
+}
+
+.cf-filtros input[type="search"] {
+  min-height: 44px;
+  min-width: 16rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.cf-resumen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.65rem;
+  margin: 0 0 1rem;
+}
+
+.cf-resumen-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+}
+
+.cf-resumen-card .lab {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cf-resumen-card .val {
+  margin: 0.2rem 0 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cf-resumen-warn { border-color: #f59e0b; background: #fffbeb; }
+
+.cf-tabla-wrap {
+  overflow: auto;
+  max-height: min(70vh, 640px);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.cf-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  min-width: 72rem;
+}
+
+.cf-tabla th,
+.cf-tabla td {
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+}
+
+.cf-tabla thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #1e293b;
+  color: #fff;
+  font-weight: 600;
+  text-align: left;
+  box-shadow: 0 1px 0 #0f172a;
+}
+
+.cf-tabla thead th.cf-th-sort {
+  padding: 0;
+}
+
+.cf-th-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.45rem 0.7rem;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.cf-th-sort-btn:hover,
+.cf-th-sort-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+.cf-th-sort.cf-col-monto .cf-th-sort-btn {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.cf-sort-ind {
+  opacity: 0.4;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.cf-th-sort-activo .cf-sort-ind { opacity: 1; }
+
+.cf-col-monto { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cf-col-acc { width: 3.2rem; text-align: center; }
+
+.cf-monto-pos { color: #0d7d3d; }
+.cf-monto-neg { color: #b91c1c; }
+
+.cf-empty { color: #64748b; margin: 1rem 0; }
+.cf-msg-ok { color: #0d7d3d; margin: 0 0 0.75rem; }
+.cf-msg-err { color: #b91c1c; margin: 0 0 0.75rem; }
+
+.cf-btn-ok {
+  background: #0d7d3d;
+  border-color: #0d7d3d;
+  color: #fff;
+}
+
+.cf-btn-ok:hover { background: #0a5c2e; }
+
+.cf-filtro-activo label { color: #9a3412; }
+.cf-filtro-activo input[type="search"],
+.cf-filtro-activo select {
+  background: #fff7ed;
+  border-color: #ea580c;
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2);
+  color: #9a3412;
+  font-weight: 600;
+}
+
+.cf-btn-filtros-on {
+  border-color: #ea580c;
+  color: #9a3412;
+  background: #fff7ed;
+}
+
+.cf-filtros-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  margin-left: 0.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: #ea580c;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.cf-filtros-flag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 0.7rem;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.cf-filtro-buscar input[type="search"] { min-width: 16rem; }
+
+.cf-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20050;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.cf-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: min(560px, 100%);
+  max-height: min(90vh, 640px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+
+.cf-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.cf-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.cf-modal .modal-body {
+  overflow: auto;
+  padding: 1rem 1.1rem;
+  max-height: min(70vh, 560px);
+  -webkit-overflow-scrolling: touch;
+}
+
+.cf-modal .modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  padding: 0.85rem 1.1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.cf-filtros-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem 0.75rem;
+}
+
+.cf-filtros-modal-grid .form-group { margin: 0; }
+
+.cf-filtros-modal-grid label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.25rem;
+}
+
+.cf-filtros-modal-grid select {
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: inherit;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .vista-cf { padding: 1rem 0.75rem 1.5rem; }
+  .cf-filtros input[type="search"] { min-width: 100%; max-width: 100%; width: 100%; }
+  .cf-filtros .form-group { width: 100%; }
+  .cf-filtros .cf-btn { min-height: 44px; }
+  .cf-tabla { min-width: 56rem; }
+  .cf-filtros-modal-grid { grid-template-columns: 1fr; }
+  .cf-modal .modal-footer .cf-btn { min-height: 44px; flex: 1 1 auto; }
+}
+
+@media (max-width: 480px) {
+  .cf-filtros { flex-direction: column; align-items: stretch; }
+  .cf-filtros-flag { width: 100%; justify-content: center; }
+}

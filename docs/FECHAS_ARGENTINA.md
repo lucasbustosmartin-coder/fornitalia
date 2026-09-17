@@ -15,7 +15,8 @@ En este proyecto las **fechas de negocio** (día contable, filtros, agrupación 
 - Patrón canónico: `public.fecha_hoy_argentina()` en `sql/helpers_fecha_argentina.sql`. Derivar día desde `timestamptz`: `(campo AT TIME ZONE 'America/Argentina/Buenos_Aires')::date`.
 - **Gestión de Proyectos** (`gp_proyecto`, `gp_entregable`, `gp_tarea`, `gp_tarea_hora`, `gp_entregable_hora`, `gp_proyecto_hora`): `fecha_inicio` / `fecha_fin` y `*.fecha` de horas consumidas con `DEFAULT public.fecha_hoy_argentina()`.
 - **Conciliación Bancaria** (`cb_movimiento.fecha`): día de negocio Argentina. El extracto de Mercado Pago trae timestamp UTC (`Fecha de Pago`); se convierte a calendario `America/Argentina/Buenos_Aires`. Tesorería usa la fecha del Excel (dd/mm/aaaa o serial de día).
-- **Saldos extractos** (`eb_saldo_extracto.fecha_desde` / `fecha_hasta`): período del resumen de cuenta (Galicia PDF) en calendario Argentina. Defaults `public.fecha_hoy_argentina()`. El gráfico y los filtros agrupan por mes de `fecha_hasta`.
+- **Saldos extractos** (`eb_saldo_extracto.fecha_desde` / `fecha_hasta`): período del resumen de cuenta (Galicia PDF), carta MP y cortes de cajas físicas Galicia-f (ARS) y Morba-s/f (ARS) en calendario Argentina. Defaults `public.fecha_hoy_argentina()`. El gráfico y los filtros agrupan por mes de `fecha_hasta`.
+- **Cajas (físicas)** (`cf_movimiento.fecha`): día de negocio Argentina desde el Excel de tesorería/cierre (dd/mm/aaaa, ISO o serial de día) de Galicia-f (ARS) o Morba-s/f (ARS). El corte de saldo que alimenta Saldos extractos usa min/max de esas fechas.
 
 ## Regla Cursor (no omitir)
 

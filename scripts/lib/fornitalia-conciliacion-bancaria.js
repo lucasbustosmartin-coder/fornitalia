@@ -464,6 +464,16 @@
     return '';
   }
 
+  function labelCajaFisicaNoConciliable(archivo, hoja, caja) {
+    var t = normHeader([archivo, hoja, caja].filter(Boolean).join(' '));
+    if (t.indexOf('efectivo pesos') >= 0 || t.indexOf('tesoreria_efectivo_pesos') >= 0) return 'Galicia-f (ARS)';
+    if (/\bcierre[_\s-]*pes\b/.test(t) || (t.indexOf('cierre') >= 0 && /\bpes-/.test(t))) return 'Galicia-f (ARS)';
+    if (t.indexOf('transferencia morba') >= 0 || t.indexOf('transferencia morva') >= 0) return 'Morba-s/f (ARS)';
+    if (t.indexOf('tesoreria_transferencia_morba') >= 0 || t.indexOf('tesoreria_transferencia_morva') >= 0) return 'Morba-s/f (ARS)';
+    if (/\bcierre[_\s-]*mor\b/.test(t) || (t.indexOf('cierre') >= 0 && /\bmor-/.test(t))) return 'Morba-s/f (ARS)';
+    return '';
+  }
+
   function esFilaPieTesoreria(fechaRaw, tipo) {
     var f = String(fechaRaw || '').trim().toLowerCase();
     var t = String(tipo || '').trim().toLowerCase();
@@ -695,6 +705,16 @@
           : 'No reconocí la tesorería de Mercado Pago. Esperaba Tipo, Fecha, Crédito, Débito e Id o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-…).',
         filas: []
       };
+    }
+    var cajaMuestra = '';
+    var rr;
+    for (rr = 1; rr < Math.min(rows.length, 12); rr++) {
+      cajaMuestra = String(cell(rows[rr] || [], map, ['Caja']) || '').trim();
+      if (cajaMuestra) break;
+    }
+    var cajaFisica = labelCajaFisicaNoConciliable(archivo, name, cajaMuestra);
+    if (cajaFisica) {
+      return { error: 'Ese archivo es de la caja física ' + cajaFisica + '. Cargalo en el menú Cajas (físicas).', filas: [] };
     }
     var counts = {};
     var idsVistos = {};
