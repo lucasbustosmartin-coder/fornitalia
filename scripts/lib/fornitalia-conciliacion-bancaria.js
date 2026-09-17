@@ -1816,6 +1816,29 @@
     return ok ? Math.round(t * 100) / 100 : null;
   }
 
+  function sumaMontosSigno(movs, positivos) {
+    var t = 0;
+    var ok = false;
+    (movs || []).forEach(function (x) {
+      var n = Number(x && x.monto);
+      if (!isFinite(n)) return;
+      if (positivos ? n > 0 : n < 0) {
+        t += n;
+        ok = true;
+      }
+    });
+    return ok ? Math.round(t * 100) / 100 : null;
+  }
+
+  function montoAbsGrupo(movs) {
+    var t = 0;
+    (movs || []).forEach(function (x) {
+      var n = Number(x && x.monto);
+      if (isFinite(n)) t += Math.abs(n);
+    });
+    return Math.round(t * 100) / 200;
+  }
+
   function fechaGrupo(movs) {
     var best = '';
     (movs || []).forEach(function (x) {
@@ -1952,9 +1975,20 @@
   }
 
   function htmlMonto(n) {
+    if (n == null || n === '') return '<span class="cb-col-monto">—</span>';
     var v = Number(n);
     var cls = v > 0 ? 'cb-monto-pos' : (v < 0 ? 'cb-monto-neg' : '');
     return '<span class="cb-col-monto ' + cls + '">' + esc(formatMonto(n)) + '</span>';
+  }
+
+  function htmlMontoSoloExtracto(movs) {
+    var cred = sumaMontosSigno(movs, true);
+    var deb = sumaMontosSigno(movs, false);
+    var parts = [];
+    if (cred != null) parts.push(htmlMonto(cred));
+    if (deb != null) parts.push(htmlMonto(deb));
+    if (!parts.length) return '—';
+    return '<span class="cb-monto-par">' + parts.join('<span class="cb-monto-sep"> / </span>') + '</span>';
   }
 
   function btnIcon(action, id, title, svg, extraCls) {
@@ -2020,7 +2054,9 @@
     var bs = movsMatchLado(m, 'banco');
     var ss = movsMatchLado(m, 'sistema');
     if (key === 'banco') return { v: labelGrupo(bs, true), t: 'txt' };
-    if (key === 'monto_banco') return { v: sumaMontos(bs), t: 'num' };
+    if (key === 'monto_banco') {
+      return { v: esMatchSoloExtracto(m) ? montoAbsGrupo(bs) : sumaMontos(bs), t: 'num' };
+    }
     if (key === 'fecha_sistema') return { v: fechaGrupo(ss), t: 'fecha' };
     if (key === 'sistema') return { v: labelGrupo(ss, false), t: 'txt' };
     if (key === 'categoria_sistema') return { v: labelCampoGrupo(ss, 'categoria'), t: 'txt' };
@@ -2139,7 +2175,7 @@
       html += '<tr>' +
         '<td>' + formatFecha(fechaGrupo(bs)) + '</td>' +
         '<td>' + esc(labelGrupo(bs, true)) + '</td>' +
-        '<td class="cb-col-monto">' + htmlMonto(sumaMontos(bs)) + '</td>' +
+        '<td class="cb-col-monto">' + (esMatchSoloExtracto(m) ? htmlMontoSoloExtracto(bs) : htmlMonto(sumaMontos(bs))) + '</td>' +
         '<td>' + formatFecha(fechaGrupo(ss)) + '</td>' +
         '<td>' + esc(esMatchSoloExtracto(m) ? 'Sin tesorería' : labelGrupo(ss, false)) + '</td>' +
         '<td>' + esc(labelCampoGrupo(ss, 'categoria')) + '</td>' +
@@ -2996,12 +3032,12 @@
         aoa.push([
           excelDate(fechaGrupo(bs)),
           textoGrupo(bs, true),
-          excelNum(sumaMontos(bs)),
+          excelNum(esMatchSoloExtracto(m) ? sumaMontosSigno(bs, true) : sumaMontos(bs)),
           excelDate(fechaGrupo(ss)),
           esMatchSoloExtracto(m) ? 'Sin tesorería' : textoGrupo(ss, false),
           textoCampoGrupo(ss, 'categoria'),
           textoCampoGrupo(ss, 'cuenta_contable'),
-          excelNum(sumaMontos(ss)),
+          excelNum(esMatchSoloExtracto(m) ? sumaMontosSigno(bs, false) : sumaMontos(ss)),
           excelNum(diffMatch(m)),
           criterioLabel(m.criterio) + (esMatchSoloExtracto(m) ? ' (solo extracto)' : (esGrupoMatch(m) ? ' (' + bs.length + '×' + ss.length + ')' : '')),
           m.justificacion || '',

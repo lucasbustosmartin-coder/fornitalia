@@ -286,6 +286,23 @@
   white-space: nowrap;
 }
 
+.cb-monto-par {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.1rem;
+  align-items: baseline;
+}
+
+.cb-monto-par .cb-col-monto {
+  display: inline;
+}
+
+.cb-monto-sep {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
 .cb-col-acc {
   white-space: nowrap;
   width: 1%;
