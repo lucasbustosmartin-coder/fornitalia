@@ -2262,8 +2262,8 @@
   function kpis() {
     var b = bancoRows().filter(function (x) { return pasaFiltrosMov(x, 'banco'); });
     var s = sistemaRows().filter(function (x) { return pasaFiltrosMov(x, 'sistema'); });
-    var sug = 0;
-    var conf = 0;
+    var sugList = [];
+    var confList = [];
     var usedB = {};
     var usedS = {};
     (state.matches || []).forEach(function (m) {
@@ -2273,25 +2273,44 @@
         idsMatchLado(m, 'sistema').forEach(function (id) { usedS[id] = true; });
       }
       if (!pasaFiltrosMatch(m)) return;
-      if (m.estado === 'sugerido') sug++;
-      if (m.estado === 'confirmado') conf++;
+      if (m.estado === 'sugerido') sugList.push(m);
+      if (m.estado === 'confirmado') confList.push(m);
     });
-    var soloB = b.filter(function (x) { return !usedB[x.id] && !esNoRequiereConciliacion(x); }).length;
-    var soloS = s.filter(function (x) { return !usedS[x.id]; }).length;
-    var anulados = 0;
+    var soloB = b.filter(function (x) { return !usedB[x.id] && !esNoRequiereConciliacion(x); });
+    var soloS = s.filter(function (x) { return !usedS[x.id]; });
+    var anulados = [];
     if (state.canal === CANAL_MP) {
       paresMpAutoanulados(bancoRowsTodos()).forEach(function (p) {
-        if (pasaFiltrosParAnulado(p)) anulados++;
+        if (pasaFiltrosParAnulado(p)) anulados.push(p);
       });
     }
-    var norequiere = 0;
+    var norequiere = [];
     if (state.canal === CANAL_MP) {
       bancoRowsNoRequiere().forEach(function (m) {
-        if (pasaFiltrosNoRequiere(m)) norequiere++;
+        if (pasaFiltrosNoRequiere(m)) norequiere.push(m);
       });
     }
-    var bajas = sistemaRowsBaja().filter(function (x) { return pasaFiltrosMov(x, 'sistema'); }).length;
-    return { banco: b.length, sistema: s.length, sugeridos: sug, confirmados: conf, soloB: soloB, soloS: soloS, anulados: anulados, norequiere: norequiere, bajas: bajas };
+    var bajas = sistemaRowsBaja().filter(function (x) { return pasaFiltrosMov(x, 'sistema'); });
+    return {
+      banco: b.length,
+      sistema: s.length,
+      sugeridos: sugList.length,
+      confirmados: confList.length,
+      soloB: soloB.length,
+      soloS: soloS.length,
+      anulados: anulados.length,
+      norequiere: norequiere.length,
+      bajas: bajas.length,
+      sumBanco: sumaOCero(b),
+      sumSistema: sumaOCero(s),
+      sumSug: sumaMontosMatch(sugList),
+      sumConf: sumaMontosMatch(confList),
+      sumSoloB: sumaOCero(soloB),
+      sumSoloS: sumaOCero(soloS),
+      sumAnul: sumaMontosParesAnulados(anulados),
+      sumNorequiere: sumaOCero(norequiere),
+      sumBajas: sumaOCero(bajas)
+    };
   }
 
   function idsUsadosActivos() {
@@ -2355,6 +2374,40 @@
       }
     });
     return ok ? Math.round(t * 100) / 100 : null;
+  }
+
+  function sumaOCero(movs) {
+    var s = sumaMontos(movs);
+    return s == null ? 0 : s;
+  }
+
+  function montoVisibleMatch(m) {
+    if (esMatchImpuestos(m)) return montoPercibidoImpuestos(m);
+    return sumaMontos(movsMatchLado(m, 'banco'));
+  }
+
+  function sumaMontosMatch(matches) {
+    var t = 0;
+    var ok = false;
+    (matches || []).forEach(function (m) {
+      var n = montoVisibleMatch(m);
+      if (n == null || !isFinite(n)) return;
+      t += n;
+      ok = true;
+    });
+    return ok ? Math.round(t * 100) / 100 : 0;
+  }
+
+  function sumaMontosParesAnulados(pares) {
+    var t = 0;
+    var ok = false;
+    (pares || []).forEach(function (p) {
+      var a = Number(p && p.a && p.a.monto);
+      var b = Number(p && p.b && p.b.monto);
+      if (isFinite(a)) { t += a; ok = true; }
+      if (isFinite(b)) { t += b; ok = true; }
+    });
+    return ok ? Math.round(t * 100) / 100 : 0;
   }
 
   function sumaMontosSigno(movs, positivos) {
@@ -2533,6 +2586,24 @@
     var v = Number(n);
     var cls = v > 0 ? 'cb-monto-pos' : (v < 0 ? 'cb-monto-neg' : '');
     return '<span class="cb-col-monto ' + cls + '">' + esc(formatMonto(n)) + '</span>';
+  }
+
+  function htmlKpiMonto(n) {
+    var v = n == null || n === '' ? 0 : Number(n);
+    if (!isFinite(v)) v = 0;
+    var cls = v > 0 ? 'cb-monto-pos' : (v < 0 ? 'cb-monto-neg' : '');
+    return '<p class="val-monto ' + cls + '" title="' + esc(formatMonto(v)) + '">' + esc(formatMonto(v)) + '</p>';
+  }
+
+  function htmlResumenCard(lab, n, sum, extraCls, dataLista, title) {
+    var attrs = '';
+    if (dataLista) attrs += ' data-cb="lista" data-lista="' + esc(dataLista) + '" role="button" tabindex="0"';
+    if (title) attrs += ' title="' + esc(title) + '"';
+    return '<div class="cb-resumen-card' + (extraCls ? ' ' + extraCls : '') + '"' + attrs + '>' +
+      '<p class="lab">' + esc(lab) + '</p>' +
+      '<p class="val">' + n + '</p>' +
+      htmlKpiMonto(sum) +
+    '</div>';
   }
 
   function htmlMontoSoloExtracto(movs) {
@@ -3884,17 +3955,17 @@
       (state.msg ? '<p class="cb-msg-ok">' + esc(state.msg) + '</p>' : '') +
       renderFiltros() +
       '<div class="cb-resumen">' +
-        '<div class="cb-resumen-card"><p class="lab">' + esc(lab.kpiBanco) + '</p><p class="val">' + k.banco + '</p></div>' +
-        '<div class="cb-resumen-card"><p class="lab">Tesorería</p><p class="val">' + k.sistema + '</p></div>' +
-        '<div class="cb-resumen-card"><p class="lab">Sugeridos</p><p class="val">' + k.sugeridos + '</p></div>' +
-        '<div class="cb-resumen-card"><p class="lab">Confirmados</p><p class="val">' + k.confirmados + '</p></div>' +
-        '<div class="cb-resumen-card"><p class="lab">Solo banco</p><p class="val">' + k.soloB + '</p></div>' +
-        '<div class="cb-resumen-card"><p class="lab">Solo sistema</p><p class="val">' + k.soloS + '</p></div>' +
+        htmlResumenCard(lab.kpiBanco, k.banco, k.sumBanco) +
+        htmlResumenCard('Tesorería', k.sistema, k.sumSistema) +
+        htmlResumenCard('Sugeridos', k.sugeridos, k.sumSug) +
+        htmlResumenCard('Confirmados', k.confirmados, k.sumConf) +
+        htmlResumenCard('Solo banco', k.soloB, k.sumSoloB) +
+        htmlResumenCard('Solo sistema', k.soloS, k.sumSoloS) +
         (state.canal === CANAL_MP
-          ? '<div class="cb-resumen-card"><p class="lab">Anulados</p><p class="val">' + k.anulados + '</p></div>' +
-            '<div class="cb-resumen-card" data-cb="lista" data-lista="norequiere" role="button" tabindex="0" title="Ver movimientos que no requieren conciliación"><p class="lab">No requiere</p><p class="val">' + k.norequiere + '</p></div>'
+          ? htmlResumenCard('Anulados', k.anulados, k.sumAnul) +
+            htmlResumenCard('No requiere', k.norequiere, k.sumNorequiere, '', 'norequiere', 'Ver movimientos que no requieren conciliación')
           : '') +
-        '<div class="cb-resumen-card' + (k.bajas ? ' cb-resumen-warn' : '') + '" data-cb="lista" data-lista="bajas" role="button" tabindex="0" title="Ver tesorería a eliminar"><p class="lab">A eliminar</p><p class="val">' + k.bajas + '</p></div>' +
+        htmlResumenCard('A eliminar', k.bajas, k.sumBajas, k.bajas ? 'cb-resumen-warn' : '', 'bajas', 'Ver tesorería a eliminar') +
       '</div>' +
       '<div class="cb-tabs">' +
         '<button type="button" class="' + (state.lista === 'sugeridos' ? 'activo' : '') + '" data-cb="lista" data-lista="sugeridos">Sugeridos</button>' +
