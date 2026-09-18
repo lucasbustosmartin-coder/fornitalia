@@ -1214,7 +1214,7 @@
     var lockedS = {};
     var rejected = {};
     (matches || []).forEach(function (m) {
-      if (m.estado === 'confirmado' && !matchConTesoreriaPendienteBaja(m)) {
+      if (m.estado === 'confirmado') {
         idsMatchLado(m, 'banco').forEach(function (id) { lockedB[id] = true; });
         idsMatchLado(m, 'sistema').forEach(function (id) { lockedS[id] = true; });
       }
@@ -1276,9 +1276,12 @@
   async function fetchAllCanal(table, orderCols) {
     var all = [];
     var offset = 0;
+    var cols = (orderCols || []).slice();
+    var hasId = cols.some(function (c) { return c.name === 'id'; });
+    if (!hasId) cols.push({ name: 'id', asc: true });
     for (;;) {
       var q = client().from(table).select('*').eq('canal', state.canal);
-      (orderCols || []).forEach(function (col) {
+      cols.forEach(function (col) {
         q = q.order(col.name, { ascending: col.asc !== false });
       });
       var res = await q.range(offset, offset + SUPABASE_PAGE - 1);
@@ -1471,7 +1474,23 @@
   }
 
   async function regenerarSugerencias() {
-    var sugeridas = generarSugerencias(bancoRowsConciliables(), sistemaRows(), state.matches);
+    var locked = {};
+    (state.matches || []).forEach(function (m) {
+      if (!m || m.estado !== 'confirmado') return;
+      idsMatchLado(m, 'banco').forEach(function (id) { locked[id] = true; });
+      idsMatchLado(m, 'sistema').forEach(function (id) { locked[id] = true; });
+    });
+    var seenB = {};
+    var seenS = {};
+    var sugeridas = generarSugerencias(bancoRowsConciliables(), sistemaRows(), state.matches).filter(function (p) {
+      if (!p || !p.banco_id || !p.sistema_id) return false;
+      if (locked[p.banco_id] || locked[p.sistema_id]) return false;
+      if (seenB[p.banco_id] || seenS[p.sistema_id]) return false;
+      if (String(p.criterio || '').indexOf('lejana') >= 0) return false;
+      seenB[p.banco_id] = true;
+      seenS[p.sistema_id] = true;
+      return true;
+    });
     var rpc = await client().rpc('cb_reemplazar_sugerencias', {
       p_canal: state.canal,
       p_filas: sugeridas
@@ -1499,15 +1518,20 @@
     renderShell();
     try {
       await cargarDatos();
+      state.err = '';
       if (can(PERM_CARGAR) || can(PERM_CONFIRMAR)) {
         var haySugAnul = state.canal === CANAL_MP && (state.matches || []).some(matchSugeridoEsAnulado);
         var haySugLejos = (state.matches || []).some(matchSugeridoFueraDeVentana);
         if (haySugAnul || haySugLejos) {
-          await regenerarSugerencias();
-          await cargarDatos();
+          try {
+            await regenerarSugerencias();
+            await cargarDatos();
+            state.err = '';
+          } catch (e2) {
+            state.err = 'No se pudieron recálcular las sugerencias: ' + errMsg(e2);
+          }
         }
       }
-      state.err = '';
     } catch (e) {
       state.err = 'No se pudo cargar Conciliación Bancaria: ' + errMsg(e);
     } finally {
@@ -2144,8 +2168,8 @@
     function push(id) {
       if (id && out.indexOf(id) < 0) out.push(id);
     }
-    if (Array.isArray(arr) && arr.length) arr.forEach(push);
-    else push(primary);
+    push(primary);
+    if (Array.isArray(arr)) arr.forEach(push);
     return out;
   }
 
