@@ -12,6 +12,10 @@
   var PERM_VER = 'ver_conciliacion_bancaria';
   var PERM_CARGAR = 'cargar_conciliacion_bancaria';
   var PERM_CONFIRMAR = 'confirmar_conciliacion_bancaria';
+  var PDFJS_VER = '3.11.174';
+  var PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS_VER + '/pdf.min.js';
+  var PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/' + PDFJS_VER + '/pdf.worker.min.js';
+  var pdfjsReady = null;
 
   var ICO = {
     bank: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11M20 10v11"/><path d="M8 14v3M12 14v3M16 14v3"/></svg>',
@@ -262,6 +266,8 @@
     var db = Date.UTC(pb[0], pb[1] - 1, pb[2]);
     return Math.round((da - db) / 86400000);
   }
+
+  var MAX_DIAS_SUGERENCIA = 4;
 
   function movimientosCanal() {
     return (state.movimientos || []).filter(function (m) { return m.canal === state.canal; });
@@ -707,6 +713,207 @@
     return { error: null, filas: filas };
   }
 
+  function ensurePdfJs() {
+    if (global.pdfjsLib) {
+      global.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      return Promise.resolve(global.pdfjsLib);
+    }
+    if (pdfjsReady) return pdfjsReady;
+    pdfjsReady = new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = PDFJS_SRC;
+      s.onload = function () {
+        if (!global.pdfjsLib) {
+          reject(new Error('No se pudo cargar el lector de PDF.'));
+          return;
+        }
+        global.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+        resolve(global.pdfjsLib);
+      };
+      s.onerror = function () { reject(new Error('No se pudo cargar el lector de PDF.')); };
+      document.head.appendChild(s);
+    });
+    return pdfjsReady;
+  }
+
+  function esArchivoPdf(file) {
+    if (!file) return false;
+    if (file.type && /pdf/i.test(file.type)) return true;
+    return /\.pdf$/i.test(file.name || '');
+  }
+
+  function lineasPdfPorY(items, yTol) {
+    yTol = yTol == null ? 2 : yTol;
+    var rows = [];
+    (items || []).forEach(function (it) {
+      var t = String((it && it.str) || '').replace(/\u00a0/g, ' ').trim();
+      if (!t) return;
+      var x = it.transform ? it.transform[4] : 0;
+      var y = it.transform ? it.transform[5] : 0;
+      var row = null;
+      var i;
+      for (i = 0; i < rows.length; i++) {
+        if (Math.abs(rows[i].y - y) <= yTol) { row = rows[i]; break; }
+      }
+      if (!row) { row = { y: y, parts: [] }; rows.push(row); }
+      row.parts.push({ x: x, t: t });
+    });
+    rows.sort(function (a, b) { return b.y - a.y; });
+    return rows.map(function (r) {
+      return r.parts.sort(function (a, b) { return a.x - b.x; }).map(function (p) { return p.t; }).join(' ');
+    });
+  }
+
+  async function pdfLineasArchivo(file) {
+    var pdfjs = await ensurePdfJs();
+    var buf = await file.arrayBuffer();
+    var pdf = await pdfjs.getDocument({ data: new Uint8Array(buf) }).promise;
+    var all = [];
+    var n;
+    for (n = 1; n <= pdf.numPages; n++) {
+      var page = await pdf.getPage(n);
+      var content = await page.getTextContent();
+      all = all.concat(lineasPdfPorY(content.items || []));
+    }
+    return all;
+  }
+
+  function esHeaderPdfGalicia(line) {
+    var s = String(line || '').trim();
+    if (!s) return true;
+    if (/^resumen de cuenta corriente/i.test(s)) return true;
+    if (/^r\s*esumen de cuenta corriente/i.test(s)) return true;
+    if (/p[aá]gina\s+\d+\s*\/\s*\d+/i.test(s)) return true;
+    if (/^fecha\s+descripci[oó]n/i.test(s)) return true;
+    if (/^\d{17}[A-Z]$/i.test(s)) return true;
+    if (/^movimientos$/i.test(s)) return true;
+    if (/^consolidado/i.test(s)) return true;
+    if (/^total\s*\$/i.test(s)) return true;
+    if (/^canales de atenci/i.test(s)) return true;
+    if (/^cuit del responsable/i.test(s)) return true;
+    return false;
+  }
+
+  function esPdfResumenGalicia(nombre, lines) {
+    if (/extracto_cuentas_galicia/i.test(nombre || '')) return true;
+    var blob = (lines || []).slice(0, 50).join(' ');
+    return /r\s*esumen de cuenta corriente/i.test(blob) || /resumen de cuenta corriente/i.test(blob);
+  }
+
+  function filasDesdeMovsPdfGalicia(movs, archivo) {
+    var counts = {};
+    var filas = [];
+    (movs || []).forEach(function (mv, idx) {
+      var imp = Number(mv.importe);
+      if (!isFinite(imp)) return;
+      var cred = imp > 0 ? imp : null;
+      var deb = imp < 0 ? Math.abs(imp) : null;
+      var tipo = String(mv.tipo || '').trim();
+      var extras = mv.extras || [];
+      var ley1 = extras[0] || '';
+      var ley2 = extras[1] || '';
+      var ley3 = extras[2] || '';
+      var ley4 = extras[3] || '';
+      var descFull = tipo;
+      if (ley1 && tipo.indexOf(ley1) < 0) descFull = tipo ? (tipo + ' · ' + ley1) : ley1;
+      var debKey = deb == null ? '0' : String(Math.round(deb * 100) / 100);
+      var credKey = cred == null ? '0' : String(Math.round(cred * 100) / 100);
+      var base = ['gal', mv.fecha, debKey, credKey, tipo, ''].join('|');
+      counts[base] = (counts[base] || 0) + 1;
+      filas.push({
+        origen_id: base + '#' + counts[base],
+        fecha: mv.fecha || fechaHoyYmd(),
+        fecha_hora: null,
+        tipo: tipo || null,
+        descripcion: descFull || null,
+        contraparte: ley1 || null,
+        monto: Math.round(imp * 100) / 100,
+        moneda: 'ARS',
+        categoria: null,
+        cuenta_contable: null,
+        credito: cred,
+        debito: deb,
+        saldo: mv.saldo != null ? mv.saldo : null,
+        id_operacion_relacionada: mv.origen || ley2 || null,
+        id_movimiento_banco: null,
+        archivo: archivo,
+        fila_excel: idx + 1,
+        raw: {
+          fuente: 'pdf',
+          fecha: mv.fecha,
+          descripcion: tipo,
+          origen: mv.origen || '',
+          debitos: deb,
+          creditos: cred,
+          leyenda_1: ley1,
+          leyenda_2: ley2,
+          leyenda_3: ley3,
+          leyenda_4: ley4,
+          saldo: mv.saldo
+        }
+      });
+    });
+    return filas;
+  }
+
+  function parseExtractoGaliciaPdfLineas(lines, archivo) {
+    var RE_FECHA = /^(\d{2}\/\d{2}\/\d{2})\s+(.+)$/;
+    var RE_MONTOS = /^(.*?)\s+(?:([A-Za-z0-9]{3,6})\s+)?(-?\d{1,3}(?:\.\d{3})*,\d{2})\s+(-?\d{1,3}(?:\.\d{3})*,\d{2})$/;
+    var movs = [];
+    var cur = null;
+    function flush() {
+      if (cur && cur.fecha && cur.tipo && cur.importe != null) movs.push(cur);
+      cur = null;
+    }
+    var i;
+    for (i = 0; i < (lines || []).length; i++) {
+      var line = String(lines[i] || '').replace(/\s+/g, ' ').trim();
+      if (!line) continue;
+      if (/^Total\s*\$/i.test(line) || /^Consolidado/i.test(line)) {
+        flush();
+        break;
+      }
+      var df = line.match(RE_FECHA);
+      if (df) {
+        flush();
+        var mm = df[2].match(RE_MONTOS);
+        if (!mm) continue;
+        var desc = String(mm[1] || '').trim();
+        var imp = parseMonto(mm[3]);
+        var saldo = parseMonto(mm[4]);
+        if (!desc || imp == null) continue;
+        cur = {
+          fecha: parseFechaCelda(df[1]),
+          tipo: desc,
+          origen: mm[2] || '',
+          importe: imp,
+          saldo: saldo,
+          extras: []
+        };
+        continue;
+      }
+      if (cur && !esHeaderPdfGalicia(line)) cur.extras.push(line);
+    }
+    flush();
+    var filas = filasDesdeMovsPdfGalicia(movs, archivo);
+    if (!filas.length) {
+      return { error: 'Encontré el PDF de Galicia pero no pude leer movimientos (Fecha, importe y saldo).', filas: [] };
+    }
+    return { error: null, filas: filas, fuentePdf: true };
+  }
+
+  async function parseExtractoGaliciaPdfArchivo(file) {
+    var nombre = (file && file.name) || 'extracto.pdf';
+    var lines = await pdfLineasArchivo(file);
+    if (!esPdfResumenGalicia(nombre, lines)) {
+      return {
+        error: 'No reconocí un resumen de Galicia (Extracto_Cuentas_Galicia_…, Cuenta Corriente en Pesos).',
+        filas: []
+      };
+    }
+    return parseExtractoGaliciaPdfLineas(lines, nombre);
+  }
+
   function parseTesoreriaMp(wb, archivo, hoja) {
     var name = hoja || hojaTesoreria(wb, archivo);
     var sheet = wb.Sheets[name];
@@ -959,10 +1166,10 @@
       var okMonto = opts.exact ? mismoImporteExacto(b.monto, s.monto) : mismoImporte(b.monto, s.monto);
       if (!okMonto) return false;
       var d = Math.abs(daysBetween(b.fecha, s.fecha));
+      if (d > MAX_DIAS_SUGERENCIA) return false;
       if (ventana === 'mismo_dia') return d === 0;
-      if (ventana === 'cerca') return d <= 14;
-      if (ventana === 'lejos') return d > 14;
-      return true;
+      if (ventana === 'cerca') return d > 0 && d <= MAX_DIAS_SUGERENCIA;
+      return false;
     });
   }
 
@@ -1028,19 +1235,16 @@
       return true;
     }
 
-    function pairar(b, s, ambiguo, lejos, exacto) {
+    function pairar(b, s, ambiguo, exacto) {
       if (!s) return false;
       var d = Math.abs(daysBetween(b.fecha, s.fecha));
+      if (d > MAX_DIAS_SUGERENCIA) return false;
       var sc = scoreDescripcion(b, s);
-      var base = 50;
-      if (d === 0) base = 100;
-      else if (d <= 7) base = 90;
-      else if (d <= 14) base = 70;
-      else base = 40;
+      var base = d === 0 ? 100 : 90;
       if (exacto) base += 15;
       if (sc >= 50) base += 10;
       if (ambiguo && sc < 50) base -= 10;
-      return tryPair(b, s, base, criterioPorDesc(b, s, d, ambiguo, lejos || d > 14, exacto));
+      return tryPair(b, s, base, criterioPorDesc(b, s, d, ambiguo, false, exacto));
     }
 
     function pasar(ventana, opts) {
@@ -1054,8 +1258,7 @@
         if (opts.requireUnique && cands.length !== 1) return;
         var s = elegirCandidato(b, cands);
         if (!s) return;
-        var d = Math.abs(daysBetween(b.fecha, s.fecha));
-        pairar(b, s, cands.length > 1, d > 14, !!opts.exact);
+        pairar(b, s, cands.length > 1, !!opts.exact);
       });
     }
 
@@ -1064,10 +1267,6 @@
     pasar('cerca', { requireConcepto: true });
     pasar('cerca', { requireUnique: true });
     pasar('cerca', {});
-    pasar('lejos', { exact: true });
-    pasar('lejos', { requireConcepto: true });
-    pasar('lejos', { requireUnique: true });
-    pasar('lejos', {});
 
     return out;
   }
@@ -1150,9 +1349,22 @@
     return { groups: groups, order: order };
   }
 
-  function claveDedupExtractoGalicia(m) {
+  function stemConceptoGalicia(m) {
+    var t = (m && m.tipo) || '';
+    if (!t && m && m.descripcion) t = String(m.descripcion).split(' · ')[0];
+    return normTxt(t).replace(/\bcoelsa\b/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function claveDedupExtractoGalicia(m, laxo) {
     var monto = Number(m && m.monto);
     var montoKey = isFinite(monto) ? (Math.round(monto * 100) / 100).toFixed(2) : '';
+    if (laxo) {
+      return [
+        String((m && m.fecha) || '').slice(0, 10),
+        montoKey,
+        stemConceptoGalicia(m)
+      ].join('|');
+    }
     return [
       String((m && m.fecha) || '').slice(0, 10),
       montoKey,
@@ -1162,15 +1374,16 @@
   }
 
   function filtrarExtractoGaliciaYaCargado(filas) {
+    var laxo = (filas || []).some(function (f) { return !!(f && f.raw && f.raw.fuente === 'pdf'); });
     var bag = {};
     bancoRowsTodos().forEach(function (m) {
-      var k = claveDedupExtractoGalicia(m);
+      var k = claveDedupExtractoGalicia(m, laxo);
       bag[k] = (bag[k] || 0) + 1;
     });
     var out = [];
     var nYa = 0;
     (filas || []).forEach(function (f) {
-      var k = claveDedupExtractoGalicia(f);
+      var k = claveDedupExtractoGalicia(f, laxo);
       if ((bag[k] || 0) > 0) {
         bag[k] -= 1;
         nYa += 1;
@@ -1273,14 +1486,23 @@
     return idsMatchLado(m, 'banco').some(function (id) { return !!an[id]; });
   }
 
+  function matchSugeridoFueraDeVentana(m) {
+    if (!m || m.estado !== 'sugerido' || esMatchImpuestos(m)) return false;
+    var bs = movsMatchLado(m, 'banco');
+    var ss = movsMatchLado(m, 'sistema');
+    if (!bs.length || !ss.length) return false;
+    return Math.abs(daysBetween(bs[0].fecha, ss[0].fecha)) > MAX_DIAS_SUGERENCIA;
+  }
+
   async function recargarTodo() {
     state.loading = true;
     renderShell();
     try {
       await cargarDatos();
-      if (state.canal === CANAL_MP && (can(PERM_CARGAR) || can(PERM_CONFIRMAR))) {
-        var haySugAnul = (state.matches || []).some(matchSugeridoEsAnulado);
-        if (haySugAnul) {
+      if (can(PERM_CARGAR) || can(PERM_CONFIRMAR)) {
+        var haySugAnul = state.canal === CANAL_MP && (state.matches || []).some(matchSugeridoEsAnulado);
+        var haySugLejos = (state.matches || []).some(matchSugeridoFueraDeVentana);
+        if (haySugAnul || haySugLejos) {
           await regenerarSugerencias();
           await cargarDatos();
         }
@@ -1321,46 +1543,51 @@
 
   async function onUpload(origen) {
     if (!can(PERM_CARGAR)) return;
-    if (!global.XLSX) {
-      alert('No está disponible la librería Excel.');
-      return;
-    }
-    pedirArchivo('.xlsx', async function (file) {
+    var acceptGal = '.xlsx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    var acceptXlsx = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    pedirArchivo(state.canal === CANAL_GAL ? acceptGal : acceptXlsx, async function (file) {
       state.loading = true;
       state.err = '';
       state.msg = '';
       renderShell();
       try {
-        var wb = await leerExcelFile(file);
         var parsed;
         var canalAntes = state.canal;
         var origenPedido = origen;
-        var detArch = detectarArchivo(wb, file.name);
-        var esCierreTes = false;
-        var mapCierre = null;
-        if (detArch.clase === 'sistema' && detArch.hoja) {
-          mapCierre = filasHoja(wb, detArch.hoja).map;
-          esCierreTes = esMapaTesoreriaCierre(mapCierre);
-        }
-        if (esCierreTes) {
-          origen = 'sistema';
-          if (!mapaTesoreriaTieneIdCierre(mapCierre)) {
-            var errPref = errorPrefijoCierreCanal(file.name, canalAntes);
-            if (errPref) {
-              state.canal = canalAntes;
-              throw new Error(errPref);
-            }
-            state.canal = canalAntes;
-          }
-        } else if (detArch.clase === 'banco' || detArch.clase === 'sistema') {
-          origen = detArch.clase === 'banco' ? 'banco' : 'sistema';
-          state.canal = detArch.canal;
-        }
-        if (origen === 'banco') {
-          if (state.canal === CANAL_GAL) parsed = parseExtractoGalicia(wb, file.name, detArch.hoja);
-          else parsed = parseExtractoMp(wb, file.name, detArch.hoja);
+        if (esArchivoPdf(file)) {
+          parsed = await parseExtractoGaliciaPdfArchivo(file);
+          origen = 'banco';
+          state.canal = CANAL_GAL;
         } else {
-          parsed = parseTesoreriaMp(wb, file.name, detArch.hoja);
+          if (!global.XLSX) throw new Error('No está disponible la librería Excel.');
+          var wb = await leerExcelFile(file);
+          var detArch = detectarArchivo(wb, file.name);
+          var esCierreTes = false;
+          var mapCierre = null;
+          if (detArch.clase === 'sistema' && detArch.hoja) {
+            mapCierre = filasHoja(wb, detArch.hoja).map;
+            esCierreTes = esMapaTesoreriaCierre(mapCierre);
+          }
+          if (esCierreTes) {
+            origen = 'sistema';
+            if (!mapaTesoreriaTieneIdCierre(mapCierre)) {
+              var errPref = errorPrefijoCierreCanal(file.name, canalAntes);
+              if (errPref) {
+                state.canal = canalAntes;
+                throw new Error(errPref);
+              }
+              state.canal = canalAntes;
+            }
+          } else if (detArch.clase === 'banco' || detArch.clase === 'sistema') {
+            origen = detArch.clase === 'banco' ? 'banco' : 'sistema';
+            state.canal = detArch.canal;
+          }
+          if (origen === 'banco') {
+            if (state.canal === CANAL_GAL) parsed = parseExtractoGalicia(wb, file.name, detArch.hoja);
+            else parsed = parseExtractoMp(wb, file.name, detArch.hoja);
+          } else {
+            parsed = parseTesoreriaMp(wb, file.name, detArch.hoja);
+          }
         }
         if (parsed.error) {
           state.canal = canalAntes;
@@ -1435,7 +1662,7 @@
         if (nYaContenido && origen === 'sistema' && !parsed.tieneIdCierre) {
           extraDup += ' ' + nYaContenido + ' coincidían con tesorería ya cargada (misma fecha, monto, descripción, categoría y cliente).';
         } else if (nYaContenido && origen === 'banco') {
-          extraDup += ' ' + nYaContenido + ' coincidían con extracto Galicia ya cargado (misma fecha, importe y descripción; el saldo del banco cambia entre archivos).';
+          extraDup += ' ' + nYaContenido + ' coincidían con extracto Galicia ya cargado (misma fecha, importe y concepto; el saldo del banco cambia entre archivos).';
         }
         if (parsed.formatoCierre && !parsed.tieneIdCierre) {
           extraDup = ' Cierre de caja (caja ya cerrada).' + extraDup;
@@ -1451,7 +1678,7 @@
         }
         var extraSug = nSug ? ' Sugerencias: ' + nSug + '.' : '';
         if (origen === 'banco' && state.canal === CANAL_GAL) {
-          state.msg = 'Extracto Galicia: ' + nLeidas + ' filas leídas (fecha + débito/crédito + descripción; no se duplica si el saldo cambió).' + extraDup + extraOrigen + extraCanal + extraSug;
+          state.msg = (parsed.fuentePdf ? 'Extracto Galicia (PDF): ' : 'Extracto Galicia: ') + nLeidas + ' filas leídas (fecha + débito/crédito + descripción; no se duplica vs Excel ni vs otro PDF si coinciden fecha, importe y concepto).' + extraDup + extraOrigen + extraCanal + extraSug;
         } else if (origen === 'banco') {
           state.msg = 'Extracto Mercado Pago: ' + nLeidas + ' filas leídas (Número de Movimiento).' + extraDup + extraOrigen + extraCanal + extraSug;
         } else if (parsed.tieneIdCierre && parsed.formatoCierre) {
@@ -1495,16 +1722,45 @@
   async function setEstado(id, estado) {
     if (!can(PERM_CONFIRMAR)) return;
     if (estado === 'sugerido') {
-      if (!confirm('¿Deshacer esta conciliación confirmada? La pareja vuelve a Sugeridos.')) return;
+      var matchUndo = null;
+      (state.matches || []).forEach(function (x) { if (x.id === id) matchUndo = x; });
+      if (esMatchImpuestos(matchUndo)) {
+        if (!confirm('¿Deshacer esta conciliación de Impuestos?\n\nEl tesorería vuelve a Solo sistema y las percepciones quedan no conciliadas.')) return;
+      } else if (!confirm('¿Deshacer esta conciliación confirmada? La pareja vuelve a Sugeridos.')) return;
     }
     try {
       var rpc = await client().rpc('cb_set_match_estado', { p_match_id: id, p_estado: estado });
       if (rpc.error) throw rpc.error;
       cerrarModal();
       if (estado === 'sugerido') {
-        state.msg = 'Conciliación deshecha: la pareja volvió a Sugeridos.';
-        state.lista = 'sugeridos';
+        var eraImp = false;
+        (state.matches || []).forEach(function (x) { if (x.id === id && esMatchImpuestos(x)) eraImp = true; });
+        if (eraImp) {
+          state.msg = 'Conciliación de Impuestos deshecha. El tesorería volvió a Solo sistema.';
+          state.lista = 'sistema';
+        } else {
+          state.msg = 'Conciliación deshecha: la pareja volvió a Sugeridos.';
+          state.lista = 'sugeridos';
+        }
       }
+      await recargarTodo();
+    } catch (e) {
+      alert(errMsg(e));
+    }
+  }
+
+  async function confirmarSugeridosVisibles(rows) {
+    if (!can(PERM_CONFIRMAR)) return;
+    var list = rows || filasVisiblesMatch('sugerido');
+    if (!list.length) return;
+    try {
+      var ids = list.map(function (m) { return m.id; }).filter(Boolean);
+      var rpc = await client().rpc('cb_confirmar_sugeridos', { p_canal: state.canal, p_ids: ids });
+      if (rpc.error) throw rpc.error;
+      var n = Number(rpc.data || 0);
+      state.msg = n
+        ? ('Se confirmaron ' + n + ' sugerencia' + (n === 1 ? '' : 's') + '.')
+        : 'No había sugerencias para confirmar.';
       await recargarTodo();
     } catch (e) {
       alert(errMsg(e));
@@ -1532,7 +1788,7 @@
     var m = findMov(id);
     if (!m || m.origen !== 'banco' || m.canal !== CANAL_GAL) return;
     var det = (formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + ' · ' + (m.descripcion || m.tipo || '')).trim();
-    if (!confirm('¿Eliminar este movimiento del extracto Galicia?\n\n' + det + '\n\nNo se puede deshacer. Si lo necesitás, volvé a cargar el Excel del banco.')) return;
+    if (!confirm('¿Eliminar este movimiento del extracto Galicia?\n\n' + det + '\n\nNo se puede deshacer. Si lo necesitás, volvé a cargar el Excel o el PDF del banco.')) return;
     try {
       var rpc = await client().rpc('cb_borrar_movimiento_banco_galicia', { p_id: id });
       if (rpc.error) throw rpc.error;
@@ -1772,6 +2028,12 @@
     var ss = movsMatchLado(match, 'sistema');
     var blob = bs.concat(ss).map(blobMov).join(' ') + ' ' + criterioLabel(match.criterio) + ' ' + (match.justificacion || '');
     if (!pasaFiltro(blob)) return false;
+    if (esMatchImpuestos(match)) {
+      if (state.mesSistema && !ss.some(function (s) { return pasaFiltroMesValor(s && s.fecha, state.mesSistema); })) return false;
+      if (state.categoria && !ss.some(function (s) { return pasaFiltroCategoriaValor(s, state.categoria); })) return false;
+      if (state.cuenta && !ss.some(function (s) { return pasaFiltroCuentaValor(s, state.cuenta); })) return false;
+      return true;
+    }
     if (state.mesExtracto && !bs.some(function (b) { return pasaFiltroMesValor(b && b.fecha, state.mesExtracto); })) return false;
     if (ss.length) {
       if (state.mesSistema && !ss.some(function (s) { return pasaFiltroMesValor(s && s.fecha, state.mesSistema); })) return false;
@@ -2001,6 +2263,19 @@
     return idsMatchLado(m, 'banco').length >= 2 && idsMatchLado(m, 'sistema').length === 0;
   }
 
+  function esMatchImpuestos(m) {
+    return !!(m && m.criterio === 'impuestos');
+  }
+
+  function montoPercibidoImpuestos(m) {
+    var ss = movsMatchLado(m, 'sistema');
+    var tes = sumaMontos(ss);
+    var d = m && m.diferencia != null && m.diferencia !== '' ? Number(m.diferencia) : 0;
+    if (tes == null) return null;
+    if (!isFinite(d)) d = 0;
+    return Math.round((Math.abs(tes) + d) * 100) / 100;
+  }
+
   function diffMatch(m, b, s) {
     if (m && m.diferencia != null && m.diferencia !== '') {
       var d = Number(m.diferencia);
@@ -2102,7 +2377,8 @@
       monto_fecha_lejana_ambiguo: 'Mismo importe, fecha lejana (hay otros iguales)',
       monto_fecha_lejana_concepto: 'Mismo importe, fecha lejana y concepto',
       monto_sin_fecha: 'Mismo monto',
-      manual: 'Conciliación manual'
+      manual: 'Conciliación manual',
+      impuestos: 'Conciliación manual de impuestos'
     };
     return map[c] || c || 'Sugerido';
   }
@@ -2146,8 +2422,9 @@
   function valMatch(m, key) {
     var bs = movsMatchLado(m, 'banco');
     var ss = movsMatchLado(m, 'sistema');
-    if (key === 'banco') return { v: labelGrupo(bs, true), t: 'txt' };
+    if (key === 'banco') return { v: esMatchImpuestos(m) ? 'Impuestos (percepciones MP)' : labelGrupo(bs, true), t: 'txt' };
     if (key === 'monto_banco') {
+      if (esMatchImpuestos(m)) return { v: montoPercibidoImpuestos(m), t: 'num' };
       return { v: esMatchSoloExtracto(m) ? montoAbsGrupo(bs) : sumaMontos(bs), t: 'num' };
     }
     if (key === 'fecha_sistema') return { v: fechaGrupo(ss), t: 'fecha' };
@@ -2156,6 +2433,7 @@
     if (key === 'cuenta_sistema') return { v: labelCampoGrupo(ss, 'cuenta_contable'), t: 'txt' };
     if (key === 'monto_sistema') return { v: sumaMontos(ss), t: 'num' };
     if (key === 'criterio') return { v: criterioLabel(m.criterio), t: 'txt' };
+    if (esMatchImpuestos(m)) return { v: fechaGrupo(ss), t: 'fecha' };
     return { v: fechaGrupo(bs), t: 'fecha' };
   }
 
@@ -2214,6 +2492,8 @@
     var extra = '';
     if (esMatchSoloExtracto(m)) {
       extra += ' <span class="cb-badge cb-badge-manual">solo extracto</span>';
+    } else if (esMatchImpuestos(m)) {
+      extra += ' <span class="cb-badge cb-badge-manual">impuestos</span>';
     } else if (esGrupoMatch(m)) {
       extra += ' <span class="cb-badge cb-badge-manual">' + bs.length + '×' + ss.length + '</span>';
     }
@@ -2268,9 +2548,11 @@
       var bs = movsMatchLado(m, 'banco');
       var ss = movsMatchLado(m, 'sistema');
       html += '<tr>' +
-        '<td>' + formatFecha(fechaGrupo(bs)) + '</td>' +
-        '<td>' + esc(labelGrupo(bs, true)) + '</td>' +
-        '<td class="cb-col-monto">' + (esMatchSoloExtracto(m) ? htmlMontoSoloExtracto(bs) : htmlMonto(sumaMontos(bs))) + '</td>' +
+        '<td>' + formatFecha(esMatchImpuestos(m) ? fechaGrupo(ss) : fechaGrupo(bs)) + '</td>' +
+        '<td>' + esc(esMatchImpuestos(m) ? 'Impuestos (percepciones MP)' : labelGrupo(bs, true)) + '</td>' +
+        '<td class="cb-col-monto">' + (esMatchImpuestos(m)
+          ? htmlMonto(montoPercibidoImpuestos(m))
+          : (esMatchSoloExtracto(m) ? htmlMontoSoloExtracto(bs) : htmlMonto(sumaMontos(bs)))) + '</td>' +
         '<td>' + formatFecha(fechaGrupo(ss)) + '</td>' +
         '<td>' + esc(esMatchSoloExtracto(m) ? 'Sin tesorería' : labelGrupo(ss, false)) + '</td>' +
         '<td>' + esc(labelCampoGrupo(ss, 'categoria')) + '</td>' +
@@ -2292,7 +2574,18 @@
           ? 'Todavía no hay conciliaciones confirmadas.'
           : 'No hay sugerencias. Cargá extracto y tesorería, o recalculá.')) + '</p>';
     }
-    return '<div class="cb-tabla-wrap"><table class="cb-tabla">' +
+    var bar = '';
+    if (estado === 'sugerido' && can(PERM_CONFIRMAR)) {
+      bar = '<div class="cb-check-bar">' +
+        '<label class="cb-check-line" for="cb-ok-all" data-cb="ok-all">' +
+          '<input type="checkbox" id="cb-ok-all" title="Confirmar todos los listados" aria-label="Confirmar todos los listados">' +
+          'Confirmar todos los listados' +
+        '</label>' +
+        '<span class="cb-field-hint">' + rows.length + ' visible' + (rows.length === 1 ? '' : 's') +
+          (hayFiltrosActivos() ? ' (con filtros)' : '') + '</span>' +
+      '</div>';
+    }
+    return bar + '<div class="cb-tabla-wrap"><table class="cb-tabla">' +
       '<thead><tr>' +
         thSort('fecha_banco', 'Fecha banco') +
         thSort('banco', 'Banco') +
@@ -2553,13 +2846,17 @@
     }
     var d = diffMatch(m);
     var meta = '<p class="cb-field-hint">' + esc(criterioLabel(m.criterio)) + (m.score != null ? ' · score ' + m.score : '') +
-      (esMatchSoloExtracto(m)
-        ? ' · ' + bs.length + ' movimientos del extracto (sin tesorería)'
-        : (esGrupoMatch(m) ? ' · grupo ' + bs.length + ' extractos × ' + ss.length + ' tesorería' : '')) + '</p>';
+      (esMatchImpuestos(m)
+        ? ' · tesorería Mercado Pago vs percepciones de Impuestos (sin extracto de retención)'
+        : (esMatchSoloExtracto(m)
+          ? ' · ' + bs.length + ' movimientos del extracto (sin tesorería)'
+          : (esGrupoMatch(m) ? ' · grupo ' + bs.length + ' extractos × ' + ss.length + ' tesorería' : ''))) + '</p>';
     if (d != null) {
-      meta += '<p class="cb-field-hint">' + (esMatchSoloExtracto(m)
-        ? 'Suma neta del extracto: <strong>' + esc(formatMonto(d)) + '</strong>'
-        : 'Diferencia (suma extracto − suma tesorería): <strong>' + esc(formatMonto(d)) + '</strong>') + '</p>';
+      meta += '<p class="cb-field-hint">' + (esMatchImpuestos(m)
+        ? 'Diferencia (percibido − |tesorería|): <strong>' + esc(formatMonto(d)) + '</strong>'
+        : (esMatchSoloExtracto(m)
+          ? 'Suma neta del extracto: <strong>' + esc(formatMonto(d)) + '</strong>'
+          : 'Diferencia (suma extracto − suma tesorería): <strong>' + esc(formatMonto(d)) + '</strong>')) + '</p>';
     }
     if (m.justificacion) {
       meta += '<p class="cb-field-hint">Justificación: ' + esc(m.justificacion) + '</p>';
@@ -2568,9 +2865,16 @@
       meta += '<p class="cb-field-hint">Confirmado: ' + esc(formatFecha(isoAFechaArgentina(m.confirmado_at))) + '</p>';
     }
     var titB = state.canal === CANAL_GAL ? 'Banco Galicia (extracto)' : 'Mercado Pago (extracto)';
-    var bloquesB = bs.length ? bs.map(function (x, i) {
-      return htmlDetalleMov(x, bs.length > 1 ? titB + ' (' + (i + 1) + '/' + bs.length + ')' : titB);
-    }).join('') : htmlDetalleMov(null, titB);
+    var bloquesB = '';
+    if (esMatchImpuestos(m)) {
+      bloquesB = '<div class="cb-detalle-bloque"><h3>Impuestos (percepciones MP)</h3>' +
+        '<p>Conciliación manual de percepciones contra un movimiento de tesorería. No usa el Nº de movimiento del reporte como extracto de retención.</p>' +
+        '<p>Percibido: <strong>' + esc(formatMonto(montoPercibidoImpuestos(m))) + '</strong></p></div>';
+    } else {
+      bloquesB = bs.length ? bs.map(function (x, i) {
+        return htmlDetalleMov(x, bs.length > 1 ? titB + ' (' + (i + 1) + '/' + bs.length + ')' : titB);
+      }).join('') : htmlDetalleMov(null, titB);
+    }
     var bloquesS = '';
     if (esMatchSoloExtracto(m) || !ss.length) {
       if (esMatchSoloExtracto(m)) {
@@ -3182,19 +3486,23 @@
         var bs = movsMatchLado(m, 'banco');
         var ss = movsMatchLado(m, 'sistema');
         aoa.push([
-          excelDate(fechaGrupo(bs)),
-          textoGrupo(bs, true),
-          excelNum(esMatchSoloExtracto(m) ? sumaMontosSigno(bs, true) : sumaMontos(bs)),
+          excelDate(esMatchImpuestos(m) ? fechaGrupo(ss) : fechaGrupo(bs)),
+          esMatchImpuestos(m) ? 'Impuestos (percepciones MP)' : textoGrupo(bs, true),
+          excelNum(esMatchImpuestos(m)
+            ? montoPercibidoImpuestos(m)
+            : (esMatchSoloExtracto(m) ? sumaMontosSigno(bs, true) : sumaMontos(bs))),
           excelDate(fechaGrupo(ss)),
           esMatchSoloExtracto(m) ? 'Sin tesorería' : textoGrupo(ss, false),
           textoCampoGrupo(ss, 'categoria'),
           textoCampoGrupo(ss, 'cuenta_contable'),
           excelNum(esMatchSoloExtracto(m) ? sumaMontosSigno(bs, false) : sumaMontos(ss)),
           excelNum(diffMatch(m)),
-          criterioLabel(m.criterio) + (esMatchSoloExtracto(m) ? ' (solo extracto)' : (esGrupoMatch(m) ? ' (' + bs.length + '×' + ss.length + ')' : '')),
+          criterioLabel(m.criterio) + (esMatchImpuestos(m)
+            ? ''
+            : (esMatchSoloExtracto(m) ? ' (solo extracto)' : (esGrupoMatch(m) ? ' (' + bs.length + '×' + ss.length + ')' : ''))),
           m.justificacion || '',
           m.estado || '',
-          idsOrigenGrupo(bs),
+          esMatchImpuestos(m) ? '' : idsOrigenGrupo(bs),
           idsOrigenGrupo(ss)
         ]);
       });
@@ -3318,14 +3626,14 @@
   function labelsCanal() {
     if (state.canal === CANAL_GAL) {
       return {
-        hint: 'Cargá el extracto de Galicia (cuenta corriente, p. ej. Extracto_CC…) y la tesorería Transferencia Galicia (tesoreria_transferencia_galicia_…: Tipo, Fecha, Crédito, Débito e Id) o el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa A eliminar para confirmar la baja. La columna Caja, si viene, define el canal. Apertura de Caja y filas Pendiente no se suben. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto; primero fecha cercana y después lejana. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1), o dos o más movimientos del mismo extracto si el crédito y el débito se compensan y no hay tesorería (transferencia por error y devolución). El Excel exporta el listado visible con los filtros activos.',
+        hint: 'Cargá el extracto de Galicia: Excel de cuenta corriente (Extracto_CC…) o el PDF Extracto_Cuentas_Galicia_… (no duplica lo ya cargado: misma fecha, importe y concepto, aunque cambie el saldo). También la tesorería Transferencia Galicia (tesoreria_transferencia_galicia_…: Tipo, Fecha, Crédito, Débito e Id) o el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa A eliminar para confirmar la baja. La columna Caja, si viene, define el canal. Apertura de Caja y filas Pendiente no se suben. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1), o dos o más movimientos del mismo extracto si el crédito y el débito se compensan y no hay tesorería (transferencia por error y devolución). El Excel exporta el listado visible con los filtros activos.',
         btnBanco: 'Cargar extracto Galicia',
         btnSistema: 'Cargar tesorería Galicia',
         kpiBanco: 'Extracto Galicia'
       };
     }
     return {
-      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (tesoreria_mercadopago_…: Tipo, Fecha, Crédito, Débito e Id) o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-… o MP_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa A eliminar para confirmar la baja. Apertura de Caja y filas Pendiente no se suben. Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. En Solo banco podés marcar un movimiento como No requiere conciliación (con justificación): no se borra del extracto y queda en esa solapa. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto; primero fecha cercana y después lejana. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1), o dos o más movimientos del mismo extracto si el crédito y el débito se compensan y no hay tesorería (transferencia por error y devolución). El Excel exporta el listado visible con los filtros activos.',
+      hint: 'Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (tesoreria_mercadopago_…: Tipo, Fecha, Crédito, Débito e Id) o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-… o MP_CIERRE-…). El Id evita duplicados y actualiza si cambió algún dato. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa A eliminar para confirmar la baja. Apertura de Caja y filas Pendiente no se suben. Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. En Solo banco podés marcar un movimiento como No requiere conciliación (con justificación): no se borra del extracto y queda en esa solapa. La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde. También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1), o dos o más movimientos del mismo extracto si el crédito y el débito se compensan y no hay tesorería (transferencia por error y devolución). El Excel exporta el listado visible con los filtros activos.',
       btnBanco: 'Cargar extracto Mercado Pago',
       btnSistema: 'Cargar tesorería Mercado Pago',
       kpiBanco: 'Extracto MP'
@@ -3452,6 +3760,19 @@
     if (a === 'no-req-undo') { deshacerExcluirConciliacion(id); return; }
     if (a === 'baja-ok') { confirmarBajaTesoreria(id); return; }
     if (a === 'baja-all') { confirmarBajasTesoreriaVisibles(); return; }
+    if (a === 'ok-all') {
+      var box = (t.tagName === 'INPUT') ? t : t.querySelector('input[type="checkbox"]');
+      if (!box) return;
+      if (!box.checked) return;
+      var vis = filasVisiblesMatch('sugerido');
+      if (!vis.length) { box.checked = false; return; }
+      if (!confirm('¿Confirmar las ' + vis.length + ' sugerencias listadas?\n\nPasan a Confirmados. Si hay filtros, solo se confirman las visibles.')) {
+        box.checked = false;
+        return;
+      }
+      confirmarSugeridosVisibles(vis);
+      return;
+    }
     if (a === 'ok') { setEstado(id, 'confirmado'); return; }
     if (a === 'no') { setEstado(id, 'rechazado'); return; }
     if (a === 'undo') { setEstado(id, 'sugerido'); return; }

@@ -212,6 +212,32 @@
   background: #fff;
 }
 
+.cb-check-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1rem;
+  margin: 0 0 0.65rem;
+}
+
+.cb-check-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  font-size: 0.9rem;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.cb-check-line input {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: #0d7d3d;
+  flex-shrink: 0;
+}
+
 .cb-tabla {
   width: 100%;
   border-collapse: collapse;
@@ -735,6 +761,7 @@
 @media (max-width: 480px) {
   .cb-resumen { grid-template-columns: 1fr; }
   .cb-filtros { flex-direction: column; align-items: stretch; }
+  .cb-check-line { font-size: 16px; }
   .cb-modal.cb-modal-wide {
     width: calc(100vw - 0.5rem);
     height: calc(100vh - 0.5rem);
