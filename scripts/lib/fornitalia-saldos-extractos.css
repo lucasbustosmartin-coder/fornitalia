@@ -243,6 +243,14 @@
   min-width: 64rem;
 }
 
+.se-tabla-gal-usd {
+  min-width: 78rem;
+}
+
+.se-tabla-consolidado {
+  min-width: 88rem;
+}
+
 .se-tabla th,
 .se-tabla td {
   padding: 0.5rem 0.7rem;

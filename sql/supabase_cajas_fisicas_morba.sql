@@ -12,10 +12,10 @@ ALTER TABLE public.eb_saldo_extracto
   CHECK (canal IN ('galicia', 'mercadopago', 'galicia_facturada', 'morba_sf'));
 
 COMMENT ON TABLE public.cf_movimiento IS
-  'Movimientos de cajas físicas (no conciliables). Galicia-f (ARS) = efectivo pesos; Morba-s/f (ARS) = Transferencia Morba (tesoreria_transferencia_morba / cierre_MOR).';
+  'Movimientos de cajas físicas (no conciliables). Efectivo-f (ARS) = efectivo pesos; Morba-s/f (ARS) = Transferencia Morba (tesoreria_transferencia_morba / cierre_MOR).';
 
 COMMENT ON TABLE public.eb_saldo_extracto IS
-  'Un renglón por corte de saldo. Galicia PDF, Mercado Pago Carta de saldo, Galicia-f (ARS) y Morba-s/f (ARS) (cajas físicas). Upsert por canal+cuenta+fecha_hasta.';
+  'Un renglón por corte de saldo. Galicia PDF, Mercado Pago Carta de saldo, Efectivo-f (ARS) y Morba-s/f (ARS) (cajas físicas). Upsert por canal+cuenta+fecha_hasta.';
 
 CREATE OR REPLACE FUNCTION public.eb_guardar_saldos(p_filas jsonb)
 RETURNS integer

@@ -491,7 +491,8 @@
 
   function htmlCuerpoModalFiltros() {
     var d = state.filtrosDraft || {};
-    return '<p class="imp-field-hint">Filtrá por mes, extracto y conciliación. El buscar de la pantalla sigue libre y no se restringe acá.</p>' +
+    return FornitaliaHelp.row('tpl-imp-filtros', 'Ayuda: Filtros',
+      '<p>Filtrá por mes, extracto y conciliación. El buscar de la pantalla sigue libre y no se restringe acá.</p>') +
       '<div class="imp-filtros-modal-grid">' +
         '<div class="form-group' + (d.mes ? ' imp-filtro-activo' : '') + '"><label for="imp-filtro-mes">Mes</label>' +
           '<select id="imp-filtro-mes" title="Filtrar por mes">' + htmlOpcionesMesSelect(opcionesMes(), d.mes || '') + '</select></div>' +
@@ -789,7 +790,9 @@
     var optsArch = archivos.map(function (a) {
       return '<option value="' + esc(a) + '"' + (m.archivo === a ? ' selected' : '') + '>' + esc(a) + '</option>';
     }).join('');
-    return '<p class="imp-field-hint">Conciliá las percepciones <strong>no conciliadas</strong> de un archivo con <strong>un</strong> movimiento de tesorería Mercado Pago. No usa el match del extracto (el Nº de movimiento del reporte es el cargo, no el débito de la percepción).</p>' +
+    return FornitaliaHelp.row('tpl-imp-manual', 'Ayuda: Conciliación manual de impuestos',
+      '<p>Conciliá las percepciones <strong>no conciliadas</strong> de un archivo con <strong>un</strong> movimiento de tesorería Mercado Pago.</p>' +
+      '<p>No usa el match del extracto (el Nº de movimiento del reporte es el cargo, no el débito de la percepción).</p>') +
       '<div class="imp-manual-toolbar">' +
         '<div class="form-group' + (m.archivo ? ' imp-filtro-activo' : '') + '"><label for="imp-manual-archivo">Tipo de archivo</label>' +
           '<select id="imp-manual-archivo" title="Filtrar percepciones por archivo">' +
@@ -1059,10 +1062,11 @@
     var k = kpis();
     var meta = regimenMeta(state.regimen);
     el.innerHTML =
-      '<div class="imp-header">' +
-        '<h1 class="vista-titulo"><span class="vista-titulo-icon" aria-hidden="true">' + ICO.tax + '</span>Impuestos</h1>' +
-      '</div>' +
-      '<p class="imp-field-hint">Cruce de percepciones de Mercado Pago contra el extracto cargado en Conciliación Bancaria, por <strong>Número de movimiento</strong>. Elegí el régimen en el combo y cargá el Excel correspondiente (CIBBPP, CIBCPP o CIVAPP).</p>' +
+      FornitaliaHelp.header(ICO.tax, 'Impuestos', 'tpl-imp-help', 'Ayuda: Impuestos',
+        '<p>Cruce de percepciones de Mercado Pago contra el extracto cargado en Conciliación Bancaria, por <strong>Número de movimiento</strong>.</p>' +
+        '<p>Elegí el régimen en el combo y cargá el Excel correspondiente (<em>' + esc(meta.archivo) + '</em> para ' + esc(meta.id) + ').</p>' +
+        '<p>Si el número está en el extracto MP, se marca En extracto; Conciliado mira si ese movimiento ya está confirmado (o marcado como no requiere) en Conciliación Bancaria.</p>' +
+        '<p>' + esc(meta.help) + '</p>') +
       (state.loading ? '<p class="loading">Cargando impuestos…</p>' : '') +
       (state.err ? '<p class="imp-msg-err">' + esc(state.err) + '</p>' : '') +
       (state.msg ? '<p class="imp-msg-ok">' + esc(state.msg) + '</p>' : '') +
@@ -1077,9 +1081,8 @@
               esc(labelRegimen(r)) + '</option>';
           }).join('') +
         '</select>' +
-        '<span class="th-help" data-help="' + esc(meta.help) + '" role="button" tabindex="0" aria-label="Ayuda: ' + esc(meta.id) + '" title="Ayuda">' + SVG_HELP + '</span>' +
+        '<button type="button" class="th-help th-help--inline" data-help="' + esc(meta.help) + '" aria-label="Ayuda: ' + esc(meta.id) + '" title="Ayuda">' + SVG_HELP + '</button>' +
       '</div>' +
-      '<p class="imp-field-hint">Cargá <em>' + esc(meta.archivo) + '</em>. Si el número está en el extracto MP, se marca En extracto; Conciliado mira si ese movimiento ya está confirmado (o marcado como no requiere) en Conciliación Bancaria.</p>' +
       '<div class="imp-toolbar"><div class="imp-acciones">' +
         (can(PERM_CARGAR) ? '<button type="button" class="imp-btn imp-btn-navy" data-imp="up"><span class="btn-icon">' + ICO.upload + '</span>Cargar reporte</button>' : '') +
         (can(PERM_CARGAR) ? '<button type="button" class="imp-btn imp-btn-ghost" data-imp="manual" title="Conciliar percepciones no conciliadas con un movimiento de tesorería Mercado Pago"><span class="btn-icon">' + ICO.link + '</span>Conciliación manual</button>' : '') +

@@ -8,17 +8,18 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <script src="scripts/lib/fornitalia-help.js?v=2.46"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.31">
-  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.31"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.40">
-  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.40"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.36">
-  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.36"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.36">
-  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.36"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.42">
-  <script src="scripts/lib/fornitalia-impuestos.js?v=2.42"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.46">
+  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.46"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.46">
+  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.46"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.46">
+  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.46"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.46">
+  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.46"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.46">
+  <script src="scripts/lib/fornitalia-impuestos.js?v=2.46"></script>
   <style>
     * { box-sizing: border-box; }
     body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f5f5f5; display: flex; flex-direction: column; min-height: 100vh; }
@@ -144,7 +145,7 @@
     .sidebar.expanded .sidebar-version { opacity: 1; }
     .sidebar:not(.expanded) .sidebar-version { text-align: center; padding: 0.5rem 0; }
     .main-content { flex: 1; padding: 1rem 1.5rem; overflow-x: auto; }
-    .dashboard-header-row { display: flex; align-items: center; gap: 0.45rem; }
+    .dashboard-header-row { display: flex; align-items: center; gap: 0.45rem; margin: 0 0 0.75rem; }
     .dashboard-header-row h1 { margin: 0; color: #1a1a1a; }
     .vista-titulo {
       margin: 0;
@@ -1220,14 +1221,23 @@
   <div id="view-saldos-extractos" class="card vista-se" style="display:none;"></div>
   <div id="view-impuestos" class="card vista-imp" style="display:none;"></div>
   <div id="view-reportes" class="card" style="display:none;">
-    <h1 class="vista-titulo">
-      <span class="vista-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M8 9h2"/></svg></span>
-      Reportes
-    </h1>
-    <p style="color:#666; margin:0 0 1rem;">Exportaciones agregadas desde la base de transacciones en Supabase (misma lógica que el Excel <strong>Matriz_Relaciones_Transacciones_Fornitalia</strong> generado por script).</p>
+    <div class="dashboard-header-row">
+      <h1 class="vista-titulo">
+        <span class="vista-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M8 9h2"/></svg></span>
+        Reportes
+      </h1>
+      <button type="button" class="th-help th-help--inline" data-help-template="template-reportes-intro" aria-label="Ayuda: Reportes" title="Ayuda">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+      </button>
+    </div>
+    <template id="template-reportes-intro">
+      <div class="th-help-rich-content">
+        <p>Exportaciones agregadas desde la base de transacciones en Supabase (misma lógica que el Excel <strong>Matriz_Relaciones_Transacciones_Fornitalia</strong> generado por script).</p>
+        <p>Incluye <strong>Matriz_Cat_Cuenta_Costo</strong> (todas las transacciones cargadas, sin exclusiones; la suma de <strong># Registros</strong> = total en sesión; filas en <strong>verde claro</strong> cuando cat/cuenta vieja tiene una sola relación nueva), <strong>Cat_x_Cuenta_Registros</strong> (solo Confirmado), <strong>Proveedores_*</strong> (excluyen Impuestos, Ventas, MP costo financiero, Comisiones Morvalab) y <strong>README</strong>. Conteos numéricos en Excel.</p>
+      </div>
+    </template>
     <section class="reportes-bloque" style="margin-bottom:1.25rem; padding:1rem; border:1px solid #e5e5e5; border-radius:8px; background:#fafafa;">
       <h2 style="font-size:1.05rem; margin:0 0 0.5rem;">Matriz de relaciones (categoría, cuenta, costo y proveedores)</h2>
-      <p class="sin-cotizacion-note" style="margin:0 0 0.75rem;">Incluye <strong>Matriz_Cat_Cuenta_Costo</strong> (todas las transacciones cargadas, sin exclusiones; la suma de <strong># Registros</strong> = total en sesión; filas en <strong>verde claro</strong> cuando cat/cuenta vieja tiene una sola relación nueva), <strong>Cat_x_Cuenta_Registros</strong> (solo Confirmado), <strong>Proveedores_*</strong> (excluyen Impuestos, Ventas, MP costo financiero, Comisiones Morvalab) y <strong>README</strong>. Conteos numéricos en Excel.</p>
       <p id="reportes-matriz-stats" class="sin-cotizacion-note" style="margin:0 0 0.75rem;" aria-live="polite"></p>
       <button type="button" class="btn btn-success" id="btn-exportar-matriz-relaciones" title="Exportar matriz de relaciones a Excel" aria-label="Exportar matriz de relaciones a Excel">
         <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span>
@@ -1237,11 +1247,20 @@
   </div>
 
   <div id="view-novedades" class="card" style="display:none;">
-    <h1 class="vista-titulo">
-      <span class="vista-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg></span>
-      Novedades del Negocio
-    </h1>
-    <p style="color:#666; margin:0 0 1rem;">Importadores y comercios de hornos en Argentina (Buenos Aires). Información recuperada por IA.</p>
+    <div class="dashboard-header-row">
+      <h1 class="vista-titulo">
+        <span class="vista-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg></span>
+        Novedades del Negocio
+      </h1>
+      <button type="button" class="th-help th-help--inline" data-help-template="template-novedades-intro" aria-label="Ayuda: Novedades del Negocio" title="Ayuda">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+      </button>
+    </div>
+    <template id="template-novedades-intro">
+      <div class="th-help-rich-content">
+        <p>Importadores y comercios de hornos en Argentina (Buenos Aires). Información recuperada por IA.</p>
+      </div>
+    </template>
     <button type="button" class="btn btn-success" id="btn-cargar-novedades" style="margin-bottom:1rem;">
       <span class="btn-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Cargar novedades
     </button>
@@ -1260,11 +1279,21 @@
   </div>
 
   <div id="view-seguridad" class="card panel-seguridad" style="display:none;">
-    <h1 class="vista-titulo">
-      <span class="vista-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
-      Seguridad – Usuarios y roles
-    </h1>
-    <p style="color:#666; margin:0 0 1rem 0; font-size:0.95rem;">Asigná el rol (Admin, Encargado, Visor) y el <strong>nombre para mostrar</strong> (habitualmente iniciales, ej. LB) a cada usuario. Ese nombre aparece como responsable en Gestión de Proyectos. Debajo podés activar o desactivar <strong>cada solapa y menú por separado</strong> para ese rol (incluido Visor).</p>
+    <div class="dashboard-header-row">
+      <h1 class="vista-titulo">
+        <span class="vista-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+        Seguridad – Usuarios y roles
+      </h1>
+      <button type="button" class="th-help th-help--inline" data-help-template="template-seguridad-intro" aria-label="Ayuda: Seguridad" title="Ayuda">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+      </button>
+    </div>
+    <template id="template-seguridad-intro">
+      <div class="th-help-rich-content">
+        <p>Asigná el rol (Admin, Encargado, Visor) y el <strong>nombre para mostrar</strong> (habitualmente iniciales, ej. LB) a cada usuario. Ese nombre aparece como responsable en Gestión de Proyectos.</p>
+        <p>Debajo podés activar o desactivar <strong>cada solapa y menú por separado</strong> para ese rol (incluido Visor). Los cambios de permisos aplican a todos los usuarios con ese rol.</p>
+      </div>
+    </template>
     <div id="seguridad-loading" class="seguridad-loading">Cargando usuarios…</div>
     <div id="seguridad-tabla-wrap" class="seguridad-tabla-wrap" style="display:none;">
       <table id="seguridad-tabla">
@@ -1273,8 +1302,17 @@
       </table>
     </div>
     <div id="seguridad-permisos-wrap" style="margin-top:1.5rem; display:none;">
-      <h2 style="margin:0 0 0.75rem 0; font-size:1.05rem;">Permisos por rol</h2>
-      <p style="color:#666; font-size:0.9rem; margin:0 0 1rem 0;">Activá o desactivá permisos para cada rol. Los cambios aplican a todos los usuarios con ese rol.</p>
+      <h2 class="dashboard-header-row" style="margin:0 0 0.75rem 0; font-size:1.05rem;">
+        Permisos por rol
+        <button type="button" class="th-help th-help--inline" data-help-template="template-seguridad-permisos" aria-label="Ayuda: Permisos por rol" title="Ayuda">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        </button>
+      </h2>
+      <template id="template-seguridad-permisos">
+        <div class="th-help-rich-content">
+          <p>Activá o desactivá permisos para cada rol. Los cambios aplican a todos los usuarios con ese rol.</p>
+        </div>
+      </template>
       <div id="seguridad-permisos-grid"></div>
     </div>
   </div>
@@ -1761,7 +1799,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.37';
+    const APP_VERSION = '2.38';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';

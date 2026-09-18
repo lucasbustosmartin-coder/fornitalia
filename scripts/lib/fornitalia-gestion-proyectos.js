@@ -561,8 +561,10 @@
     var list = filas && filas.length ? filas : [{ fecha: fechaHoyYmd(), horas: '', observaciones: '' }];
     var txt = hint || 'Horas reales trabajadas ese día (no es alocación planificada). Calendario Argentina.';
     return '<div class="form-group full">' +
-      '<label>Horas consumidas por fecha</label>' +
-      '<p class="gp-field-hint">' + esc(txt) + ' En Observaciones podés anotar qué hiciste ese día.</p>' +
+      '<label class="dashboard-header-row" style="margin:0 0 0.35rem">Horas consumidas por fecha ' +
+        FornitaliaHelp.inline('tpl-gp-horas-form', 'Ayuda: Horas consumidas',
+          '<p>' + esc(txt) + '</p><p>En Observaciones podés anotar qué hiciste ese día. Calendario Argentina.</p>') +
+      '</label>' +
       '<div class="gp-horas-form-wrap"><table class="gp-horas-form">' +
         '<thead><tr><th>Fecha</th><th>Horas</th><th>Observaciones</th><th></th></tr></thead>' +
         '<tbody>' + list.map(function (f) { return htmlFilaHora(f.fecha, f.horas, f.observaciones); }).join('') + '</tbody>' +
@@ -707,8 +709,11 @@
   function htmlTablaArchivos(filas) {
     var list = filas && filas.length ? filas : [{}];
     return '<div class="form-group full">' +
-      '<label>Archivos adjuntos</label>' +
-      '<p class="gp-field-hint">Fecha (calendario Argentina), descripción y archivo. Máximo 20 MB. Se guardan en Storage de Supabase y se abren con enlace temporario.</p>' +
+      '<label class="dashboard-header-row" style="margin:0 0 0.35rem">Archivos adjuntos ' +
+        FornitaliaHelp.inline('tpl-gp-arch-form', 'Ayuda: Archivos adjuntos',
+          '<p>Fecha (calendario Argentina), descripción y archivo. Máximo 20 MB.</p>' +
+          '<p>Se guardan en Storage de Supabase y se abren con enlace temporario.</p>') +
+      '</label>' +
       '<div class="gp-horas-form-wrap"><table class="gp-horas-form gp-archivos-form">' +
         '<thead><tr><th>Fecha</th><th>Descripción</th><th>Archivo adjunto</th><th></th></tr></thead>' +
         '<tbody>' + list.map(htmlFilaArchivo).join('') + '</tbody>' +
@@ -880,7 +885,8 @@
           '<button type="button" class="gp-btn gp-btn-ghost gp-btn-icon-only" data-gp="ver-archivo" data-path="' + esc(a.path) + '" title="Ver archivo" aria-label="Ver archivo"><span class="btn-icon">' + ICO.eye + '</span></button></td>' +
       '</tr>';
     }).join('');
-    return '<p class="gp-field-hint" style="margin:0 0 0.65rem">Archivos del proyecto, los entregables y las tareas. La fecha es día de negocio Argentina.</p>' +
+    return FornitaliaHelp.row('tpl-gp-arch-lista', 'Ayuda: Archivos',
+      '<p>Archivos del proyecto, los entregables y las tareas. La fecha es día de negocio Argentina.</p>') +
       '<div class="gp-tabla-wrap"><table class="gp-tabla gp-tabla-horas">' +
         '<thead><tr><th>Fecha</th><th>Nivel</th><th>Entregable</th><th>Tarea</th><th>Descripción</th><th>Archivo</th></tr></thead>' +
         '<tbody>' + rows + '</tbody>' +
@@ -2280,7 +2286,8 @@
         '</div>'
       : '';
     return banner +
-      '<p class="gp-field-hint" style="margin:0 0 0.65rem">Conciliación de horas consumidas (reales) por fecha. El total es la suma de horas propias del proyecto más las de los entregables y las tareas.</p>' +
+      FornitaliaHelp.row('tpl-gp-horas-lista', 'Ayuda: Horas consumidas',
+        '<p>Conciliación de horas consumidas (reales) por fecha. El total es la suma de horas propias del proyecto más las de los entregables y las tareas.</p>') +
       '<div class="gp-tabla-wrap"><table class="gp-tabla gp-tabla-horas">' +
         '<thead><tr><th>Fecha</th><th>Entregable</th><th>Tarea</th><th>Horas cons.</th><th>Observaciones</th><th>Control</th></tr></thead>' +
         '<tbody>' + rows + '</tbody>' +
@@ -2300,13 +2307,9 @@
     }).join('');
 
     el.innerHTML =
-      '<div class="gp-header">' +
-        '<h1 class="vista-titulo">' +
-          '<span class="vista-titulo-icon" aria-hidden="true">' + ICO.folder + '</span>' +
-          'Gestión de Proyectos' +
-        '</h1>' +
-      '</div>' +
-      '<p style="color:#666;margin:0 0 1rem;font-size:0.92rem">Planes de trabajo: proyecto → entregables → tareas y dependencias. Las horas consumidas y los archivos se cargan por fecha en el proyecto, el entregable y/o las tareas. Si una tarea o las horas superan el deadline, aparece una alerta para ajustar fechas.</p>' +
+      FornitaliaHelp.header(ICO.folder, 'Gestión de Proyectos', 'tpl-gp-intro', 'Ayuda: Gestión de Proyectos',
+        '<p>Planes de trabajo: proyecto → entregables → tareas y dependencias.</p>' +
+        '<p>Las horas consumidas y los archivos se cargan por fecha en el proyecto, el entregable y/o las tareas. Si una tarea o las horas superan el deadline, aparece una alerta para ajustar fechas.</p>') +
       (state.loading ? '<p class="loading">Cargando planes…</p>' : '') +
       renderCardsProyecto() +
       '<div class="gp-toolbar">' +
