@@ -66,6 +66,22 @@
 
 .cb-btn-navy:hover { background: #1e293b; }
 
+.cb-btn-mp {
+  background: #009ee3;
+  border-color: #009ee3;
+  color: #fff;
+}
+
+.cb-btn-mp:hover { background: #0077b3; border-color: #0077b3; }
+
+.cb-btn-gal {
+  background: #ff6a00;
+  border-color: #ff6a00;
+  color: #fff;
+}
+
+.cb-btn-gal:hover { background: #e05e00; border-color: #e05e00; }
+
 .cb-btn-ghost {
   background: #fff;
   color: #0f172a;
@@ -131,6 +147,36 @@
 .cb-tabs button.cb-tab-warn.activo {
   background: #92400e;
   border-color: #92400e;
+  color: #fff;
+}
+
+.cb-tabs button.cb-tab-mp {
+  background: #e6f6fc;
+  border-color: #009ee3;
+  color: #0077b3;
+  font-weight: 600;
+}
+
+.cb-tabs button.cb-tab-mp:hover { background: #cceef9; }
+
+.cb-tabs button.cb-tab-mp.activo {
+  background: #009ee3;
+  border-color: #0088c7;
+  color: #fff;
+}
+
+.cb-tabs button.cb-tab-gal {
+  background: #fff3e8;
+  border-color: #ff6a00;
+  color: #c75300;
+  font-weight: 600;
+}
+
+.cb-tabs button.cb-tab-gal:hover { background: #ffe4cc; }
+
+.cb-tabs button.cb-tab-gal.activo {
+  background: #ff6a00;
+  border-color: #e05e00;
   color: #fff;
 }
 
@@ -755,6 +801,7 @@
   .cb-filtros .cb-btn { min-height: 44px; }
   .cb-acciones { width: 100%; }
   .cb-acciones .cb-btn { flex: 1 1 auto; }
+  .cb-tabs button { min-height: 44px; }
   .cb-manual-cols { grid-template-columns: 1fr; }
   .cb-modal.cb-modal-wide {
     width: calc(100vw - 1rem);

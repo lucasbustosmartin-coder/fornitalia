@@ -74,6 +74,22 @@
 
 .se-btn-navy:hover { background: #1e293b; }
 
+.se-btn-mp {
+  background: #009ee3;
+  border-color: #009ee3;
+  color: #fff;
+}
+
+.se-btn-mp:hover { background: #0077b3; border-color: #0077b3; }
+
+.se-btn-gal {
+  background: #ff6a00;
+  border-color: #ff6a00;
+  color: #fff;
+}
+
+.se-btn-gal:hover { background: #e05e00; border-color: #e05e00; }
+
 .se-filtros {
   display: flex;
   flex-wrap: wrap;
@@ -153,6 +169,36 @@
 .se-tabs button.activo {
   background: #0f172a;
   border-color: #0f172a;
+  color: #fff;
+}
+
+.se-tabs button.se-tab-mp {
+  background: #e6f6fc;
+  border-color: #009ee3;
+  color: #0077b3;
+  font-weight: 600;
+}
+
+.se-tabs button.se-tab-mp:hover { background: #cceef9; }
+
+.se-tabs button.se-tab-mp.activo {
+  background: #009ee3;
+  border-color: #0088c7;
+  color: #fff;
+}
+
+.se-tabs button.se-tab-gal {
+  background: #fff3e8;
+  border-color: #ff6a00;
+  color: #c75300;
+  font-weight: 600;
+}
+
+.se-tabs button.se-tab-gal:hover { background: #ffe4cc; }
+
+.se-tabs button.se-tab-gal.activo {
+  background: #ff6a00;
+  border-color: #e05e00;
   color: #fff;
 }
 

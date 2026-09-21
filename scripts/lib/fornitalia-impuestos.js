@@ -1071,7 +1071,7 @@
       (state.err ? '<p class="imp-msg-err">' + esc(state.err) + '</p>' : '') +
       (state.msg ? '<p class="imp-msg-ok">' + esc(state.msg) + '</p>' : '') +
       '<div class="imp-tabs">' +
-        '<button type="button" class="' + (state.canal === 'mercadopago' ? 'activo' : '') + '" data-imp="canal" data-canal="mercadopago">Mercado Pago</button>' +
+        '<button type="button" class="imp-tab-mp' + (state.canal === 'mercadopago' ? ' activo' : '') + '" data-imp="canal" data-canal="mercadopago">Mercado Pago</button>' +
       '</div>' +
       '<div class="imp-regimen-title">' +
         '<label class="imp-regimen-label" for="imp-regimen">Régimen</label>' +
@@ -1084,7 +1084,7 @@
         '<button type="button" class="th-help th-help--inline" data-help="' + esc(meta.help) + '" aria-label="Ayuda: ' + esc(meta.id) + '" title="Ayuda">' + SVG_HELP + '</button>' +
       '</div>' +
       '<div class="imp-toolbar"><div class="imp-acciones">' +
-        (can(PERM_CARGAR) ? '<button type="button" class="imp-btn imp-btn-navy" data-imp="up"><span class="btn-icon">' + ICO.upload + '</span>Cargar reporte</button>' : '') +
+        (can(PERM_CARGAR) ? '<button type="button" class="imp-btn imp-btn-mp" data-imp="up"><span class="btn-icon">' + ICO.upload + '</span>Cargar reporte</button>' : '') +
         (can(PERM_CARGAR) ? '<button type="button" class="imp-btn imp-btn-ghost" data-imp="manual" title="Conciliar percepciones no conciliadas con un movimiento de tesorería Mercado Pago"><span class="btn-icon">' + ICO.link + '</span>Conciliación manual</button>' : '') +
         ((can(PERM_EXPORTAR) || can(PERM_VER)) ? '<button type="button" class="imp-btn imp-btn-excel" data-imp="xlsx"><span class="btn-icon">' + ICO.download + '</span>Excel</button>' : '') +
       '</div></div>' +

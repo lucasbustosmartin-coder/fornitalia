@@ -66,6 +66,14 @@
 
 .imp-btn-navy:hover { background: #1e293b; }
 
+.imp-btn-mp {
+  background: #009ee3;
+  border-color: #009ee3;
+  color: #fff;
+}
+
+.imp-btn-mp:hover { background: #0077b3; border-color: #0077b3; }
+
 .imp-btn-ghost {
   background: #fff;
   color: #0f172a;
@@ -120,6 +128,21 @@
 .imp-tabs button.activo {
   background: #0f172a;
   border-color: #0f172a;
+  color: #fff;
+}
+
+.imp-tabs button.imp-tab-mp {
+  background: #e6f6fc;
+  border-color: #009ee3;
+  color: #0077b3;
+  font-weight: 600;
+}
+
+.imp-tabs button.imp-tab-mp:hover { background: #cceef9; }
+
+.imp-tabs button.imp-tab-mp.activo {
+  background: #009ee3;
+  border-color: #0088c7;
   color: #fff;
 }
 
@@ -630,6 +653,8 @@
   .imp-filtros input[type="search"] { min-width: 100%; max-width: 100%; width: 100%; }
   .imp-filtros .form-group { width: 100%; }
   .imp-filtros .imp-btn { min-height: 44px; }
+  .imp-acciones { width: 100%; }
+  .imp-acciones .imp-btn { min-height: 44px; flex: 1 1 auto; }
   .imp-filtros-modal-grid { grid-template-columns: 1fr; }
   .imp-modal { width: 100%; max-height: 95vh; }
   .imp-manual-cols { grid-template-columns: 1fr; }

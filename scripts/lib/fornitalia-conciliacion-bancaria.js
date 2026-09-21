@@ -3941,10 +3941,11 @@
     else if (state.lista === 'bajas') listaHtml = renderTablaBajas();
     else listaHtml = renderTablaSolo('sistema');
 
+    var clsCarga = esCanalGalicia(state.canal) ? 'cb-btn-gal' : 'cb-btn-mp';
     return FornitaliaHelp.row('tpl-cb-canal', 'Ayuda: ' + labelCanalNombre(state.canal), lab.hintHtml) +
       '<div class="cb-toolbar"><div class="cb-acciones">' +
-        (canCargar ? '<button type="button" class="cb-btn cb-btn-navy" data-cb="up-banco"><span class="btn-icon">' + ICO.upload + '</span>' + esc(lab.btnBanco) + '</button>' : '') +
-        (canCargar ? '<button type="button" class="cb-btn cb-btn-ghost" data-cb="up-sistema"><span class="btn-icon">' + ICO.upload + '</span>' + esc(lab.btnSistema) + '</button>' : '') +
+        (canCargar ? '<button type="button" class="cb-btn ' + clsCarga + '" data-cb="up-banco"><span class="btn-icon">' + ICO.upload + '</span>' + esc(lab.btnBanco) + '</button>' : '') +
+        (canCargar ? '<button type="button" class="cb-btn ' + clsCarga + '" data-cb="up-sistema"><span class="btn-icon">' + ICO.upload + '</span>' + esc(lab.btnSistema) + '</button>' : '') +
         (can(PERM_CONFIRMAR) ? '<button type="button" class="cb-btn cb-btn-ghost" data-cb="manual"><span class="btn-icon">' + ICO.link + '</span>Conciliación manual</button>' : '') +
         ((canCargar || can(PERM_CONFIRMAR)) ? '<button type="button" class="cb-btn cb-btn-ghost" data-cb="recalc"><span class="btn-icon">' + ICO.refresh + '</span>Recalcular sugerencias</button>' : '') +
         (canCargar && state.lista === 'bajas' && k.bajas
@@ -3990,9 +3991,9 @@
       (state.loading ? '<p class="loading">Cargando conciliación…</p>' : '') +
       (state.err ? '<p class="cb-msg-err">' + esc(state.err) + '</p>' : '') +
       '<div class="cb-tabs">' +
-        '<button type="button" class="' + (state.canal === CANAL_MP ? 'activo' : '') + '" data-cb="canal" data-canal="' + CANAL_MP + '">Mercado Pago</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_GAL ? 'activo' : '') + '" data-cb="canal" data-canal="' + CANAL_GAL + '">' + esc(LABEL_GAL) + '</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_GAL_USD ? 'activo' : '') + '" data-cb="canal" data-canal="' + CANAL_GAL_USD + '">' + esc(LABEL_GAL_USD) + '</button>' +
+        '<button type="button" class="cb-tab-mp' + (state.canal === CANAL_MP ? ' activo' : '') + '" data-cb="canal" data-canal="' + CANAL_MP + '">Mercado Pago</button>' +
+        '<button type="button" class="cb-tab-gal' + (state.canal === CANAL_GAL ? ' activo' : '') + '" data-cb="canal" data-canal="' + CANAL_GAL + '">' + esc(LABEL_GAL) + '</button>' +
+        '<button type="button" class="cb-tab-gal' + (state.canal === CANAL_GAL_USD ? ' activo' : '') + '" data-cb="canal" data-canal="' + CANAL_GAL_USD + '">' + esc(LABEL_GAL_USD) + '</button>' +
       '</div>' +
       renderCanal();
 

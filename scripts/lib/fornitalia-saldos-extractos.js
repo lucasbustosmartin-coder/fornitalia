@@ -1633,11 +1633,11 @@
 
     var btnUp = '';
     if (canCargar && state.canal === CANAL_MP) {
-      btnUp = '<button type="button" class="se-btn se-btn-navy" data-se="up-mp"><span class="btn-icon">' + ICO.upload + '</span>Cargar cartas Mercado Pago</button>';
+      btnUp = '<button type="button" class="se-btn se-btn-mp" data-se="up-mp"><span class="btn-icon">' + ICO.upload + '</span>Cargar cartas Mercado Pago</button>';
     } else if (canCargar && state.canal === CANAL_GAL) {
-      btnUp = '<button type="button" class="se-btn se-btn-navy" data-se="up-gal"><span class="btn-icon">' + ICO.upload + '</span>Cargar resúmenes Galicia</button>';
+      btnUp = '<button type="button" class="se-btn se-btn-gal" data-se="up-gal"><span class="btn-icon">' + ICO.upload + '</span>Cargar resúmenes Galicia</button>';
     } else if (canCargar && state.canal === CANAL_GAL_USD) {
-      btnUp = '<button type="button" class="se-btn se-btn-navy" data-se="up-gal-usd"><span class="btn-icon">' + ICO.upload + '</span>Cargar resúmenes Galicia (USD)</button>';
+      btnUp = '<button type="button" class="se-btn se-btn-gal" data-se="up-gal-usd"><span class="btn-icon">' + ICO.upload + '</span>Cargar resúmenes Galicia (USD)</button>';
     }
 
     el.innerHTML =
@@ -1648,9 +1648,9 @@
       (state.err ? '<p class="se-msg-err">' + esc(state.err) + '</p>' : '') +
       (state.msg ? '<p class="se-msg-ok">' + esc(state.msg) + '</p>' : '') +
       '<div class="se-tabs">' +
-        '<button type="button" class="' + (state.canal === CANAL_MP ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_MP + '">Mercado Pago</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_GAL ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_GAL + '">' + esc(LABEL_GAL) + '</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_GAL_USD ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_GAL_USD + '">' + esc(LABEL_GAL_USD) + '</button>' +
+        '<button type="button" class="se-tab-mp' + (state.canal === CANAL_MP ? ' activo' : '') + '" data-se="canal" data-canal="' + CANAL_MP + '">Mercado Pago</button>' +
+        '<button type="button" class="se-tab-gal' + (state.canal === CANAL_GAL ? ' activo' : '') + '" data-se="canal" data-canal="' + CANAL_GAL + '">' + esc(LABEL_GAL) + '</button>' +
+        '<button type="button" class="se-tab-gal' + (state.canal === CANAL_GAL_USD ? ' activo' : '') + '" data-se="canal" data-canal="' + CANAL_GAL_USD + '">' + esc(LABEL_GAL_USD) + '</button>' +
         '<button type="button" class="' + (state.canal === CANAL_GF ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_GF + '">' + esc(LABEL_GF) + '</button>' +
         '<button type="button" class="' + (state.canal === CANAL_MOR ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_MOR + '">' + esc(LABEL_MOR) + '</button>' +
         '<button type="button" class="' + (state.canal === CANAL_USD ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_USD + '">' + esc(LABEL_USD) + '</button>' +
