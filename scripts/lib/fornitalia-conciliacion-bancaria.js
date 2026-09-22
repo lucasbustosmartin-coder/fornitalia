@@ -65,6 +65,7 @@
     eliminados: [],
     msg: '',
     err: '',
+    resumenCarga: null,
     modal: null,
     modalFiltros: null,
     filtrosDraft: null,
@@ -750,6 +751,38 @@
     return '';
   }
 
+  function esNombreTesoreriaHistorico(archivo) {
+    var t = normHeader(archivo);
+    return /movimientos[_\s-]*historico/.test(t) || /historico[_\s-]*importar/.test(t);
+  }
+
+  function esNombreCierreCaja(archivo) {
+    var t = normHeader(archivo);
+    if (/cierre[_\s-]/.test(t)) return true;
+    if (t.indexOf('mp_cierre') >= 0 || t.indexOf('galicia_cierre') >= 0) return true;
+    return false;
+  }
+
+  function hayFilasCajaConciliable(rows, map) {
+    var r;
+    for (r = 1; r < (rows || []).length; r++) {
+      var caja = String(cell(rows[r] || [], map, ['Caja']) || '').trim();
+      if (canalPorCaja(caja)) return true;
+    }
+    return false;
+  }
+
+  function canalesCajaEnFilas(rows, map) {
+    var seen = {};
+    var r;
+    for (r = 1; r < (rows || []).length; r++) {
+      var caja = String(cell(rows[r] || [], map, ['Caja']) || '').trim();
+      var c = canalPorCaja(caja);
+      if (c) seen[c] = true;
+    }
+    return Object.keys(seen);
+  }
+
   function esFilaPieTesoreria(fechaRaw, tipo) {
     var f = String(fechaRaw || '').trim().toLowerCase();
     var t = String(tipo || '').trim().toLowerCase();
@@ -1252,10 +1285,10 @@
     if (!esMapaTesoreria(map) && !esCierre) {
       return {
         error: esCanalGalUsd(state.canal)
-          ? 'No reconocí la tesorería de Galicia (USD). Esperaba tesoreria_transferencia_galicia_dolar_… (Tipo, Fecha, Crédito, Débito e Id) o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-… o cierre_DOL-…) con Caja = Transferencia Galicia Dolar.'
+          ? 'No reconocí la tesorería de Galicia (USD). Esperaba tesoreria_transferencia_galicia_dolar_… (Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-… o cierre_DOL-…) con Caja = Transferencia Galicia Dolar, o el histórico movimientos-historico_… (Id, Fecha, Tipo, Caja, Monto).'
           : (state.canal === CANAL_GAL
-          ? 'No reconocí la tesorería de Galicia. Esperaba Tipo, Fecha, Crédito, Débito e Id (p. ej. tesoreria_transferencia_galicia) o el cierre de caja (Fecha, Tipo, Monto e Id).'
-          : 'No reconocí la tesorería de Mercado Pago. Esperaba Tipo, Fecha, Crédito, Débito e Id o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-…).'),
+          ? 'No reconocí la tesorería de Galicia. Esperaba Tipo, Fecha, Crédito, Débito e Id (p. ej. tesoreria_transferencia_galicia), el cierre de caja (Fecha, Tipo, Monto e Id) o el histórico movimientos-historico_… (Id, Fecha, Tipo, Caja, Monto).'
+          : 'No reconocí la tesorería de Mercado Pago. Esperaba Tipo, Fecha, Crédito, Débito e Id, el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. cierre_CIERRE-…) o el histórico movimientos-historico_… (Id, Fecha, Tipo, Caja, Monto).'),
         filas: []
       };
     }
@@ -1265,20 +1298,31 @@
       cajaMuestra = String(cell(rows[rr] || [], map, ['Caja']) || '').trim();
       if (cajaMuestra) break;
     }
+    var canalesEnArchivo = canalesCajaEnFilas(rows, map);
+    var hayCb = canalesEnArchivo.length > 0;
     var cajaFisica = labelCajaFisicaNoConciliable(archivo, name, cajaMuestra);
-    if (cajaFisica) {
-      return { error: 'Ese archivo es de la caja física ' + cajaFisica + '. Cargalo en el menú Cajas (físicas).', filas: [] };
+    if (cajaFisica && !hayCb) {
+      return {
+        error: esNombreTesoreriaHistorico(archivo)
+          ? 'Ese histórico solo tiene cajas físicas (' + cajaFisica + '). Cargalo en el menú Cajas (físicas).'
+          : 'Ese archivo es de la caja física ' + cajaFisica + '. Cargalo en el menú Cajas (físicas).',
+        filas: []
+      };
     }
     var counts = {};
     var idsVistos = {};
     var filas = [];
     var omitidasApertura = 0;
+    var omitidasPendiente = 0;
     var omitidasCaja = 0;
+    var omitidasCajaFisica = 0;
     var omitidasIdDup = 0;
     var omitidasSinId = 0;
     var tieneIdCierre = false;
     var exigeId = mapaTesoreriaTieneIdCierre(map);
     var canalArchivo = canalPorArchivoTesoreria(archivo);
+    var esHistorico = esCierre && exigeId && !esNombreCierreCaja(archivo) &&
+      (esNombreTesoreriaHistorico(archivo) || canalesEnArchivo.length > 1 || (hayCb && cajaFisica));
     for (var r = 1; r < rows.length; r++) {
       var row = rows[r] || [];
       var tipo = String(cell(row, map, ['Tipo']) || '').trim();
@@ -1304,8 +1348,12 @@
         omitidasApertura += 1;
         continue;
       }
+      var esPendiente = normHeader(status) === 'pendiente';
       if (esCierre) {
-        if (normHeader(status) === 'pendiente') continue;
+        if (esPendiente && !idCierre) {
+          omitidasPendiente += 1;
+          continue;
+        }
         if (!fecha) continue;
         var montoCierre = parseMonto(cell(row, map, ['Monto']));
         var tipoN = tipo.toLowerCase();
@@ -1316,8 +1364,10 @@
           cred = montoCierre;
           deb = null;
         }
-        if (caja && !canalPorCaja(caja)) {
-          omitidasCaja += 1;
+        var canalFila = canalPorCaja(caja);
+        if (!canalFila) {
+          if (labelCajaFisicaNoConciliable('', '', caja)) omitidasCajaFisica += 1;
+          else omitidasCaja += 1;
           continue;
         }
       }
@@ -1373,47 +1423,43 @@
           descripcion: desc, cliente: cliente, credito: cred, debito: deb, saldo: saldo, observaciones: obs,
           caja: caja || null, usuario: usuario || null, status: status || null,
           id: idCierre || null,
-          formato: esCierre ? 'cierre' : 'tesoreria'
-        }
+          formato: esHistorico ? 'historico' : (esCierre ? 'cierre' : 'tesoreria')
+        },
+        soloSiExiste: !!(esCierre && esPendiente)
       });
     }
-    var canalDetectado = canalPorCaja(cajaMuestra) || canalArchivo || null;
-    if (!filas.length) {
-      if (omitidasApertura && !omitidasCaja && !omitidasSinId) {
-        return {
-          error: null,
-          filas: [],
-          omitidasApertura: omitidasApertura,
-          omitidasCaja: omitidasCaja,
-          omitidasIdDup: omitidasIdDup,
-          omitidasSinId: omitidasSinId,
-          formatoCierre: esCierre,
-          tieneIdCierre: tieneIdCierre,
-          canalDetectado: canalDetectado
-        };
-      }
-      return {
-        error: exigeId && omitidasSinId && !omitidasApertura
-          ? 'El archivo tiene columna Id pero ninguna fila con Id para cargar.'
-          : 'No encontré filas de tesorería para cargar.',
-        filas: [],
-        omitidasApertura: omitidasApertura,
-        omitidasCaja: omitidasCaja,
-        omitidasSinId: omitidasSinId,
-        canalDetectado: canalDetectado
-      };
-    }
-    return {
-      error: null,
-      filas: filas,
+    var canalDetectado = canalPorCaja(cajaMuestra) || canalArchivo || canalesEnArchivo[0] || null;
+    var metaOmit = {
       omitidasApertura: omitidasApertura,
+      omitidasPendiente: omitidasPendiente,
       omitidasCaja: omitidasCaja,
+      omitidasCajaFisica: omitidasCajaFisica,
       omitidasIdDup: omitidasIdDup,
       omitidasSinId: omitidasSinId,
-      formatoCierre: esCierre,
+      formatoCierre: esCierre && !esHistorico,
+      formatoHistorico: esHistorico,
       tieneIdCierre: tieneIdCierre,
-      canalDetectado: canalDetectado
+      canalDetectado: canalDetectado,
+      canalesDetectados: canalesEnArchivo
     };
+    if (!filas.length) {
+      if (omitidasApertura && !omitidasCaja && !omitidasCajaFisica && !omitidasSinId && !omitidasPendiente) {
+        return Object.assign({ error: null, filas: [] }, metaOmit);
+      }
+      if (omitidasCajaFisica && !omitidasCaja && !filas.length && !hayCb) {
+        return Object.assign({
+          error: 'Solo había filas de cajas físicas. Cargalas en el menú Cajas (físicas).',
+          filas: []
+        }, metaOmit);
+      }
+      return Object.assign({
+        error: exigeId && omitidasSinId && !omitidasApertura
+          ? 'El archivo tiene columna Id pero ninguna fila con Id para cargar.'
+          : 'No encontré filas de tesorería para cargar (Mercado Pago o Galicia).',
+        filas: []
+      }, metaOmit);
+    }
+    return Object.assign({ error: null, filas: filas }, metaOmit);
   }
 
   function textoMov(m) {
@@ -1684,6 +1730,78 @@
     return { filas: conId.concat(filDup.filas), nYa: filDup.nYa };
   }
 
+  function origenIdsAlternativos(oid) {
+    var s = String(oid || '');
+    if (s.indexOf('id|') === 0) return [s, 'cierre|' + s.slice(3)];
+    if (s.indexOf('cierre|') === 0) return [s, 'id|' + s.slice(7)];
+    return s ? [s] : [];
+  }
+
+  async function mapaOrigenIdSistema(origenIds) {
+    var found = {};
+    var keys = [];
+    var seen = {};
+    (origenIds || []).forEach(function (oid) {
+      origenIdsAlternativos(oid).forEach(function (a) {
+        if (!a || seen[a]) return;
+        seen[a] = true;
+        keys.push(a);
+      });
+    });
+    var i;
+    for (i = 0; i < keys.length; i += 400) {
+      var q = await client().from('cb_movimiento')
+        .select('origen_id,canal')
+        .eq('origen', 'sistema')
+        .in('origen_id', keys.slice(i, i + 400));
+      if (q.error) throw q.error;
+      (q.data || []).forEach(function (r) {
+        if (r && r.origen_id) found[r.origen_id] = r.canal;
+      });
+    }
+    return found;
+  }
+
+  function canalExistenteOrigenId(oid, found) {
+    var alts = origenIdsAlternativos(oid);
+    var i;
+    for (i = 0; i < alts.length; i++) {
+      if (found[alts[i]]) return found[alts[i]];
+    }
+    return '';
+  }
+
+  async function filtrarPendienteSoloSiExiste(parsed) {
+    var filas = (parsed && parsed.filas) || [];
+    var ids = [];
+    filas.forEach(function (f) {
+      if (f && f.soloSiExiste && f.origen_id) ids.push(f.origen_id);
+    });
+    if (!ids.length) return parsed;
+    var exist = await mapaOrigenIdSistema(ids);
+    var kept = [];
+    var nOmit = 0;
+    var nUpdate = 0;
+    filas.forEach(function (f) {
+      if (!f || !f.soloSiExiste) {
+        kept.push(f);
+        return;
+      }
+      var canalEx = canalExistenteOrigenId(f.origen_id, exist);
+      if (!canalEx) {
+        nOmit += 1;
+        return;
+      }
+      f.canal = canalEx;
+      nUpdate += 1;
+      kept.push(f);
+    });
+    parsed.filas = kept;
+    parsed.omitidasPendiente = (parsed.omitidasPendiente || 0) + nOmit;
+    parsed.nPendienteUpdate = nUpdate;
+    return parsed;
+  }
+
   function gruposCanalTesoreria(filas, canalDefault) {
     var groups = {};
     var order = [];
@@ -1917,6 +2035,132 @@
     input.click();
   }
 
+  function txtEqCarga(a, b) {
+    return String(a == null ? '' : a).trim() === String(b == null ? '' : b).trim();
+  }
+
+  function numEqCarga(a, b) {
+    var na = Number(a);
+    var nb = Number(b);
+    if (!isFinite(na) && !isFinite(nb)) return true;
+    if (!isFinite(na) || !isFinite(nb)) return false;
+    return Math.round(na * 100) === Math.round(nb * 100);
+  }
+
+  function filaCambioVsExistente(ex, f) {
+    if (!ex || !f) return true;
+    return String(ex.fecha || '').slice(0, 10) !== String(f.fecha || '').slice(0, 10)
+      || !numEqCarga(ex.monto, f.monto)
+      || !txtEqCarga(ex.tipo, f.tipo)
+      || !txtEqCarga(ex.descripcion, f.descripcion)
+      || !txtEqCarga(ex.contraparte, f.contraparte)
+      || !txtEqCarga(ex.categoria, f.categoria)
+      || !txtEqCarga(ex.cuenta_contable, f.cuenta_contable)
+      || !txtEqCarga(ex.moneda, f.moneda);
+  }
+
+  function clasificarFilasUpload(filas, origen) {
+    var map = {};
+    (state.movimientos || []).forEach(function (m) {
+      if (!m || m.origen !== origen || !m.origen_id) return;
+      map[m.origen_id] = m;
+    });
+    var r = { nNuevos: 0, nCambiaron: 0, nIguales: 0 };
+    (filas || []).forEach(function (f) {
+      if (!f || !f.origen_id) {
+        r.nNuevos += 1;
+        return;
+      }
+      var ex = map[f.origen_id];
+      if (!ex) {
+        r.nNuevos += 1;
+        return;
+      }
+      if (filaCambioVsExistente(ex, f)) r.nCambiaron += 1;
+      else r.nIguales += 1;
+    });
+    return r;
+  }
+
+  function sumarClasificacion(a, b) {
+    return {
+      nNuevos: (a.nNuevos || 0) + (b.nNuevos || 0),
+      nCambiaron: (a.nCambiaron || 0) + (b.nCambiaron || 0),
+      nIguales: (a.nIguales || 0) + (b.nIguales || 0)
+    };
+  }
+
+  function tipoCargaLabel(origen, parsed, archivo) {
+    if (origen === 'banco') {
+      if (parsed && parsed.fuentePdf) return 'Extracto ' + labelCanalNombre(state.canal) + ' (PDF)';
+      return 'Extracto ' + labelCanalNombre(state.canal);
+    }
+    if (parsed && parsed.formatoHistorico) return 'Tesorería histórica (Id + Caja)';
+    if (parsed && parsed.formatoCierre && parsed.tieneIdCierre) return 'Tesorería cierre de caja (Id único)';
+    if (parsed && parsed.tieneIdCierre) return 'Tesorería abierta (Id único)';
+    if (esNombreTesoreriaHistorico(archivo)) return 'Tesorería histórica';
+    return 'Tesorería ' + labelCanalNombre(state.canal);
+  }
+
+  function htmlResumenCarga(r) {
+    function item(label, n, cls, hint) {
+      var nShow = n == null ? 0 : n;
+      return '<div class="cb-resumen-item' + (cls ? ' ' + cls : '') + '">' +
+        '<dt>' + esc(label) + '</dt>' +
+        '<dd>' + esc(String(nShow)) + '</dd>' +
+        (hint ? '<p class="cb-resumen-hint">' + esc(hint) + '</p>' : '') +
+        '</div>';
+    }
+    function itemSi(label, n, cls, hint) {
+      if (!n) return '';
+      return item(label, n, cls, hint);
+    }
+    var canalesTxt = (r.canales || []).length
+      ? r.canales.join(', ')
+      : labelCanalNombre(state.canal);
+    var omitHtml = itemSi('Apertura de Caja', r.omitidasApertura, '', 'No se cargan.')
+      + itemSi('Pendiente (nuevos)', r.omitidasPendiente, '', 'No se dan de alta. Si el Id ya existía, categoría y cuenta sí se actualizan.')
+      + itemSi('Cajas físicas', r.omitidasCajaFisica, '', 'Efectivo y Morba: cargalas en Cajas (físicas).')
+      + itemSi('Otras cajas', r.omitidasCaja, '', 'No son Mercado Pago ni Galicia (ARS/USD).')
+      + itemSi('Sin Id', r.omitidasSinId, '', 'La columna Id es obligatoria en este formato.')
+      + itemSi('Id duplicado en el archivo', r.omitidasIdDup, '', 'Se tomó la primera fila de cada Id.');
+    return '<div class="cb-resumen-carga">' +
+      '<p class="cb-resumen-lead">Se procesó <strong>' + esc(r.archivo || 'el archivo') + '</strong> como <strong>' + esc(r.tipo) + '</strong>.</p>' +
+      '<p class="cb-resumen-canales">Canal' + ((r.canales || []).length > 1 ? 'es' : '') + ': ' + esc(canalesTxt) +
+        (r.extraOrigen ? ' ' + esc(r.extraOrigen) : '') + '</p>' +
+      '<h3>Qué se hizo</h3>' +
+      '<dl class="cb-resumen-grid">' +
+        item('Filas reconocidas', r.nReconocidas, '', 'Movimientos que se procesan (incluye Pendiente cuyo Id ya estaba, para actualizar categoría y cuenta).') +
+        item('Registros nuevos', r.nNuevos, 'cb-resumen-ok', 'No estaban: se dieron de alta.') +
+        item('Registros que cambiaron', r.nCambiaron, 'cb-resumen-warn', 'Mismo Id: se actualizaron fecha, monto, categoría, cuenta u otro dato.') +
+        item('Sin cambios', r.nIguales, '', 'Mismo Id y mismos datos: no se duplicaron.') +
+        itemSi('Ya coincidían (sin Id)', r.nYaContenido, '', 'Misma fecha, monto, descripción, categoría y cliente.') +
+        item('Sugerencias reconocidas', r.nSug, r.nSug ? 'cb-resumen-ok' : '', 'Parejas extracto ↔ tesorería propuestas al recálcular.') +
+        itemSi('A eliminar', r.nBajas, 'cb-resumen-warn', 'Tesorería abierta cuyo Id no vino en este archivo.') +
+        itemSi('Tesorerías viejas sin Id retiradas', r.nRetiradas, '', 'Se reemplazaron por el mismo movimiento con Id.') +
+      '</dl>' +
+      (omitHtml
+        ? '<h3>Se omitieron</h3><dl class="cb-resumen-grid cb-resumen-omit">' + omitHtml + '</dl>'
+        : '') +
+      (r.nota ? '<p class="cb-resumen-nota">' + esc(r.nota) + '</p>' : '') +
+    '</div>';
+  }
+
+  function msgCortoResumen(r) {
+    var partes = [];
+    partes.push((r.tipo || 'Carga') + ': ' + (r.nReconocidas || 0) + ' reconocidas');
+    partes.push((r.nNuevos || 0) + ' nuevas');
+    partes.push((r.nCambiaron || 0) + ' actualizadas');
+    partes.push((r.nIguales || 0) + ' sin cambios');
+    if (r.nSug) partes.push(r.nSug + ' sugerencias');
+    if (r.nBajas) partes.push(r.nBajas + ' a eliminar');
+    return partes.join(' · ') + '.';
+  }
+
+  function abrirModalResumenCarga(r) {
+    abrirModal('Resultado de la carga', htmlResumenCarga(r), '', 'cb-modal-resumen');
+  }
+
   async function onUpload(origen) {
     if (!can(PERM_CARGAR)) return;
     var acceptGal = '.xlsx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -1969,11 +2213,14 @@
           state.canal = canalAntes;
           throw new Error(parsed.error);
         }
+        if (origen === 'sistema') {
+          await filtrarPendienteSoloSiExiste(parsed);
+        }
         if (origen === 'sistema' && parsed.canalDetectado) {
           state.canal = parsed.canalDetectado;
         }
         await cargarDatos();
-        var nLeidas = parsed.filas.length;
+        var nReconocidas = parsed.filas.length;
         var filasParaSaldo = origen === 'banco' ? parsed.filas.slice() : null;
         var nYaContenido = 0;
         if (origen === 'sistema') {
@@ -1985,10 +2232,11 @@
           parsed.filas = filDupGal.filas;
           nYaContenido = filDupGal.nYa;
         }
-        var nAntes = countOrigen(origen);
+        var clsTot = { nNuevos: 0, nCambiaron: 0, nIguales: 0 };
         var nRetiradas = 0;
         var nBajas = 0;
         var nSug = 0;
+        var canalesCargados = [];
         if (origen === 'sistema' && parsed.tieneIdCierre) {
           var agrup = gruposCanalTesoreria(parsed.filas, state.canal);
           var ci;
@@ -1999,11 +2247,14 @@
             var parte = agrup.groups[canalSave];
             if (parte.length) {
               await adoptarIdTesoreria(canalSave, parte);
+              await cargarDatos();
+              clsTot = sumarClasificacion(clsTot, clasificarFilasUpload(parte, origen));
               await guardarFilas(origen, parte);
               nRetiradas += await retirarTesoreriaDuplicadaCierre(canalSave, parte);
-              if (!parsed.formatoCierre) {
+              if (!parsed.formatoCierre && !parsed.formatoHistorico) {
                 nBajas += await marcarTesoreriaAbiertaAusente(canalSave, parte);
               }
+              canalesCargados.push(labelCanalNombre(canalSave) + ' (' + parte.length + ')');
             }
             await cargarDatos();
             if (bancoRowsConciliables().length && sistemaRows().length) nSug += await regenerarSugerencias();
@@ -2011,52 +2262,24 @@
           if (agrup.order.indexOf(canalAntes) >= 0) state.canal = canalAntes;
           else if (agrup.order.length) state.canal = agrup.order[0];
         } else {
+          if (origen === 'banco' && esCanalGalicia(state.canal)) {
+            clsTot = { nNuevos: parsed.filas.length, nCambiaron: 0, nIguales: nYaContenido };
+          } else if (parsed.filas.length) {
+            clsTot = clasificarFilasUpload(parsed.filas, origen);
+            if (nYaContenido && origen === 'sistema') clsTot.nIguales += nYaContenido;
+          } else {
+            clsTot = { nNuevos: 0, nCambiaron: 0, nIguales: nYaContenido };
+          }
           if (parsed.filas.length) await guardarFilas(origen, parsed.filas);
           await cargarDatos();
           if (bancoRowsConciliables().length && sistemaRows().length) nSug = await regenerarSugerencias();
+          canalesCargados.push(labelCanalNombre(state.canal) + ' (' + (parsed.filas.length + nYaContenido) + ')');
         }
         await cargarDatos();
-        var nDespues = countOrigen(origen);
-        var nNuevos = Math.max(0, nDespues - nAntes);
-        var nYa = Math.max(0, nLeidas - nNuevos);
-        var extraCanal = state.canal !== canalAntes
-          ? ' Lo dejé en la solapa ' + labelCanalNombre(state.canal) + '.'
-          : '';
         var extraOrigen = origen !== origenPedido
-          ? (origen === 'sistema' ? ' Detecté tesorería del sistema.' : ' Detecté extracto del banco.')
+          ? (origen === 'sistema' ? 'Detecté tesorería del sistema.' : 'Detecté extracto del banco.')
           : '';
-        var extraDup;
-        if (parsed.tieneIdCierre) {
-          extraDup = parsed.formatoCierre
-            ? ' Cierre de caja con Id único: alta o actualización sin duplicar.'
-            : ' Tesorería con Id único: alta o actualización si cambió algún dato.';
-          if (parsed.formatoCierre) extraDup += ' No hace falta el prefijo MP_/Galicia_ si la columna Caja indica el medio.';
-          if (nRetiradas) extraDup += ' Se retiraron ' + nRetiradas + ' tesorerías viejas del mismo movimiento (sin Id).';
-          if (nBajas) extraDup += ' ' + nBajas + ' de tesorería abierta no vinieron en el archivo: están en A eliminar.';
-        } else {
-          extraDup = nNuevos
-            ? (nYa ? ' ' + nNuevos + ' nuevas; ' + nYa + ' ya estaban (no se duplican).' : ' ' + nNuevos + ' nuevas.')
-            : ' Ninguna nueva: las ' + nLeidas + ' ya estaban (no se duplican).';
-          extraDup += ' No se borró ningún movimiento anterior.';
-        }
-        if (nYaContenido && origen === 'sistema' && !parsed.tieneIdCierre) {
-          extraDup += ' ' + nYaContenido + ' coincidían con tesorería ya cargada (misma fecha, monto, descripción, categoría y cliente).';
-        } else if (nYaContenido && origen === 'banco') {
-          extraDup += ' ' + nYaContenido + ' coincidían con extracto Galicia ya cargado (misma fecha, importe y concepto; el saldo del banco cambia entre archivos).';
-        }
-        if (parsed.formatoCierre && !parsed.tieneIdCierre) {
-          extraDup = ' Cierre de caja (caja ya cerrada).' + extraDup;
-        }
-        if (parsed.omitidasApertura) {
-          extraDup += ' Se omitieron ' + parsed.omitidasApertura + ' Apertura de Caja (no se cargan).';
-        }
-        if (parsed.omitidasCaja) {
-          extraDup += ' Se omitieron ' + parsed.omitidasCaja + ' filas de cajas que no son Mercado Pago ni Galicia (ARS/USD).';
-        }
-        if (parsed.omitidasSinId) {
-          extraDup += ' Se omitieron ' + parsed.omitidasSinId + ' filas sin Id.';
-        }
-        var extraSug = nSug ? ' Sugerencias: ' + nSug + '.' : '';
+        var notaSaldo = '';
         if (origen === 'banco' && esCanalGalUsd(state.canal) && window.FornitaliaSaldosExtractos) {
           try {
             if (parsed.fuentePdf && parsed.pdfText &&
@@ -2066,29 +2289,42 @@
               await window.FornitaliaSaldosExtractos.guardarCorteGaliciaUsd(filasParaSaldo, file.name);
             }
           } catch (eSaldo) {
-            extraSug += ' El extracto se cargó, pero no pude pesificar el saldo en Saldos extractos: ' + errMsg(eSaldo);
+            notaSaldo = 'El extracto se cargó, pero no pude pesificar el saldo en Saldos extractos: ' + errMsg(eSaldo);
           }
         }
-        if (origen === 'banco' && esCanalGalicia(state.canal)) {
-          state.msg = (parsed.fuentePdf ? 'Extracto ' + labelCanalNombre(state.canal) + ' (PDF): ' : 'Extracto ' + labelCanalNombre(state.canal) + ': ') + nLeidas + ' filas leídas (fecha + débito/crédito + descripción; no se duplica vs Excel ni vs otro PDF si coinciden fecha, importe y concepto).' + extraDup + extraOrigen + extraCanal + extraSug;
-        } else if (origen === 'banco') {
-          state.msg = 'Extracto Mercado Pago: ' + nLeidas + ' filas leídas (Número de Movimiento).' + extraDup + extraOrigen + extraCanal + extraSug;
-        } else if (parsed.tieneIdCierre && parsed.formatoCierre) {
-          state.msg = 'Tesorería cierre de caja: ' + nLeidas + ' filas leídas (Id único).' + extraDup + extraOrigen + extraCanal + extraSug;
-        } else if (parsed.tieneIdCierre) {
-          state.msg = 'Tesorería ' + labelCanalNombre(state.canal) + ': ' +
-            nLeidas + ' filas leídas (Id único).' + extraDup + extraOrigen + extraCanal + extraSug;
-        } else if (esCanalGalicia(state.canal)) {
-          state.msg = 'Tesorería ' + labelCanalNombre(state.canal) + ': ' + nLeidas + ' filas leídas.' + extraDup + extraOrigen + extraCanal + extraSug;
-        } else {
-          state.msg = 'Tesorería Mercado Pago: ' + nLeidas + ' filas leídas.' + extraDup + extraOrigen + extraCanal + extraSug;
-        }
+        var resumen = {
+          archivo: file.name,
+          tipo: tipoCargaLabel(origen, parsed, file.name),
+          canales: canalesCargados,
+          extraOrigen: extraOrigen,
+          nReconocidas: nReconocidas,
+          nNuevos: clsTot.nNuevos,
+          nCambiaron: clsTot.nCambiaron,
+          nIguales: clsTot.nIguales,
+          nYaContenido: (origen === 'sistema' && !parsed.tieneIdCierre) ? nYaContenido : 0,
+          nSug: nSug,
+          nBajas: nBajas,
+          nRetiradas: nRetiradas,
+          omitidasApertura: parsed.omitidasApertura || 0,
+          omitidasPendiente: parsed.omitidasPendiente || 0,
+          omitidasCaja: parsed.omitidasCaja || 0,
+          omitidasCajaFisica: parsed.omitidasCajaFisica || 0,
+          omitidasSinId: parsed.omitidasSinId || 0,
+          omitidasIdDup: parsed.omitidasIdDup || 0,
+          nota: notaSaldo
+        };
+        state.msg = msgCortoResumen(resumen);
+        state.resumenCarga = resumen;
         if (nBajas) state.lista = 'bajas';
       } catch (e) {
         state.err = errMsg(e);
       } finally {
         state.loading = false;
         renderShell();
+        if (state.resumenCarga) {
+          abrirModalResumenCarga(state.resumenCarga);
+          state.resumenCarga = null;
+        }
       }
     });
   }
@@ -4551,8 +4787,8 @@
       return {
         hintHtml:
           '<p>Cargá el extracto de Galicia en dólares: Excel <em>Extracto_CCE…</em> o el PDF <em>Extracto_Cuentas_Galicia_…</em> (Cuenta Corriente Especial en dólares; no duplica lo ya cargado: misma fecha, importe y concepto, aunque cambie el saldo).</p>' +
-          '<p>Los importes se concilian en <strong>USD</strong> contra tesorería <em>tesoreria_transferencia_galicia_dolar_…</em> (Tipo, Fecha, Crédito, Débito e Id) o el cierre de caja (<em>cierre_CIERRE-…</em> o <em>cierre_DOL-…</em> con Caja = Transferencia Galicia Dolar y Moneda USD).</p>' +
-          '<p>El Id evita duplicados y actualiza si cambió algún dato. Si un Id de tesorería abierta ya no viene, pasa a <strong>A eliminar</strong>. Apertura de Caja y filas Pendiente no se suben.</p>' +
+          '<p>Los importes se concilian en <strong>USD</strong> contra tesorería <em>tesoreria_transferencia_galicia_dolar_…</em> (Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (<em>cierre_CIERRE-…</em> o <em>cierre_DOL-…</em> con Caja = Transferencia Galicia Dolar y Moneda USD) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: solo filas Transferencia Galicia Dolar).</p>' +
+          '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos aunque el status sea Pendiente, si ese Id ya estaba (en cualquier solapa). Pendiente nuevos no se dan de alta. Si un Id de tesorería abierta ya no viene, pasa a <strong>A eliminar</strong>. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
           '<p>Al cargar el extracto, el saldo de corte se pesifica al MEP (fecha del último movimiento o cotización anterior) y entra a Saldos extractos. El match es por importe y fecha (máximo 4 días).</p>',
         btnBanco: 'Cargar extracto Galicia (USD)',
         btnSistema: 'Cargar tesorería Galicia (USD)',
@@ -4563,8 +4799,8 @@
       return {
         hintHtml:
           '<p>Cargá el extracto de Galicia: Excel de cuenta corriente (<em>Extracto_CC…</em>) o el PDF <em>Extracto_Cuentas_Galicia_…</em> en pesos (no duplica lo ya cargado: misma fecha, importe y concepto, aunque cambie el saldo). El PDF en dólares se abre en la solapa Galicia (USD).</p>' +
-          '<p>También la tesorería Transferencia Galicia (<em>tesoreria_transferencia_galicia_…</em>: Tipo, Fecha, Crédito, Débito e Id) o el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em>). El Id evita duplicados y actualiza si cambió algún dato.</p>' +
-          '<p>Si un Id de tesorería abierta ya no viene en el Excel, pasa a <strong>A eliminar</strong>. La columna Caja, si viene, define el canal. Apertura de Caja y filas Pendiente no se suben. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican.</p>' +
+          '<p>También la tesorería Transferencia Galicia (<em>tesoreria_transferencia_galicia_…</em>: Tipo, Fecha, Crédito, Débito e Id), el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto). El Id evita duplicados y actualiza si cambió algún dato. La columna Caja reparte Mercado Pago / Galicia ARS / Galicia USD; Efectivo y Morba no entran acá.</p>' +
+          '<p>Si un Id de tesorería abierta ya no viene en el Excel, pasa a <strong>A eliminar</strong>. Apertura de Caja no se sube. Pendiente: si el Id ya existía se actualiza (categoría y cuenta incluidas); si es nuevo no se da de alta. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican.</p>' +
           '<p>La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde.</p>' +
           '<p>También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1), o dos o más movimientos del mismo extracto si el crédito y el débito se compensan y no hay tesorería. El Excel exporta el listado visible con los filtros activos.</p>',
         btnBanco: 'Cargar extracto Galicia',
@@ -4574,8 +4810,8 @@
     }
     return {
       hintHtml:
-        '<p>Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (<em>tesoreria_mercadopago_…</em>: Tipo, Fecha, Crédito, Débito e Id) o el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em> o <em>MP_CIERRE-…</em>).</p>' +
-        '<p>El Id evita duplicados y actualiza si cambió algún dato. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa <strong>A eliminar</strong> para confirmar la baja. Apertura de Caja y filas Pendiente no se suben.</p>' +
+        '<p>Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (<em>tesoreria_mercadopago_…</em>: Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em> o <em>MP_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: se cargan las filas MercadoPago; Galicia por Caja; Efectivo/Morba se omiten).</p>' +
+        '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos aunque el status sea Pendiente, si ese Id ya estaba. Pendiente nuevos no se dan de alta. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa <strong>A eliminar</strong> para confirmar la baja. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
         '<p>Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. En Solo banco podés marcar un movimiento como <strong>No requiere conciliación</strong> (con justificación): no se borra del extracto.</p>' +
         '<p>La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde.</p>' +
         '<p>También podés conciliar a mano varios extractos con una o más tesorerías, o dos o más movimientos del mismo extracto si el crédito y el débito se compensan. El Excel exporta el listado visible con los filtros activos.</p>',

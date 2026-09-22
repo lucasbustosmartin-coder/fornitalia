@@ -232,6 +232,11 @@
     return !!(map && Object.prototype.hasOwnProperty.call(map, 'id'));
   }
 
+  function esNombreTesoreriaHistorico(archivo) {
+    var t = normHeader(archivo);
+    return /movimientos[_\s-]*historico/.test(t) || /historico[_\s-]*importar/.test(t);
+  }
+
   function esFilaPieTesoreria(fechaRaw, tipo) {
     var f = String(fechaRaw || '').trim().toLowerCase();
     var t = String(tipo || '').trim().toLowerCase();
@@ -452,13 +457,14 @@
       cajaMuestra = String(cell(det.rows[r] || [], map, ['Caja']) || '').trim();
       if (cajaMuestra) break;
     }
-    if (esArchivoBancoConciliable(archivo, cajaMuestra, det.hoja)) {
+    var historicoMixto = esNombreTesoreriaHistorico(archivo);
+    if (!historicoMixto && esArchivoBancoConciliable(archivo, cajaMuestra, det.hoja)) {
       return {
         error: 'Este archivo es de Conciliación Bancaria (Galicia o Mercado Pago). Cargalo en ese menú.',
         filas: []
       };
     }
-    var canalArch = canalDetectadoArchivo(archivo, cajaMuestra, det.hoja);
+    var canalArch = historicoMixto ? state.canal : canalDetectadoArchivo(archivo, cajaMuestra, det.hoja);
     if (!canalArch) {
       return {
         error: 'En ' + labelDeCanal(state.canal) + ' esperaba ' + archivosHint(state.canal) + '.',
@@ -480,6 +486,7 @@
     var omitidasSinId = 0;
     var omitidasIdDup = 0;
     var omitidasApertura = 0;
+    var omitidasOtraCaja = 0;
     var saldoApertura = null;
     var fechaApertura = '';
     var aperturas = [];
@@ -499,6 +506,15 @@
       var saldo = parseMonto(cell(row, map, ['Saldo (ARS)', 'Saldo (USD)', 'Saldo']));
       var obs = String(cell(row, map, ['Observaciones']) || '').trim();
       var caja = String(cell(row, map, ['Caja']) || '').trim();
+      if (historicoMixto) {
+        if (!caja || canalDetectadoArchivo('', caja, '') !== state.canal) {
+          omitidasOtraCaja += 1;
+          continue;
+        }
+      } else if (caja && canalDetectadoArchivo('', caja, '') !== state.canal) {
+        omitidasOtraCaja += 1;
+        continue;
+      }
       var usuario = String(cell(row, map, ['Usuario']) || '').trim();
       var status = String(cell(row, map, ['Status', 'Estado']) || '').trim();
       var monedaFila = String(cell(row, map, ['Moneda']) || '').trim() || 'ARS';
@@ -514,7 +530,8 @@
         }
         continue;
       }
-      if (normHeader(status) === 'pendiente') {
+      var esPendiente = normHeader(status) === 'pendiente';
+      if (esPendiente && !idCierre) {
         omitidasPend += 1;
         continue;
       }
@@ -565,12 +582,15 @@
           descripcion: desc, cliente: cliente, credito: cred, debito: deb, saldo: saldo,
           observaciones: obs, caja: caja || null, usuario: usuario || null, status: status || null,
           id: idCierre, formato: esCierre ? 'cierre' : 'tesoreria'
-        }
+        },
+        soloSiExiste: esPendiente
       });
     }
     if (!filas.length) {
       return {
-        error: omitidasApertura
+        error: omitidasOtraCaja && historicoMixto
+          ? 'Este histórico no tiene filas de ' + labelDeCanal(state.canal) + '. Mercado Pago y Galicia van a Conciliación Bancaria; en esta solapa solo entra ' + archivosHint(state.canal) + '.'
+          : omitidasApertura
           ? 'El archivo solo tenía Apertura de Caja; ese tipo no se carga.'
           : omitidasSinId
             ? 'El archivo tiene columna Id pero ninguna fila con Id para cargar.'
@@ -585,6 +605,7 @@
       omitidasPend: omitidasPend,
       omitidasIdDup: omitidasIdDup,
       omitidasApertura: omitidasApertura,
+      omitidasOtraCaja: omitidasOtraCaja,
       saldoApertura: saldoApertura,
       fechaApertura: fechaApertura,
       aperturas: aperturas
@@ -946,6 +967,42 @@
     return n;
   }
 
+  async function filtrarPendienteCajaSoloSiExiste(parsed) {
+    var filas = (parsed && parsed.filas) || [];
+    var ids = [];
+    filas.forEach(function (f) {
+      if (f && f.soloSiExiste && f.origen_id) ids.push(f.origen_id);
+    });
+    if (!ids.length) return parsed;
+    var found = {};
+    var i;
+    for (i = 0; i < ids.length; i += 400) {
+      var q = await client().from('cf_movimiento')
+        .select('origen_id,canal')
+        .in('origen_id', ids.slice(i, i + 400));
+      if (q.error) throw q.error;
+      (q.data || []).forEach(function (r) {
+        if (r && r.origen_id) found[r.origen_id] = r.canal || true;
+      });
+    }
+    var kept = [];
+    var nOmit = 0;
+    filas.forEach(function (f) {
+      if (!f || !f.soloSiExiste) {
+        kept.push(f);
+        return;
+      }
+      if (!found[f.origen_id]) {
+        nOmit += 1;
+        return;
+      }
+      kept.push(f);
+    });
+    parsed.filas = kept;
+    parsed.omitidasPend = (parsed.omitidasPend || 0) + nOmit;
+    return parsed;
+  }
+
   async function onUpload() {
     if (!can(PERM_CARGAR)) return;
     if (!global.XLSX) {
@@ -961,6 +1018,12 @@
         var wb = await leerExcelFile(file);
         var parsed = parseCajaExcel(wb, file.name);
         if (parsed.error) throw new Error(parsed.error);
+        parsed = await filtrarPendienteCajaSoloSiExiste(parsed);
+        if (!parsed.filas.length) {
+          throw new Error(parsed.omitidasPend
+            ? 'Las filas Pendiente no se dan de alta. No había Ids ya cargados para actualizar.'
+            : 'No encontré filas de caja para cargar.');
+        }
         if (esCanalUsd(state.canal)) {
           state.tcLoaded = false;
           await ensureTipoCambio();
@@ -990,8 +1053,9 @@
         await cargarDatos();
         var extra = '';
         if (parsed.omitidasApertura) extra += ' Se omitieron ' + parsed.omitidasApertura + ' Apertura de Caja (no se cargan).';
-        if (parsed.omitidasPend) extra += ' Se omitieron ' + parsed.omitidasPend + ' filas Pendiente.';
+        if (parsed.omitidasPend) extra += ' Se omitieron ' + parsed.omitidasPend + ' Pendiente nuevos (si el Id ya existía, se actualizó categoría y cuenta).';
         if (parsed.omitidasIdDup) extra += ' Se omitieron ' + parsed.omitidasIdDup + ' Id duplicados en el archivo.';
+        if (parsed.omitidasOtraCaja) extra += ' Se omitieron ' + parsed.omitidasOtraCaja + ' filas de otras cajas (Mercado Pago/Galicia van a Conciliación Bancaria).';
         if (!parsed.formatoCierre && filasBajas().length) {
           extra += ' Hay tesorería abierta a eliminar (' + filasBajas().length + ').';
         }
