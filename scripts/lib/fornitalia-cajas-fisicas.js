@@ -504,7 +504,8 @@
     return false;
   }
 
-  function parseCajaExcel(wb, archivo) {
+  function parseCajaExcel(wb, archivo, opciones) {
+    var todosLosCanales = !!(opciones && opciones.todosLosCanales);
     var det = detectarHojaCaja(wb, archivo);
     if (!det.rows.length) return { error: 'El Excel no tiene filas.', filas: [] };
     var map = det.map;
@@ -523,21 +524,21 @@
     }
     var historicoMixto = esNombreTesoreriaHistorico(archivo);
     var haySf = hayFilasCajaSinFactura(det.rows, map);
-    var mixtoCaja = historicoMixto || haySf;
+    var mixtoCaja = historicoMixto || haySf || todosLosCanales;
     if (!mixtoCaja && esArchivoBancoConciliable(archivo, cajaMuestra, det.hoja)) {
       return {
         error: 'Este archivo es de Conciliación Bancaria (Galicia, Credicoop o Mercado Pago). Cargalo en ese menú.',
         filas: []
       };
     }
-    var canalArch = mixtoCaja ? state.canal : canalDetectadoArchivo(archivo, cajaMuestra, det.hoja);
-    if (!canalArch) {
+    var canalArch = mixtoCaja ? (todosLosCanales ? (canalDetectadoArchivo(archivo, cajaMuestra, det.hoja) || state.canal) : state.canal) : canalDetectadoArchivo(archivo, cajaMuestra, det.hoja);
+    if (!todosLosCanales && !canalArch) {
       return {
         error: 'En ' + labelDeCanal(state.canal) + ' esperaba ' + archivosHint(state.canal) + '.',
         filas: []
       };
     }
-    if (canalArch !== state.canal) {
+    if (!todosLosCanales && canalArch && canalArch !== state.canal) {
       return {
         error: 'Ese archivo es de ' + labelDeCanal(canalArch) + '. Pasá a esa solapa y volvé a cargar. Ahora estás en ' + labelDeCanal(state.canal) + '.',
         filas: []
@@ -578,7 +579,12 @@
       var monedaFila = String(cell(row, map, ['Moneda']) || '').trim() || 'ARS';
       var canalFilaCf = canalDetectadoArchivo('', caja, '', monedaFila);
       var canalSfFila = canalCajaSinFactura(caja, monedaFila);
-      if (mixtoCaja) {
+      if (todosLosCanales) {
+        if (!canalSfFila && !canalFilaCf) {
+          omitidasOtraCaja += 1;
+          continue;
+        }
+      } else if (mixtoCaja) {
         if (!caja || (canalFilaCf !== state.canal && !canalSfFila)) {
           omitidasOtraCaja += 1;
           continue;
@@ -633,7 +639,7 @@
       var fechaHora = fecha ? fecha + 'T' + (hora || '00:00') + ':00-03:00' : null;
       var filaObj = {
         origen_id: 'id|' + idCierre,
-        canal: canalSfFila || state.canal,
+        canal: canalSfFila || (todosLosCanales ? canalFilaCf : state.canal),
         fecha: fecha || fechaHoyYmd(),
         fecha_hora: fechaHora,
         tipo: tipo || null,
@@ -657,10 +663,30 @@
         },
         soloSiExiste: !!(esPendiente && !canalSfFila)
       };
-      if (canalSfFila && canalSfFila !== state.canal) filasSf.push(filaObj);
+      if (canalSfFila && !todosLosCanales && canalSfFila !== state.canal) filasSf.push(filaObj);
       else filas.push(filaObj);
     }
     if (!filas.length && !(filasSf && filasSf.length)) {
+      if (todosLosCanales) {
+        return {
+          error: null,
+          filas: [],
+          filasSf: [],
+          mixtoCaja: mixtoCaja,
+          formatoCierre: esCierre,
+          formatoHistorico: historicoMixto,
+          omitidasPend: omitidasPend,
+          omitidasAnulado: omitidasAnulado,
+          origenIdsAnulado: origenIdsAnulado,
+          omitidasIdDup: omitidasIdDup,
+          omitidasApertura: omitidasApertura,
+          omitidasOtraCaja: omitidasOtraCaja,
+          omitidasSinId: omitidasSinId,
+          saldoApertura: saldoApertura,
+          fechaApertura: fechaApertura,
+          aperturas: aperturas
+        };
+      }
       if (omitidasAnulado && !omitidasOtraCaja) {
         return {
           error: null,
@@ -1156,6 +1182,92 @@
       window.FornitaliaSaldosExtractos.recargar();
     }
     return { n: n, canales: canales, omitidasPend: 0 };
+  }
+
+  async function ingestHistoricoCompleto(file) {
+    if (!can(PERM_CARGAR)) {
+      return { err: 'Sin permiso para cargar Cajas (físicas).' };
+    }
+    if (!file || !esNombreTesoreriaHistorico(file.name)) {
+      return { err: 'Esperaba el Excel histórico (movimientos-historico_…: Id, Fecha, Tipo, Caja, Monto).' };
+    }
+    if (!global.XLSX) return { err: 'No está disponible la librería Excel.' };
+    var canalAntes = state.canal;
+    try {
+      var wb = await leerExcelFile(file);
+      var parsed = parseCajaExcel(wb, file.name, { todosLosCanales: true });
+      if (parsed.error) return { err: parsed.error };
+      await borrarTesoreriaAnulada(parsed.origenIdsAnulado);
+      parsed = await filtrarPendienteCajaSoloSiExiste(parsed);
+      var groups = {};
+      var order = [];
+      (parsed.filas || []).forEach(function (f) {
+        var c = f && f.canal;
+        if (!esCanalCaja(c)) return;
+        if (!groups[c]) {
+          groups[c] = [];
+          order.push(c);
+        }
+        groups[c].push(f);
+      });
+      var clsTot = { nNuevos: 0, nCambiaron: 0, nIguales: 0 };
+      var canales = [];
+      var nReconocidas = 0;
+      var i;
+      for (i = 0; i < order.length; i++) {
+        var canalSave = order[i];
+        var parte = groups[canalSave];
+        if (!parte.length) continue;
+        state.canal = canalSave;
+        await cargarDatos();
+        if (esCanalUsd(canalSave)) {
+          state.tcLoaded = false;
+          await ensureTipoCambio();
+          pesificarParsed({ filas: parte, aperturas: [], saldoApertura: null, fechaApertura: '' });
+        }
+        nReconocidas += parte.length;
+        var clsParte = clasificarFilasUpload(parte);
+        clsTot = {
+          nNuevos: clsTot.nNuevos + clsParte.nNuevos,
+          nCambiaron: clsTot.nCambiaron + clsParte.nCambiaron,
+          nIguales: clsTot.nIguales + clsParte.nIguales
+        };
+        await rpcLotes('cf_guardar_movimientos', canalSave, parte);
+        if (esCanalSinFactura(canalSave)) {
+          var snap = snapshotSaldo(parte, file.name, parsed.formatoCierre, canalSave);
+          if (snap) {
+            var sRes = await client().rpc('cf_guardar_saldo_caja', { p_filas: [snap] });
+            if (sRes.error) throw sRes.error;
+          }
+        }
+        canales.push(labelDeCanal(canalSave) + ' (' + parte.length + ')');
+      }
+      state.canal = canalAntes;
+      if (window.FornitaliaSaldosExtractos && typeof window.FornitaliaSaldosExtractos.recargar === 'function') {
+        window.FornitaliaSaldosExtractos.recargar();
+      }
+      return {
+        err: null,
+        resumen: {
+          archivo: file.name,
+          tipo: 'Tesorería histórica (Id + Caja)',
+          canales: canales,
+          nReconocidas: nReconocidas,
+          nNuevos: clsTot.nNuevos,
+          nCambiaron: clsTot.nCambiaron,
+          nIguales: clsTot.nIguales,
+          omitidasApertura: parsed.omitidasApertura || 0,
+          omitidasPend: parsed.omitidasPend || 0,
+          omitidasAnulado: parsed.omitidasAnulado || 0,
+          omitidasSinId: parsed.omitidasSinId || 0,
+          omitidasIdDup: parsed.omitidasIdDup || 0,
+          nota: 'El histórico no pisa Saldos extractos de cajas con factura (Apertura no entra). Efectivo-s/f sí actualiza el corte.'
+        }
+      };
+    } catch (e) {
+      state.canal = canalAntes;
+      return { err: errMsg(e) };
+    }
   }
 
   async function borrarTesoreriaAnulada(ids) {
@@ -1877,5 +1989,5 @@
     recargarTodo();
   }
 
-  global.FornitaliaCajasFisicas = { init: init, show: show, ingestSinFactura: ingestSinFactura };
+  global.FornitaliaCajasFisicas = { init: init, show: show, ingestSinFactura: ingestSinFactura, ingestHistoricoCompleto: ingestHistoricoCompleto };
 })(window);

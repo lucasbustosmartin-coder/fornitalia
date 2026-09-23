@@ -8,22 +8,22 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-  <script src="scripts/lib/fornitalia-help.js?v=2.48"></script>
-  <script src="scripts/lib/fornitalia-usuario.js?v=2.48"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.48"></script>
+  <script src="scripts/lib/fornitalia-help.js?v=2.49"></script>
+  <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.49"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.48">
-  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.48"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.48">
-  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.48"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.48">
-  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.48"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.48">
-  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.48"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.48">
-  <script src="scripts/lib/fornitalia-impuestos.js?v=2.48"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.48">
-  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.48"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.49">
+  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.49"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.49">
+  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.49"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.49">
+  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.49"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.49">
+  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.49"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.49">
+  <script src="scripts/lib/fornitalia-impuestos.js?v=2.49"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.49">
+  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.49"></script>
   <style>
     .lyp-user {
       font-weight: 600;
@@ -112,6 +112,23 @@
     @media (max-width: 480px) {
       .fornitalia-release-card { padding: 0.85rem 0.9rem 0.15rem; }
       .fornitalia-release-logo { width: 68px; height: 68px; border-radius: 16px; }
+    }
+    .flujo-historico-overlay {
+      position: fixed; inset: 0; z-index: 250; background: rgba(15, 23, 42, 0.45);
+      display: flex; align-items: center; justify-content: center; padding: 1rem;
+    }
+    .flujo-historico-overlay.oculto { display: none; }
+    .flujo-historico-overlay-card {
+      background: #fff; border-radius: 12px; padding: 1.25rem 1.4rem; max-width: 26rem; width: 100%;
+      box-shadow: 0 12px 40px rgba(15, 23, 42, 0.2); text-align: center;
+    }
+    .flujo-historico-overlay-card p { margin: 0 0 0.4rem; color: #1e293b; font-size: 1rem; }
+    .flujo-historico-overlay-card .hint { color: #64748b; font-size: 0.88rem; margin: 0; }
+    #modal-flujo-historico { max-width: min(96vw, 32rem); width: 100%; }
+    #modal-flujo-historico .modal-body { max-height: min(72vh, 36rem); overflow: auto; -webkit-overflow-scrolling: touch; }
+    #btn-cargar-historico-flujo { min-height: 2.25rem; }
+    @media (max-width: 768px) {
+      #btn-cargar-historico-flujo { min-height: 44px; }
     }
     * { box-sizing: border-box; }
     body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f5f5f5; display: flex; flex-direction: column; min-height: 100vh; }
@@ -981,12 +998,17 @@
           <p>Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = caja operativa neteada: egresos con <code>ef_subitem</code> de ingreso §1 (Cobranzas, Otros ingresos operativos, etc.) se restan de ambas columnas del mes (devoluciones / ajustes al mismo rubro que el Estado Financiero). <strong>G/P operativo</strong> = Ingresos − Egresos (sin cambio). Fuente: tesorería (conciliación + cajas físicas) unida a la Matriz EF.</p>
           <p><strong>Comisiones / Ventas %</strong> = egresos con <code>ef_subitem</code> <strong>Comisiones por Ventas</strong> ÷ ingresos con <code>ef_subitem</code> <strong>Cobranzas por Ventas (Efectivo neto ingresado)</strong> del mes (subítems canónicos EF; alias cortos se normalizan). Sin <code>ef_subitem</code> la fila no entra al ratio.</p>
           <p>Columnas <strong>Costo dir.</strong>, <strong>Costo ind.</strong> y <strong>Costo total / Ingreso total</strong> usan la misma fórmula % del Flujo Op. que el Estado Financiero (montos internos sin redondear; solo la visualización de importes es entera).</p>
+          <p>El botón <strong>Cargar tesorería histórica</strong> toma el Excel <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto) y lo reparte a todas las cajas de una vez: bancos en Conciliación y cajas físicas según la columna Caja. No hace falta cargarlo solapa por solapa.</p>
         </div>
       </template>
       <div class="errores-panel-toolbar">
         <div class="panel-toolbar-start">
         <button type="button" class="th-help th-help--inline" data-help-template="template-flujo-informe-pdf" aria-label="Ayuda: criterios alineados al informe PDF" title="Criterios de la tabla (informe PDF)">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        </button>
+        <button type="button" class="btn" id="btn-cargar-historico-flujo" title="Cargar tesorería histórica en todas las cajas" aria-label="Cargar tesorería histórica en todas las cajas">
+          <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+          Cargar tesorería histórica
         </button>
         </div>
         <button type="button" class="btn btn-success btn-ver-errores btn-exportar-evolucion" id="btn-exportar-flujo-mes" title="Exportar tabla Flujo por mes a Excel"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar Flujo a Excel</button>
@@ -1567,6 +1589,31 @@
     </div>
   </div>
 
+  <div id="flujo-historico-overlay" class="flujo-historico-overlay oculto" aria-live="polite" aria-hidden="true">
+    <div class="flujo-historico-overlay-card">
+      <p>Procesando tesorería histórica…</p>
+      <p class="hint">Se reparte a Conciliación Bancaria y a Cajas físicas según la columna Caja.</p>
+    </div>
+  </div>
+
+  <div id="modal-flujo-historico-backdrop" class="modal-backdrop oculto" aria-hidden="true">
+    <div class="modal" id="modal-flujo-historico" role="dialog" aria-modal="true" aria-labelledby="modal-flujo-historico-titulo">
+      <div class="modal-header">
+        <h2 id="modal-flujo-historico-titulo" class="vista-titulo">Resultado de la carga</h2>
+        <button type="button" class="modal-close" id="modal-flujo-historico-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-flujo-historico-cuerpo"></div>
+        <div class="form-actions" style="margin-top:1rem; display:flex; justify-content:flex-end;">
+          <button type="button" class="btn btn-primary" id="modal-flujo-historico-ok">
+            <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="modal-ef-detalle-backdrop" class="modal-backdrop oculto">
     <div class="modal modal-evolucion-detalle-ancho" id="modal-ef-detalle">
       <div class="modal-header" id="modal-ef-detalle-header-drag">
@@ -1634,7 +1681,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.48';
+    const APP_VERSION = '2.49';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1661,7 +1708,9 @@
     const PERM_VER_REPORTES = 'ver_reportes';
     const PERM_VER_GESTION_PROYECTOS = 'ver_gestion_proyectos';
     const PERM_VER_CONCILIACION_BANCARIA = 'ver_conciliacion_bancaria';
+    const PERM_CARGAR_CONCILIACION_BANCARIA = 'cargar_conciliacion_bancaria';
     const PERM_VER_CAJAS_FISICAS = 'ver_cajas_fisicas';
+    const PERM_CARGAR_CAJAS_FISICAS = 'cargar_cajas_fisicas';
     const PERM_VER_SALDOS_EXTRACTOS = 'ver_saldos_extractos';
     const PERM_VER_IMPUESTOS = 'ver_impuestos';
     const PERM_VER_MATRIZ_EF = 'ver_matriz_ef';
@@ -2009,6 +2058,8 @@
       setVis('menu-mi-perfil', true);
       setVis('menu-cerrar-sesion', true);
       refreshUserBarLabel();
+
+      setVis('btn-cargar-historico-flujo', hasPerm(PERM_CARGAR_CONCILIACION_BANCARIA) || hasPerm(PERM_CARGAR_CAJAS_FISICAS));
 
       const btnEx = document.getElementById('btn-exportar-excel');
       if (btnEx) btnEx.style.display = exp ? '' : 'none';
@@ -3264,6 +3315,117 @@
         fechasConTasa[rateKey] = Object.keys(map).filter(d => map[d][rateKey] != null && map[d][rateKey] > 0).sort();
       });
       return { transacciones: cacheTransacciones, tcMap: cacheTC };
+    }
+
+    function esNombreTesoreriaHistoricoFlujo(nombre) {
+      var t = String(nombre || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return /movimientos[_\s-]*historico/.test(t) || /historico[_\s-]*importar/.test(t);
+    }
+
+    function setFlujoHistoricoOverlay(on) {
+      var el = document.getElementById('flujo-historico-overlay');
+      if (!el) return;
+      el.classList.toggle('oculto', !on);
+      el.setAttribute('aria-hidden', on ? 'false' : 'true');
+    }
+
+    function cerrarModalFlujoHistorico() {
+      var b = document.getElementById('modal-flujo-historico-backdrop');
+      if (!b) return;
+      b.classList.add('oculto');
+      b.setAttribute('aria-hidden', 'true');
+    }
+
+    function htmlResumenHistoricoFlujo(cbR, cfR) {
+      function n(obj, k) { return Number((obj && obj[k]) || 0) || 0; }
+      function item(label, val, cls, hint) {
+        return '<div class="cb-resumen-item' + (cls ? ' ' + cls : '') + '">' +
+          '<dt>' + escapeHtmlSeg(label) + '</dt><dd>' + escapeHtmlSeg(String(val)) + '</dd>' +
+          (hint ? '<p class="cb-resumen-hint">' + escapeHtmlSeg(hint) + '</p>' : '') +
+          '</div>';
+      }
+      function itemSi(label, val, cls, hint) {
+        if (!val) return '';
+        return item(label, val, cls, hint);
+      }
+      var canales = [].concat((cbR && cbR.canales) || [], (cfR && cfR.canales) || []);
+      var omitHtml = itemSi('Apertura de Caja', n(cbR, 'omitidasApertura') + n(cfR, 'omitidasApertura'), '', 'No se cargan ni entran al corte de Saldos extractos.')
+        + itemSi('Anulado', n(cbR, 'omitidasAnulado') + n(cfR, 'omitidasAnulado'), '', 'Status Anulado no entra. Si el Id ya existía, se elimina.')
+        + itemSi('Pendiente (nuevos)', n(cbR, 'omitidasPendiente') + n(cfR, 'omitidasPend'), '', 'No se dan de alta en tesorería banco ni en cajas con factura. En Efectivo-s/f sí. Si el Id ya existía, categoría y cuenta se actualizan.')
+        + itemSi('Sin Id', n(cbR, 'omitidasSinId') + n(cfR, 'omitidasSinId'), '', 'La columna Id es obligatoria en este formato.')
+        + itemSi('Id duplicado en el archivo', n(cbR, 'omitidasIdDup') + n(cfR, 'omitidasIdDup'), '', 'Se tomó la primera fila de cada Id.');
+      var notas = [cbR && cbR.nota, cfR && cfR.nota].filter(Boolean);
+      return '<div class="cb-resumen-carga">' +
+        '<p class="cb-resumen-lead">Se procesó <strong>' + escapeHtmlSeg((cbR && cbR.archivo) || (cfR && cfR.archivo) || 'el archivo') +
+        '</strong> como <strong>tesorería histórica</strong> para todas las cajas.</p>' +
+        '<p class="cb-resumen-canales">Cajas: ' + escapeHtmlSeg(canales.length ? canales.join(', ') : 'ninguna fila reconocida') + '</p>' +
+        '<h3>Qué se hizo</h3>' +
+        '<dl class="cb-resumen-grid">' +
+          item('Filas reconocidas', n(cbR, 'nReconocidas') + n(cfR, 'nReconocidas'), '', 'Bancos en Conciliación y cajas físicas, según la columna Caja.') +
+          item('Registros nuevos', n(cbR, 'nNuevos') + n(cfR, 'nNuevos'), 'cb-resumen-ok', 'No estaban: se dieron de alta.') +
+          item('Registros que cambiaron', n(cbR, 'nCambiaron') + n(cfR, 'nCambiaron'), 'cb-resumen-warn', 'Mismo Id: se actualizaron fecha, monto, categoría, cuenta u otro dato.') +
+          item('Sin cambios', n(cbR, 'nIguales') + n(cfR, 'nIguales'), '', 'Mismo Id y mismos datos: no se duplicaron.') +
+          itemSi('Sugerencias reconocidas', n(cbR, 'nSug'), n(cbR, 'nSug') ? 'cb-resumen-ok' : '', 'Parejas extracto ↔ tesorería propuestas al recalcular.') +
+        '</dl>' +
+        (omitHtml ? '<h3>Se omitieron</h3><dl class="cb-resumen-grid cb-resumen-omit">' + omitHtml + '</dl>' : '') +
+        (notas.length ? '<p class="cb-resumen-nota">' + escapeHtmlSeg(notas.join(' ')) + '</p>' : '') +
+      '</div>';
+    }
+
+    function abrirModalFlujoHistorico(html) {
+      var cuerpo = document.getElementById('modal-flujo-historico-cuerpo');
+      var backdrop = document.getElementById('modal-flujo-historico-backdrop');
+      if (!cuerpo || !backdrop) return;
+      cuerpo.innerHTML = html || '';
+      backdrop.classList.remove('oculto');
+      backdrop.setAttribute('aria-hidden', 'false');
+    }
+
+    function onCargarHistoricoFlujo() {
+      if (!(hasPerm(PERM_CARGAR_CONCILIACION_BANCARIA) || hasPerm(PERM_CARGAR_CAJAS_FISICAS))) return;
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      input.addEventListener('change', function () {
+        var file = input.files && input.files[0];
+        if (file) void cargarHistoricoDesdeFlujo(file);
+      });
+      input.click();
+    }
+
+    async function cargarHistoricoDesdeFlujo(file) {
+      if (!esNombreTesoreriaHistoricoFlujo(file && file.name)) {
+        alert('Esperaba el Excel histórico (movimientos-historico_…: Id, Fecha, Tipo, Caja, Monto).');
+        return;
+      }
+      setFlujoHistoricoOverlay(true);
+      try {
+        var cbR = { nReconocidas: 0, nNuevos: 0, nCambiaron: 0, nIguales: 0, canales: [], archivo: file.name };
+        var cfR = { nReconocidas: 0, nNuevos: 0, nCambiaron: 0, nIguales: 0, canales: [], archivo: file.name };
+        if (hasPerm(PERM_CARGAR_CONCILIACION_BANCARIA)) {
+          if (!window.FornitaliaConciliacionBancaria || typeof window.FornitaliaConciliacionBancaria.ingestHistoricoCompleto !== 'function') {
+            throw new Error('No está lista la carga de Conciliación Bancaria.');
+          }
+          var cbOut = await window.FornitaliaConciliacionBancaria.ingestHistoricoCompleto(file);
+          if (cbOut && cbOut.err) throw new Error(cbOut.err);
+          if (cbOut && cbOut.resumen) cbR = cbOut.resumen;
+        }
+        if (hasPerm(PERM_CARGAR_CAJAS_FISICAS)) {
+          if (!window.FornitaliaCajasFisicas || typeof window.FornitaliaCajasFisicas.ingestHistoricoCompleto !== 'function') {
+            throw new Error('No está lista la carga de Cajas (físicas).');
+          }
+          var cfOut = await window.FornitaliaCajasFisicas.ingestHistoricoCompleto(file);
+          if (cfOut && cfOut.err) throw new Error(cfOut.err);
+          if (cfOut && cfOut.resumen) cfR = cfOut.resumen;
+        }
+        await cargarDatos();
+        recalcular();
+        abrirModalFlujoHistorico(htmlResumenHistoricoFlujo(cbR, cfR));
+      } catch (e) {
+        alert((e && e.message) ? e.message : String(e || 'No se pudo cargar el histórico.'));
+      } finally {
+        setFlujoHistoricoOverlay(false);
+      }
     }
 
     function getMoneda() {
@@ -6940,6 +7102,14 @@
         document.getElementById('btn-exportar-evolucion').addEventListener('click', exportarEvolucionExcel);
         const btnExportFlujo = document.getElementById('btn-exportar-flujo-mes');
         if (btnExportFlujo) btnExportFlujo.addEventListener('click', exportarFlujoPorMesExcel);
+        const btnHistFlujo = document.getElementById('btn-cargar-historico-flujo');
+        if (btnHistFlujo) btnHistFlujo.addEventListener('click', onCargarHistoricoFlujo);
+        const histClose = document.getElementById('modal-flujo-historico-close');
+        const histOk = document.getElementById('modal-flujo-historico-ok');
+        const histBackdrop = document.getElementById('modal-flujo-historico-backdrop');
+        if (histClose) histClose.addEventListener('click', cerrarModalFlujoHistorico);
+        if (histOk) histOk.addEventListener('click', cerrarModalFlujoHistorico);
+        if (histBackdrop) setupBackdropCloseOnlyOnRealClick(histBackdrop, cerrarModalFlujoHistorico);
         const efPeriodoEl = document.getElementById('ef-periodo');
         if (efPeriodoEl) efPeriodoEl.addEventListener('change', renderEstadoFinanciero);
         const btnExportEf = document.getElementById('btn-exportar-estado-financiero');

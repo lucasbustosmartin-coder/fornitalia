@@ -2474,6 +2474,104 @@
     });
   }
 
+  async function ingestHistoricoCompleto(file) {
+    if (!can(PERM_CARGAR)) {
+      return { err: 'Sin permiso para cargar Conciliación Bancaria.' };
+    }
+    if (!file || !esNombreTesoreriaHistorico(file.name)) {
+      return { err: 'Esperaba el Excel histórico (movimientos-historico_…: Id, Fecha, Tipo, Caja, Monto).' };
+    }
+    if (!global.XLSX) return { err: 'No está disponible la librería Excel.' };
+    var canalAntes = state.canal;
+    try {
+      var wb = await leerExcelFile(file);
+      var parsed = parseTesoreriaMp(wb, file.name);
+      if (parsed.error) {
+        var soloFisicas = !!(parsed.omitidasCajaFisica || (parsed.filasCajaSf && parsed.filasCajaSf.length));
+        if (!soloFisicas || (parsed.filas && parsed.filas.length)) {
+          return { err: parsed.error };
+        }
+        parsed.error = null;
+        parsed.filas = parsed.filas || [];
+      }
+      await borrarTesoreriaAnulada(parsed.origenIdsAnulado);
+      await filtrarPendienteSoloSiExiste(parsed);
+      var filDup = filasTesoreriaListasParaGuardar(parsed.filas);
+      parsed.filas = filDup.filas;
+      var nYaContenido = filDup.nYa;
+      var clsTot = { nNuevos: 0, nCambiaron: 0, nIguales: nYaContenido };
+      var nSug = 0;
+      var canalesCargados = [];
+      var nReconocidas = parsed.filas.length;
+      var agrup = gruposCanalTesoreria(parsed.filas, null);
+      var ci;
+      for (ci = 0; ci < agrup.order.length; ci++) {
+        var canalSave = agrup.order[ci];
+        if (!canalSave) continue;
+        state.canal = canalSave;
+        await cargarDatos();
+        var parte = agrup.groups[canalSave];
+        if (!parte.length) continue;
+        await adoptarIdTesoreria(canalSave, parte);
+        await cargarDatos();
+        clsTot = sumarClasificacion(clsTot, clasificarFilasUpload(parte, 'sistema'));
+        await guardarFilas('sistema', parte);
+        await retirarTesoreriaDuplicadaCierre(canalSave, parte);
+        canalesCargados.push(labelCanalNombre(canalSave) + ' (' + parte.length + ')');
+        await cargarDatos();
+        if (bancoRowsConciliables().length && sistemaRows().length) nSug += await regenerarSugerencias();
+      }
+      var notaSaldo = '';
+      var tocoCredicoop = (parsed.filas || []).some(function (f) {
+        return (f.canal || '') === CANAL_CRED;
+      });
+      if (tocoCredicoop && window.FornitaliaSaldosExtractos &&
+          typeof window.FornitaliaSaldosExtractos.guardarCorteCredicoop === 'function') {
+        state.canal = CANAL_CRED;
+        await cargarDatos();
+        var movsCred = (state.movimientos || []).filter(function (m) {
+          return m.canal === CANAL_CRED && m.origen === 'sistema' && !m.pendiente_baja;
+        });
+        if (movsCred.length) {
+          try {
+            var snapCred = await window.FornitaliaSaldosExtractos.guardarCorteCredicoop(movsCred, file.name);
+            if (snapCred) {
+              notaSaldo = 'Saldo Credicoop al ' + formatFecha(snapCred.fecha_hasta) + ': $ ' + formatMonto(snapCred.saldo_final) +
+                ' (tesorería, sin Apertura).';
+            }
+          } catch (eCred) {
+            notaSaldo = 'Tesorería Credicoop ok, pero no pude guardar el corte en Saldos extractos: ' + errMsg(eCred);
+          }
+        }
+      }
+      if (agrup.order.indexOf(canalAntes) >= 0) state.canal = canalAntes;
+      else if (agrup.order.length) state.canal = agrup.order[0];
+      else state.canal = canalAntes;
+      return {
+        err: null,
+        resumen: {
+          archivo: file.name,
+          tipo: 'Tesorería histórica (Id + Caja)',
+          canales: canalesCargados,
+          nReconocidas: nReconocidas,
+          nNuevos: clsTot.nNuevos,
+          nCambiaron: clsTot.nCambiaron,
+          nIguales: clsTot.nIguales,
+          nSug: nSug,
+          omitidasApertura: parsed.omitidasApertura || 0,
+          omitidasPendiente: parsed.omitidasPendiente || 0,
+          omitidasAnulado: parsed.omitidasAnulado || 0,
+          omitidasSinId: parsed.omitidasSinId || 0,
+          omitidasIdDup: parsed.omitidasIdDup || 0,
+          nota: notaSaldo
+        }
+      };
+    } catch (e) {
+      state.canal = canalAntes;
+      return { err: errMsg(e) };
+    }
+  }
+
   async function onRecalc() {
     if (!can(PERM_CARGAR) && !can(PERM_CONFIRMAR)) return;
     state.loading = true;
@@ -5181,6 +5279,7 @@
 
   global.FornitaliaConciliacionBancaria = {
     init: init,
-    show: show
+    show: show,
+    ingestHistoricoCompleto: ingestHistoricoCompleto
   };
 })(window);
