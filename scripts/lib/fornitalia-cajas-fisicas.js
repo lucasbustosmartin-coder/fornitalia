@@ -248,6 +248,17 @@
     return /movimientos[_\s-]*historico/.test(t) || /historico[_\s-]*importar/.test(t);
   }
 
+  function canalCajaSinFactura(caja, moneda) {
+    var t = normHeader(caja);
+    if (!t) return '';
+    var sinFact = t.indexOf('sin factura') >= 0 || t.indexOf('s/f') >= 0 ||
+      t.indexOf('s / f') >= 0 || t.indexOf('sinfactura') >= 0;
+    if (!sinFact) return '';
+    var mon = String(moneda || '').trim().toUpperCase();
+    if (t.indexOf('dolar') >= 0 || t.indexOf('dollar') >= 0 || /\busd\b/.test(t) || mon === 'USD') return CANAL_SF_USD;
+    return CANAL_SF;
+  }
+
   function esFilaPieTesoreria(fechaRaw, tipo) {
     var f = String(fechaRaw || '').trim().toLowerCase();
     var t = String(tipo || '').trim().toLowerCase();
@@ -268,7 +279,8 @@
   function archivosHint(c) {
     if (c === CANAL_MOR) return 'tesoreria_transferencia_morba_… o cierre_MOR-…';
     if (c === CANAL_USD) return 'tesoreria_efectivo_dolar_… o cierre_DOL-…';
-    if (c === CANAL_SF || c === CANAL_SF_USD) return 'histórico movimientos-historico_… (Caja Efectivo … sin factura)';
+    if (c === CANAL_SF) return 'cualquier tesorería/cierre/histórico con Caja = Efectivo Pesos (sin factura)';
+    if (c === CANAL_SF_USD) return 'cualquier tesorería/cierre/histórico con Caja = Efectivo Dolar (sin factura)';
     return 'tesoreria_efectivo_pesos_… o cierre_PES-…';
   }
 
@@ -348,17 +360,8 @@
       if (!isFinite(n)) return { ars: null, tasa: t.tasa, fechaTc: t.fechaTc };
       return { ars: round2(n * t.tasa), tasa: t.tasa, fechaTc: t.fechaTc };
     }
-    var iniArs = null;
-    (parsed.aperturas || []).forEach(function (a) {
-      var c = conv(a.usd, a.fecha || parsed.fechaApertura);
-      if (c && c.ars != null) iniArs = (iniArs == null ? 0 : iniArs) + c.ars;
-    });
-    if (!(parsed.aperturas || []).length && parsed.saldoApertura != null) {
-      var ap = conv(parsed.saldoApertura, parsed.fechaApertura);
-      if (ap && ap.ars != null) iniArs = ap.ars;
-    }
-    parsed.saldoAperturaUsd = parsed.saldoApertura;
-    parsed.saldoApertura = iniArs != null ? round2(iniArs) : null;
+    parsed.saldoAperturaUsd = null;
+    parsed.saldoApertura = null;
     (parsed.filas || []).forEach(function (f) {
       var t = conv(f.monto, f.fecha);
       var cred = f.credito != null ? conv(f.credito, f.fecha) : null;
@@ -427,6 +430,8 @@
   }
 
   function canalDetectadoArchivo(archivo, caja, hoja, moneda) {
+    var canalSf = canalCajaSinFactura(caja, moneda);
+    if (canalSf) return canalSf;
     if (esCajaSinFacturaTexto(archivo, caja, hoja)) {
       var mon = String(moneda || '').trim().toUpperCase();
       var blob = normHeader([archivo, caja, hoja, moneda].filter(Boolean).join(' '));
@@ -473,6 +478,17 @@
     return { hoja: names[0] || '', map: {}, rows: [] };
   }
 
+  function hayFilasCajaSinFactura(rows, map) {
+    var i;
+    for (i = 1; i < (rows || []).length; i++) {
+      var row = rows[i] || [];
+      var caja = String(cell(row, map, ['Caja']) || '').trim();
+      var monedaFila = String(cell(row, map, ['Moneda']) || '').trim();
+      if (canalCajaSinFactura(caja, monedaFila)) return true;
+    }
+    return false;
+  }
+
   function parseCajaExcel(wb, archivo) {
     var det = detectarHojaCaja(wb, archivo);
     if (!det.rows.length) return { error: 'El Excel no tiene filas.', filas: [] };
@@ -491,13 +507,15 @@
       if (cajaMuestra) break;
     }
     var historicoMixto = esNombreTesoreriaHistorico(archivo);
-    if (!historicoMixto && esArchivoBancoConciliable(archivo, cajaMuestra, det.hoja)) {
+    var haySf = hayFilasCajaSinFactura(det.rows, map);
+    var mixtoCaja = historicoMixto || haySf;
+    if (!mixtoCaja && esArchivoBancoConciliable(archivo, cajaMuestra, det.hoja)) {
       return {
         error: 'Este archivo es de Conciliación Bancaria (Galicia, Credicoop o Mercado Pago). Cargalo en ese menú.',
         filas: []
       };
     }
-    var canalArch = historicoMixto ? state.canal : canalDetectadoArchivo(archivo, cajaMuestra, det.hoja);
+    var canalArch = mixtoCaja ? state.canal : canalDetectadoArchivo(archivo, cajaMuestra, det.hoja);
     if (!canalArch) {
       return {
         error: 'En ' + labelDeCanal(state.canal) + ' esperaba ' + archivosHint(state.canal) + '.',
@@ -515,6 +533,7 @@
     }
     var idsVistos = {};
     var filas = [];
+    var filasSf = [];
     var omitidasPend = 0;
     var omitidasAnulado = 0;
     var origenIdsAnulado = [];
@@ -542,12 +561,14 @@
       var obs = String(cell(row, map, ['Observaciones']) || '').trim();
       var caja = String(cell(row, map, ['Caja']) || '').trim();
       var monedaFila = String(cell(row, map, ['Moneda']) || '').trim() || 'ARS';
-      if (historicoMixto) {
-        if (!caja || canalDetectadoArchivo('', caja, '', monedaFila) !== state.canal) {
+      var canalFilaCf = canalDetectadoArchivo('', caja, '', monedaFila);
+      var canalSfFila = canalCajaSinFactura(caja, monedaFila);
+      if (mixtoCaja) {
+        if (!caja || (canalFilaCf !== state.canal && !canalSfFila)) {
           omitidasOtraCaja += 1;
           continue;
         }
-      } else if (caja && canalDetectadoArchivo('', caja, '', monedaFila) !== state.canal) {
+      } else if (caja && canalFilaCf !== state.canal && !canalSfFila) {
         omitidasOtraCaja += 1;
         continue;
       }
@@ -557,13 +578,6 @@
       var idCierre = String(cell(row, map, ['Id', 'ID']) || '').trim();
       if (esAperturaDeCajaTexto(tipo, desc)) {
         omitidasApertura += 1;
-        var salAp = saldo;
-        if (salAp == null && esCierre) salAp = parseMonto(cell(row, map, ['Monto']));
-        if (salAp != null) {
-          saldoApertura = (saldoApertura == null ? 0 : saldoApertura) + Number(salAp);
-          if (fecha && (!fechaApertura || fecha < fechaApertura)) fechaApertura = fecha;
-          aperturas.push({ fecha: fecha || fechaApertura, usd: Number(salAp) });
-        }
         continue;
       }
       if (esStatusAnulado(status)) {
@@ -602,8 +616,9 @@
       if (cred != null && cred !== 0) monto = cred;
       else if (deb != null && deb !== 0) monto = -Math.abs(deb);
       var fechaHora = fecha ? fecha + 'T' + (hora || '00:00') + ':00-03:00' : null;
-      filas.push({
+      var filaObj = {
         origen_id: 'id|' + idCierre,
+        canal: canalSfFila || state.canal,
         fecha: fecha || fechaHoyYmd(),
         fecha_hora: fechaHora,
         tipo: tipo || null,
@@ -625,14 +640,18 @@
           moneda: monedaFila, tipo_cambio: tcFila,
           id: idCierre, formato: esCierre ? 'cierre' : 'tesoreria'
         },
-        soloSiExiste: esPendiente
-      });
+        soloSiExiste: !!(esPendiente && !canalSfFila)
+      };
+      if (canalSfFila && canalSfFila !== state.canal) filasSf.push(filaObj);
+      else filas.push(filaObj);
     }
-    if (!filas.length) {
+    if (!filas.length && !(filasSf && filasSf.length)) {
       if (omitidasAnulado && !omitidasOtraCaja) {
         return {
           error: null,
           filas: [],
+          filasSf: [],
+          mixtoCaja: mixtoCaja,
           formatoCierre: esCierre,
           formatoHistorico: historicoMixto,
           omitidasPend: omitidasPend,
@@ -655,12 +674,15 @@
           : omitidasSinId
             ? 'El archivo tiene columna Id pero ninguna fila con Id para cargar.'
             : 'No encontré filas de caja para cargar.',
-        filas: []
+        filas: [],
+        filasSf: []
       };
     }
     return {
       error: null,
       filas: filas,
+      filasSf: filasSf,
+      mixtoCaja: mixtoCaja,
       formatoCierre: esCierre,
       formatoHistorico: historicoMixto,
       omitidasPend: omitidasPend,
@@ -676,7 +698,11 @@
     };
   }
 
-  function snapshotSaldo(filas, archivo, formatoCierre, saldoApertura, fechaApertura, canal) {
+  function esCanalSinFactura(canal) {
+    return canal === CANAL_SF || canal === CANAL_SF_USD;
+  }
+
+  function snapshotSaldo(filas, archivo, formatoCierre, canal) {
     if (!filas || !filas.length) return null;
     var orden = filas.slice().sort(function (a, b) {
       var c = String(a.fecha).localeCompare(String(b.fecha));
@@ -684,23 +710,20 @@
       return (a.fila_excel || 0) - (b.fila_excel || 0);
     });
     var fechas = orden.map(function (f) { return f.fecha; }).filter(Boolean);
-    if (fechaApertura) fechas.push(fechaApertura);
     fechas.sort();
-    var ini = saldoApertura != null && isFinite(Number(saldoApertura)) ? Number(saldoApertura) : null;
+    var ini = null;
     var fin = null;
     var i;
     if (!formatoCierre) {
       for (i = orden.length - 1; i >= 0; i--) {
         if (orden[i].saldo != null) { fin = Number(orden[i].saldo); break; }
       }
-      if (ini == null) {
-        for (i = 0; i < orden.length; i++) {
-          if (orden[i].saldo != null) { ini = Number(orden[i].saldo); break; }
-        }
+      for (i = 0; i < orden.length; i++) {
+        if (orden[i].saldo != null) { ini = Number(orden[i].saldo); break; }
       }
     }
     if (fin == null) {
-      var run = ini != null && isFinite(ini) ? ini : 0;
+      var run = 0;
       for (i = 0; i < orden.length; i++) {
         if (orden[i].credito != null) run += Number(orden[i].credito) || 0;
         if (orden[i].debito != null) run -= Math.abs(Number(orden[i].debito) || 0);
@@ -1052,7 +1075,7 @@
     var kept = [];
     var nOmit = 0;
     filas.forEach(function (f) {
-      if (!f || !f.soloSiExiste) {
+      if (!f || !f.soloSiExiste || f.canal === CANAL_SF || f.canal === CANAL_SF_USD) {
         kept.push(f);
         return;
       }
@@ -1065,6 +1088,57 @@
     parsed.filas = kept;
     parsed.omitidasPend = (parsed.omitidasPend || 0) + nOmit;
     return parsed;
+  }
+
+  async function ingestSinFactura(filas, meta) {
+    var list = (filas || []).filter(function (f) { return f && f.origen_id; });
+    if (!list.length) return { n: 0, canales: [], omitidasPend: 0 };
+    if (!can(PERM_CARGAR)) {
+      return { n: 0, canales: [], omitidasPend: 0, err: 'Sin permiso para cargar Cajas (físicas).' };
+    }
+    var kept = list.slice();
+    var groups = {};
+    var order = [];
+    var i;
+    kept.forEach(function (f) {
+      var c = f.canal === CANAL_SF_USD ? CANAL_SF_USD : CANAL_SF;
+      f.canal = c;
+      if (!groups[c]) {
+        groups[c] = [];
+        order.push(c);
+      }
+      groups[c].push(f);
+    });
+    var canales = [];
+    var n = 0;
+    var archivo = (meta && meta.archivo) || '';
+    var formatoCierre = !!(meta && meta.formatoCierre);
+    for (i = 0; i < order.length; i++) {
+      var canalSave = order[i];
+      var parte = groups[canalSave];
+      if (!parte.length) continue;
+      if (esCanalUsd(canalSave)) {
+        state.tcLoaded = false;
+        await ensureTipoCambio();
+        pesificarParsed({
+          filas: parte,
+          aperturas: [],
+          saldoApertura: null,
+          fechaApertura: ''
+        });
+      }
+      n += await rpcLotes('cf_guardar_movimientos', canalSave, parte);
+      var snap = snapshotSaldo(parte, archivo, formatoCierre, canalSave);
+      if (snap) {
+        var sRes = await client().rpc('cf_guardar_saldo_caja', { p_filas: [snap] });
+        if (sRes.error) throw sRes.error;
+      }
+      canales.push(labelDeCanal(canalSave) + ' (' + parte.length + ')');
+    }
+    if (window.FornitaliaSaldosExtractos && typeof window.FornitaliaSaldosExtractos.recargar === 'function') {
+      window.FornitaliaSaldosExtractos.recargar();
+    }
+    return { n: n, canales: canales, omitidasPend: 0 };
   }
 
   async function borrarTesoreriaAnulada(ids) {
@@ -1149,21 +1223,23 @@
       if (!n) return '';
       return item(label, n, cls, hint);
     }
-    var omitHtml = itemSi('Apertura de Caja', r.omitidasApertura, '', 'No se cargan (el saldo, si viene, solo alimenta el corte).')
+    var omitHtml = itemSi('Apertura de Caja', r.omitidasApertura, '', 'No se cargan ni entran al corte de Saldos extractos.')
       + itemSi('Anulado', r.omitidasAnulado, '', 'Status Anulado no entra a tesorería. Si el Id ya existía, se elimina.')
-      + itemSi('Pendiente (nuevos)', r.omitidasPend, '', 'No se dan de alta. Si el Id ya existía, categoría y cuenta sí se actualizan.')
+      + itemSi('Pendiente (nuevos)', r.omitidasPend, '', 'No se dan de alta en esta caja. En Efectivo-s/f sí. Si el Id ya existía, categoría y cuenta se actualizan.')
       + itemSi('Otras cajas', r.omitidasOtraCaja, '', 'Mercado Pago, Galicia y Credicoop van a Conciliación Bancaria.')
       + itemSi('Sin Id', r.omitidasSinId, '', 'La columna Id es obligatoria.')
       + itemSi('Id duplicado en el archivo', r.omitidasIdDup, '', 'Se tomó la primera fila de cada Id.');
     return '<div class="cf-resumen-carga">' +
       '<p class="cf-resumen-lead">Se procesó <strong>' + esc(r.archivo || 'el archivo') + '</strong> como <strong>' + esc(r.tipo) + '</strong>.</p>' +
-      '<p class="cf-resumen-canales">Caja: ' + esc(r.canal || labelDeCanal(state.canal)) + '</p>' +
+      '<p class="cf-resumen-canales">Caja: ' + esc(r.canal || labelDeCanal(state.canal)) +
+        (r.canalesSf ? ' · ' + esc(r.canalesSf) : '') + '</p>' +
       '<h3>Qué se hizo</h3>' +
       '<dl class="cf-resumen-grid">' +
         item('Filas reconocidas', r.nReconocidas, '', 'Movimientos que se procesan (incluye Pendiente cuyo Id ya estaba, para actualizar categoría y cuenta).') +
         item('Registros nuevos', r.nNuevos, 'cf-resumen-ok', 'No estaban: se dieron de alta.') +
         item('Registros que cambiaron', r.nCambiaron, 'cf-resumen-warn', 'Mismo Id: se actualizaron fecha, monto, categoría, cuenta u otro dato.') +
         item('Sin cambios', r.nIguales, '', 'Mismo Id y mismos datos: no se duplicaron.') +
+        itemSi('Efectivo-s/f', r.nCajaSf, 'cf-resumen-ok', 'Caja Efectivo … (sin factura): se cargaron en Efectivo-s/f y en Saldos extractos.') +
         itemSi('A eliminar', r.nBajas, 'cf-resumen-warn', 'Tesorería abierta cuyo Id no vino en este archivo.') +
       '</dl>' +
       (omitHtml
@@ -1180,6 +1256,7 @@
     partes.push((r.nCambiaron || 0) + ' actualizadas');
     partes.push((r.nIguales || 0) + ' sin cambios');
     if (r.nBajas) partes.push(r.nBajas + ' a eliminar');
+    if (r.nCajaSf) partes.push(r.nCajaSf + ' a Efectivo-s/f');
     return partes.join(' · ') + '.';
   }
 
@@ -1255,8 +1332,17 @@
         if (parsed.error) throw new Error(parsed.error);
         await borrarTesoreriaAnulada(parsed.origenIdsAnulado);
         parsed = await filtrarPendienteCajaSoloSiExiste(parsed);
+        var ingestSf = { n: 0, canales: [], omitidasPend: 0 };
+        if ((parsed.filasSf || []).length) {
+          ingestSf = await ingestSinFactura(parsed.filasSf, {
+            archivo: file.name,
+            formatoCierre: parsed.formatoCierre
+          });
+          parsed.omitidasPend = (parsed.omitidasPend || 0) + (ingestSf.omitidasPend || 0);
+        }
         var hayOmit = !!(parsed.omitidasPend || parsed.omitidasApertura || parsed.omitidasIdDup
-          || parsed.omitidasOtraCaja || parsed.omitidasSinId || parsed.omitidasAnulado);
+          || parsed.omitidasOtraCaja || parsed.omitidasSinId || parsed.omitidasAnulado
+          || ingestSf.n);
         if (!parsed.filas.length && !hayOmit) {
           throw new Error('No encontré filas de caja para cargar.');
         }
@@ -1272,7 +1358,7 @@
         var clsTot = clasificarFilasUpload(parsed.filas);
         if (parsed.filas.length) {
           await rpcLotes('cf_guardar_movimientos', state.canal, parsed.filas);
-          if (!parsed.formatoCierre) {
+          if (!parsed.formatoCierre && !parsed.mixtoCaja) {
             var ids = parsed.filas.map(function (f) { return f.origen_id; });
             var baja = await client().rpc('cf_marcar_tesoreria_abierta_ausente', {
               p_canal: state.canal,
@@ -1280,35 +1366,42 @@
             });
             if (baja.error) throw baja.error;
           }
-          snap = snapshotSaldo(
-            parsed.filas,
-            file.name,
-            parsed.formatoCierre,
-            parsed.saldoApertura,
-            parsed.fechaApertura,
-            state.canal
-          );
-          if (snap) {
-            var sRes = await client().rpc('cf_guardar_saldo_caja', { p_filas: [snap] });
-            if (sRes.error) throw sRes.error;
+          if (!parsed.formatoHistorico || esCanalSinFactura(state.canal)) {
+            snap = snapshotSaldo(
+              parsed.filas,
+              file.name,
+              parsed.formatoCierre,
+              state.canal
+            );
+            if (snap) {
+              var sRes = await client().rpc('cf_guardar_saldo_caja', { p_filas: [snap] });
+              if (sRes.error) throw sRes.error;
+            }
           }
           await cargarDatos();
         }
-        var nBajas = (!parsed.formatoCierre && parsed.filas.length) ? filasBajas().length : 0;
+        var nBajas = (!parsed.formatoCierre && !parsed.mixtoCaja && parsed.filas.length) ? filasBajas().length : 0;
         if (nBajas) state.lista = 'bajas';
         var nota = '';
         if (snap) {
           nota = 'Saldo al ' + formatFecha(snap.fecha_hasta) + ': $ ' + formatMonto(snap.saldo_final) +
             (esCanalUsd(state.canal) ? ' ARS (pesificado al MEP de cada fecha, o el último anterior).' : '.');
+        } else if (parsed.formatoHistorico) {
+          nota = 'El histórico no pisa Saldos extractos (Apertura de Caja no entra al saldo). Queda el corte de tesorería o cierre.';
+        }
+        if (ingestSf.n && ingestSf.canales && ingestSf.canales.length) {
+          nota = (nota ? nota + ' ' : '') + 'También se cargó ' + ingestSf.canales.join(', ') + ' en Saldos extractos.';
         }
         var resumen = {
           archivo: file.name,
           tipo: tipoCargaLabel(parsed, file.name),
           canal: labelDeCanal(state.canal),
+          canalesSf: (ingestSf.canales || []).join(', '),
           nReconocidas: nReconocidas,
           nNuevos: clsTot.nNuevos,
           nCambiaron: clsTot.nCambiaron,
           nIguales: clsTot.nIguales,
+          nCajaSf: ingestSf.n || 0,
           nBajas: nBajas,
           omitidasApertura: parsed.omitidasApertura || 0,
           omitidasPend: parsed.omitidasPend || 0,
@@ -1665,10 +1758,10 @@
     syncCamposFiltro(state);
     el.innerHTML =
       FornitaliaHelp.header(ICO.cash, 'Cajas (físicas)', 'tpl-cf-help', 'Ayuda: Cajas (físicas)',
-        '<p>Cajas que <strong>no se concilian</strong> con extracto bancario. Solapas <strong>' + esc(LABEL_GF) + '</strong> (efectivo pesos), <strong>' + esc(LABEL_MOR) + '</strong> (Transferencia Morba), <strong>' + esc(LABEL_USD) + '</strong> (efectivo dólar, pesificado al MEP), <strong>' + esc(LABEL_SF) + '</strong> y <strong>' + esc(LABEL_SF_USD) + '</strong> (histórico Caja Efectivo … sin factura).</p>' +
+        '<p>Cajas que <strong>no se concilian</strong> con extracto bancario. Solapas <strong>' + esc(LABEL_GF) + '</strong> (efectivo pesos), <strong>' + esc(LABEL_MOR) + '</strong> (Transferencia Morba), <strong>' + esc(LABEL_USD) + '</strong> (efectivo dólar, pesificado al MEP), <strong>' + esc(LABEL_SF) + '</strong> (Caja = Efectivo Pesos (sin factura)) y <strong>' + esc(LABEL_SF_USD) + '</strong> (Caja = Efectivo Dolar (sin factura)).</p>' +
         '<p>Mismos Excel que tesorería/cierre, con Id para no duplicar. El saldo alimenta Saldos extractos.</p>' +
         '<p>Cargá <em>' + esc(archivosHint(state.canal).split(' o ')[0]) + '</em> o <em>' + esc(archivosHint(state.canal).split(' o ')[1] || '') + '</em>. Tesorería abierta trae saldo corrido; el cierre ya cerrado trae Fecha, Tipo, Monto e Id.</p>' +
-        '<p>Apertura de Caja, Status Anulado y filas Pendiente no se suben (el saldo de apertura, si viene, solo alimenta el corte de Saldos extractos). Si un Id de tesorería abierta ya no viene, pasa a <strong>A eliminar</strong>.' +
+        '<p>Apertura de Caja y Status Anulado no se suben. Apertura no entra al corte de Saldos extractos. El histórico carga movimientos pero no pisa el saldo de tesorería o cierre. En Efectivo-s/f el Status Pendiente sí se da de alta. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> entran a Efectivo-s/f aunque vengan en un histórico, cierre u otro Excel de tesorería; el saldo alimenta Saldos extractos. Si un Id de tesorería abierta ya no viene, pasa a <strong>A eliminar</strong>.' +
         (esCanalUsd(state.canal) ? ' Los montos del Excel están en <strong>USD</strong> y se pesifican al <strong>MEP</strong> de <em>tipo_de_cambio</em> (fecha del movimiento o última cotización anterior). La grilla muestra ARS, USD original y el TC usado.' : '') + '</p>') +
       (state.loading ? '<p class="loading">Cargando caja…</p>' : '') +
       (state.err ? '<p class="cf-msg-err">' + esc(state.err) + '</p>' : '') +
@@ -1765,5 +1858,5 @@
     recargarTodo();
   }
 
-  global.FornitaliaCajasFisicas = { init: init, show: show };
+  global.FornitaliaCajasFisicas = { init: init, show: show, ingestSinFactura: ingestSinFactura };
 })(window);
