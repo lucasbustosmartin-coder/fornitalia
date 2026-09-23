@@ -1,8 +1,9 @@
 /**
  * Cajas (físicas) – Fornitalia
  * Efectivo-f (ARS) (tesoreria_efectivo_pesos / cierre_PES),
- * Morba-s/f (ARS) (tesoreria_transferencia_morba / cierre_MOR) y
- * Efectivo-f (USD) (tesoreria_efectivo_dolar / cierre_DOL, pesificado al MEP).
+ * Morba-s/f (ARS) (tesoreria_transferencia_morba / cierre_MOR),
+ * Efectivo-f (USD) (tesoreria_efectivo_dolar / cierre_DOL, pesificado al MEP),
+ * Efectivo-s/f (ARS) y Efectivo-s/f (USD) (histórico Caja Efectivo … sin factura).
  * Misma lógica de carga que conciliación, sin extracto ni match.
  * window.FornitaliaCajasFisicas.init({ client, hasPerm, getRoot })
  */
@@ -16,6 +17,10 @@
   var LABEL_MOR = 'Morba-s/f (ARS)';
   var CANAL_USD = 'galicia_dolar';
   var LABEL_USD = 'Efectivo-f (USD)';
+  var CANAL_SF = 'efectivo_sf';
+  var LABEL_SF = 'Efectivo-s/f (ARS)';
+  var CANAL_SF_USD = 'efectivo_sf_usd';
+  var LABEL_SF_USD = 'Efectivo-s/f (USD)';
   var PERM_VER = 'ver_cajas_fisicas';
   var PERM_CARGAR = 'cargar_cajas_fisicas';
   var PERM_EXPORTAR = 'exportar_cajas_fisicas';
@@ -249,27 +254,32 @@
   function labelDeCanal(c) {
     if (c === CANAL_MOR) return LABEL_MOR;
     if (c === CANAL_USD) return LABEL_USD;
+    if (c === CANAL_SF) return LABEL_SF;
+    if (c === CANAL_SF_USD) return LABEL_SF_USD;
     return LABEL_GF;
   }
 
   function archivosHint(c) {
     if (c === CANAL_MOR) return 'tesoreria_transferencia_morba_… o cierre_MOR-…';
     if (c === CANAL_USD) return 'tesoreria_efectivo_dolar_… o cierre_DOL-…';
+    if (c === CANAL_SF || c === CANAL_SF_USD) return 'histórico movimientos-historico_… (Caja Efectivo … sin factura)';
     return 'tesoreria_efectivo_pesos_… o cierre_PES-…';
   }
 
   function excelNombreCanal(c) {
     if (c === CANAL_MOR) return 'Cajas_Morba-sf_ARS_';
     if (c === CANAL_USD) return 'Cajas_Efectivo-f_USD_';
+    if (c === CANAL_SF) return 'Cajas_Efectivo-sf_ARS_';
+    if (c === CANAL_SF_USD) return 'Cajas_Efectivo-sf_USD_';
     return 'Cajas_Efectivo-f_ARS_';
   }
 
   function esCanalCaja(c) {
-    return c === CANAL_GF || c === CANAL_MOR || c === CANAL_USD;
+    return c === CANAL_GF || c === CANAL_MOR || c === CANAL_USD || c === CANAL_SF || c === CANAL_SF_USD;
   }
 
   function esCanalUsd(c) {
-    return c === CANAL_USD;
+    return c === CANAL_USD || c === CANAL_SF_USD;
   }
 
   async function ensureTipoCambio() {
@@ -374,7 +384,16 @@
     return parsed;
   }
 
+  function esCajaSinFacturaTexto(archivo, caja, hoja) {
+    var t = normHeader([archivo, caja, hoja].filter(Boolean).join(' '));
+    if (t.indexOf('sin factura') >= 0) return true;
+    if (t.indexOf('s/f') >= 0) return true;
+    if (t.indexOf('sinfactura') >= 0) return true;
+    return false;
+  }
+
   function esArchivoCajaGaliciaFacturada(archivo, caja, hoja) {
+    if (esCajaSinFacturaTexto(archivo, caja, hoja)) return false;
     var t = normHeader([archivo, caja, hoja].filter(Boolean).join(' '));
     if (t.indexOf('efectivo pesos') >= 0) return true;
     if (t.indexOf('tesoreria_efectivo_pesos') >= 0) return true;
@@ -391,6 +410,7 @@
   }
 
   function esArchivoCajaDolar(archivo, caja, hoja) {
+    if (esCajaSinFacturaTexto(archivo, caja, hoja)) return false;
     var cajaN = normHeader(caja);
     if (cajaN.indexOf('transferencia galicia dolar') >= 0) return false;
     var t = normHeader([archivo, caja, hoja].filter(Boolean).join(' '));
@@ -400,7 +420,13 @@
     return false;
   }
 
-  function canalDetectadoArchivo(archivo, caja, hoja) {
+  function canalDetectadoArchivo(archivo, caja, hoja, moneda) {
+    if (esCajaSinFacturaTexto(archivo, caja, hoja)) {
+      var mon = String(moneda || '').trim().toUpperCase();
+      var blob = normHeader([archivo, caja, hoja, moneda].filter(Boolean).join(' '));
+      if (mon === 'USD' || blob.indexOf('dolar') >= 0 || blob.indexOf('dollar') >= 0 || /\busd\b/.test(blob)) return CANAL_SF_USD;
+      return CANAL_SF;
+    }
     var mor = esArchivoCajaMorba(archivo, caja, hoja);
     var gf = esArchivoCajaGaliciaFacturada(archivo, caja, hoja);
     var usd = esArchivoCajaDolar(archivo, caja, hoja);
@@ -419,6 +445,7 @@
     if (t.indexOf('mercadopago') >= 0 || t.indexOf('mercado pago') >= 0) return true;
     if (t.indexOf('transferencia galicia') >= 0) return true;
     if (t.indexOf('extracto') >= 0 && t.indexOf('galicia') >= 0) return true;
+    if (t.indexOf('credicoop') >= 0 || t.indexOf('credicop') >= 0) return true;
     return false;
   }
 
@@ -460,7 +487,7 @@
     var historicoMixto = esNombreTesoreriaHistorico(archivo);
     if (!historicoMixto && esArchivoBancoConciliable(archivo, cajaMuestra, det.hoja)) {
       return {
-        error: 'Este archivo es de Conciliación Bancaria (Galicia o Mercado Pago). Cargalo en ese menú.',
+        error: 'Este archivo es de Conciliación Bancaria (Galicia, Credicoop o Mercado Pago). Cargalo en ese menú.',
         filas: []
       };
     }
@@ -506,18 +533,19 @@
       var saldo = parseMonto(cell(row, map, ['Saldo (ARS)', 'Saldo (USD)', 'Saldo']));
       var obs = String(cell(row, map, ['Observaciones']) || '').trim();
       var caja = String(cell(row, map, ['Caja']) || '').trim();
+      var monedaFila = String(cell(row, map, ['Moneda']) || '').trim() || 'ARS';
       if (historicoMixto) {
-        if (!caja || canalDetectadoArchivo('', caja, '') !== state.canal) {
+        if (!caja || canalDetectadoArchivo('', caja, '', monedaFila) !== state.canal) {
           omitidasOtraCaja += 1;
           continue;
         }
-      } else if (caja && canalDetectadoArchivo('', caja, '') !== state.canal) {
+      } else if (caja && canalDetectadoArchivo('', caja, '', monedaFila) !== state.canal) {
         omitidasOtraCaja += 1;
         continue;
       }
       var usuario = String(cell(row, map, ['Usuario']) || '').trim();
       var status = String(cell(row, map, ['Status', 'Estado']) || '').trim();
-      var monedaFila = String(cell(row, map, ['Moneda']) || '').trim() || 'ARS';
+      var tcFila = parseMonto(cell(row, map, ['Tipo de Cambio', 'Tipo_Cambio', 'TC', 'Tipo Cambio']));
       var idCierre = String(cell(row, map, ['Id', 'ID']) || '').trim();
       if (esAperturaDeCajaTexto(tipo, desc)) {
         omitidasApertura += 1;
@@ -581,6 +609,7 @@
           tipo: tipo, fecha: fecha, hora: hora, categoria: cat, cuenta_contable: cta,
           descripcion: desc, cliente: cliente, credito: cred, debito: deb, saldo: saldo,
           observaciones: obs, caja: caja || null, usuario: usuario || null, status: status || null,
+          moneda: monedaFila, tipo_cambio: tcFila,
           id: idCierre, formato: esCierre ? 'cierre' : 'tesoreria'
         },
         soloSiExiste: esPendiente
@@ -589,7 +618,7 @@
     if (!filas.length) {
       return {
         error: omitidasOtraCaja && historicoMixto
-          ? 'Este histórico no tiene filas de ' + labelDeCanal(state.canal) + '. Mercado Pago y Galicia van a Conciliación Bancaria; en esta solapa solo entra ' + archivosHint(state.canal) + '.'
+          ? 'Este histórico no tiene filas de ' + labelDeCanal(state.canal) + '. Mercado Pago, Galicia y Credicoop van a Conciliación Bancaria; en esta solapa solo entra ' + archivosHint(state.canal) + '.'
           : omitidasApertura
           ? 'El archivo solo tenía Apertura de Caja; ese tipo no se carga.'
           : omitidasSinId
@@ -1403,7 +1432,7 @@
     syncCamposFiltro(state);
     el.innerHTML =
       FornitaliaHelp.header(ICO.cash, 'Cajas (físicas)', 'tpl-cf-help', 'Ayuda: Cajas (físicas)',
-        '<p>Cajas que <strong>no se concilian</strong> con extracto bancario. Solapas <strong>' + esc(LABEL_GF) + '</strong> (efectivo pesos), <strong>' + esc(LABEL_MOR) + '</strong> (Transferencia Morba) y <strong>' + esc(LABEL_USD) + '</strong> (efectivo dólar, pesificado al MEP).</p>' +
+        '<p>Cajas que <strong>no se concilian</strong> con extracto bancario. Solapas <strong>' + esc(LABEL_GF) + '</strong> (efectivo pesos), <strong>' + esc(LABEL_MOR) + '</strong> (Transferencia Morba), <strong>' + esc(LABEL_USD) + '</strong> (efectivo dólar, pesificado al MEP), <strong>' + esc(LABEL_SF) + '</strong> y <strong>' + esc(LABEL_SF_USD) + '</strong> (histórico Caja Efectivo … sin factura).</p>' +
         '<p>Mismos Excel que tesorería/cierre, con Id para no duplicar. El saldo alimenta Saldos extractos.</p>' +
         '<p>Cargá <em>' + esc(archivosHint(state.canal).split(' o ')[0]) + '</em> o <em>' + esc(archivosHint(state.canal).split(' o ')[1] || '') + '</em>. Tesorería abierta trae saldo corrido; el cierre ya cerrado trae Fecha, Tipo, Monto e Id.</p>' +
         '<p>Apertura de Caja y filas Pendiente no se suben (el saldo de apertura, si viene, solo alimenta el corte de Saldos extractos). Si un Id de tesorería abierta ya no viene, pasa a <strong>A eliminar</strong>.' +
@@ -1415,6 +1444,8 @@
         '<button type="button" class="' + (state.canal === CANAL_GF ? 'activo' : '') + '" data-cf="canal" data-canal="' + CANAL_GF + '">' + esc(LABEL_GF) + '</button>' +
         '<button type="button" class="' + (state.canal === CANAL_MOR ? 'activo' : '') + '" data-cf="canal" data-canal="' + CANAL_MOR + '">' + esc(LABEL_MOR) + '</button>' +
         '<button type="button" class="' + (state.canal === CANAL_USD ? 'activo' : '') + '" data-cf="canal" data-canal="' + CANAL_USD + '">' + esc(LABEL_USD) + '</button>' +
+        '<button type="button" class="' + (state.canal === CANAL_SF ? 'activo' : '') + '" data-cf="canal" data-canal="' + CANAL_SF + '">' + esc(LABEL_SF) + '</button>' +
+        '<button type="button" class="' + (state.canal === CANAL_SF_USD ? 'activo' : '') + '" data-cf="canal" data-canal="' + CANAL_SF_USD + '">' + esc(LABEL_SF_USD) + '</button>' +
       '</div>' +
       '<div class="cf-toolbar"><div class="cf-acciones">' +
         (can(PERM_CARGAR) ? '<button type="button" class="cf-btn cf-btn-navy" data-cf="up"><span class="btn-icon">' + ICO.upload + '</span>Cargar tesorería / cierre</button>' : '') +

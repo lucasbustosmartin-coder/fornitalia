@@ -143,7 +143,7 @@ const bullets = [
   'Visualizar ingresos, egresos y resultado (G/P) por mes en ARS o USD',
   'Analizar por categoría y por cuenta contable con detalle de transacciones',
   'Detectar inconsistencias y potenciales duplicados para corregir datos',
-  'Proyectar los próximos meses y el interés por caución sobre el sobrante',
+  'Proyectar los próximos meses a partir de la historia de ingresos y egresos',
   'Exportar datos a Excel y operar con un único punto de verdad en la nube',
 ];
 bullets.forEach((t, i) => {
@@ -169,14 +169,14 @@ const s3 = pptx.addSlide();
 addHeaderFooter(s3, pptx);
 addSlideTitle(s3, 'Funcionalidades destacadas');
 const features = [
-  'Flujo por mes con ingresos, egresos, G/P, ratios y columna de interés por caución',
+  'Flujo por mes con ingresos, egresos, G/P y ratios (alimentado por tesorería)',
   'Alertas configurables: mes sin egresos, sin Sueldos/Comisiones/Alquileres/Impuestos, desvío % por categoría',
   'Modal de detalle por mes: por Categoría y por Cuenta contable; gráfico de serie mensual',
   'Solapa Errores: detección de inconsistencias y duplicados; edición desde el mismo tablero',
   'Solapa Evolución: tabla dinámica por categoría o cuenta y período diario o mensual',
   'Proyección de los próximos meses con método configurable (mediana/promedio, ventana rodante)',
   'Exportación a Excel de transacciones, errores y evolución',
-  'Configuración por usuario (proyección, caución, alertas) guardada en la nube',
+  'Configuración por usuario (proyección y alertas) guardada en la nube',
 ];
 features.forEach((t, i) => {
   s3.addText(BULLET_ICON + ' ' + t, { x: 0.7, y: 1.35 + i * 0.58, w: 8.6, h: 0.55, fontSize: 11, color: '444444', valign: 'top', fontFace: FONT_FACE });

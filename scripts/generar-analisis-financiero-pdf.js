@@ -31,94 +31,6 @@ const TC_SQL_DOCS = path.join(root, "docs", "tipos_cambio_global_rows.sql");
 const TC_CSV_DOCS = path.join(root, "docs", "tipos_cambio_global_rows.csv");
 const TC_CSV_ROOT = path.join(root, "tipos_cambio_global_rows.csv");
 
-/** Igual criterio que el dashboard: % del G/P acumulado (solo flujo ARS) sobre el que aplica la tasa diaria de caución. */
-const PCT_CAUCION_INFORME = 95;
-
-function loadSerieCaucionesPdf(baseDir) {
-  const p = path.join(baseDir, "serie_cauciones.json");
-  if (!fs.existsSync(p)) {
-    return { map: {}, sortedAsc: [], pathRel: "serie_cauciones.json", ok: false };
-  }
-  try {
-    const j = JSON.parse(fs.readFileSync(p, "utf8"));
-    const tasas = j.tasas && typeof j.tasas === "object" ? j.tasas : {};
-    const sortedAsc = Object.keys(tasas).sort();
-    return { map: tasas, sortedAsc, pathRel: "serie_cauciones.json", ok: sortedAsc.length > 0 };
-  } catch {
-    return { map: {}, sortedAsc: [], pathRel: "serie_cauciones.json", ok: false };
-  }
-}
-
-/**
- * Fracción diaria aplicable a capital (ej. 0,00074). En `Serie_Cauciones.xlsx` (SheetJS raw) ya viene así.
- * `serie_cauciones.json` antiguos guardaban ~TNA%/365 sin ÷100 (valores ~0,03–0,35): se corrige dividiendo por 100.
- * Umbral 0,02: una tasa diaria real >2 %/día como fracción sería anómala; evita falsear Excel correcto (~1e-3).
- */
-function normalizeTasaCaucionDiariaPdf(t) {
-  if (typeof t !== "number" || !Number.isFinite(t) || t < 0) return 0;
-  return t > 0.02 ? t / 100 : t;
-}
-
-function getTasaCaucionPdf(fechaIso, sortedAsc, map) {
-  if (!fechaIso || !sortedAsc.length) return 0;
-  const idx = sortedAsc.findIndex((d) => d > fechaIso);
-  const i =
-    idx === -1 ? sortedAsc.length - 1 : idx === 0 ? -1 : idx - 1;
-  if (i < 0) return 0;
-  const t = map[sortedAsc[i]];
-  if (typeof t !== "number" || t < 0) return 0;
-  return normalizeTasaCaucionDiariaPdf(t);
-}
-
-/**
- * Oportunidad de inversión no realizada (caución): misma base que el dashboard (v1.47+).
- * Solo Ingreso/Egreso operativos, `!esTransaccionUSD` (no solo inferCurrency ARS), sin traspasos;
- * importe en pesos como `montoConvertido` en ARS para filas no USD (Monto en $ / Monto).
- */
-function computeCaucionOportunidadPdf(operativos, monthKeys, pctCaucion) {
-  const serie = loadSerieCaucionesPdf(root);
-  const deltasPorFecha = {};
-  for (const r of operativos) {
-    const tipo = r["Tipo"];
-    if (tipo !== "Ingreso" && tipo !== "Egreso") continue;
-    if (esTransaccionUSDPdf(r)) continue;
-    const cat = normalizeText(r["Categoría"]);
-    if (esCategoriaTraspasoInterno(cat)) continue;
-    const iso = fechaIsoFromMovimiento(r);
-    if (!iso) continue;
-    const m = montoPesosCaucionPdf(r);
-    if (m == null || !Number.isFinite(m)) continue;
-    const delta = tipo === "Ingreso" ? m : -m;
-    deltasPorFecha[iso] = (deltasPorFecha[iso] || 0) + delta;
-  }
-  const fechasOrdenadas = Object.keys(deltasPorFecha).sort();
-  const intPorMes = {};
-  let gpAcumulado = 0;
-  let intAcumuladoAnterior = 0;
-  for (const fecha of fechasOrdenadas) {
-    gpAcumulado += deltasPorFecha[fecha];
-    const base = (gpAcumulado * pctCaucion) / 100 + intAcumuladoAnterior;
-    const tasa = getTasaCaucionPdf(fecha, serie.sortedAsc, serie.map);
-    const intDia = base > 0 ? base * tasa : 0;
-    const mk = fecha.slice(0, 7);
-    intPorMes[mk] = (intPorMes[mk] || 0) + intDia;
-    intAcumuladoAnterior += intDia;
-  }
-  const rows = monthKeys.map((k) => ({
-    monthKey: k,
-    intMes: intPorMes[k] || 0,
-  }));
-  const total = rows.reduce((s, x) => s + x.intMes, 0);
-  return {
-    rows,
-    total,
-    pctCaucion,
-    serieOk: serie.ok,
-    seriePath: serie.pathRel,
-    nDiasConMov: fechasOrdenadas.length,
-  };
-}
-
 function toNumber(value) {
   if (value === null || value === undefined || value === "") return null;
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -132,87 +44,6 @@ function toNumber(value) {
 function normalizeText(value) {
   if (value === null || value === undefined) return "";
   return String(value).trim();
-}
-
-/** Misma regla que `reglaNegocioMonedaSiempreARS` en el dashboard (MP / Morba + typo morva). */
-function reglaNegocioMonedaSiempreARSPdf(row) {
-  const medioRaw = row["Medio de Pago"];
-  const medio = normalizeText(medioRaw).toLowerCase();
-  const medioC = medio.replace(/\s+/g, "");
-  const blob = [
-    medioRaw,
-    row["Descripción"],
-    row["Observaciones"],
-    row["Cuenta Contable"],
-    row["Categoría"],
-    row["cat_desc"],
-  ]
-    .map(normalizeText)
-    .join(" ")
-    .toLowerCase();
-  const blobC = blob.replace(/\s+/g, "");
-  if (
-    medioC.includes("mercadopago") ||
-    (medio.includes("mercado") && medio.includes("pago"))
-  ) {
-    return true;
-  }
-  if (medio.includes("morba") || medio.includes("morva")) return true;
-  if (
-    blobC.includes("mercadopago") ||
-    /\bmercado\s+pago\b/.test(blob)
-  ) {
-    return true;
-  }
-  if (blob.includes("morba") || blob.includes("morva")) return true;
-  return false;
-}
-
-function esMonedaUSDDesdeMedioPdf(medioPago) {
-  const m = normalizeText(medioPago).toLowerCase();
-  return m.includes("dolar") || m.includes("dólar");
-}
-
-/**
- * Equivalente a `esTransaccionUSD(r)` del dashboard (caución y flujo ARS nativo).
- * Usa maestro medio→moneda, reglas MP/Morba, columna Moneda del export y texto de contexto.
- */
-function esTransaccionUSDPdf(row) {
-  const porMedio = monedaPorMedioFornitalia(row["Medio de Pago"]);
-  if (porMedio === "USD") return true;
-  if (porMedio === "ARS") return false;
-  if (reglaNegocioMonedaSiempreARSPdf(row)) return false;
-  const m = normalizeText(row["Moneda"]).toUpperCase();
-  if (m === "USD") return true;
-  if (m === "ARS") return false;
-  const blob = [
-    row["Medio de Pago"],
-    row["Descripción"],
-    row["Observaciones"],
-    row["Cuenta Contable"],
-    row["Categoría"],
-    row["cat_desc"],
-  ]
-    .map(normalizeText)
-    .join(" ")
-    .toLowerCase();
-  if (/\b(u\$s|usd|us\$|dolar|dólar)\b/.test(blob)) return true;
-  if (esMonedaUSDDesdeMedioPdf(row["Medio de Pago"])) return true;
-  return false;
-}
-
-/**
- * Pesos para caución: igual orden que `montoConvertido(r,'ARS')` cuando la fila no es USD
- * (solo aplica a filas ya filtradas con `!esTransaccionUSDPdf`).
- */
-function montoPesosCaucionPdf(row) {
-  const mcRaw = row["Monto en $"];
-  if (mcRaw != null && mcRaw !== "") {
-    const mc = toNumber(mcRaw);
-    if (mc != null && Number.isFinite(mc)) return mc;
-  }
-  const m = toNumber(row["Monto"]);
-  return m != null && Number.isFinite(m) ? m : null;
 }
 
 /** Moneda de origen: primero el maestro por medio (`fornitalia-moneda-por-medio.js`); si no aplica, inferencia por contexto. */
@@ -1078,12 +909,6 @@ function loadAndAnalyze() {
     nFlowsUsd: flowsSaldoUsd.length,
   };
 
-  const caucionOportunidad = computeCaucionOportunidadPdf(
-    operativos,
-    monthKeys,
-    PCT_CAUCION_INFORME
-  );
-
   const comprasHornos = {
     totalArs: totalComprasHornosArs,
     nMov: nComprasHornos,
@@ -1162,7 +987,6 @@ function loadAndAnalyze() {
     ventas,
     comprasHornos,
     saldoCaja,
-    caucionOportunidad,
   };
 }
 
@@ -1183,7 +1007,6 @@ function buildHtml(a) {
     ventas: v,
     comprasHornos: ch,
     saldoCaja: sc,
-    caucionOportunidad: co,
   } = a;
   const periodo =
     meta.minD && meta.maxD
@@ -1221,21 +1044,6 @@ function buildHtml(a) {
         `<tr><td>${esc(m)}</td><td class="num">${fmtARS(mv)}</td><td class="num">${fmtPct(totals.totalEg > 0 ? (100 * mv) / totals.totalEg : null)}</td></tr>`
     )
     .join("");
-
-  const rowsCaucion =
-    co.rows && co.rows.length
-      ? co.rows
-          .map((row) => {
-            const label = row.monthKey.replace(/^(\d{4})-(\d{2})$/, "$2/$1");
-            return `<tr><td>${esc(label)}</td><td class="num">${fmtARS(row.intMes)}</td></tr>`;
-          })
-          .join("")
-      : "";
-
-  const bloqueCaucionHtml = `<p><strong>Qué mide:</strong> interés <em>no registrado en el extracto</em> que resultaría de aplicar la <strong>tasa diaria</strong> de la serie de cauciones sobre el <strong>${co.pctCaucion}%</strong> del <strong>G/P acumulado</strong> día a día, con el <strong>mismo criterio que el dashboard</strong>: excluye filas tratadas como USD (<code>esTransaccionUSD</code>: maestro caja→moneda, columna <strong>Moneda</strong> del export cuando existe, MP/Morba siempre ARS, texto); importe en pesos como en la app (<strong>Monto en $</strong> / <strong>Monto</strong>); sin traspasos internos. Montos en <strong>ARS</strong> (tasas en ARS). Fuente: archivo <code>${esc(co.seriePath)}</code> en la raíz del repositorio.${co.serieOk ? "" : " <strong>Atención:</strong> no hay serie cargada o está vacía: el interés calculado es 0."}</p>
-  <p style="font-size:9pt;color:var(--muted);">Misma lógica que la columna <strong>Caución (${co.pctCaucion}% cash, ARS)</strong> del <strong>Flujo por mes</strong> en el dashboard, con el mismo extracto y tasas desde <code>serie_cauciones.json</code> (o <code>Serie_Cauciones.xlsx</code> en la app). Las tasas deben ser <strong>fracción diaria</strong> como en Excel raw (ej. 0,00074); si un JSON antiguo guardaba ~TNA % ÷ 365 sin ÷100, informe y app aplican corrección automática. Regenerar JSON con <code>node scripts/convertir-serie-cauciones.js</code>. En la app el % puede configurarse; en este PDF se fija <strong>${co.pctCaucion}%</strong>.</p>
-  <table><thead><tr><th>Mes</th><th>Interés caución del mes (ARS)</th></tr></thead><tbody>${rowsCaucion || `<tr><td colspan="2"><em>Sin meses en la serie mensual del informe.</em></td></tr>`}</tbody><tfoot><tr><th>Total período (ARS)</th><th class="num">${fmtARS(co.total)}</th></tr></tfoot></table>
-  <p style="font-size:9pt;color:var(--muted);">Días con al menos un movimiento ARS operativo considerado en el acumulado: <strong>${co.nDiasConMov.toLocaleString("es-AR")}</strong>.</p>`;
 
   const bloqueSaldoCajaHtml =
     sc.nFlowsArs === 0 && sc.nFlowsUsd === 0
@@ -1736,13 +1544,6 @@ function buildHtml(a) {
         "Validar con el cliente la carga de egresos en esos meses o documentar formalmente que el corte es correcto.",
     });
   }
-  if (!co.serieOk) {
-    itemsConsiderandosFinanciero.push({
-      con: "La sección de oportunidad de caución no tiene serie diaria cargada o el archivo está vacío: el interés mostrado es cero.",
-      cerrar:
-        "Colocar o completar `serie_cauciones.json` en la raíz del repositorio (mismo formato que usa el dashboard) y regenerar el informe.",
-    });
-  }
 
   const considerandosFinancieroHtml = htmlConsiderandosCierre(
     "Considerandos y cierre — Análisis financiero general (caja y liquidez)",
@@ -1844,28 +1645,25 @@ function buildHtml(a) {
   <p style="font-size:9pt;color:var(--muted);">Este bloque es la <strong>suma de egresos del período completo</strong> por medio de pago (no el saldo acumulado al cierre de mes). Para saldos acumulados por mes y moneda, ver <strong>sección 6</strong>.</p>
   <table><thead><tr><th>Medio de pago</th><th>Monto egresos</th><th>% s/ egresos</th></tr></thead><tbody>${rowsMedios}</tbody></table>
 
-  <h2 class="page-break">8. Oportunidad de inversión no realizada (caución — cuadro alineado a la app)</h2>
-  ${bloqueCaucionHtml}
-
-  <h2>9. Calidad de datos y señales erráticas</h2>
+  <h2>8. Calidad de datos y señales erráticas</h2>
   <ul>
     ${debHtml}
   </ul>
   <p><strong>Registros:</strong> ${meta.totalFilas.toLocaleString("es-AR")} filas analizadas (tras excluir mes no cerrado si aplica) · ${meta.anulados} anulados · ${calidad.sinCategoria} sin categoría (no anulados) · ${calidad.cuentaGuion} con cuenta “-” o vacía (no anulados)${(meta.filasExcluidasSinArs || 0) > 0 ? ` · <strong>${meta.filasExcluidasSinArs}</strong> mov. en USD excluidos de totales (sin conversión a ARS)` : ""}${(meta.filasExcluidasMesNoCerrado || 0) > 0 ? ` · <strong>${meta.filasExcluidasMesNoCerrado}</strong> filas omitidas (marzo 2026, mes abierto)` : ""}.</p>
 
-  <h2>10. Debilidades y riesgos (lectura financiera)</h2>
+  <h2>9. Debilidades y riesgos (lectura financiera)</h2>
   <ul>
     <li>Dependencia de clasificación (categoría/cuenta) aún heterogénea: sesga comparables entre meses.</li>
     <li>Impuestos y cargas laborales concentran gran parte del egreso: sensibilidad a fechas de vencimiento.</li>
     <li>Sin desglose de <strong>devengado</strong>, el análisis no captura obligaciones no pagadas ni stock.</li>
   </ul>
 
-  <h2>11. Oportunidades de mejora en cash management</h2>
+  <h2>10. Oportunidades de mejora en cash management</h2>
   <ul>${opHtml}</ul>
 
   ${considerandosFinancieroHtml}
 
-  <h2>12. Conclusión</h2>
+  <h2>11. Conclusión</h2>
   <p>El negocio muestra, en el período del extracto, <strong>generación de caja operativa positiva</strong> al aislar traspasos internos, con <strong>ventas</strong> como motor de ingresos. La prioridad de gestión es <strong>normalizar maestros</strong> (categoría, cuenta, medios) y completar series mensuales sin cortes para poder afirmar estacionalidad y metas de liquidez con mayor confianza. Se recomienda cruzar este informe con el plan de cuentas y proyección de impuestos/sueldos con el contador.</p>
 
   <p style="margin-top:2rem;font-size:9pt;color:var(--muted);">Documento generado automáticamente por <code>scripts/generar-analisis-financiero-pdf.js</code>. Actualizar el Excel de origen y volver a ejecutar <code>npm run analisis-financiero-pdf</code> para regenerar.</p>

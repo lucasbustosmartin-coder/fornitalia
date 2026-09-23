@@ -1,0 +1,238 @@
+/* Matriz EF – categoría / cuenta / tipo → Estado Financiero */
+
+.vista-mef { padding: 1.25rem 1.5rem 2rem; }
+
+.mef-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin: 0 0 1rem;
+}
+
+.mef-acciones, .mef-busqueda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.mef-busqueda input[type="search"] {
+  min-width: 220px;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.mef-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.25rem;
+  min-width: 44px;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-family: inherit;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+}
+
+.mef-btn .btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mef-btn .btn-icon svg { width: 18px; height: 18px; stroke: currentColor; }
+
+.mef-btn-navy { background: #0d2137; color: #fff; }
+.mef-btn-navy:hover { background: #09182a; }
+.mef-btn-ok { background: #0d7d3d; color: #fff; }
+.mef-btn-ok:hover { background: #0a5c2e; }
+.mef-btn-ghost { background: #fff; color: #1a1a1a; border-color: #ccc; }
+.mef-btn-ghost:hover { background: #f3f4f6; }
+.mef-btn-excel { background: #0d7d3d; color: #fff; }
+.mef-btn-excel:hover { background: #0a5c2e; }
+.mef-btn-danger { background: #fff; color: #b91c1c; border-color: #f3c4c4; }
+.mef-btn-danger:hover { background: #fef2f2; }
+.mef-btn-icon-only { padding: 0.5rem; min-width: 2.25rem; }
+
+.mef-msg-ok { color: #0d7d3d; }
+.mef-msg-err { color: #b91c1c; }
+.mef-empty { color: #666; }
+
+.mef-resumen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.mef-resumen-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.65rem 0.9rem;
+  min-width: 8rem;
+}
+
+.mef-resumen-card.mef-resumen-warn { border-color: #f59e0b; background: #fffbeb; }
+.mef-resumen-card .lab { margin: 0; font-size: 0.8rem; color: #666; }
+.mef-resumen-card .val { margin: 0.15rem 0 0; font-size: 1.25rem; font-weight: 700; }
+
+.mef-tabs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0 0 0.85rem; }
+.mef-tabs button {
+  min-height: 2.25rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+.mef-tabs button.activo { background: #0d2137; color: #fff; border-color: #0d2137; }
+.mef-tabs button.mef-tab-warn { border-color: #f59e0b; }
+
+.mef-tabla-wrap {
+  max-height: 62vh;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.mef-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 920px;
+}
+
+.mef-tabla thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+  background-clip: padding-box;
+  box-shadow: 0 1px 0 #e5e7eb;
+  text-align: left;
+  padding: 0.55rem 0.65rem;
+  font-size: 0.85rem;
+}
+
+.mef-tabla thead th.mef-th-sort {
+  padding: 0;
+}
+
+.mef-th-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.45rem 0.65rem;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.mef-th-sort-btn:hover,
+.mef-th-sort-btn:focus-visible {
+  background: #f3f4f6;
+  outline: none;
+}
+
+.mef-sort-ind {
+  opacity: 0.35;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.mef-th-sort-activo .mef-sort-ind {
+  opacity: 1;
+}
+
+.mef-tabla td {
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid #eee;
+  font-size: 0.9rem;
+  vertical-align: top;
+}
+
+.mef-form {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 0 0 1rem;
+}
+
+.mef-form h3 { margin: 0 0 0.75rem; font-size: 1rem; }
+.mef-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem 1rem;
+}
+
+.mef-form label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.25rem; }
+.mef-form input, .mef-form select, .mef-form textarea {
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.mef-form .mef-form-full { grid-column: 1 / -1; }
+.mef-form-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.85rem; }
+
+.mef-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.88rem;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
+.mef-acciones-fila {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.mef-tabla tr.mef-est-seccion td { font-weight: 700; background: #f3f6fa; }
+.mef-tabla tr.mef-est-total td { font-weight: 600; background: #f8f4ea; }
+.mef-indent-sub { padding-left: 1.35rem; }
+.mef-rel-n { font-variant-numeric: tabular-nums; }
+.mef-form .mef-field-nota { margin: 0.2rem 0 0; font-size: 0.78rem; color: #6b7280; font-weight: 400; }
+
+.mef-tabla.mef-tabla-est { min-width: 980px; }
+
+@media (max-width: 768px) {
+  .vista-mef { padding: 1rem; }
+  .mef-form-grid { grid-template-columns: 1fr; }
+  .mef-busqueda input[type="search"] { min-width: 0; width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .mef-tabla-wrap { max-height: 55vh; }
+}

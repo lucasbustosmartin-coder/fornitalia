@@ -1,6 +1,6 @@
 /**
  * Conciliación Bancaria – Fornitalia
- * Canales: Mercado Pago, Galicia (ARS) y Galicia (USD).
+ * Canales: Mercado Pago, Galicia (ARS), Galicia (USD) y Credicoop.
  * window.FornitaliaConciliacionBancaria.init({ client, hasPerm, getRoot })
  */
 (function (global) {
@@ -10,8 +10,10 @@
   var CANAL_MP = 'mercadopago';
   var CANAL_GAL = 'galicia';
   var CANAL_GAL_USD = 'galicia_usd';
+  var CANAL_CRED = 'credicoop';
   var LABEL_GAL = 'Galicia (ARS)';
   var LABEL_GAL_USD = 'Galicia (USD)';
+  var LABEL_CRED = 'Credicoop';
   var PERM_VER = 'ver_conciliacion_bancaria';
   var PERM_CARGAR = 'cargar_conciliacion_bancaria';
   var PERM_CONFIRMAR = 'confirmar_conciliacion_bancaria';
@@ -236,6 +238,14 @@
     return c === CANAL_GAL || c === CANAL_GAL_USD;
   }
 
+  function esCanalCredicoop(c) {
+    return c === CANAL_CRED;
+  }
+
+  function esCanalExtractoBanco(c) {
+    return esCanalGalicia(c) || esCanalCredicoop(c);
+  }
+
   function esCanalGalUsd(c) {
     return c === CANAL_GAL_USD;
   }
@@ -243,6 +253,7 @@
   function labelCanalNombre(c) {
     if (c === CANAL_GAL_USD) return LABEL_GAL_USD;
     if (c === CANAL_GAL) return LABEL_GAL;
+    if (c === CANAL_CRED) return LABEL_CRED;
     return 'Mercado Pago';
   }
 
@@ -723,6 +734,7 @@
     var t = normHeader(caja);
     if (!t) return '';
     if (esTesoreriaGaliciaUsd('', '', caja)) return CANAL_GAL_USD;
+    if (t.indexOf('credicoop') >= 0 || t.indexOf('credicop') >= 0) return CANAL_CRED;
     if (t.indexOf('galicia') >= 0) return CANAL_GAL;
     if (t.indexOf('mercadopago') >= 0 || t.indexOf('mercado pago') >= 0) return CANAL_MP;
     if (/(^|\s)mp(\s|-|$)/.test(t)) return CANAL_MP;
@@ -733,6 +745,7 @@
     var t = normHeader(archivo);
     if (!t) return '';
     if (esTesoreriaGaliciaUsd(archivo, '', '')) return CANAL_GAL_USD;
+    if (t.indexOf('credicoop') >= 0 || t.indexOf('credicop') >= 0) return CANAL_CRED;
     if (t.indexOf('galicia') >= 0) return CANAL_GAL;
     if (t.indexOf('mercadopago') >= 0 || t.indexOf('mercado pago') >= 0) return CANAL_MP;
     return '';
@@ -741,6 +754,10 @@
   function labelCajaFisicaNoConciliable(archivo, hoja, caja) {
     if (esTesoreriaGaliciaUsd('', '', caja)) return '';
     var t = normHeader([archivo, hoja, caja].filter(Boolean).join(' '));
+    if (t.indexOf('sin factura') >= 0 || t.indexOf('s/f') >= 0 || t.indexOf('s / f') >= 0) {
+      if (t.indexOf('dolar') >= 0 || t.indexOf('usd') >= 0) return 'Efectivo-s/f (USD)';
+      return 'Efectivo-s/f (ARS)';
+    }
     if (t.indexOf('efectivo pesos') >= 0 || t.indexOf('tesoreria_efectivo_pesos') >= 0) return 'Efectivo-f (ARS)';
     if (/\bcierre[_\s-]*pes\b/.test(t) || (t.indexOf('cierre') >= 0 && /\bpes-/.test(t))) return 'Efectivo-f (ARS)';
     if (t.indexOf('efectivo dolar') >= 0 || t.indexOf('tesoreria_efectivo_dolar') >= 0) return 'Efectivo-f (USD)';
@@ -804,8 +821,9 @@
   function errorPrefijoCierreCanal(archivo, canalTab) {
     var pref = prefijoAntesDeGuionBajo(archivo);
     var prefN = normHeader(pref);
-    var esper = esCanalGalicia(canalTab) ? 'Galicia' : 'MP';
-    var ok = esCanalGalicia(canalTab) ? prefN === 'galicia' : prefN === 'mp';
+    var esper = esCanalCredicoop(canalTab) ? 'Credicoop' : (esCanalGalicia(canalTab) ? 'Galicia' : 'MP');
+    var ok = esCanalCredicoop(canalTab) ? (prefN === 'credicoop' || prefN === 'credicop')
+      : (esCanalGalicia(canalTab) ? prefN === 'galicia' : prefN === 'mp');
     if (ok) return '';
     return 'En ' + labelCanalNombre(canalTab) +
       ' el cierre de caja tiene que llamarse ' + esper + '_… (primera palabra antes del _). ' +
@@ -827,6 +845,7 @@
     blob = normHeader(blob);
     if (esTesoreriaGaliciaUsd(archivo, (wb.SheetNames || []).join(' '), '')) return CANAL_GAL_USD;
     if (blob.indexOf('galicia dolar') >= 0 || blob.indexOf('galicia_dolar') >= 0) return CANAL_GAL_USD;
+    if (blob.indexOf('credicoop') >= 0 || blob.indexOf('credicop') >= 0) return CANAL_CRED;
     if (blob.indexOf('galicia') >= 0) return CANAL_GAL;
     if (blob.indexOf('mercadopago') >= 0 || blob.indexOf('mercado pago') >= 0) return CANAL_MP;
     return state.canal;
@@ -1343,6 +1362,8 @@
       var status = String(cell(row, map, ['Status', 'Estado']) || '').trim();
       var monedaFila = String(cell(row, map, ['Moneda']) || '').trim() || 'ARS';
       var idCierre = String(cell(row, map, ['Id', 'ID']) || '').trim();
+      var tcFila = parseMonto(cell(row, map, ['Tipo de Cambio', 'Tipo de cambio', 'TC']));
+      var origenTc = String(cell(row, map, ['Origen TC', 'Origen tc']) || '').trim();
       if (idCierre) tieneIdCierre = true;
       if (esAperturaDeCajaTexto(tipo, desc)) {
         omitidasApertura += 1;
@@ -1420,9 +1441,11 @@
         fila_excel: r + 1,
         raw: {
           tipo: tipo, fecha: fecha, hora: hora, categoria: cat, cuenta_contable: cta,
-          descripcion: desc, cliente: cliente, credito: cred, debito: deb, saldo: saldo, observaciones: obs,
+          descripcion: desc, cliente: cliente, credito: cred, debito: deb, saldo: saldo,           observaciones: obs,
           caja: caja || null, usuario: usuario || null, status: status || null,
           id: idCierre || null,
+          tipo_cambio: tcFila,
+          origen_tc: origenTc || null,
           formato: esHistorico ? 'historico' : (esCierre ? 'cierre' : 'tesoreria')
         },
         soloSiExiste: !!(esCierre && esPendiente)
@@ -2165,7 +2188,7 @@
     if (!can(PERM_CARGAR)) return;
     var acceptGal = '.xlsx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     var acceptXlsx = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-    pedirArchivo(esCanalGalicia(state.canal) ? acceptGal : acceptXlsx, async function (file) {
+    pedirArchivo(esCanalExtractoBanco(state.canal) ? acceptGal : acceptXlsx, async function (file) {
       state.loading = true;
       state.err = '';
       state.msg = '';
@@ -2203,7 +2226,7 @@
             state.canal = detArch.canal;
           }
           if (origen === 'banco') {
-            if (esCanalGalicia(state.canal)) parsed = parseExtractoGalicia(wb, file.name, detArch.hoja);
+            if (esCanalExtractoBanco(state.canal)) parsed = parseExtractoGalicia(wb, file.name, detArch.hoja);
             else parsed = parseExtractoMp(wb, file.name, detArch.hoja);
           } else {
             parsed = parseTesoreriaMp(wb, file.name, detArch.hoja);
@@ -2227,7 +2250,7 @@
           var filDup = filasTesoreriaListasParaGuardar(parsed.filas);
           parsed.filas = filDup.filas;
           nYaContenido = filDup.nYa;
-        } else if (origen === 'banco' && esCanalGalicia(state.canal)) {
+        } else if (origen === 'banco' && esCanalExtractoBanco(state.canal)) {
           var filDupGal = filtrarExtractoGaliciaYaCargado(parsed.filas);
           parsed.filas = filDupGal.filas;
           nYaContenido = filDupGal.nYa;
@@ -2262,7 +2285,7 @@
           if (agrup.order.indexOf(canalAntes) >= 0) state.canal = canalAntes;
           else if (agrup.order.length) state.canal = agrup.order[0];
         } else {
-          if (origen === 'banco' && esCanalGalicia(state.canal)) {
+          if (origen === 'banco' && esCanalExtractoBanco(state.canal)) {
             clsTot = { nNuevos: parsed.filas.length, nCambiaron: 0, nIguales: nYaContenido };
           } else if (parsed.filas.length) {
             clsTot = clasificarFilasUpload(parsed.filas, origen);
@@ -2414,7 +2437,7 @@
   async function borrarMovimientoBancoGalicia(id) {
     if (!can(PERM_CARGAR)) return;
     var m = findMov(id);
-    if (!m || m.origen !== 'banco' || !esCanalGalicia(m.canal)) return;
+    if (!m || m.origen !== 'banco' || !esCanalExtractoBanco(m.canal)) return;
     var det = (formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + ' · ' + (m.descripcion || m.tipo || '')).trim();
     if (!confirm('¿Eliminar este movimiento del extracto Galicia?\n\n' + det + '\n\nNo se puede deshacer. Si lo necesitás, volvé a cargar el Excel o el PDF del banco.')) return;
     try {
@@ -3416,8 +3439,8 @@
           (esSis && can(PERM_CARGAR)
             ? btnIcon('del-mov', m.id, 'Eliminar movimiento de tesorería', ICO.trash, 'cb-btn-danger')
             : '') +
-          (!esSis && esCanalGalicia(state.canal) && can(PERM_CARGAR)
-            ? btnIcon('del-mov-banco', m.id, 'Eliminar movimiento del extracto Galicia', ICO.trash, 'cb-btn-danger')
+          (!esSis && esCanalExtractoBanco(state.canal) && can(PERM_CARGAR)
+            ? btnIcon('del-mov-banco', m.id, 'Eliminar movimiento del extracto', ICO.trash, 'cb-btn-danger')
             : '') +
           (!esSis && state.canal === CANAL_MP && can(PERM_CONFIRMAR)
             ? btnIcon('no-req', m.id, 'No requiere conciliación', ICO.skip)
@@ -3741,7 +3764,7 @@
       dlCampo('Crédito', m.credito != null ? formatMonto(m.credito) : '') +
       dlCampo('Débito', m.debito != null ? formatMonto(m.debito) : '') +
       dlCampo('Saldo', m.saldo != null ? formatMonto(m.saldo) : '') +
-      dlCampo(esCanalGalicia(state.canal) ? 'N° comprobante Galicia' : 'N° movimiento MP', m.id_movimiento_banco) +
+      dlCampo(esCanalExtractoBanco(state.canal) ? ('N° comprobante ' + labelCanalNombre(state.canal)) : 'N° movimiento MP', m.id_movimiento_banco) +
       dlCampo('Operación relacionada', m.id_operacion_relacionada) +
       dlCampo('ID origen', m.origen_id) +
       dlCampo('Archivo', m.archivo) +
@@ -3794,7 +3817,7 @@
     if (m.confirmado_at) {
       meta += '<p class="cb-field-hint">Confirmado: ' + esc(formatFecha(isoAFechaArgentina(m.confirmado_at))) + '</p>';
     }
-    var titB = esCanalGalicia(state.canal) ? (labelCanalNombre(state.canal) + ' (extracto)') : 'Mercado Pago (extracto)';
+    var titB = esCanalExtractoBanco(state.canal) ? (labelCanalNombre(state.canal) + ' (extracto)') : 'Mercado Pago (extracto)';
     var bloquesB = '';
     if (esMatchImpuestos(m)) {
       bloquesB = '<div class="cb-detalle-bloque"><h3>Impuestos (percepciones MP)</h3>' +
@@ -4766,7 +4789,9 @@
     var wb = global.XLSX.utils.book_new();
     var sheetName = listaLabel().slice(0, 31);
     global.XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    var canalFile = esCanalGalUsd(state.canal) ? 'Galicia_USD' : (state.canal === CANAL_GAL ? 'Galicia_ARS' : 'MP');
+    var canalFile = esCanalGalUsd(state.canal) ? 'Galicia_USD'
+      : (state.canal === CANAL_GAL ? 'Galicia_ARS'
+        : (state.canal === CANAL_CRED ? 'Credicoop' : 'MP'));
     var listaFile = (state.lista || 'sugeridos').replace(/[^a-z]/g, '_');
     global.XLSX.writeFile(wb, 'Conciliacion_Bancaria_' + canalFile + '_' + listaFile + '_' + fechaHoyYmd() + '.xlsx', { cellStyles: true, cellDates: false });
   }
@@ -4783,6 +4808,16 @@
   }
 
   function labelsCanal() {
+    if (esCanalCredicoop(state.canal)) {
+      return {
+        hintHtml:
+          '<p>Caja banco <strong>Credicoop</strong> (ARS). Tesorería: <em>tesoreria_transferencia_credicoop_…</em> o el histórico <em>movimientos-historico_…</em> (filas con Caja = Transferencia Credicoop). El Id evita duplicados y actualiza categoría y cuenta aunque el status sea Pendiente, si ese Id ya existía.</p>' +
+          '<p>Extracto: Excel de cuenta (Fecha, Descripción, Débitos, Créditos y Saldo), mismo criterio que Galicia ARS. Apertura de Caja no se sube. Tras cada carga se abre un resumen.</p>',
+        btnBanco: 'Cargar extracto Credicoop',
+        btnSistema: 'Cargar tesorería Credicoop',
+        kpiBanco: 'Extracto Credicoop'
+      };
+    }
     if (esCanalGalUsd(state.canal)) {
       return {
         hintHtml:
@@ -4839,7 +4874,7 @@
     else if (state.lista === 'dups_desc') listaHtml = renderTablaDupsDesc();
     else listaHtml = renderTablaSolo('sistema');
 
-    var clsCarga = esCanalGalicia(state.canal) ? 'cb-btn-gal' : 'cb-btn-mp';
+    var clsCarga = esCanalCredicoop(state.canal) ? 'cb-btn-cred' : (esCanalGalicia(state.canal) ? 'cb-btn-gal' : 'cb-btn-mp');
     return FornitaliaHelp.row('tpl-cb-canal', 'Ayuda: ' + labelCanalNombre(state.canal), lab.hintHtml) +
       '<div class="cb-toolbar"><div class="cb-acciones">' +
         (canCargar ? '<button type="button" class="cb-btn ' + clsCarga + '" data-cb="up-banco"><span class="btn-icon">' + ICO.upload + '</span>' + esc(lab.btnBanco) + '</button>' : '') +
@@ -4891,13 +4926,14 @@
     if (!el) return;
     el.innerHTML =
       FornitaliaHelp.header(ICO.bank, 'Conciliación Bancaria', 'tpl-cb-intro', 'Ayuda: Conciliación Bancaria',
-        '<p>Confrontá el extracto de cada medio con lo cargado en tesorería. Mercado Pago, Galicia (ARS) y Galicia (USD) usan el mismo flujo: extracto del banco + tesorería del sistema. La solapa Tesorería eliminada guarda lo que se borra de Solo sistema o se confirma en A eliminar.</p>') +
+        '<p>Confrontá el extracto de cada medio con lo cargado en tesorería. Mercado Pago, Galicia (ARS), Galicia (USD) y Credicoop (botón negro) usan el mismo flujo: extracto del banco + tesorería del sistema. La solapa Tesorería eliminada guarda lo que se borra de Solo sistema o se confirma en A eliminar.</p>') +
       (state.loading ? '<p class="loading">Cargando conciliación…</p>' : '') +
       (state.err ? '<p class="cb-msg-err">' + esc(state.err) + '</p>' : '') +
       '<div class="cb-tabs">' +
         '<button type="button" class="cb-tab-mp' + (state.canal === CANAL_MP ? ' activo' : '') + '" data-cb="canal" data-canal="' + CANAL_MP + '">Mercado Pago</button>' +
         '<button type="button" class="cb-tab-gal' + (state.canal === CANAL_GAL ? ' activo' : '') + '" data-cb="canal" data-canal="' + CANAL_GAL + '">' + esc(LABEL_GAL) + '</button>' +
         '<button type="button" class="cb-tab-gal' + (state.canal === CANAL_GAL_USD ? ' activo' : '') + '" data-cb="canal" data-canal="' + CANAL_GAL_USD + '">' + esc(LABEL_GAL_USD) + '</button>' +
+        '<button type="button" class="cb-tab-cred' + (state.canal === CANAL_CRED ? ' activo' : '') + '" data-cb="canal" data-canal="' + CANAL_CRED + '">' + esc(LABEL_CRED) + '</button>' +
       '</div>' +
       renderCanal();
 

@@ -82,6 +82,14 @@
 
 .cb-btn-gal:hover { background: #e05e00; border-color: #e05e00; }
 
+.cb-btn-cred {
+  background: #111;
+  border-color: #111;
+  color: #fff;
+}
+
+.cb-btn-cred:hover { background: #000; border-color: #000; }
+
 .cb-btn-ghost {
   background: #fff;
   color: #0f172a;
@@ -177,6 +185,21 @@
 .cb-tabs button.cb-tab-gal.activo {
   background: #ff6a00;
   border-color: #e05e00;
+  color: #fff;
+}
+
+.cb-tabs button.cb-tab-cred {
+  background: #111;
+  border-color: #111;
+  color: #fff;
+  font-weight: 600;
+}
+
+.cb-tabs button.cb-tab-cred:hover { background: #2a2a2a; }
+
+.cb-tabs button.cb-tab-cred.activo {
+  background: #000;
+  border-color: #000;
   color: #fff;
 }
 

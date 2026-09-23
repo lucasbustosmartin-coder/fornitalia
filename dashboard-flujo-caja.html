@@ -8,18 +8,20 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-  <script src="scripts/lib/fornitalia-help.js?v=2.42"></script>
+  <script src="scripts/lib/fornitalia-help.js?v=2.42.1"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.42">
-  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.42"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.42">
-  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.42"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.42">
-  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.42"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.42">
-  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.42"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.42">
-  <script src="scripts/lib/fornitalia-impuestos.js?v=2.42"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.42.1">
+  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.42.1"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.42.1">
+  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.42.1"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.42.1">
+  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.42.1"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.42.1">
+  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.42.1"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.42.1">
+  <script src="scripts/lib/fornitalia-impuestos.js?v=2.42.1"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.42.5">
+  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.42.5"></script>
   <style>
     * { box-sizing: border-box; }
     body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f5f5f5; display: flex; flex-direction: column; min-height: 100vh; }
@@ -551,15 +553,12 @@
     #tabla-evolucion td.col-proyeccion-evolucion { background: #e0f2f7; }
     #tabla-evolucion th.col-total-real-evolucion { border-left: 2px solid #333; }
     #tabla-evolucion td.col-total-real-evolucion { border-left: 2px solid #333; font-weight: 600; }
-    .int-caucion-cell { cursor: pointer; }
-    .int-caucion-cell:hover { text-decoration: underline; }
     tr.fila-mes { cursor: pointer; }
     tr.fila-mes:hover { background: #f8f8f8; }
     #panel-flujo tfoot td { font-weight: 600; border-top: 2px solid #333; padding: 0.5rem 0.65rem; background: #f5f5f5; }
     #panel-flujo tfoot td:first-child { text-align: left; }
     #panel-flujo tfoot td:not(:first-child):not(.alert-icon-cell) { text-align: right; }
     .disclaimer-proyeccion { font-size: 0.75rem; color: #555; font-weight: normal; padding: 0.35rem 0.65rem !important; border-top: none !important; background: #fafafa !important; }
-    .th-int-caucion { color: #b91c1c; font-weight: 600; }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
     .modal-backdrop.oculto { display: none; }
     .modal { background: #fff; border-radius: 12px; max-width: 640px; width: 100%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
@@ -867,6 +866,10 @@
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg></span>
         <span class="menu-label">Impuestos</span>
       </button>
+      <button type="button" class="menu-item" id="menu-matriz-ef" title="Matriz EF" aria-label="Matriz EF" style="display:none;">
+        <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        <span class="menu-label">Matriz EF</span>
+      </button>
       <button type="button" class="menu-item" id="menu-reportes" title="Reportes" aria-label="Reportes" style="display:none;">
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M8 9h2"/></svg></span>
         <span class="menu-label">Reportes</span>
@@ -908,13 +911,13 @@
   <template id="template-dashboard-intro">
     <div class="th-help-rich-content">
       <p>Entradas y salidas por mes. No se incluyen transacciones anuladas.</p>
-      <p>Los meses que desactives en <strong>Configuración → Inclusión por mes</strong> quedan fuera de totales, tabla de flujo, Evolución, Caución y exportaciones agregadas; <strong>Todas las transacciones</strong> y la exportación de base histórica siguen mostrando el extracto completo.</p>
+      <p>Los meses que desactives en <strong>Configuración → Inclusión por mes</strong> quedan fuera de totales, tabla de flujo, Evolución y exportaciones agregadas; <strong>Todas las transacciones</strong> y la exportación de base histórica siguen mostrando el detalle completo.</p>
       <p>Si no hay cotización para la fecha, se usa la inmediata anterior. Hacé clic en un mes para ver el detalle por categoría.</p>
     </div>
   </template>
   <p id="flujo-nota-meses-excluidos" class="dashboard-nota-compact"></p>
 
-  <div id="loading" class="card loading">Cargando transacciones y tipos de cambio…</div>
+  <div id="loading" class="card loading">Cargando tesorería, cajas y tipos de cambio…</div>
   <div id="error" class="card error" style="display:none;"></div>
 
   <div id="filtros-wrap" style="display:none;" class="filtros card">
@@ -960,10 +963,9 @@
       <template id="template-flujo-informe-pdf">
         <div class="th-help-rich-content">
           <p>En <strong>ARS</strong>, movimientos en <strong>USD</strong>: <strong>monto × tipo_cambio</strong> de la fila; si falta, <strong>monto × cotización</strong> de la tabla (MEP/CCL/Oficial); si no hay tasa, <strong>monto_cambio</strong> en BD. Movimientos ya en ARS: se usa <strong>monto</strong> (no <strong>monto_cambio</strong>, que en el extracto puede venir desalineado).</p>
-          <p>Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = caja operativa neteada: egresos con <code>ef_subitem</code> de ingreso §1 (Cobranzas, Otros ingresos operativos, etc.) se restan de ambas columnas del mes (devoluciones / ajustes al mismo rubro que el Estado Financiero). <strong>G/P operativo</strong> = Ingresos − Egresos (sin cambio). Caución sigue con flujo bruto en ARS.</p>
+          <p>Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = caja operativa neteada: egresos con <code>ef_subitem</code> de ingreso §1 (Cobranzas, Otros ingresos operativos, etc.) se restan de ambas columnas del mes (devoluciones / ajustes al mismo rubro que el Estado Financiero). <strong>G/P operativo</strong> = Ingresos − Egresos (sin cambio). Fuente: tesorería (conciliación + cajas físicas) unida a la Matriz EF.</p>
           <p><strong>Comisiones / Ventas %</strong> = egresos con <code>ef_subitem</code> <strong>Comisiones por Ventas</strong> ÷ ingresos con <code>ef_subitem</code> <strong>Cobranzas por Ventas (Efectivo neto ingresado)</strong> del mes (subítems canónicos EF; alias cortos en import se normalizan). Sin <code>ef_subitem</code> la fila no entra al ratio.</p>
           <p>Columnas <strong>Costo dir.</strong>, <strong>Costo ind.</strong> y <strong>Costo total / Ingreso total</strong> usan la misma fórmula % del Flujo Op. que el Estado Financiero (montos internos sin redondear; solo la visualización de importes es entera).</p>
-          <p><strong>Caución</strong> además usa <strong>solo movimientos en moneda de origen ARS</strong> y montos en <strong>pesos</strong> (la tasa de la serie es en ARS), aunque el selector muestre USD en el resto de la tabla.</p>
         </div>
       </template>
       <div class="errores-panel-toolbar">
@@ -986,7 +988,6 @@
             <th>Costo dir. <span class="th-help" data-help="Total COSTOS DIRECTOS (Efectivo) (ef_item §2) ÷ total FLUJO OPERATIVO GENERADO (ef_item §1) del mes. Alineado al Estado Financiero. Solo filas con ítem/subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
             <th>Costo ind. <span class="th-help" data-help="Total COSTOS INDIRECTOS (Estructura) (ef_item §3) ÷ total FLUJO OPERATIVO GENERADO (ef_item §1) del mes. Alineado al Estado Financiero. Solo filas con ítem/subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
             <th>Costo total <span class="th-help" data-help="Total egresos operativos del mes ÷ total FLUJO OPERATIVO GENERADO (ef_item §1). Alineado al Estado Financiero (% del Flujo Op.)." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingreso total</th>
-            <th class="th-int-caucion" id="th-int-caucion-label" title="Interés acumulado por mes colocando el sobrante de caja a la tasa de la serie de cauciones">Caución (100% cash)</th>
             <th class="alert-icon-cell"></th>
           </tr>
         </thead>
@@ -1153,7 +1154,7 @@
     <div id="panel-estado-financiero" class="card panel">
       <template id="template-estado-financiero-panel">
         <div class="th-help-rich-content">
-          <p>Estructura desde <strong>EF_Estructura</strong> (Supabase <code>ef_estructura</code>), montos desde transacciones por <code>ef_subitem</code>. Misma base operativa que Evolución (sin anulados ni apertura/cierre).</p>
+          <p>Estructura desde Supabase <code>ef_estructura</code> (ABM en menú <strong>Matriz EF → Estructura EF</strong>), montos desde tesorería por <code>ef_subitem</code> (matriz categoría + cuenta; Ingreso y Egreso del mismo par pegan en la misma línea, p. ej. Pago de Cuotas de Créditos / Intereses Bancarios). En <strong>ARS</strong>, movimientos en USD se convierten al <strong>dólar MEP</strong> de la fecha (tabla de cotización; si falta, la última MEP conocida o el TC de la fila).</p>
           <p>Columna <strong>Ítem</strong>: secciones y totales en negrita; detalle con viñeta. Subtotales y fórmulas muestran % del <strong>Flujo Operativo Generado</strong>. Clic en un <strong>importe</strong> abre el detalle de transacciones que lo componen. Icono <strong>línea</strong> por fila: evolución mensual. Icono <strong>barras</strong> en columnas: consumo del Flujo Op. (Margen bruto de caja y Flujo neto del período).</p>
           <p>Al final de la tabla, filas <strong>Indicadores de Gestión</strong> (mismas columnas de período). Fórmula y notas en el icono <strong>?</strong> junto al nombre.</p>
           <p><em>Conciliación de disponibilidades (sección 7) oculta por ahora.</em></p>
@@ -1220,6 +1221,7 @@
   <div id="view-cajas-fisicas" class="card vista-cf" style="display:none;"></div>
   <div id="view-saldos-extractos" class="card vista-se" style="display:none;"></div>
   <div id="view-impuestos" class="card vista-imp" style="display:none;"></div>
+  <div id="view-matriz-ef" class="card vista-mef" style="display:none;"></div>
   <div id="view-reportes" class="card" style="display:none;">
     <div class="dashboard-header-row">
       <h1 class="vista-titulo">
@@ -1495,7 +1497,7 @@
       <div class="modal-body" id="modal-configuracion-body">
         <section class="config-section">
           <h3 class="config-section-title">Proyección (Flujo por mes)</h3>
-          <p class="sin-cotizacion-note" style="margin-top:0;">Parámetros para los meses proyectados debajo del total real. Ingresos y egresos usan el valor típico de la historia; Caución se calcula en forma acumulativa.</p>
+          <p class="sin-cotizacion-note" style="margin-top:0;">Parámetros para los meses proyectados debajo del total real. Ingresos y egresos usan el valor típico de la historia.</p>
           <div class="form-group">
             <label for="config-proyeccion-cantidad">Meses a proyectar</label>
             <select id="config-proyeccion-cantidad" title="Cantidad de meses futuros a mostrar en la proyección">
@@ -1538,37 +1540,10 @@
               <option value="24">24</option>
             </select>
           </div>
-          <div class="form-group">
-            <label for="config-pct-caucion">% G/P acum. en caución</label>
-            <select id="config-pct-caucion" title="Qué porcentaje del G/P acumulado se considera invertido en caución; el resto es liquidez que no genera interés">
-              <option value="100">100 %</option>
-              <option value="95" selected>95 %</option>
-              <option value="90">90 %</option>
-              <option value="85">85 %</option>
-              <option value="80">80 %</option>
-              <option value="75">75 %</option>
-              <option value="70">70 %</option>
-              <option value="65">65 %</option>
-              <option value="60">60 %</option>
-              <option value="55">55 %</option>
-              <option value="50">50 %</option>
-              <option value="45">45 %</option>
-              <option value="40">40 %</option>
-              <option value="35">35 %</option>
-              <option value="30">30 %</option>
-              <option value="25">25 %</option>
-              <option value="20">20 %</option>
-              <option value="15">15 %</option>
-              <option value="10">10 %</option>
-              <option value="5">5 %</option>
-              <option value="0">0 %</option>
-            </select>
-            <span class="sin-cotizacion-note" style="display:block; margin-top:0.25rem;">Por defecto 100 %. Menor % = más liquidez (menos interés por caución).</span>
-          </div>
         </section>
         <section class="config-section">
           <h3 class="config-section-title">Inclusión por mes en cálculos</h3>
-          <p class="sin-cotizacion-note" style="margin-top:0;">Solo aparecen meses que tienen al menos un movimiento en la base cargada. <strong>Activá</strong> el interruptor para que ese mes entre en totales, flujo por mes, Evolución, Caución y listados que respetan el flujo operativo. Si lo <strong>desactivás</strong>, el mes queda fuera de esos números (como si no existiera en el tablero agregado). La solapa «Todas las transacciones» y la exportación de base histórica siguen mostrando todos los movimientos.</p>
+          <p class="sin-cotizacion-note" style="margin-top:0;">Solo aparecen meses que tienen al menos un movimiento en la base cargada. <strong>Activá</strong> el interruptor para que ese mes entre en totales, flujo por mes, Evolución y listados que respetan el flujo operativo. Si lo <strong>desactivás</strong>, el mes queda fuera de esos números (como si no existiera en el tablero agregado). La solapa «Todas las transacciones» y la exportación de base histórica siguen mostrando todos los movimientos.</p>
           <div id="config-meses-inclusion-wrap" class="config-meses-inclusion-grid" aria-live="polite"></div>
           <p class="sin-cotizacion-note" style="margin-top:0.5rem; margin-bottom:0;">Los cambios se aplican al guardar esta ventana.</p>
         </section>
@@ -1765,30 +1740,6 @@
     </div>
   </div>
 
-  <div id="modal-int-caucion-backdrop" class="modal-backdrop oculto">
-    <div class="modal modal-evolucion-detalle-ancho" id="modal-int-caucion">
-      <div class="modal-header" id="modal-int-caucion-header-drag">
-        <h2 id="modal-int-caucion-titulo">Marcha de cálculo — Caución</h2>
-        <button type="button" class="modal-close" id="modal-int-caucion-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
-      </div>
-      <div class="modal-body" id="modal-int-caucion-body">
-        <table class="detalle-tabla" id="tabla-int-caucion">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>G/P acum</th>
-              <th>Int T-1</th>
-              <th>Base</th>
-              <th>Tasa</th>
-              <th>Int T</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-int-caucion"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
   <script>
     const SUPABASE_URL = 'https://moeqgzezdraknwmheheu.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1vZXFnemV6ZHJha253bWhlaGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzNTY2MDgsImV4cCI6MjA3MDkzMjYwOH0.ZHIJjZv7izlaegfeypj8s6jNb0ls-LTrt914qhgO_uA';
@@ -1799,20 +1750,19 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.42';
+    const APP_VERSION = '2.43';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
     const PROYECCION_CANTIDAD_KEY = 'fornitalia_proyeccion_cantidad';
     const PROYECCION_RECORTE_KEY = 'fornitalia_proyeccion_recorte';
-    const PCT_CAUCION_KEY = 'fornitalia_pct_caucion';
     const ALERTA_DESVIO_PCT_KEY = 'fornitalia_alerta_desvio_pct';
     const ALERTA_MES_SIN_EGRESOS_KEY = 'fornitalia_alerta_mes_sin_egresos';
     const ALERTA_SIN_SUELDOS_KEY = 'fornitalia_alerta_sin_sueldos';
     const ALERTA_SIN_COMISIONES_KEY = 'fornitalia_alerta_sin_comisiones';
     const ALERTA_SIN_ALQUILERES_KEY = 'fornitalia_alerta_sin_alquileres';
     const ALERTA_SIN_IMPUESTOS_KEY = 'fornitalia_alerta_sin_impuestos';
-    /** JSON array de claves "YYYY-MM" excluidas de totales, flujo, Evolución, Caución y agregados. Vacío = ninguna. Si falta la clave en localStorage, se usa el default legacy (marzo 2026). */
+    /** JSON array de claves "YYYY-MM" excluidas de totales, flujo, Evolución y agregados. Vacío = ninguna. Si falta la clave en localStorage, se usa el default legacy (marzo 2026). */
     const MESES_EXCLUIDOS_CALCULO_KEY = 'fornitalia_meses_excluidos_calculo';
     const MESES_EXCLUIDOS_DEFAULT_LEGACY = ['2026-03'];
 
@@ -1831,6 +1781,7 @@
     const PERM_VER_CAJAS_FISICAS = 'ver_cajas_fisicas';
     const PERM_VER_SALDOS_EXTRACTOS = 'ver_saldos_extractos';
     const PERM_VER_IMPUESTOS = 'ver_impuestos';
+    const PERM_VER_MATRIZ_EF = 'ver_matriz_ef';
 
     /** Solapas del dashboard → permiso granular. */
     const PANEL_PERMISO = {
@@ -2035,6 +1986,7 @@
       const cf = hasPerm(PERM_VER_CAJAS_FISICAS);
       const se = hasPerm(PERM_VER_SALDOS_EXTRACTOS);
       const imp = hasPerm(PERM_VER_IMPUESTOS);
+      const mef = hasPerm(PERM_VER_MATRIZ_EF);
       const carga = puedeCargarNormalizado();
 
       const setVis = (id, visible) => {
@@ -2049,6 +2001,7 @@
       setVis('menu-cajas-fisicas', cf);
       setVis('menu-saldos-extractos', se);
       setVis('menu-impuestos', imp);
+      setVis('menu-matriz-ef', mef);
       setVis('menu-seguridad', sec);
       setVis('menu-mi-perfil', true);
       setVis('menu-cerrar-sesion', true);
@@ -2153,6 +2106,14 @@
         document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
         document.getElementById('menu-home')?.classList.add('menu-item-active');
       }
+      const vMef = document.getElementById('view-matriz-ef');
+      if (vMef && vMef.style.display === 'block' && !mef) {
+        vMef.style.display = 'none';
+        const vd = document.getElementById('view-dashboard');
+        if (vd) vd.style.display = 'block';
+        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+        document.getElementById('menu-home')?.classList.add('menu-item-active');
+      }
     }
 
     function puedeExportarReportes() {
@@ -2169,6 +2130,7 @@
       const vcf = document.getElementById('view-cajas-fisicas');
       const vse = document.getElementById('view-saldos-extractos');
       const vimp = document.getElementById('view-impuestos');
+      const vmef = document.getElementById('view-matriz-ef');
       if (vd) vd.style.display = idVista === 'dashboard' ? 'block' : 'none';
       if (vn) vn.style.display = idVista === 'novedades' ? 'block' : 'none';
       if (vr) vr.style.display = idVista === 'reportes' ? 'block' : 'none';
@@ -2178,6 +2140,7 @@
       if (vcf) vcf.style.display = idVista === 'cajas-fisicas' ? 'block' : 'none';
       if (vse) vse.style.display = idVista === 'saldos-extractos' ? 'block' : 'none';
       if (vimp) vimp.style.display = idVista === 'impuestos' ? 'block' : 'none';
+      if (vmef) vmef.style.display = idVista === 'matriz-ef' ? 'block' : 'none';
     }
 
     function actualizarReportesMatrizStats() {
@@ -2252,7 +2215,7 @@
       {
         id: 'menus',
         titulo: 'Menús laterales',
-        operar: ['ver_novedades', 'ver_configuracion', 'ver_reportes', 'ver_gestion_proyectos', 'ver_conciliacion_bancaria', 'ver_cajas_fisicas', 'ver_saldos_extractos', 'ver_impuestos'],
+        operar: ['ver_novedades', 'ver_configuracion', 'ver_reportes', 'ver_gestion_proyectos', 'ver_conciliacion_bancaria', 'ver_cajas_fisicas', 'ver_saldos_extractos', 'ver_impuestos', 'ver_matriz_ef'],
       },
       {
         id: 'gestion-proyectos',
@@ -2273,6 +2236,11 @@
         id: 'saldos-extractos',
         titulo: 'Saldos extractos',
         operar: ['cargar_saldos_extractos', 'exportar_saldos_extractos'],
+      },
+      {
+        id: 'matriz-ef',
+        titulo: 'Matriz EF',
+        operar: ['editar_matriz_ef'],
       },
       {
         id: 'impuestos',
@@ -2607,13 +2575,12 @@
         if (!session?.user?.id) return;
         const uid = session?.user?.id;
         if (!uid) return;
-        const { data: row, error } = await client.from('config_dashboard').select('proyeccion_metodo,proyeccion_meses,proyeccion_cantidad,proyeccion_recorte,pct_caucion,alerta_desvio_pct,alerta_mes_sin_egresos,alerta_sin_sueldos,alerta_sin_comisiones,alerta_sin_alquileres,alerta_sin_impuestos').eq('user_id', uid).maybeSingle();
+        const { data: row, error } = await client.from('config_dashboard').select('proyeccion_metodo,proyeccion_meses,proyeccion_cantidad,proyeccion_recorte,alerta_desvio_pct,alerta_mes_sin_egresos,alerta_sin_sueldos,alerta_sin_comisiones,alerta_sin_alquileres,alerta_sin_impuestos').eq('user_id', uid).maybeSingle();
         if (error || !row) return;
         if (row.proyeccion_metodo) localStorage.setItem(PROYECCION_METODO_KEY, row.proyeccion_metodo);
         if (row.proyeccion_meses != null) localStorage.setItem(PROYECCION_MESES_KEY, String(row.proyeccion_meses));
         if (row.proyeccion_cantidad != null) localStorage.setItem(PROYECCION_CANTIDAD_KEY, String(row.proyeccion_cantidad));
         if (row.proyeccion_recorte != null) localStorage.setItem(PROYECCION_RECORTE_KEY, String(row.proyeccion_recorte));
-        if (row.pct_caucion != null) localStorage.setItem(PCT_CAUCION_KEY, String(row.pct_caucion));
         if (row.alerta_desvio_pct != null) localStorage.setItem(ALERTA_DESVIO_PCT_KEY, String(row.alerta_desvio_pct));
         if (row.alerta_mes_sin_egresos !== undefined) localStorage.setItem(ALERTA_MES_SIN_EGRESOS_KEY, row.alerta_mes_sin_egresos ? '1' : '0');
         if (row.alerta_sin_sueldos !== undefined) localStorage.setItem(ALERTA_SIN_SUELDOS_KEY, row.alerta_sin_sueldos ? '1' : '0');
@@ -2640,7 +2607,6 @@
         const meses = parseInt(localStorage.getItem(PROYECCION_MESES_KEY) || '6', 10) || 6;
         const cantidad = parseInt(localStorage.getItem(PROYECCION_CANTIDAD_KEY) || '3', 10) || 3;
         const recorte = parseInt(localStorage.getItem(PROYECCION_RECORTE_KEY) || '20', 10);
-        const pct = parseInt(localStorage.getItem(PCT_CAUCION_KEY) || '95', 10);
         const alertaDesvio = parseInt(localStorage.getItem(ALERTA_DESVIO_PCT_KEY) || '25', 10);
         let mesesExcluidosArr = [];
         try {
@@ -2654,7 +2620,6 @@
           proyeccion_meses: meses,
           proyeccion_cantidad: cantidad,
           proyeccion_recorte: (recorte >= 0 && recorte <= 25) ? recorte : 20,
-          pct_caucion: (pct >= 0 && pct <= 100) ? pct : 95,
           alerta_desvio_pct: [5, 10, 15, 20, 25, 30].includes(alertaDesvio) ? alertaDesvio : 25,
           alerta_mes_sin_egresos: localStorage.getItem(ALERTA_MES_SIN_EGRESOS_KEY) !== '0',
           alerta_sin_sueldos: localStorage.getItem(ALERTA_SIN_SUELDOS_KEY) !== '0',
@@ -2685,11 +2650,6 @@
       const cantidadValido = [1, 2, 3, 4, 5, 6, 12].includes(cantidad) ? cantidad : 3;
       const recorteValido = [0, 5, 10, 15, 20, 25].includes(recorte) ? recorte : 20;
       return { metodo: metodoValido, meses: mesesValido, mesesAProyectar: cantidadValido, recortePct: recorteValido };
-    }
-
-    function getPctCaucion() {
-      const v = parseInt(localStorage.getItem(PCT_CAUCION_KEY) || '95', 10);
-      return (v >= 0 && v <= 100) ? v : 95;
     }
 
     function getAlertaDesvioPct() {
@@ -3009,7 +2969,7 @@
     }
 
     /**
-     * Fila excluida del flujo operativo agregado (G/P, caución, ratios, Evolución, errores de clasificación en tablero).
+     * Fila excluida del flujo operativo agregado (G/P, ratios, Evolución, errores de clasificación en tablero).
      * Incluye reglas operativas + mes desactivado en Configuración → Inclusión por mes.
      */
     function excluirFilaFlujoOperativo(r) {
@@ -3177,31 +3137,12 @@
     let cacheEfSec1IngresoSubitemKeys = null;
     let cacheTC = {};
     let fechasConTasa = { mep: [], ccl: [], oficial: [] };
-    let cacheSerieCauciones = {};
-    let fechasCaucionOrdenadas = [];
-    let detalleIntCaucionPorMes = {};
-    let detalleIntCaucionProy = {};
     let detalleProyeccionPorMes = {};
     let cacheExcluidosUpload = [];
     let flujoMoneda = 'ARS';
     let flujoSimbolo = '$ ';
 
-    /** Coherente con `normalizeTasaCaucionDiariaPdf` en el informe: JSON legado con TNA%/365 sin ÷100. */
-    function normalizeTasaCaucionDiaria(t) {
-      if (typeof t !== 'number' || !Number.isFinite(t) || t < 0) return 0;
-      return t > 0.02 ? t / 100 : t;
-    }
-
-    function getTasaCaucion(fecha) {
-      if (!fecha || fechasCaucionOrdenadas.length === 0) return 0;
-      const idx = fechasCaucionOrdenadas.findIndex(d => d > fecha);
-      const i = idx === -1 ? fechasCaucionOrdenadas.length - 1 : (idx === 0 ? -1 : idx - 1);
-      if (i < 0) return 0;
-      const t = cacheSerieCauciones[fechasCaucionOrdenadas[i]];
-      if (typeof t !== 'number' || t < 0) return 0;
-      return normalizeTasaCaucionDiaria(t);
-    }
-
+    /** Cotización del día anterior más cercano cuando la fecha no tiene tasa (MEP/CCL/Oficial). */
     function getTasaAnterior(fecha, rateKey) {
       if (!fecha || !rateKey) return null;
       const list = fechasConTasa[rateKey];
@@ -3214,8 +3155,7 @@
       return tc && tc[rateKey] != null && tc[rateKey] > 0 ? tc[rateKey] : null;
     }
 
-    const CARGA_TIMEOUT_MS = 25000;
-    /** PostgREST/Supabase suele limitar a 1000 filas por request; sin paginar, Flujo por mes y totales quedan incompletos. */
+    const CARGA_TIMEOUT_MS = 60000;
     const SUPABASE_PAGE_SIZE = 1000;
 
     function withTimeout(promise, ms, msg) {
@@ -3225,17 +3165,13 @@
       ]);
     }
 
-    async function fetchAllTransaccionesNoAnuladas() {
-      const cols = 'id, id_origen, id_operacion, fecha, mes, anio, tipo_movimiento, monto, tipo_cambio, monto_cambio, status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, nueva_categoria, nueva_cuenta_contable, costo_directo, costo_indirecto, ef_item, ef_subitem, editado, editado_detalle';
+    async function fetchAllPaginated(table, cols, extra) {
       const all = [];
       let offset = 0;
       for (;;) {
-        const { data, error } = await client
-          .from('transacciones')
-          .select(cols)
-          .neq('status', 'Anulado')
-          .order('id', { ascending: true })
-          .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+        let q = client.from(table).select(cols).order('id', { ascending: true }).range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+        if (typeof extra === 'function') q = extra(q);
+        const { data, error } = await q;
         if (error) throw error;
         const chunk = data || [];
         all.push(...chunk);
@@ -3243,6 +3179,153 @@
         offset += SUPABASE_PAGE_SIZE;
       }
       return all;
+    }
+
+    function claveMatrizEf(cat, cta, tipo) {
+      return String(cat || '').trim().toLowerCase() + '\t' + String(cta || '').trim().toLowerCase() + '\t' + String(tipo || '').trim();
+    }
+
+    function claveMatrizEfCatCta(cat, cta) {
+      return String(cat || '').trim().toLowerCase() + '\t' + String(cta || '').trim().toLowerCase();
+    }
+
+    /** Misma línea EF para Ingreso y Egreso del mismo par categoría/cuenta. */
+    function relMatrizEf(matrizMap, matrizByPar, cat, cta, tipo) {
+      const exact = matrizMap[claveMatrizEf(cat, cta, tipo)];
+      if (exact && String(exact.ef_subitem || '').trim()) return exact;
+      const tipoAlt = tipo === 'Ingreso' ? 'Egreso' : 'Ingreso';
+      const alt = matrizMap[claveMatrizEf(cat, cta, tipoAlt)];
+      if (alt && String(alt.ef_subitem || '').trim()) return alt;
+      const par = matrizByPar && matrizByPar[claveMatrizEfCatCta(cat, cta)];
+      if (par && String(par.ef_subitem || '').trim()) return par;
+      return exact || alt || par || {};
+    }
+
+    function tipoMovimientoTesoreria(m) {
+      const t = String(m.tipo || '').trim();
+      const n = t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (n.indexOf('ingreso') >= 0 || n.indexOf('credito') >= 0) return 'Ingreso';
+      if (n.indexOf('egreso') >= 0 || n.indexOf('debito') >= 0) return 'Egreso';
+      if (Number(m.monto) < 0) return 'Egreso';
+      return t || 'Egreso';
+    }
+
+    function medioPagoDesdeTesoreria(m) {
+      const raw = m.raw && typeof m.raw === 'object' ? m.raw : {};
+      const caja = String(raw.caja || '').trim();
+      if (caja) return caja;
+      const canal = m.canal;
+      if (canal === 'mercadopago') return 'MercadoPago';
+      if (canal === 'galicia') return 'Transferencia Galicia';
+      if (canal === 'galicia_usd') return 'Transferencia Galicia Dolar';
+      if (canal === 'credicoop') return 'Transferencia Credicoop';
+      if (canal === 'galicia_facturada') return 'Efectivo Pesos';
+      if (canal === 'morba_sf') return 'Transferencia Morba';
+      if (canal === 'galicia_dolar') return 'Efectivo Dolar';
+      if (canal === 'efectivo_sf') return 'Efectivo Pesos (sin factura)';
+      if (canal === 'efectivo_sf_usd') return 'Efectivo Dolar (sin factura)';
+      return canal || '';
+    }
+
+    function idOrigenDesdeTesoreria(m) {
+      const oid = String(m.origen_id || '').trim();
+      if (oid.indexOf('id|') === 0) return oid.slice(3);
+      const raw = m.raw && typeof m.raw === 'object' ? m.raw : {};
+      if (raw.id != null && String(raw.id).trim()) return String(raw.id).trim();
+      return oid;
+    }
+
+    function filaTesoreriaAFlujo(m, fuente, matrizMap) {
+      const raw = m.raw && typeof m.raw === 'object' ? m.raw : {};
+      const tipo = tipoMovimientoTesoreria(m);
+      const cat = String(m.categoria || '').trim();
+      const cta = String(m.cuenta_contable || '').trim();
+      const rel = relMatrizEf(matrizMap, matrizMap._byPar, cat, cta, tipo);
+      const canalUsd = m.canal === 'galicia_dolar' || m.canal === 'efectivo_sf_usd' || m.canal === 'galicia_usd';
+      const medio = medioPagoDesdeTesoreria(m);
+      let monto = Number(m.monto);
+      let moneda = String(m.moneda || raw.moneda || raw.moneda_origen || 'ARS').toUpperCase();
+      let tipoCambio = raw.tipo_cambio != null ? Number(raw.tipo_cambio) : null;
+      let montoUsd = m.monto_usd != null ? Number(m.monto_usd) : (raw.monto_usd != null ? Number(raw.monto_usd) : null);
+      if (canalUsd) {
+        if (montoUsd != null && Number.isFinite(montoUsd) && Math.abs(montoUsd) > 0) {
+          monto = montoUsd;
+          moneda = 'USD';
+        } else if (fuente === 'cb' || String(raw.moneda_origen || '').toUpperCase() === 'USD') {
+          moneda = 'USD';
+        }
+        if (m.tipo_cambio_mep != null) tipoCambio = Number(m.tipo_cambio_mep);
+        else if (raw.tipo_cambio_mep != null) tipoCambio = Number(raw.tipo_cambio_mep);
+      }
+      // Tesorería guarda egreso/débito con signo negativo; el Flujo usa monto > 0 + tipo Ingreso/Egreso.
+      if (Number.isFinite(monto)) monto = Math.abs(monto);
+      if (montoUsd != null && Number.isFinite(montoUsd)) montoUsd = Math.abs(montoUsd);
+      let montoCambio = null;
+      if (fuente === 'cf' && canalUsd) {
+        const mc = Number(m.monto);
+        montoCambio = Number.isFinite(mc) ? Math.abs(mc) : null;
+      }
+      const statusRaw = String(raw.status || '').trim();
+      return {
+        id: m.id,
+        fuente_tesoreria: fuente,
+        canal_tesoreria: m.canal || '',
+        id_origen: idOrigenDesdeTesoreria(m),
+        id_operacion: m.origen_id || null,
+        fecha: m.fecha,
+        tipo_movimiento: tipo,
+        monto: Number.isFinite(monto) ? monto : 0,
+        tipo_cambio: tipoCambio,
+        monto_cambio: montoCambio,
+        monto_usd: montoUsd,
+        status: statusRaw || 'Confirmado',
+        medio_pago: medio,
+        moneda: moneda,
+        descripcion: m.descripcion || '',
+        cliente: m.contraparte || raw.cliente || '',
+        categoria: cat,
+        cat_desc: raw.observaciones || '',
+        origen_archivo: m.archivo || '',
+        cuenta_contable: cta,
+        nueva_categoria: cat,
+        nueva_cuenta_contable: cta,
+        costo_directo: rel.costo_directo || null,
+        costo_indirecto: rel.costo_indirecto || null,
+        ef_item: rel.ef_item || '',
+        ef_subitem: rel.ef_subitem || '',
+        editado: false,
+        editado_detalle: '',
+        pendiente_baja: !!m.pendiente_baja
+      };
+    }
+
+    async function fetchAllTransaccionesNoAnuladas() {
+      const [cbRows, cfRows, matrizRes] = await Promise.all([
+        fetchAllPaginated(
+          'cb_movimiento',
+          'id,canal,origen,origen_id,fecha,tipo,descripcion,contraparte,monto,moneda,categoria,cuenta_contable,archivo,raw,pendiente_baja',
+          (q) => q.eq('origen', 'sistema').eq('pendiente_baja', false)
+        ),
+        fetchAllPaginated(
+          'cf_movimiento',
+          'id,canal,origen_id,fecha,tipo,descripcion,contraparte,monto,moneda,categoria,cuenta_contable,archivo,raw,pendiente_baja,monto_usd,tipo_cambio_mep',
+          (q) => q.eq('pendiente_baja', false)
+        ),
+        client.from('matriz_cat_cuenta_ef').select('categoria,cuenta_contable,tipo_movimiento,ef_item,ef_subitem,costo_directo,costo_indirecto,vigente').eq('vigente', true)
+      ]);
+      if (matrizRes.error) throw matrizRes.error;
+      const matrizMap = {};
+      const matrizByPar = {};
+      (matrizRes.data || []).forEach((x) => {
+        matrizMap[claveMatrizEf(x.categoria, x.cuenta_contable, x.tipo_movimiento)] = x;
+        const parKey = claveMatrizEfCatCta(x.categoria, x.cuenta_contable);
+        if (!matrizByPar[parKey] || String(x.ef_subitem || '').trim()) matrizByPar[parKey] = x;
+      });
+      matrizMap._byPar = matrizByPar;
+      const out = [];
+      (cbRows || []).forEach((m) => out.push(filaTesoreriaAFlujo(m, 'cb', matrizMap)));
+      (cfRows || []).forEach((m) => out.push(filaTesoreriaAFlujo(m, 'cf', matrizMap)));
+      return out;
     }
 
     async function fetchAllTipoDeCambio() {
@@ -3306,106 +3389,6 @@
         fechasConTasa[rateKey] = Object.keys(map).filter(d => map[d][rateKey] != null && map[d][rateKey] > 0).sort();
       });
       try {
-        const excelRes = await fetch('Serie_Cauciones.xlsx');
-        if (excelRes.ok && typeof XLSX !== 'undefined') {
-          const ab = await excelRes.arrayBuffer();
-          const wb = XLSX.read(ab, { type: 'array', cellDates: true });
-          const sheetName = wb.SheetNames[0];
-          if (sheetName) {
-            const data = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { raw: false, defval: '' });
-            const tasas = {};
-            function findColKey(row, keys, patterns) {
-              const keyList = keys || (data[0] ? Object.keys(data[0]) : []);
-              for (const p of patterns) {
-                const k = keyList.find(key => key != null && String(key).trim().toLowerCase().replace(/\s+/g, ' ').includes(p));
-                if (k) return k;
-              }
-              return keyList[0];
-            }
-            const headers = data[0] ? Object.keys(data[0]) : [];
-            const colFecha = findColKey(null, headers, ['fecha', 'date', 'dia', 'día']);
-            const colTasa = findColKey(null, headers, ['tasa_diaria', 'tasa', 'rate', 'diaria']);
-            function excelSerialToYYYYMMDD(serial) {
-              if (serial == null || typeof serial !== 'number' || isNaN(serial)) return null;
-              if (XLSX.SSF && typeof XLSX.SSF.parse_date_code === 'function') {
-                const date = XLSX.SSF.parse_date_code(serial);
-                if (date && date.y != null && date.m != null && date.d != null) {
-                  return date.y + '-' + String(date.m).padStart(2, '0') + '-' + String(date.d).padStart(2, '0');
-                }
-              }
-              const utc = (serial - 25569) * 86400 * 1000;
-              const d = new Date(utc);
-              if (isNaN(d.getTime())) return null;
-              const y = d.getUTCFullYear();
-              const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-              const day = String(d.getUTCDate()).padStart(2, '0');
-              return y + '-' + m + '-' + day;
-            }
-            function parseFechaToYYYYMMDD(val) {
-              if (val == null || val === '') return null;
-              if (typeof val === 'number' && !isNaN(val)) return excelSerialToYYYYMMDD(val);
-              if (val instanceof Date && !isNaN(val.getTime())) {
-                const y = val.getFullYear();
-                const m = String(val.getMonth() + 1).padStart(2, '0');
-                const d = String(val.getDate()).padStart(2, '0');
-                return y + '-' + m + '-' + d;
-              }
-              const s = String(val).trim();
-              if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-              if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s.slice(0, 10);
-              const ddmmyy = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
-              if (ddmmyy) {
-                const d = parseInt(ddmmyy[1], 10);
-                const m = parseInt(ddmmyy[2], 10);
-                let y = parseInt(ddmmyy[3], 10);
-                if (y < 100) y += y < 50 ? 2000 : 1900;
-                if (d >= 1 && d <= 31 && m >= 1 && m <= 12) {
-                  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-                }
-              }
-              const ymd = s.match(/^(\d{2,4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
-              if (ymd) {
-                const a = parseInt(ymd[1], 10);
-                const b = parseInt(ymd[2], 10);
-                const c = parseInt(ymd[3], 10);
-                let y, m, d;
-                if (a > 31) {
-                  y = a; m = b; d = c;
-                } else if (c > 31) {
-                  d = a; m = b; y = a > 31 ? a : (a < 50 ? 2000 + a : 1900 + a);
-                } else {
-                  d = a; m = b; y = c < 100 ? (c < 50 ? 2000 + c : 1900 + c) : c;
-                }
-                if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1900) {
-                  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-                }
-              }
-              return null;
-            }
-            data.forEach(row => {
-              const f = colFecha != null ? row[colFecha] : row.Fecha;
-              const fechaStrVal = parseFechaToYYYYMMDD(f);
-              const rawTasa = colTasa != null ? row[colTasa] : row.Tasa_Diaria;
-              const tasa = rawTasa != null && rawTasa !== '' && rawTasa !== '-'
-                ? Number(String(rawTasa).replace(',', '.'))
-                : NaN;
-              if (fechaStrVal && typeof tasa === 'number' && !isNaN(tasa) && tasa >= 0) {
-                tasas[fechaStrVal] = tasa;
-              }
-            });
-            cacheSerieCauciones = tasas;
-            fechasCaucionOrdenadas = Object.keys(tasas).sort();
-          }
-        } else {
-          const r = await fetch('serie_cauciones.json');
-          if (r.ok) {
-            const j = await r.json();
-            cacheSerieCauciones = j.tasas || {};
-            fechasCaucionOrdenadas = Object.keys(cacheSerieCauciones).sort();
-          }
-        }
-      } catch (e) { /* serie cauciones opcional: Excel o JSON */ }
-      try {
         const exRes = await client
           .from('transacciones_upload_excluidos')
           .select('created_at, run_ref, archivo, fila_excel, motivo, tipo_movimiento, moneda, monto, descripcion')
@@ -3432,7 +3415,6 @@
       const rows = cacheTransacciones;
 
       const porMes = {};
-      const porMesArs = {};
       const porMesCategoria = {};
       const porMesCatIng = {};
       const porMesCatEgr = {};
@@ -3448,14 +3430,6 @@
 
         if (esTraspasoInternoCategoria(r.categoria)) return;
 
-        if (!esTransaccionUSD(r)) {
-          const mArs = montoConvertido(r, 'ARS', tipoDolar);
-          if (mArs != null && Number.isFinite(mArs)) {
-            if (!porMesArs[key]) porMesArs[key] = { ingresos: 0, egresos: 0 };
-            if (r.tipo_movimiento === 'Ingreso') porMesArs[key].ingresos += mArs;
-            else if (r.tipo_movimiento === 'Egreso') porMesArs[key].egresos += mArs;
-          }
-        }
 
         const catExtract = (r.categoria || '').trim() || 'Sin categoría';
         const catMatriz = categoriaDistribucionFlujo(r);
@@ -3515,44 +3489,6 @@
         });
       }
 
-      Object.keys(porMes).forEach(k => { porMes[k].intCaucion = 0; });
-      detalleIntCaucionPorMes = {};
-      Object.keys(porMes).forEach(k => { detalleIntCaucionPorMes[k] = []; });
-      const deltasPorFecha = {};
-      rows.filter(r => !excluirFilaFlujoOperativo(r) && !esTransaccionUSD(r)).forEach(r => {
-        const fecha = fechaStr(r.fecha);
-        if (!fecha) return;
-        const m = montoConvertido(r, 'ARS', tipoDolar);
-        if (m == null || !Number.isFinite(m)) return;
-        const delta = r.tipo_movimiento === 'Ingreso' ? m : -m;
-        deltasPorFecha[fecha] = (deltasPorFecha[fecha] || 0) + delta;
-      });
-      const fechasOrdenadas = Object.keys(deltasPorFecha).sort();
-      const pctCaucion = getPctCaucion();
-      const thIntCaucion = document.getElementById('th-int-caucion-label');
-      if (thIntCaucion) {
-        thIntCaucion.textContent = 'Caución (' + pctCaucion + '% cash, ARS)';
-        thIntCaucion.title = 'Solo movimientos con moneda de origen ARS; montos en pesos. La tasa de la serie es en ARS. No incluye flujos en USD aunque la vista sea en dólares.';
-      }
-      let gpAcumulado = 0;
-      let intAcumuladoAnterior = 0;
-      fechasOrdenadas.forEach(fecha => {
-        const gpAcumInicioDia = gpAcumulado;
-        gpAcumulado += deltasPorFecha[fecha];
-        const base = (gpAcumulado * pctCaucion / 100) + intAcumuladoAnterior;
-        const tasaDiaria = getTasaCaucion(fecha);
-        const intDia = base > 0 ? base * tasaDiaria : 0;
-        const [anio, mes] = fecha.split('-').map(Number);
-        if (anio != null && mes != null) {
-          const keyMes = anio + '-' + String(mes).padStart(2, '0');
-          if (porMes[keyMes] != null) {
-            porMes[keyMes].intCaucion = (porMes[keyMes].intCaucion || 0) + intDia;
-            detalleIntCaucionPorMes[keyMes].push({ fecha, gpAcum: gpAcumInicioDia, intAnterior: intAcumuladoAnterior, base, tasa: tasaDiaria, intDia });
-          }
-        }
-        intAcumuladoAnterior += intDia;
-      });
-
       const ordenados = Object.keys(porMes).sort();
       const categoriasEnMes = {};
       ordenados.forEach(key => {
@@ -3603,7 +3539,7 @@
       document.getElementById('resumen').innerHTML = `
         <div class="card" title="Ingresos operativos netos (devoluciones §1 neteadas de Ingresos y Egresos)"><div style="color:#555;">Ingresos totales</div><div class="valor ingresos">${simbolo}${formatearNumero(totalIngresos, moneda)}</div></div>
         <div class="card" title="Egresos operativos netos (sin devoluciones §1, que se netean en Ingresos)"><div style="color:#555;">Egresos totales</div><div class="valor egresos">${simbolo}${formatearNumero(totalEgresos, moneda)}</div></div>
-        <div class="card" title="Ingresos − egresos operativos; alineado a ratios y Caución"><div style="color:#555;">G/P operativo</div><div class="valor balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</div></div>
+        <div class="card" title="Ingresos − egresos operativos"><div style="color:#555;">G/P operativo</div><div class="valor balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</div></div>
       `;
       document.getElementById('resumen').style.display = 'flex';
 
@@ -3612,37 +3548,11 @@
       const N = configProy.meses;
       const mesesAProyectar = configProy.mesesAProyectar;
       const agg = configProy.metodo === 'promedio_ponderado' ? promedioPonderado : (configProy.metodo === 'promedio' ? promedio : (configProy.metodo === 'mediana' ? (arr) => mediana(arr) : (arr) => promedioRecortado(arr, (configProy.recortePct ?? 20) / 100)));
-      function diasEnMes(anio, mes) {
-        return new Date(anio, mes, 0).getDate();
-      }
-      function intCaucionProyectadoMes(baseStart, proyGP, tasaDiaria, opts) {
-        const intAcumuladoInicial = (opts && opts.intAcumuladoInicial != null) ? opts.intAcumuladoInicial : 0;
-        const gpInicialSolo = (opts && opts.gpInicialSolo != null) ? opts.gpInicialSolo : (baseStart - intAcumuladoInicial);
-        const pct = (opts && opts.pctCaucion != null && opts.pctCaucion >= 0 && opts.pctCaucion <= 100) ? opts.pctCaucion : 100;
-        const dias = (opts && opts.dias != null && opts.dias > 0) ? opts.dias : 30;
-        const gpDia = proyGP / dias;
-        let gpAcumSolo = gpInicialSolo;
-        let intAcum = intAcumuladoInicial;
-        let totalInt = 0;
-        const detalle = [];
-        for (let d = 0; d < dias; d++) {
-          const intAnterior = intAcum;
-          const gpAcumInicioDia = gpAcumSolo;
-          gpAcumSolo += gpDia;
-          const base = (gpAcumSolo * pct / 100) + intAcum;
-          const intDia = base > 0 ? base * tasaDiaria : 0;
-          totalInt += intDia;
-          intAcum += intDia;
-          detalle.push({ dia: d + 1, gpAcum: gpAcumInicioDia, intAnterior, base, tasa: tasaDiaria, intDia });
-        }
-        return { intCaucion: totalInt, baseFin: gpAcumSolo + intAcum, detalle, gpAcumSoloFin: gpAcumSolo };
-      }
-
       const filasFlujoExcel = [];
       const filasReales = ordenados.map(key => {
         const ay = parseInt(key.slice(0, 4), 10);
         const am = parseInt(key.slice(5), 10);
-        const d = porMes[key] || { anio: ay, mes: am, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0, intCaucion: 0, flujoOperativoGenerado: 0, egresosCostoDirecto: 0, egresosCostoIndirecto: 0 };
+        const d = porMes[key] || { anio: ay, mes: am, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0, flujoOperativoGenerado: 0, egresosCostoDirecto: 0, egresosCostoIndirecto: 0 };
         const balance = d.ingresos - d.egresos;
         const label = formatoMesAnio(d.mes, d.anio);
         const comisionesParaRatio = d.comisionesParaRatio != null ? d.comisionesParaRatio : 0;
@@ -3669,7 +3579,6 @@
           costoDir: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresosCostoDirecto),
           costoInd: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresosCostoIndirecto),
           costoTotal: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresos),
-          caucion: d.intCaucion != null ? Number(d.intCaucion) : 0,
           alertas: textoPlanoAlertasFlujo(alertas)
         });
         return `<tr class="fila-mes" data-anio="${d.anio}" data-mes="${d.mes}">
@@ -3681,27 +3590,14 @@
           <td>${costoDirIngPct}</td>
           <td>${costoIndIngPct}</td>
           <td>${costoTotalIngPct}</td>
-          <td class="ingresos int-caucion-cell" data-key-mes="${key}" role="button" tabindex="0" title="Ver marcha de cálculo (en pesos ARS)">$ ${formatearNumero((d.intCaucion != null ? d.intCaucion : 0), 'ARS')}</td>
           <td class="alert-icon-cell">${iconoAlert}</td>
         </tr>`;
       });
 
       let filasProy = '';
-      let tasaDiariaProy = 0;
       const filasProyExcel = [];
-      detalleIntCaucionProy = {};
         detalleProyeccionPorMes = {};
       if (ordenados.length > 0 && N > 0) {
-        const lastKey = ordenados[ordenados.length - 1];
-        const fechasUltimoMes = fechasOrdenadas.filter(f => f.substring(0, 7) === lastKey);
-        if (fechasUltimoMes.length > 0) {
-          let sumaTasa = 0;
-          fechasUltimoMes.forEach(f => { sumaTasa += getTasaCaucion(f); });
-          tasaDiariaProy = sumaTasa / fechasUltimoMes.length;
-        } else {
-          tasaDiariaProy = fechasOrdenadas.length ? getTasaCaucion(fechasOrdenadas[fechasOrdenadas.length - 1]) : 0;
-        }
-        const listaReal = ordenados.map(k => aObjetoMes(porMes[k] || { ingresos: 0, egresos: 0, ventas: 0, comisionesParaRatio: 0, comisiones: 0 }));
         const categoriasProy = new Set();
         ordenados.forEach(k => {
           Object.keys(porMesCatIng[k] || {}).forEach(c => categoriasProy.add(c));
@@ -3738,40 +3634,14 @@
         const proyEgrDir = proyeccionDesdeSerie(valoresEgrDir, N, agg, mesesAProyectar);
         const proyEgrInd = proyeccionDesdeSerie(valoresEgrInd, N, agg, mesesAProyectar);
         const proyFlujoOp = proyeccionDesdeSerie(valoresFlujoOp, N, agg, mesesAProyectar);
-        const valoresIngArsCaucion = ordenados.map(k => (porMesArs[k] ? porMesArs[k].ingresos : 0));
-        const valoresEgrArsCaucion = ordenados.map(k => (porMesArs[k] ? porMesArs[k].egresos : 0));
-        const proyIngArsCaucion = proyeccionDesdeSerie(valoresIngArsCaucion, N, agg, mesesAProyectar);
-        const proyEgrArsCaucion = proyeccionDesdeSerie(valoresEgrArsCaucion, N, agg, mesesAProyectar);
-        const totalIngArsCaucion = valoresIngArsCaucion.reduce((s, v) => s + v, 0);
-        const totalEgrArsCaucion = valoresEgrArsCaucion.reduce((s, v) => s + v, 0);
-        const gpTotalRealArsCaucion = totalIngArsCaucion - totalEgrArsCaucion;
-        let basePartida = (gpTotalRealArsCaucion * pctCaucion / 100) + intAcumuladoAnterior;
-        const detalleUltimoReal = detalleIntCaucionPorMes[lastKey] || [];
-        const ultimaFilaReal = detalleUltimoReal.length > 0 ? detalleUltimoReal[detalleUltimoReal.length - 1] : null;
-        let intAcumuladoInicial = ultimaFilaReal != null ? (ultimaFilaReal.intAnterior || 0) + (ultimaFilaReal.intDia || 0) : intAcumuladoAnterior;
-        let gpInicialSolo = gpTotalRealArsCaucion * pctCaucion / 100;
         let keyProy = siguienteMesKey(ordenados[ordenados.length - 1]);
         const proys = [];
-        let prevRes = null;
         for (let i = 0; i < mesesAProyectar; i++) {
           const comVentasPctI = proyVentas[i] > 0 ? ((proyComisionesParaRatio[i] / proyVentas[i]) * 100).toFixed(1) + '%' : '–';
           const { pctDir: costoDirIngPctI, pctInd: costoIndIngPctI } = ratiosCostoDirectoIndirectoVsIngresos(proyIng[i], proyEgrDir[i], proyEgrInd[i], proyFlujoOp[i]);
           const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct: comVentasPctI, costoDirIngPct: costoDirIngPctI, costoIndIngPct: costoIndIngPctI, costoTotalIngPct: ratioCostoTotalVsFlujoOperativo(proyFlujoOp[i], proyEgr[i]) };
           proys.push(proy);
-          if (i > 0 && prevRes && prevRes.detalle && prevRes.detalle.length > 0) {
-            const ultima = prevRes.detalle[prevRes.detalle.length - 1];
-            intAcumuladoInicial = (ultima.intAnterior || 0) + (ultima.intDia || 0);
-          }
           const [anioProy, mesProy] = keyProy.split('-').map(Number);
-          const diasMes = diasEnMes(anioProy, mesProy);
-          const baseInicio = basePartida;
-          const proyGpArs = proyIngArsCaucion[i] - proyEgrArsCaucion[i];
-          const res = intCaucionProyectadoMes(basePartida, proyGpArs, tasaDiariaProy, { dias: diasMes, intAcumuladoInicial, gpInicialSolo, pctCaucion });
-          prevRes = res;
-          const intCaucionProy = res.intCaucion;
-          basePartida = proyGpArs + intCaucionProy;
-          gpInicialSolo = res.gpAcumSoloFin;
-          detalleIntCaucionProy[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), basePartida: baseInicio, gpTotalReal: i === 0 ? gpTotalRealArsCaucion : undefined, intAcumuladoInicial, proyGP: proyGpArs, tasaDiaria: tasaDiariaProy, intCaucion: intCaucionProy, detalle: res.detalle, dias: diasMes };
           detalleProyeccionPorMes[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), ing: proy.ing, egr: proy.egr, gp: proy.gp, comVentasPct: proy.comVentasPct, costoDirIngPct: proy.costoDirIngPct, costoIndIngPct: proy.costoIndIngPct, costoTotalIngPct: proy.costoTotalIngPct, ingresoPorCat: { ...proyDetalle[keyProy].ingresoPorCat }, egresoPorCat: { ...proyDetalle[keyProy].egresoPorCat } };
           filasProyExcel.push({
             kind: 'proy',
@@ -3783,7 +3653,6 @@
             costoDir: fraccionEgresoVsFlujoOperativo(proyFlujoOp[i], proyEgrDir[i]),
             costoInd: fraccionEgresoVsFlujoOperativo(proyFlujoOp[i], proyEgrInd[i]),
             costoTotal: fraccionEgresoVsFlujoOperativo(proyFlujoOp[i], proyEgr[i]),
-            caucion: Number(intCaucionProy),
             alertas: ''
           });
           filasProy += `<tr class="fila-proyeccion" data-proy-key="${keyProy}" role="button" tabindex="0" title="Ver detalle de proyección">
@@ -3795,7 +3664,6 @@
             <td>${proy.costoDirIngPct}</td>
             <td>${proy.costoIndIngPct}</td>
             <td>${proy.costoTotalIngPct}</td>
-            <td class="ingresos int-caucion-cell" data-proy-key="${keyProy}" role="button" tabindex="0" title="Ver marcha de cálculo (en pesos ARS)">$ ${formatearNumero(intCaucionProy, 'ARS')}</td>
             <td class="alert-icon-cell"></td>
           </tr>`;
           keyProy = siguienteMesKey(keyProy);
@@ -3803,10 +3671,6 @@
       }
       tbody.innerHTML = filasReales.join('');
 
-      const totalIntCaucion = ordenados.reduce((s, k) => {
-        const pm = porMes[k];
-        return s + (pm && pm.intCaucion != null ? pm.intCaucion : 0);
-      }, 0);
       const totalComisiones = ordenados.reduce((s, k) => {
         const pm = porMes[k];
         return s + (pm && pm.comisiones != null ? pm.comisiones : 0);
@@ -3841,14 +3705,13 @@
           <td>${totCostoDirIng}</td>
           <td>${totCostoIndIng}</td>
           <td>${totCostoTotalIng}</td>
-          <td class="ingresos" title="Caución acumulada en pesos ARS (solo origen ARS)">$ ${formatearNumero(totalIntCaucion, 'ARS')}</td>
           <td class="alert-icon-cell"></td>
         </tr>`;
         if (ordenados.length === 0) tfootHtml = '';
         if (filasProy) {
           const metodoLabel = configProy.metodo === 'promedio_ponderado' ? 'Promedio ponderado' : (configProy.metodo === 'promedio' ? 'Promedio' : (configProy.metodo === 'promedio_recortado' ? 'Promedio recortado (suaviza picos)' : 'Mediana'));
-          const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución). Caución proyectada: solo serie <strong>ARS</strong> (origen pesos), misma marcha que el real; punto de partida = G/P operativo ARS acumulado histórico × % + interés acumulado real; tasa = promedio último mes real; días naturales del mes.`;
-          tfootHtml += `<tr class="fila-titulo-proyeccion"><td colspan="10">Próximos ${mesesAProyectar} ${mesesAProyectar === 1 ? 'mes' : 'meses'} proyectados:</td></tr>${filasProy}<tr class="disclaimer-proyeccion"><td colspan="10">${disclaimer}</td></tr>`;
+          const disclaimer = `Proyección: ${metodoLabel} de los últimos ${configProy.meses} meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución).`;
+          tfootHtml += `<tr class="fila-titulo-proyeccion"><td colspan="9">Próximos ${mesesAProyectar} ${mesesAProyectar === 1 ? 'mes' : 'meses'} proyectados:</td></tr>${filasProy}<tr class="disclaimer-proyeccion"><td colspan="9">${disclaimer}</td></tr>`;
         }
         tfoot.innerHTML = tfootHtml;
       }
@@ -3864,7 +3727,6 @@
           costoDir: fraccionEgresoVsFlujoOperativo(sumFlujoOp, sumEgrDir),
           costoInd: fraccionEgresoVsFlujoOperativo(sumFlujoOp, sumEgrInd),
           costoTotal: fraccionEgresoVsFlujoOperativo(sumFlujoOp, totalEgresos),
-          caucion: Number(totalIntCaucion),
           alertas: ''
         });
       }
@@ -3877,10 +3739,10 @@
         filasProyExcel.forEach((r) => filasFlujoExcel.push(r));
         filasFlujoExcel.push({
           kind: 'disclaimer',
-          mes: 'Proyección: ' + metodoLabelExcel + ' de los últimos ' + configProy.meses + ' meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución). Caución proyectada: solo serie ARS (origen pesos), misma marcha que el real; punto de partida = G/P operativo ARS acumulado histórico × % + interés acumulado real; tasa = promedio último mes real; días naturales del mes.'
+          mes: 'Proyección: ' + metodoLabelExcel + ' de los últimos ' + configProy.meses + ' meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución).'
         });
       }
-      cacheFlujoExcel = { moneda: moneda, pctCaucion: pctCaucion, filas: filasFlujoExcel };
+      cacheFlujoExcel = { moneda: moneda, filas: filasFlujoExcel };
 
       renderErroresGlobal();
       renderEvolucion();
@@ -3954,66 +3816,6 @@
             <td class="${item.monto >= 0 ? 'ingresos' : 'egresos'}">${evolucionSimbolo}${formatearNumero(item.monto, evolucionMoneda)}</td>
             <td>${esc(item.origen_archivo || '—')}</td>
             <td>${esc(item.id_origen || '—')}</td>
-          </tr>
-        `).join('');
-      }
-      backdrop.classList.remove('oculto');
-    }
-
-    function abrirModalIntCaucion(keyMes) {
-      const list = detalleIntCaucionPorMes[keyMes];
-      const backdrop = document.getElementById('modal-int-caucion-backdrop');
-      const titulo = document.getElementById('modal-int-caucion-titulo');
-      const tbody = document.getElementById('tbody-int-caucion');
-      if (!backdrop || !titulo || !tbody) return;
-      const [anio, mes] = keyMes.split('-');
-      const label = formatoMesAnio(parseInt(mes, 10), parseInt(anio, 10));
-      titulo.textContent = 'Marcha de cálculo — Caución (ARS) · ' + label;
-      if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">No hay datos para este mes.</td></tr>';
-      } else {
-        tbody.innerHTML = list.map(row => `
-          <tr>
-            <td>${(row.fecha || '').replace(/</g, '&lt;')}</td>
-            <td class="ingresos">$ ${formatearNumero(row.gpAcum, 'ARS')}</td>
-            <td class="ingresos">$ ${formatearNumero(row.intAnterior, 'ARS')}</td>
-            <td class="ingresos">$ ${formatearNumero(row.base, 'ARS')}</td>
-            <td>${row.tasa != null ? (row.tasa * 100).toFixed(4) + '%' : '—'}</td>
-            <td class="ingresos">$ ${formatearNumero(row.intDia, 'ARS')}</td>
-          </tr>
-        `).join('');
-      }
-      backdrop.classList.remove('oculto');
-    }
-
-    function abrirModalIntCaucionProyectado(keyProy) {
-      const info = detalleIntCaucionProy[keyProy];
-      const backdrop = document.getElementById('modal-int-caucion-backdrop');
-      const titulo = document.getElementById('modal-int-caucion-titulo');
-      const tbody = document.getElementById('tbody-int-caucion');
-      if (!backdrop || !titulo || !tbody || !info) return;
-      titulo.textContent = 'Marcha de cálculo — Caución proyectada (ARS) · ' + info.label;
-      const detalle = info.detalle || [];
-      if (detalle.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#666;">No hay detalle.</td></tr>';
-      } else {
-        let lineaPartida;
-        if (info.gpTotalReal != null && info.intAcumuladoInicial != null) {
-          lineaPartida = 'G/P acum (real, solo ARS): $ ' + formatearNumero(info.gpTotalReal, 'ARS') + ' &nbsp;+&nbsp; Int. acum: $ ' + formatearNumero(info.intAcumuladoInicial, 'ARS') + ' &nbsp;= Base partida: $ ' + formatearNumero(info.basePartida, 'ARS');
-        } else if (info.intAcumuladoInicial != null) {
-          lineaPartida = 'Int T-1 (primer día) = interés cierre mes proyectado anterior: $ ' + formatearNumero(info.intAcumuladoInicial, 'ARS') + ' &nbsp;|&nbsp; Base partida: $ ' + formatearNumero(info.basePartida, 'ARS');
-        } else {
-          lineaPartida = 'Base partida: $ ' + formatearNumero(info.basePartida, 'ARS');
-        }
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:left; color:#555; font-size:0.9rem;">' + lineaPartida + ' &nbsp;|&nbsp; G/P mes (ARS): $ ' + formatearNumero(info.proyGP, 'ARS') + ' &nbsp;|&nbsp; Tasa diaria: ' + (info.tasaDiaria != null ? (info.tasaDiaria * 100).toFixed(4) + '%' : '—') + '</td></tr>' +
-          detalle.map(row => `
-          <tr>
-            <td>Día ${row.dia}</td>
-            <td class="ingresos">$ ${formatearNumero(row.gpAcum, 'ARS')}</td>
-            <td class="ingresos">$ ${formatearNumero(row.intAnterior, 'ARS')}</td>
-            <td class="ingresos">$ ${formatearNumero(row.base, 'ARS')}</td>
-            <td>${row.tasa != null ? (row.tasa * 100).toFixed(4) + '%' : '—'}</td>
-            <td class="ingresos">$ ${formatearNumero(row.intDia, 'ARS')}</td>
           </tr>
         `).join('');
       }
@@ -4308,7 +4110,7 @@
     }
 
     function efTransaccionToDetalleItem(r, moneda, tipoDolar) {
-      const montoConv = montoConvertido(r, moneda, tipoDolar);
+      const montoConv = montoConvertidoEf(r, moneda, tipoDolar);
       if (montoConv == null) return null;
       const signo = r.tipo_movimiento === 'Ingreso' ? 1 : -1;
       return {
@@ -4503,7 +4305,7 @@
           if (anio == null || mes == null) return;
           colKey = anio + '-' + String(mes).padStart(2, '0');
         }
-        const montoConv = montoConvertido(r, moneda, tipoDolar);
+        const montoConv = montoConvertidoEf(r, moneda, tipoDolar);
         if (montoConv == null) return;
         const signo = r.tipo_movimiento === 'Ingreso' ? 1 : -1;
         if (!map[key]) map[key] = {};
@@ -4598,10 +4400,12 @@
         return efColMapSubAbs(columnas, efColMapSubAbs(columnas, totalRow('B'), section('4')), section('5'));
       }
       if (/Flujo\s+Neto\s+C/i.test(t) && /6\.1/i.test(t)) {
-        return efColMapSubAbs(
+        // 6.2 / 6.3 ya vienen con signo (egreso −, ingreso +) para que un cobro y un pago
+        // de la misma línea (p. ej. cuotas/intereses) se neteen en el Flujo neto D.
+        return efColMapAdd(
           columnas,
-          efColMapSubAbs(columnas, efColMapAdd(columnas, totalRow('C'), subitem('6.1')), subitem('6.2')),
-          subitem('6.3')
+          efColMapAdd(columnas, totalRow('C'), subitem('6.1')),
+          efColMapAdd(columnas, subitem('6.2'), subitem('6.3'))
         );
       }
       if (codigoEq(line.codigo) === '7.2') {
@@ -5628,7 +5432,6 @@
         return;
       }
       const monedaExport = snap.moneda === 'USD' ? 'USD' : 'ARS';
-      const pctCaucion = snap.pctCaucion != null ? snap.pctCaucion : 100;
       const header = [
         'Mes-Año',
         'Ingresos',
@@ -5638,15 +5441,14 @@
         'Costo dir. / Ingresos',
         'Costo ind. / Ingresos',
         'Costo total / Ingreso total',
-        'Caución (ARS, ' + pctCaucion + '% cash)',
         'Alertas'
       ];
-      const titulo = 'Exportado: Flujo por mes. Moneda de Ingresos, Egresos y G/P: ' + monedaExport + '. Caución siempre en ARS (solo origen pesos). Importes numéricos; % como fracción.';
+      const titulo = 'Exportado: Flujo por mes. Moneda de Ingresos, Egresos y G/P: ' + monedaExport + '. Importes numéricos; % como fracción.';
       const rows = [[titulo], header];
       const rowMeta = [{ kind: 'titulo' }, { kind: 'header' }];
       snap.filas.forEach((f) => {
         if (f.kind === 'titulo_proy' || f.kind === 'disclaimer') {
-          rows.push([f.mes || '', '', '', '', '', '', '', '', '', '']);
+          rows.push([f.mes || '', '', '', '', '', '', '', '', '']);
           rowMeta.push({ kind: f.kind });
           return;
         }
@@ -5660,7 +5462,6 @@
           celdaPct(f.costoDir),
           celdaPct(f.costoInd),
           celdaPct(f.costoTotal),
-          typeof f.caucion === 'number' ? f.caucion : 0,
           f.alertas || ''
         ]);
         rowMeta.push({ kind: f.kind || 'real' });
@@ -5697,7 +5498,7 @@
           const cell = efExcelGetOrCreateCell(ws, r, c);
           const partial = { font: font, alignment: { vertical: 'center' } };
           if (fillRgb) partial.fill = efExcelSolidFill(fillRgb);
-          if ((c >= 1 && c <= 3) || c === 8) {
+          if (c >= 1 && c <= 3) {
             if (cell && typeof cell.v === 'number') {
               cell.z = EF_EXCEL_NUMFMT_ENTERO_AR;
               partial.numFmt = EF_EXCEL_NUMFMT_ENTERO_AR;
@@ -6198,11 +5999,13 @@
      */
     const MEDIO_MONEDA_FORNITALIA_TABLA = [
       ['Transferencia Galicia Dolar', 'USD'],
+      ['Efectivo Dolar (sin factura)', 'USD'],
       ['Efectivo Dolar', 'USD'],
       ['Transferencia Credicoop', 'ARS'],
       ['Transferencia Galicia', 'ARS'],
       ['Transferencia Morba', 'ARS'],
       ['Transferencia Morva', 'ARS'],
+      ['Efectivo Pesos (sin factura)', 'ARS'],
       ['Efectivo Pesos', 'ARS'],
       ['MercadoPago', 'ARS'],
       ['Mercado Pago', 'ARS'],
@@ -6462,20 +6265,65 @@
 
       if (moneda === 'ARS') {
         if (!esUSD) return montoOrig;
-        const tcFila = toNumOrNull(r.tipo_cambio);
-        if (tcFila != null && tcFila > 0) {
+        const tcFila = toTcOrNull(r.tipo_cambio);
+        if (tcFila != null) {
           return Number((montoOrig * tcFila).toFixed(2));
         }
         if (tasa != null && tasa > 0) {
           return Number((montoOrig * tasa).toFixed(2));
         }
         const mc = toNumOrNull(r.monto_cambio);
-        if (mc != null) return mc;
+        if (mc != null) return Math.abs(mc);
         return null;
       }
 
       if (moneda === 'USD') return esUSD ? montoOrig : (tasa != null && tasa > 0 ? montoOrig / tasa : null);
       return montoOrig;
+    }
+
+    function toTcOrNull(value) {
+      if (value == null || value === '') return null;
+      const n = typeof value === 'number' ? value : Number(String(value).trim().replace(',', '.'));
+      return Number.isFinite(n) && n > 0 && n < 20000 ? n : null;
+    }
+
+    function tasaMepParaFecha(fecha) {
+      const f = fechaStr(fecha);
+      if (f && cacheTC[f] && cacheTC[f].mep != null && cacheTC[f].mep > 0) return cacheTC[f].mep;
+      return getTasaAnterior(f, 'mep');
+    }
+
+    function montoUsdOrigen(r) {
+      if (!r) return null;
+      const mu = r.monto_usd != null ? Number(r.monto_usd) : NaN;
+      if (Number.isFinite(mu) && Math.abs(mu) > 0) return Math.abs(mu);
+      if (esTransaccionUSD(r)) {
+        const m = Number(r.monto);
+        return Number.isFinite(m) ? Math.abs(m) : null;
+      }
+      return null;
+    }
+
+    /** Estado Financiero en ARS: USD × MEP de la fecha (tabla; si falta, última MEP o TC de fila). */
+    function montoConvertidoEf(r, moneda, tipoDolar) {
+      if (moneda === 'USD') {
+        const usd = montoUsdOrigen(r);
+        if (usd != null) return usd;
+        return montoConvertido(r, moneda, tipoDolar);
+      }
+      if (moneda !== 'ARS') return montoConvertido(r, moneda, tipoDolar);
+      const usd = montoUsdOrigen(r);
+      if (usd == null) {
+        const ars = Number(r.monto);
+        return Number.isFinite(ars) ? Math.abs(ars) : null;
+      }
+      const mep = tasaMepParaFecha(r.fecha);
+      if (mep != null && mep > 0) return Number((usd * mep).toFixed(2));
+      const tcFila = toTcOrNull(r.tipo_cambio);
+      if (tcFila != null) return Number((usd * tcFila).toFixed(2));
+      const mc = toNumOrNull(r.monto_cambio);
+      if (mc != null) return Math.abs(mc);
+      return null;
     }
 
     /** Agrupación modal Flujo / serie mensual: prioriza columnas de matriz en BD. */
@@ -7487,11 +7335,56 @@
         }
         payload.editado = true;
         payload.editado_detalle = partes.join(', ');
-        const { data: updatedRows, error } = await client
-          .from('transacciones')
-          .update(payload)
-          .eq('id', record.id)
-          .select('id');
+        let updatedRows = null;
+        let error = null;
+        if (record.fuente_tesoreria === 'cb' || record.fuente_tesoreria === 'cf') {
+          const table = record.fuente_tesoreria === 'cf' ? 'cf_movimiento' : 'cb_movimiento';
+          const mov = {};
+          if (payload.fecha) mov.fecha = payload.fecha;
+          if (payload.tipo_movimiento) mov.tipo = payload.tipo_movimiento;
+          if (payload.monto != null) {
+            const tipoSave = String(payload.tipo_movimiento || record.tipo_movimiento || '').toLowerCase();
+            const absM = Math.abs(Number(payload.monto));
+            mov.monto = tipoSave.indexOf('egreso') >= 0 || tipoSave.indexOf('debito') >= 0 ? -absM : absM;
+          }
+          if (payload.moneda) mov.moneda = payload.moneda;
+          if (payload.descripcion !== undefined) mov.descripcion = payload.descripcion;
+          if (payload.cliente !== undefined) mov.contraparte = payload.cliente;
+          const catNueva = payload.nueva_categoria !== undefined ? payload.nueva_categoria : payload.categoria;
+          const ctaNueva = payload.nueva_cuenta_contable !== undefined ? payload.nueva_cuenta_contable : payload.cuenta_contable;
+          if (catNueva !== undefined) mov.categoria = catNueva;
+          if (ctaNueva !== undefined) mov.cuenta_contable = ctaNueva;
+          const resMov = await client.from(table).update(mov).eq('id', record.id).select('id');
+          updatedRows = resMov.data;
+          error = resMov.error;
+          if (!error && (payload.ef_item !== undefined || payload.ef_subitem !== undefined || payload.costo_directo !== undefined || payload.costo_indirecto !== undefined)) {
+            const cat = (catNueva !== undefined ? catNueva : (record.nueva_categoria || record.categoria || '')).trim();
+            const cta = (ctaNueva !== undefined ? ctaNueva : (record.nueva_cuenta_contable || record.cuenta_contable || '')).trim();
+            const tipo = (payload.tipo_movimiento || record.tipo_movimiento || 'Egreso').trim();
+            if (cat && cta && tipo) {
+              const existente = await client.from('matriz_cat_cuenta_ef').select('id').eq('tipo_movimiento', tipo).ilike('categoria', cat).ilike('cuenta_contable', cta).maybeSingle();
+              const body = {
+                categoria: cat,
+                cuenta_contable: cta,
+                tipo_movimiento: tipo,
+                ef_item: payload.ef_item !== undefined ? payload.ef_item : (record.ef_item || ''),
+                ef_subitem: payload.ef_subitem !== undefined ? payload.ef_subitem : (record.ef_subitem || ''),
+                costo_directo: payload.costo_directo !== undefined ? payload.costo_directo : record.costo_directo,
+                costo_indirecto: payload.costo_indirecto !== undefined ? payload.costo_indirecto : record.costo_indirecto,
+                vigente: true
+              };
+              if (existente.data && existente.data.id) {
+                await client.from('matriz_cat_cuenta_ef').update(body).eq('id', existente.data.id);
+              } else if (body.ef_item && body.ef_subitem) {
+                await client.from('matriz_cat_cuenta_ef').insert(body);
+              }
+            }
+          }
+        } else {
+          const resTx = await client.from('transacciones').update(payload).eq('id', record.id).select('id');
+          updatedRows = resTx.data;
+          error = resTx.error;
+        }
         if (error) {
           alert('Error al guardar: ' + (error.message || 'Unknown'));
           return;
@@ -7697,6 +7590,36 @@
             getRoot: () => document.getElementById('view-impuestos'),
           });
         }
+        if (window.FornitaliaMatrizEf) {
+          window.FornitaliaMatrizEf.init({
+            client,
+            hasPerm,
+            getRoot: () => document.getElementById('view-matriz-ef'),
+            getFilasFlujo: () => cacheTransacciones,
+            getEfEstructura: () => cacheEfEstructura,
+            onEstructuraChange: (rows) => {
+              cacheEfEstructura = (rows || []).slice().sort((a, b) => (a.orden || 0) - (b.orden || 0)).map(r => ({
+                ...r,
+                ef_item: efItemEtiquetaDisplay(r.ef_item || '')
+              }));
+              cacheEfSubitemToItem = null;
+              cacheEfSec1IngresoSubitemKeys = null;
+            },
+            onRemapEfFilas: (cambios) => {
+              if (!cambios || !cambios.length) return;
+              (cacheTransacciones || []).forEach((r) => {
+                cambios.forEach((c) => {
+                  if (c.fromSub && c.toSub && normEfSubitemKey(r.ef_subitem) === normEfSubitemKey(c.fromSub)) {
+                    r.ef_subitem = c.toSub;
+                  }
+                  if (c.fromItem && c.toItem && String(r.ef_item || '').trim() === c.fromItem) {
+                    r.ef_item = efItemEtiquetaDisplay(c.toItem);
+                  }
+                });
+              });
+            }
+          });
+        }
         document.getElementById('menu-home')?.addEventListener('click', (e) => {
           e.preventDefault();
           mostrarVistaPrincipal('dashboard');
@@ -7734,6 +7657,14 @@
           document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
           document.getElementById('menu-saldos-extractos')?.classList.add('menu-item-active');
           if (window.FornitaliaSaldosExtractos) window.FornitaliaSaldosExtractos.show();
+        });
+        document.getElementById('menu-matriz-ef')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (!hasPerm(PERM_VER_MATRIZ_EF)) return;
+          mostrarVistaPrincipal('matriz-ef');
+          document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+          document.getElementById('menu-matriz-ef')?.classList.add('menu-item-active');
+          if (window.FornitaliaMatrizEf) window.FornitaliaMatrizEf.show();
         });
         document.getElementById('menu-impuestos')?.addEventListener('click', (e) => {
           e.preventDefault();
@@ -7981,23 +7912,12 @@
           }
         });
         document.getElementById('panel-flujo').addEventListener('click', (e) => {
-          const cell = e.target.closest('.int-caucion-cell');
-          if (cell) {
-            const keyMes = cell.getAttribute('data-key-mes');
-            const keyProy = cell.getAttribute('data-proy-key');
-            if (keyMes) abrirModalIntCaucion(keyMes);
-            else if (keyProy) abrirModalIntCaucionProyectado(keyProy);
-            return;
-          }
           const trProy = e.target.closest('tr.fila-proyeccion');
           if (trProy) {
             const keyProy = trProy.getAttribute('data-proy-key');
             if (keyProy) abrirModalProyeccion(keyProy);
           }
         });
-        document.getElementById('modal-int-caucion-close').addEventListener('click', () => document.getElementById('modal-int-caucion-backdrop').classList.add('oculto'));
-        setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-int-caucion-backdrop'), () => document.getElementById('modal-int-caucion-backdrop').classList.add('oculto'));
-        setupModalDrag('modal-int-caucion', 'modal-int-caucion-header-drag', 'modal-int-caucion-close');
 
         document.getElementById('btn-cargar-novedades').addEventListener('click', async () => {
           const loading = document.getElementById('novedades-loading');
@@ -8049,13 +7969,11 @@
           const selMetodo = document.getElementById('config-proyeccion-metodo');
           const selMeses = document.getElementById('config-proyeccion-meses');
           const selRecorte = document.getElementById('config-proyeccion-recorte');
-          const selPctCaucion = document.getElementById('config-pct-caucion');
           if (selMetodo) selMetodo.value = c.metodo;
           if (selMeses) selMeses.value = String(c.meses);
           if (selRecorte) selRecorte.value = String(c.recortePct);
           const selCantidad = document.getElementById('config-proyeccion-cantidad');
           if (selCantidad) selCantidad.value = String(c.mesesAProyectar);
-          if (selPctCaucion) selPctCaucion.value = String(getPctCaucion());
           const selAlertaDesvio = document.getElementById('config-alerta-desvio-categoria');
           if (selAlertaDesvio) selAlertaDesvio.value = String(getAlertaDesvioPct());
           const cbMesSinEgresos = document.getElementById('config-alerta-mes-sin-egresos');
@@ -8082,13 +8000,11 @@
           const selMetodo = document.getElementById('config-proyeccion-metodo');
           const selMeses = document.getElementById('config-proyeccion-meses');
           const selRecorteSave = document.getElementById('config-proyeccion-recorte');
-          const selPctCaucion = document.getElementById('config-pct-caucion');
           if (selMetodo) localStorage.setItem(PROYECCION_METODO_KEY, selMetodo.value);
           if (selMeses) localStorage.setItem(PROYECCION_MESES_KEY, selMeses.value);
           if (selRecorteSave) localStorage.setItem(PROYECCION_RECORTE_KEY, selRecorteSave.value);
           const selCantidadSave = document.getElementById('config-proyeccion-cantidad');
           if (selCantidadSave) localStorage.setItem(PROYECCION_CANTIDAD_KEY, selCantidadSave.value);
-          if (selPctCaucion) localStorage.setItem(PCT_CAUCION_KEY, selPctCaucion.value);
           const selAlertaDesvioSave = document.getElementById('config-alerta-desvio-categoria');
           if (selAlertaDesvioSave) localStorage.setItem(ALERTA_DESVIO_PCT_KEY, selAlertaDesvioSave.value);
           const cbMesSinEgresosS = document.getElementById('config-alerta-mes-sin-egresos');
