@@ -58,6 +58,21 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  function htmlUsuario() {
+    if (!global.FornitaliaUsuario) return '<span class="lyp-user">—</span>';
+    return FornitaliaUsuario.celdaDe.apply(FornitaliaUsuario, arguments);
+  }
+
+  function textoUsuario() {
+    if (!global.FornitaliaUsuario) return '';
+    return FornitaliaUsuario.textoDe.apply(FornitaliaUsuario, arguments) || '';
+  }
+
+  async function cargarUsuarios() {
+    if (!global.FornitaliaUsuario || !client()) return;
+    try { await FornitaliaUsuario.cargar(client()); } catch (e) { /* no cortar la vista */ }
+  }
+
   function errMsg(e) {
     if (!e) return 'Error desconocido.';
     return e.message || e.error_description || String(e);
@@ -389,12 +404,13 @@
     state.err = '';
     renderShell();
     try {
+      await cargarUsuarios();
       var all = [];
       var offset = 0;
       for (;;) {
         var res = await client()
           .from('matriz_cat_cuenta_ef')
-          .select('id,categoria,cuenta_contable,tipo_movimiento,ef_item,ef_subitem,costo_directo,costo_indirecto,vigente,notas,updated_at')
+          .select('id,categoria,cuenta_contable,tipo_movimiento,ef_item,ef_subitem,costo_directo,costo_indirecto,vigente,notas,updated_at,created_by,updated_by')
           .order('categoria', { ascending: true })
           .range(offset, offset + 999);
         if (res.error) throw res.error;
@@ -406,7 +422,7 @@
       state.rows = all;
       var est = await client()
         .from('ef_estructura')
-        .select('id, orden, codigo, nivel, ef_item, ef_subitem, signo, naturaleza, es_total, fuente_archivo')
+        .select('id, orden, codigo, nivel, ef_item, ef_subitem, signo, naturaleza, es_total, fuente_archivo, created_by, updated_by')
         .order('orden', { ascending: true });
       if (est.error) throw est.error;
       state.estRows = est.data || [];
@@ -420,6 +436,7 @@
 
   function valorSort(r, key) {
     if (key === 'vigente') return r.vigente === false ? 'No' : 'Sí';
+    if (key === 'usuario') return textoUsuario(r.updated_by, r.created_by);
     return r[key] == null ? '' : String(r[key]);
   }
 
@@ -470,6 +487,7 @@
     if (key === 'tipo') return labelTipo(tipoDeNivel(r.nivel));
     if (key === 'relaciones') return String(Number(r.nivel) === 1 ? relacionesDeSubitem(r.ef_subitem).length : 0);
     if (key === 'orden') return String(r.orden == null ? '' : r.orden);
+    if (key === 'usuario') return textoUsuario(r.updated_by, r.created_by);
     return r[key] == null ? '' : String(r[key]);
   }
 
@@ -619,6 +637,7 @@
         '<td>' + esc(r.costo_directo || '') + '</td>' +
         '<td>' + esc(r.costo_indirecto || '') + '</td>' +
         '<td>' + (r.vigente === false ? 'No' : 'Sí') + '</td>' +
+        '<td>' + htmlUsuario(r.updated_by, r.created_by) + '</td>' +
         '<td>' + (can(PERM_EDITAR)
           ? '<button type="button" class="mef-btn mef-btn-ghost mef-btn-icon-only" data-mef="editar" data-id="' + esc(r.id || '') + '" data-cat="' + esc(r.categoria) + '" data-cta="' + esc(r.cuenta_contable) + '" data-tipo="' + esc(r.tipo_movimiento) + '" title="Editar" aria-label="Editar"><span class="btn-icon">' + ICO.edit + '</span></button>'
           : '') + '</td>' +
@@ -633,6 +652,7 @@
       thSort('costo_directo', 'Dir.') +
       thSort('costo_indirecto', 'Ind.') +
       thSort('vigente', 'Vigente') +
+      thSort('usuario', 'Usuario') +
       '<th></th>' +
       '</tr></thead><tbody>' + html + '</tbody></table></div>';
   }
@@ -669,6 +689,7 @@
         '<td>' + esc(r.signo || '') + '</td>' +
         '<td>' + esc(r.naturaleza || '') + '</td>' +
         '<td class="mef-rel-n">' + (Number(r.nivel) === 1 ? nRel : '—') + '</td>' +
+        '<td>' + htmlUsuario(r.updated_by, r.created_by) + '</td>' +
         '<td>' + acciones + '</td>' +
       '</tr>';
     });
@@ -681,6 +702,7 @@
       thEstSort('signo', 'Signo') +
       thEstSort('naturaleza', 'Naturaleza') +
       thEstSort('relaciones', 'Rel.') +
+      thEstSort('usuario', 'Usuario') +
       '<th></th>' +
       '</tr></thead><tbody>' + html + '</tbody></table></div>';
   }
@@ -1007,7 +1029,7 @@
       return;
     }
     var aoa = [['Matriz EF — categoría / cuenta / tipo → Estado Financiero']];
-    aoa.push(['Categoría', 'Cuenta contable', 'Tipo', 'Ítem EF', 'Subítem EF', 'Costo directo', 'Costo indirecto', 'Vigente']);
+    aoa.push(['Categoría', 'Cuenta contable', 'Tipo', 'Ítem EF', 'Subítem EF', 'Costo directo', 'Costo indirecto', 'Vigente', 'Usuario']);
     list.forEach(function (r) {
       aoa.push([
         r.categoria || '',
@@ -1017,11 +1039,12 @@
         r.ef_subitem || '',
         r.costo_directo || '',
         r.costo_indirecto || '',
-        r.vigente === false ? 'No' : 'Sí'
+        r.vigente === false ? 'No' : 'Sí',
+        textoUsuario(r.updated_by, r.created_by)
       ]);
     });
     var ws = global.XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [{ wch: 28 }, { wch: 32 }, { wch: 10 }, { wch: 36 }, { wch: 40 }, { wch: 12 }, { wch: 14 }, { wch: 10 }];
+    ws['!cols'] = [{ wch: 28 }, { wch: 32 }, { wch: 10 }, { wch: 36 }, { wch: 40 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 10 }];
     var wb = global.XLSX.utils.book_new();
     global.XLSX.utils.book_append_sheet(wb, ws, 'Matriz EF');
     global.XLSX.writeFile(wb, 'Matriz_EF_Fornitalia_' + fechaArchivoExcel() + '.xlsx');
@@ -1038,7 +1061,7 @@
       return;
     }
     var aoa = [['Estructura del Estado Financiero']];
-    aoa.push(['Orden', 'Código', 'Tipo', 'Ítem', 'Subítem / etiqueta', 'Signo', 'Naturaleza', 'Es total', 'Relaciones matriz']);
+    aoa.push(['Orden', 'Código', 'Tipo', 'Ítem', 'Subítem / etiqueta', 'Signo', 'Naturaleza', 'Es total', 'Relaciones matriz', 'Usuario']);
     list.forEach(function (r) {
       var nRel = Number(r.nivel) === 1 ? relacionesDeSubitem(r.ef_subitem).length : null;
       aoa.push([
@@ -1050,11 +1073,12 @@
         r.signo || '',
         r.naturaleza || '',
         r.es_total ? 'Sí' : 'No',
-        nRel
+        nRel,
+        textoUsuario(r.updated_by, r.created_by)
       ]);
     });
     var ws = global.XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [{ wch: 8 }, { wch: 10 }, { wch: 16 }, { wch: 40 }, { wch: 48 }, { wch: 8 }, { wch: 48 }, { wch: 10 }, { wch: 14 }];
+    ws['!cols'] = [{ wch: 8 }, { wch: 10 }, { wch: 16 }, { wch: 40 }, { wch: 48 }, { wch: 8 }, { wch: 48 }, { wch: 10 }, { wch: 14 }, { wch: 10 }];
     var wb = global.XLSX.utils.book_new();
     global.XLSX.utils.book_append_sheet(wb, ws, 'Estructura EF');
     global.XLSX.writeFile(wb, 'Estructura_EF_Fornitalia_' + fechaArchivoExcel() + '.xlsx');

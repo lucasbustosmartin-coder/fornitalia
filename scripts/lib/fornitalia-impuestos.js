@@ -94,6 +94,21 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  function htmlUsuario() {
+    if (!global.FornitaliaUsuario) return '<span class="lyp-user">—</span>';
+    return FornitaliaUsuario.celdaDe.apply(FornitaliaUsuario, arguments);
+  }
+
+  function textoUsuario() {
+    if (!global.FornitaliaUsuario) return '';
+    return FornitaliaUsuario.textoDe.apply(FornitaliaUsuario, arguments) || '';
+  }
+
+  async function cargarUsuarios() {
+    if (!global.FornitaliaUsuario || !client()) return;
+    try { await FornitaliaUsuario.cargar(client()); } catch (e) { /* no cortar la vista */ }
+  }
+
   function errMsg(e) {
     if (!e) return 'Error desconocido.';
     return e.message || e.error_description || String(e);
@@ -408,6 +423,10 @@
         va = truthy(va) ? 1 : 0;
         vb = truthy(vb) ? 1 : 0;
       }
+      if (key === 'usuario') {
+        va = textoUsuario(a.tesoreria_by, a.created_by);
+        vb = textoUsuario(b.tesoreria_by, b.created_by);
+      }
       if (va == null && vb == null) return 0;
       if (va == null) return 1;
       if (vb == null) return -1;
@@ -463,6 +482,7 @@
         '<td><span class="imp-badge ' + (truthy(f.en_extracto) ? 'imp-badge-ok' : 'imp-badge-no') + '">' +
           (truthy(f.en_extracto) ? 'Sí' : 'No') + '</span></td>' +
         '<td><span class="imp-badge ' + claseConciliado(f) + '">' + esc(etiquetaConciliado(f)) + '</span></td>' +
+        '<td>' + htmlUsuario(f.tesoreria_by, f.created_by) + '</td>' +
       '</tr>';
     }).join('');
     return '<div class="imp-tabla-wrap"><table class="imp-tabla">' +
@@ -478,6 +498,7 @@
         thSort('monto_percibido', 'Percibido', 'imp-col-monto') +
         thSort('en_extracto', 'En extracto MP') +
         thSort('conciliado', 'Conciliado') +
+        thSort('usuario', 'Usuario') +
       '</tr></thead><tbody>' + body + '</tbody></table></div>';
   }
 
@@ -1137,6 +1158,7 @@
     state.loading = true;
     renderShell();
     try {
+      await cargarUsuarios();
       await cargarDatos();
       state.err = '';
     } catch (e) {
@@ -1252,7 +1274,7 @@
       'Fecha cargo', 'Nº movimiento', 'Nº cargo', 'Detalle', 'Factura legal',
       'Importe c/IVA', 'Importe s/IVA', 'Base imponible', 'Alícuota', 'Monto percibido',
       'En extracto MP', 'Conciliado', 'Tipo extracto', 'Importe extracto', 'Fecha extracto',
-      'Tesorería fecha', 'Tesorería importe', 'Tesorería', 'Archivo'
+      'Tesorería fecha', 'Tesorería importe', 'Tesorería', 'Archivo', 'Usuario'
     ];
     var aoa = [headers];
     var dateCols = { 0: true, 14: true, 15: true };
@@ -1277,7 +1299,8 @@
         f.tesoreria_id ? ymdToExcelSerial(f.tesoreria_fecha) : null,
         f.tesoreria_id ? excelNum(f.tesoreria_monto) : null,
         f.tesoreria_id ? (f.tesoreria_descripcion || 'Sí') : '',
-        f.archivo || ''
+        f.archivo || '',
+        textoUsuario(f.tesoreria_by, f.created_by)
       ]);
     });
     var ws = global.XLSX.utils.aoa_to_sheet(aoa);

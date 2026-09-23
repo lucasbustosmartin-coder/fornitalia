@@ -221,7 +221,11 @@ BEGIN
   IF TG_OP = 'INSERT' AND NEW.created_by IS NULL THEN
     NEW.created_by = auth.uid();
   END IF;
-  NEW.updated_by = auth.uid();
+  IF auth.uid() IS NOT NULL THEN
+    NEW.updated_by = auth.uid();
+  ELSIF NEW.updated_by IS NULL THEN
+    NEW.updated_by = NEW.created_by;
+  END IF;
   RETURN NEW;
 END;
 $$;

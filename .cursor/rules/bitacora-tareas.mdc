@@ -49,13 +49,32 @@ Salida: `Bitacora_tareas.xlsx`.
 
 **Alinear con lo publicado (no omitir):** antes de editar código o de este flujo, `git fetch origin` y verificar que `main` local no esté detrás de `origin/main` (regla **sync-main-publicado**). Si está behind, traer el remoto y reaplicar encima; no implementar sobre una versión vieja.
 
+### Novedades al recargar — `FORNITALIA_RELEASE_BLURB` (obligatorio; lo hace el agente)
+
+**No delegar al usuario.** En cada “ok desplegar”, el agente edita el módulo de novedades y deja listo el texto del modal **«Nueva versión»** (antes del commit/push). El aviso lee las novedades desde la red (`/fornitalia-release.json`), no solo desde el JavaScript en caché.
+
+**Regla para quien usa el repo:** en el flujo habitual **no hace falta que edites** `scripts/lib/fornitalia-release-blurb.js`. Ese archivo lo actualiza el **agente** al cerrar el despliegue (versión + `lines`). Solo intervendrías ahí si lo pedís explícitamente (p. ej. copy muy particular) o si acordamos una excepción.
+
+| Qué | Cómo |
+|-----|------|
+| **Dónde** | Archivo **`scripts/lib/fornitalia-release-blurb.js`** (objeto **`FORNITALIA_RELEASE_BLURB`**). `node scripts/crear-bitacora-excel.js` genera **`fornitalia-release.json`** en la raíz (no editar a mano). |
+| **`versionLabel`** | **Idéntico** a `v` + `APP_VERSION` en `dashboard-flujo-caja.html` (ej. `v2.48`). |
+| **`lines`** | **2 a 4** frases **cortas**, en **español**, tono **simple y comercial**: lo que el usuario **va a ver o notar** al recargar (solapas, tablas, cargas, correcciones de uso). Basarse en los **cambios reales** de la sesión, no en mensajes genéricos. El modal arma una tarjeta con logo, badge de versión y lista. |
+| **Solo lo visible** | En **`lines`** **no** mencionar Supabase, PostgreSQL, RPC, migraciones SQL, Vercel, despliegue ni otros detalles de **backend o infra**: el modal es para quien **usa la app**, no para el equipo técnico. Si un cambio fue solo de servidor sin efecto en pantalla, **no** entra en `lines` (y puede documentarse en la solapa **Versiones**). Si hubo cambio de servidor **y** efecto visible, describir **solo el efecto**. |
+| **Estilo** | Beneficio visible. **Ejemplos de tono** (adaptar al caso): «En las tablas se ve quién cargó o confirmó (nombre; al pasar el mouse, el email)», «Credicoop entra en Saldos extractos», «Apertura de caja ya no mueve el saldo de corte». |
+| **Evitar** | Jerga interna (`refactor`, `merge`, nombres de RPC, “fix” sin decir qué mejora), párrafos largos, detalle técnico de implementación, y **cualquier** referencia a base de datos, migraciones o proveedores cloud en el texto del modal. |
+| **`lines: []`** | **Solo** si el despliegue no cambia **nada** perceptible para quien opera la app (p. ej. solo pipeline o config invisible). En ese caso **registrar** en la solapa **Versiones** que fue release sin copy de usuario. Si hubo **cualquier** cambio visible en UI o comportamiento, **`lines` no puede quedar vacío**. |
+
+El **paso 4 (commit)** debe incluir **`scripts/lib/fornitalia-release-blurb.js`** y **`fornitalia-release.json`** siempre que se haya actualizado el blurb.
+
 # Flujo cuando el usuario indique desplegar (versionado y despliegue)
 
 Cuando el usuario diga que desplegar (ej. "desplegar", "listo desplegar", "OK desplegar"), aplicar **siempre** los siguientes pasos en este orden:
 
 0. **Verificar main = último publicado** (`git fetch origin`; local no behind `origin/main`). Ver regla **sync-main-publicado**.
-1. **Incrementar versión en el dashboard**  
-   En `dashboard-flujo-caja.html`, actualizar la constante `APP_VERSION` (buscar `const APP_VERSION = 'X.Y'`) al **siguiente número de versión** (ej. 1.9 → 1.10). Esa versión se muestra abajo en el sidebar.
+1. **Incrementar versión en el dashboard y redactar novedades del modal**  
+   En `dashboard-flujo-caja.html`, actualizar la constante `APP_VERSION` (buscar `const APP_VERSION = 'X.Y'`) al **siguiente número de versión** (ej. 1.9 → 1.10). Esa versión se muestra abajo en el sidebar.  
+   En **`scripts/lib/fornitalia-release-blurb.js`**, actualizar **`FORNITALIA_RELEASE_BLURB`** cumpliendo la subsección **«Novedades al recargar»** arriba: **solo el agente** redacta `lines` y alinea **`versionLabel`** a `v` + `APP_VERSION` (ej. `v2.48`). Quien pide el despliegue **no** tiene que tocar ese archivo salvo excepción acordada. `node scripts/crear-bitacora-excel.js` genera **`fornitalia-release.json`** en la raíz (el modal lo pide por red con `cache: 'no-store'`).
 
 2. **Actualizar todas las solapas de la bitácora que correspondan** en `crear-bitacora-excel.js` (revisar las cuatro y no omitir ninguna):
    - **Versiones:** siempre en despliegue. Agregar una fila en el array `versiones` con (Versión, Fecha, Descripción del despliegue). Usar la misma versión que `APP_VERSION`. **Fecha:** fecha literal del despliegue en Argentina, o `__HOY__` solo en la fila nueva (el script conserva fechas de versiones ya escritas en el Excel). Incluir los cambios principales.
@@ -67,7 +86,7 @@ Cuando el usuario diga que desplegar (ej. "desplegar", "listo desplegar", "OK de
    Ejecutar `node crear-bitacora-excel.js` para actualizar `Bitacora_tareas.xlsx` y la presentación `Propuesta_Dashboard_Flujo_Caja.pptx` (esta última usa el presupuesto de la bitácora, columna Horas hombre incluida).
 
 4. **Commit y push**  
-   Incluir en el commit: `dashboard-flujo-caja.html` (con `APP_VERSION` actualizado), `crear-bitacora-excel.js`, `Bitacora_tareas.xlsx`. Mensaje de commit: `vX.Y: descripción breve`. Ejecutar `git add`, `git commit`, `git push origin main`. Si el push falla por credenciales, indicar al usuario que ejecute `git push origin main` en su máquina.
+   Incluir en el commit: `dashboard-flujo-caja.html` (con `APP_VERSION` actualizado), `scripts/lib/fornitalia-release-blurb.js`, `fornitalia-release.json`, `crear-bitacora-excel.js`, `Bitacora_tareas.xlsx`. Mensaje de commit: `vX.Y: descripción breve`. Ejecutar `git add`, `git commit`, `git push origin main`. Si el push falla por credenciales, indicar al usuario que ejecute `git push origin main` en su máquina.
 
 5. **Desplegar a producción**  
    Ejecutar `vercel --prod` (o el comando equivalente) para que la versión desplegada sea la de producción (fornitalia.vercel.app).

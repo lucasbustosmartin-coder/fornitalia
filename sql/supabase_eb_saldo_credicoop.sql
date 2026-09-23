@@ -45,7 +45,7 @@ serie AS (
 INSERT INTO public.eb_saldo_extracto (
   canal, moneda, nro_cuenta, tipo_cuenta,
   fecha_desde, fecha_hasta, saldo_inicial, saldo_final,
-  documento_id, archivo, raw
+  documento_id, archivo, raw, created_by
 )
 SELECT
   'credicoop',
@@ -62,7 +62,8 @@ SELECT
     'formato', 'tesoreria',
     'sin_apertura', true,
     'origen', 'seed_movimientos'
-  )
+  ),
+  (SELECT id FROM public.user_profiles WHERE lower(email) = 'lucas.bustos.martin@gmail.com' LIMIT 1)
 FROM serie
 ON CONFLICT (canal, nro_cuenta, fecha_hasta) DO UPDATE SET
   moneda = EXCLUDED.moneda,

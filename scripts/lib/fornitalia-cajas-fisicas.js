@@ -73,6 +73,21 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  function htmlUsuario() {
+    if (!global.FornitaliaUsuario) return '<span class="lyp-user">—</span>';
+    return FornitaliaUsuario.celdaDe.apply(FornitaliaUsuario, arguments);
+  }
+
+  function textoUsuario() {
+    if (!global.FornitaliaUsuario) return '';
+    return FornitaliaUsuario.textoDe.apply(FornitaliaUsuario, arguments) || '';
+  }
+
+  async function cargarUsuarios() {
+    if (!global.FornitaliaUsuario || !client()) return;
+    try { await FornitaliaUsuario.cargar(client()); } catch (e) { /* no cortar la vista */ }
+  }
+
   function errMsg(e) {
     if (!e) return 'Error desconocido.';
     return e.message || e.error_description || String(e);
@@ -910,6 +925,7 @@
     if (key === 'monto_usd') return { v: m.monto_usd, t: 'num' };
     if (key === 'tipo_cambio_mep') return { v: m.tipo_cambio_mep, t: 'num' };
     if (key === 'id') return { v: idVisible(m), t: 'txt' };
+    if (key === 'usuario') return { v: textoUsuario(m.updated_by, m.created_by), t: 'txt' };
     return { v: m.fecha, t: 'fecha' };
   }
 
@@ -1008,6 +1024,7 @@
     state.loading = true;
     renderShell();
     try {
+      await cargarUsuarios();
       await cargarDatos();
       state.err = '';
     } catch (e) {
@@ -1466,8 +1483,8 @@
     }
     var usd = esCanalUsd(state.canal);
     var headers = usd
-      ? ['Fecha', 'Tipo', 'Descripción', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito ARS', 'Débito ARS', 'Saldo ARS', 'Importe ARS', 'USD orig.', 'TC MEP', 'Fecha TC', 'ID']
-      : ['Fecha', 'Tipo', 'Descripción', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito', 'Débito', 'Saldo', 'Importe', 'ID'];
+      ? ['Fecha', 'Tipo', 'Descripción', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito ARS', 'Débito ARS', 'Saldo ARS', 'Importe ARS', 'USD orig.', 'TC MEP', 'Fecha TC', 'ID', 'Usuario']
+      : ['Fecha', 'Tipo', 'Descripción', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito', 'Débito', 'Saldo', 'Importe', 'ID', 'Usuario'];
     var aoa = [headers];
     list.forEach(function (m) {
       var row = [
@@ -1485,18 +1502,18 @@
       if (usd) {
         row.push(excelNum(m.monto_usd), excelNum(m.tipo_cambio_mep), excelDate(m.tipo_cambio_fecha));
       }
-      row.push(idVisible(m));
+      row.push(idVisible(m), textoUsuario(m.updated_by, m.created_by));
       aoa.push(row);
     });
     var ws = global.XLSX.utils.aoa_to_sheet(aoa);
     ws['!cols'] = usd
       ? [
         { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 24 }, { wch: 22 }, { wch: 28 },
-        { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 16 }
+        { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 10 }
       ]
       : [
         { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 24 }, { wch: 22 }, { wch: 28 },
-        { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 16 }
+        { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 10 }
       ];
     var range = global.XLSX.utils.decode_range(ws['!ref']);
     var r;
@@ -1555,6 +1572,7 @@
         (usd ? '<td class="cf-col-monto">' + htmlMonto(m.monto_usd) + '</td>' +
           '<td class="cf-col-monto">' + esc(formatMonto(m.tipo_cambio_mep)) + '</td>' : '') +
         '<td>' + esc(idVisible(m)) + '</td>' +
+        '<td>' + htmlUsuario(m.updated_by, m.created_by) + '</td>' +
         '<td class="cf-col-acc">' +
           (canCargar && state.lista === 'bajas'
             ? btnIcon('baja', m.id, 'Confirmar baja', ICO.trash, 'cf-btn-danger')
@@ -1576,6 +1594,7 @@
         thSort('monto', usd ? 'Importe ARS' : 'Importe', 'cf-col-monto') +
         (usd ? thSort('monto_usd', 'USD orig.', 'cf-col-monto') + thSort('tipo_cambio_mep', 'TC MEP', 'cf-col-monto') : '') +
         thSort('id', 'ID') +
+        thSort('usuario', 'Usuario') +
         '<th class="cf-col-acc"></th>' +
       '</tr></thead><tbody>' + html + '</tbody></table></div>';
   }

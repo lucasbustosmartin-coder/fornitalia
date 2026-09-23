@@ -8,21 +8,111 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-  <script src="scripts/lib/fornitalia-help.js?v=2.42.1"></script>
+  <script src="scripts/lib/fornitalia-help.js?v=2.48"></script>
+  <script src="scripts/lib/fornitalia-usuario.js?v=2.48"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.48"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.42.1">
-  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.42.1"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.47">
-  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.47"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.47">
-  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.47"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.46">
-  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.46"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.42.1">
-  <script src="scripts/lib/fornitalia-impuestos.js?v=2.42.1"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.42.5">
-  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.42.5"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.48">
+  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.48"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.48">
+  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.48"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.48">
+  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.48"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.48">
+  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.48"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.48">
+  <script src="scripts/lib/fornitalia-impuestos.js?v=2.48"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.48">
+  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.48"></script>
   <style>
+    .lyp-user {
+      font-weight: 600;
+      color: #334155;
+      cursor: default;
+      white-space: nowrap;
+    }
+    #modal-release-backdrop { z-index: 200; }
+    #modal-release { max-width: min(96vw, 440px); width: 100%; }
+    #modal-release .modal-body { max-height: min(72vh, 32rem); overflow: auto; -webkit-overflow-scrolling: touch; }
+    .fornitalia-release-card {
+      text-align: left;
+      padding: 1rem 1.1rem 0.25rem;
+      border-radius: 14px;
+      background: linear-gradient(165deg, #f8fafc 0%, #f1f5f9 45%, #eef2ff 100%);
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    }
+    .fornitalia-release-hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.65rem;
+      margin-bottom: 0.85rem;
+    }
+    .fornitalia-release-logo {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+      border-radius: 18px;
+      background: #fff;
+      padding: 6px;
+      box-sizing: border-box;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(226, 232, 240, 0.9);
+    }
+    .fornitalia-release-version-badge {
+      display: inline-block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: #fff;
+      background: linear-gradient(135deg, #0d2137 0%, #134e6f 100%);
+      padding: 0.28rem 0.85rem;
+      border-radius: 999px;
+      box-shadow: 0 2px 8px rgba(13, 33, 55, 0.25);
+    }
+    .fornitalia-release-lead {
+      margin: 0 0 0.5rem;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: #334155;
+    }
+    .fornitalia-release-lead strong { color: #0f172a; }
+    .fornitalia-release-subtitulo {
+      margin: 0.85rem 0 0.4rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+    }
+    .fornitalia-release-list { list-style: none; margin: 0; padding: 0; }
+    .fornitalia-release-list li {
+      display: flex;
+      gap: 0.55rem;
+      align-items: flex-start;
+      margin: 0.5rem 0 0;
+      font-size: 0.94rem;
+      line-height: 1.45;
+      color: #1e293b;
+    }
+    .fornitalia-release-check {
+      flex-shrink: 0;
+      width: 1.35rem;
+      height: 1.35rem;
+      margin-top: 0.12rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(13, 125, 61, 0.12);
+      color: #0d7d3d;
+    }
+    .fornitalia-release-check svg { width: 0.78rem; height: 0.78rem; }
+    #modal-release .form-actions { margin-top: 1rem; display: flex; justify-content: flex-end; gap: 0.5rem; }
+    @media (max-width: 480px) {
+      .fornitalia-release-card { padding: 0.85rem 0.9rem 0.15rem; }
+      .fornitalia-release-logo { width: 68px; height: 68px; border-radius: 16px; }
+    }
     * { box-sizing: border-box; }
     body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f5f5f5; display: flex; flex-direction: column; min-height: 100vh; }
     .fornitalia-app-shell { display: none; flex: 1; min-height: 0; width: 100%; flex-direction: row; align-items: stretch; }
@@ -982,6 +1072,7 @@
               <th>Origen</th>
               <th>Id origen</th>
               <th>Id operación</th>
+              <th>Usuario</th>
               <th>Editado</th>
               <th>Editado detalle</th>
               <th></th>
@@ -1458,6 +1549,24 @@
     </div>
   </div>
 
+  <div id="modal-release-backdrop" class="modal-backdrop oculto" aria-hidden="true">
+    <div class="modal" id="modal-release" role="dialog" aria-modal="true" aria-labelledby="modal-release-titulo">
+      <div class="modal-header">
+        <h2 id="modal-release-titulo" class="vista-titulo">Nueva versión</h2>
+        <button type="button" class="modal-close" id="modal-release-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-release-cuerpo"></div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-primary" id="modal-release-ok">
+            <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="modal-ef-detalle-backdrop" class="modal-backdrop oculto">
     <div class="modal modal-evolucion-detalle-ancho" id="modal-ef-detalle">
       <div class="modal-header" id="modal-ef-detalle-header-drag">
@@ -1525,7 +1634,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.47';
+    const APP_VERSION = '2.48';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1624,6 +1733,136 @@
     function escapeHtmlSeg(s) {
       if (s == null) return '';
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    const FORNITALIA_RELEASE_ACK_KEY = 'fornitalia_release_notes_ack_v';
+    let fornitaliaReleaseAckPendiente = '';
+    let fornitaliaReleaseModalBound = false;
+
+    function fornitaliaReleaseAckStorageKey() {
+      const uid = currentUserId ? String(currentUserId) : '';
+      return uid ? (FORNITALIA_RELEASE_ACK_KEY + '_' + uid) : FORNITALIA_RELEASE_ACK_KEY;
+    }
+
+    function fornitaliaLeerReleaseAckVersion() {
+      try {
+        return String(localStorage.getItem(fornitaliaReleaseAckStorageKey()) || '').trim();
+      } catch (_) {
+        return '';
+      }
+    }
+
+    function fornitaliaMarcarReleaseAckVersion(versionLabel) {
+      const v = String(versionLabel || '').trim();
+      if (!v) return;
+      try {
+        localStorage.setItem(fornitaliaReleaseAckStorageKey(), v);
+      } catch (_) { /* noop */ }
+    }
+
+    function fornitaliaBlurbEmbebido() {
+      const b = (typeof window !== 'undefined' && window.FORNITALIA_RELEASE_BLURB) ? window.FORNITALIA_RELEASE_BLURB : null;
+      if (b && typeof b === 'object') return b;
+      return { versionLabel: 'v' + APP_VERSION, lines: [] };
+    }
+
+    function fornitaliaActualizarVersionEnPantalla(versionLabel) {
+      const v = String(versionLabel || '').trim();
+      if (!v) return;
+      const el = document.getElementById('sidebar-version');
+      if (el) {
+        el.textContent = v;
+        el.setAttribute('title', 'Versión desplegada (' + v + ')');
+      }
+    }
+
+    function fornitaliaNormalizarLineaRelease(line) {
+      return String(line || '').replace(/\*\*/g, '').trim();
+    }
+
+    async function fornitaliaFetchReleaseBlurb() {
+      try {
+        const r = await fetch('/fornitalia-release.json', { cache: 'no-store', credentials: 'same-origin' });
+        if (r.ok) {
+          const j = await r.json();
+          if (j && typeof j === 'object') {
+            fornitaliaActualizarVersionEnPantalla(j.versionLabel);
+            return j;
+          }
+        }
+      } catch (_) { /* file:// o sin red: usar el JS embebido */ }
+      const b = fornitaliaBlurbEmbebido();
+      fornitaliaActualizarVersionEnPantalla(b.versionLabel);
+      return b;
+    }
+
+    function fornitaliaReleaseHtmlDesdeBlurb(blurb) {
+      const b = blurb && typeof blurb === 'object' ? blurb : fornitaliaBlurbEmbebido();
+      const v = b && b.versionLabel != null ? String(b.versionLabel).trim() : '';
+      const lines = (b && Array.isArray(b.lines) ? b.lines : []).map(fornitaliaNormalizarLineaRelease).filter(Boolean);
+      const badge = v ? ('<span class="fornitalia-release-version-badge">' + escapeHtmlSeg(v) + '</span>') : '';
+      let listBlock = '';
+      if (lines.length) {
+        listBlock =
+          '<p class="fornitalia-release-subtitulo">Qué hay de nuevo</p><ul class="fornitalia-release-list" role="list">' +
+          lines.map(function (l) {
+            return '<li><span class="fornitalia-release-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span><span>' +
+              escapeHtmlSeg(l) +
+              '</span></li>';
+          }).join('') +
+          '</ul>';
+      }
+      return (
+        '<div class="fornitalia-release-card">' +
+        '<div class="fornitalia-release-hero">' +
+        '<img class="fornitalia-release-logo" src="favicon.svg" width="80" height="80" decoding="async" alt="Logo Fornitalia" />' +
+        badge +
+        '</div>' +
+        '<p class="fornitalia-release-lead">Actualizamos <strong>Fornitalia</strong>. Esto es lo nuevo en esta versión:</p>' +
+        listBlock +
+        '</div>'
+      );
+    }
+
+    function cerrarModalRelease() {
+      const backdrop = document.getElementById('modal-release-backdrop');
+      if (!backdrop) return;
+      backdrop.classList.add('oculto');
+      backdrop.setAttribute('aria-hidden', 'true');
+      if (fornitaliaReleaseAckPendiente) {
+        fornitaliaMarcarReleaseAckVersion(fornitaliaReleaseAckPendiente);
+        fornitaliaReleaseAckPendiente = '';
+      }
+    }
+
+    function bindModalReleaseOnce() {
+      if (fornitaliaReleaseModalBound) return;
+      const backdrop = document.getElementById('modal-release-backdrop');
+      const close = document.getElementById('modal-release-close');
+      const ok = document.getElementById('modal-release-ok');
+      if (!backdrop) return;
+      fornitaliaReleaseModalBound = true;
+      if (close) close.addEventListener('click', cerrarModalRelease);
+      if (ok) ok.addEventListener('click', cerrarModalRelease);
+      backdrop.addEventListener('click', function (e) {
+        if (e.target === backdrop) cerrarModalRelease();
+      });
+    }
+
+    async function quizasMostrarNovedadesVersionPostLogin() {
+      bindModalReleaseOnce();
+      const blurb = await fornitaliaFetchReleaseBlurb();
+      const v = blurb && blurb.versionLabel != null ? String(blurb.versionLabel).trim() : '';
+      const lines = (blurb && Array.isArray(blurb.lines) ? blurb.lines : []).map(fornitaliaNormalizarLineaRelease).filter(Boolean);
+      if (!v || !lines.length) return;
+      if (fornitaliaLeerReleaseAckVersion() === v) return;
+      const cuerpo = document.getElementById('modal-release-cuerpo');
+      const backdrop = document.getElementById('modal-release-backdrop');
+      if (!cuerpo || !backdrop) return;
+      fornitaliaReleaseAckPendiente = v;
+      cuerpo.innerHTML = fornitaliaReleaseHtmlDesdeBlurb(blurb);
+      backdrop.classList.remove('oculto');
+      backdrop.setAttribute('aria-hidden', 'false');
     }
 
     function userProfileLabelFromParts(nombre, email) {
@@ -2315,6 +2554,7 @@
       } else {
         applySecurityUI();
       }
+      void quizasMostrarNovedadesVersionPostLogin();
     }
 
     async function bootstrapFornitalia() {
@@ -2928,7 +3168,9 @@
         ef_subitem: rel.ef_subitem || '',
         editado: false,
         editado_detalle: '',
-        pendiente_baja: !!m.pendiente_baja
+        pendiente_baja: !!m.pendiente_baja,
+        created_by: m.created_by || null,
+        updated_by: m.updated_by || null
       };
     }
 
@@ -2936,12 +3178,12 @@
       const [cbRows, cfRows, matrizRes] = await Promise.all([
         fetchAllPaginated(
           'cb_movimiento',
-          'id,canal,origen,origen_id,fecha,tipo,descripcion,contraparte,monto,moneda,categoria,cuenta_contable,archivo,raw,pendiente_baja',
+          'id,canal,origen,origen_id,fecha,tipo,descripcion,contraparte,monto,moneda,categoria,cuenta_contable,archivo,raw,pendiente_baja,created_by,updated_by',
           (q) => q.eq('origen', 'sistema').eq('pendiente_baja', false)
         ),
         fetchAllPaginated(
           'cf_movimiento',
-          'id,canal,origen_id,fecha,tipo,descripcion,contraparte,monto,moneda,categoria,cuenta_contable,archivo,raw,pendiente_baja,monto_usd,tipo_cambio_mep',
+          'id,canal,origen_id,fecha,tipo,descripcion,contraparte,monto,moneda,categoria,cuenta_contable,archivo,raw,pendiente_baja,monto_usd,tipo_cambio_mep,created_by,updated_by',
           (q) => q.eq('pendiente_baja', false)
         ),
         client.from('matriz_cat_cuenta_ef').select('categoria,cuenta_contable,tipo_movimiento,ef_item,ef_subitem,costo_directo,costo_indirecto,vigente').eq('vigente', true)
@@ -5205,7 +5447,7 @@
         return;
       }
       const tipoDolar = document.getElementById('tipoDolar') && document.getElementById('tipoDolar').value ? document.getElementById('tipoDolar').value : 'mep';
-      const headers = ['id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'Tipo_Cambio', 'Monto_ARS', 'Monto_USD', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'nueva_categoria', 'nueva_cuenta_contable', 'costo_directo', 'costo_indirecto', 'ef_item', 'ef_subitem', 'editado', 'editado_detalle'];
+      const headers = ['id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'Tipo_Cambio', 'Monto_ARS', 'Monto_USD', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'nueva_categoria', 'nueva_cuenta_contable', 'costo_directo', 'costo_indirecto', 'ef_item', 'ef_subitem', 'usuario', 'editado', 'editado_detalle'];
       const rows = [['Exportado: Base histórica. Tipo_Cambio según selector de tipo de dólar (MEP/CCL/Oficial). Monto_ARS y Monto_USD son las conversiones aplicadas.'], headers];
       cacheTransacciones.forEach(r => {
         const montoOrig = (r.monto != null && r.monto !== '') ? Number(r.monto) : 0;
@@ -5242,12 +5484,13 @@
           (r.costo_indirecto || '').toString(),
           (r.ef_item || '').toString(),
           (r.ef_subitem || '').toString(),
+          (window.FornitaliaUsuario ? FornitaliaUsuario.textoDe(r.updated_by, r.created_by) : '') || '',
           r.editado === true ? 'Sí' : '',
           (r.editado_detalle || '').toString()
         ]);
       });
       const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }, { wch: 22 }, { wch: 22 }, { wch: 8 }, { wch: 8 }, { wch: 42 }, { wch: 48 }, { wch: 6 }, { wch: 32 }];
+      ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }, { wch: 22 }, { wch: 22 }, { wch: 8 }, { wch: 8 }, { wch: 42 }, { wch: 48 }, { wch: 10 }, { wch: 6 }, { wch: 32 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Transacciones');
       const hoy = new Date();
@@ -6027,7 +6270,7 @@
       if (!tbody || !selMes || !selCat || !selCuenta || !selTipo || !selCliente) return;
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       if (cacheTransacciones.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="25" style="text-align:center; color:#666;">No hay transacciones cargadas.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="26" style="text-align:center; color:#666;">No hay transacciones cargadas.</td></tr>';
         programarAjusteTablasScrollAncladas();
         return;
       }
@@ -6085,7 +6328,7 @@
       currentTodasTransaccionesList = list;
       const puedeEditar = puedeEditarRegistros();
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="25" style="text-align:center; color:#666;">No hay registros con los filtros seleccionados.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="26" style="text-align:center; color:#666;">No hay registros con los filtros seleccionados.</td></tr>';
         programarAjusteTablasScrollAncladas();
         return;
       }
@@ -6122,6 +6365,7 @@
             <td>${esc((r.origen_archivo || '').trim() || '')}</td>
             <td>${esc(r.id_origen != null ? r.id_origen : '')}</td>
             <td>${esc(r.id_operacion != null ? r.id_operacion : '')}</td>
+            <td>${window.FornitaliaUsuario ? FornitaliaUsuario.celdaDe(r.updated_by, r.created_by) : '—'}</td>
             <td>${r.editado ? 'Sí' : '—'}</td>
             <td>${esc((r.editado_detalle || '').toString().slice(0, 60))}</td>
             ${celdaAccion}
@@ -6417,6 +6661,9 @@
           sidebarToggle.setAttribute('aria-label', sidebar.classList.contains('expanded') ? 'Contraer menú' : 'Expandir menú');
         }
         document.getElementById('menu-home')?.classList.add('menu-item-active');
+        if (window.FornitaliaUsuario) {
+          try { await window.FornitaliaUsuario.cargar(client); } catch (e) { /* no cortar el init */ }
+        }
         if (window.FornitaliaGestionProyectos) {
           window.FornitaliaGestionProyectos.init({
             client,

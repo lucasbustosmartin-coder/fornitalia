@@ -1,5 +1,6 @@
 const XLSX = require('xlsx');
 const path = require('path');
+const fs = require('fs');
 let preservarFechasHistoricasLog;
 let preservarFechasHistoricasVersiones;
 try {
@@ -359,6 +360,9 @@ const datosLog = [
   ['23/09/2026', '00:20', 'Despliegue v2.46 producción', 'Push a main y Vercel --prod: Efectivo-s/f desde cualquier tesorería (Pendiente nuevo sí entra); Apertura no alimenta Saldos extractos; el histórico no pisa tesorería/cierre. sql/supabase_eb_borrar_saldos_historico_apertura.sql. APP_VERSION 2.46.', 'Despliegue'],
   ['23/09/2026', '00:40', 'Saldos extractos: Credicoop', 'Solapa Credicoop y columna en el consolidado. Sin extractos históricos: el corte se arma con tesorería (Conciliación, sin Apertura). Se siembran 3 cortes desde los 4 movimientos ya cargados (saldo 500.000 al 25/08/2026). sql/supabase_eb_saldo_credicoop.sql.', 'Implementacion'],
   ['23/09/2026', '00:50', 'Despliegue v2.47 producción', 'Push a main y Vercel --prod: Credicoop en Saldos extractos (solapa, consolidado, gráfico y Excel); corte desde tesorería sin extractos históricos ni Apertura. sql/supabase_eb_saldo_credicoop.sql. APP_VERSION 2.47.', 'Despliegue'],
+  ['23/09/2026', '12:15', 'Columna Usuario en tablas operativas', 'Se muestra quién cargó o confirmó: nombre para mostrar (LB) y al pasar el mouse el email. Persistencia created_by / updated_by / confirmado_by / descartado_by / eliminado_by / no_requiere_by. Histórico nulo atribuido a lucas.bustos.martin@gmail.com. RPC get_usuarios_mostrar. sql/supabase_usuarios_mostrar.sql.', 'Implementacion'],
+  ['23/09/2026', '12:25', 'Modal Nueva versión en cada despliegue', 'Como en Pandi: al iniciar sesión, si hay novedades de la versión que el usuario aún no confirmó, se muestra el modal «Nueva versión» (logo, badge y lista). El agente redacta 2–4 frases visibles en scripts/lib/fornitalia-release-blurb.js; crear-bitacora-excel.js genera fornitalia-release.json. localStorage por usuario. Sin RPC de ack.', 'Implementacion'],
+  ['23/09/2026', '12:35', 'Despliegue v2.48 producción', 'Push a main y Vercel --prod: columna Usuario en tablas (nombre; tooltip email) y modal «Nueva versión» al iniciar sesión. sql/supabase_usuarios_mostrar.sql. APP_VERSION 2.48.', 'Despliegue'],
 ];
 const datosLogParaExcel = preservarFechasHistoricasLog(projectRoot, outPath, datosLog);
 const wsLog = XLSX.utils.aoa_to_sheet(datosLogParaExcel);
@@ -394,14 +398,14 @@ const funcionalidades = [
   ['Sin cotización', 'Pestaña con transacciones que no tienen tipo de cambio (excluidas del resumen).'],
   ['Exclusiones (flujo operativo)', 'No se incluyen en G/P operativo ni Evolución: apertura/cierre (categoría o heurística en fila); Transferencia ni Deposito/Depósito; meses desmarcados en Configuración → Inclusión por mes (meses_excluidos en Supabase/localStorage). Status Pendiente sí entra al Flujo. Base histórica y Todas las transacciones siguen completas.'],
   ['Datos', 'Tesorería (Conciliación Bancaria + Cajas físicas) y tipo de cambio desde Supabase (carga paginada). La relación categoría/cuenta/tipo → EF vive en matriz_cat_cuenta_ef. Cotización faltante: se usa la fecha anterior disponible.'],
-  ['Tablas y scroll', 'Encabezados de columna anclados (sticky) al desplazarse. Flujo por mes: scroll vertical de la página (sin caja con max-height) para llegar bien al pie de la tabla; scroll horizontal en el wrap si hace falta. Otras solapas listas anchas con scroll horizontal.'],
+  ['Tablas y scroll', 'Encabezados de columna anclados (sticky) al desplazarse. Flujo por mes: scroll vertical de la página (sin caja con max-height) para llegar bien al pie de la tabla; scroll horizontal en el wrap si hace falta. Otras solapas listas anchas con scroll horizontal. Columna Usuario (nombre para mostrar; tooltip con email) en Conciliación, Cajas, Saldos por canal, Impuestos, Matriz EF y Todas las transacciones.'],
   ['Menú lateral', 'Sidebar izquierdo colapsable/expandible; botón toggle (▶/◀); Home, Gestión de Proyectos, Reportes, Novedades, Configuración, Seguridad (solo admin con permiso), Mi perfil, Cerrar sesión; estado expandido en localStorage.'],
   ['Seguridad y roles', 'Login con email/contraseña, registro o invitado anónimo (visor). Permisos granulares desde Supabase: ver_solapa_* (cada solapa del dashboard), ver_novedades/configuracion/reportes/gestion_proyectos, crear/editar/eliminar_proyecto, exportar_base_historica, editar_registros, assign_roles. Visor por defecto: Flujo por mes + exportar/reportes; un admin puede activar solapas y menús sueltos en Seguridad. Encargado/Admin: pack operador + Gestión de Proyectos. dashboard_operador se conserva como compatibilidad legacy. Sin SQL de seguridad, modo acceso completo. Tabla Usuarios: email, nombre para mostrar (iniciales) y rol; Mi perfil para el propio usuario.'],
   ['Registro y contraseña', 'Si Supabase rechaza la contraseña (débil o en listas de filtrados), el mensaje se muestra en español en pantalla; ayuda bajo el campo y mínimo 8 caracteres en el formulario.'],
   ['Repositorio Git (GitHub)', 'Repo: https://github.com/lucasbustosmartin-coder/fornitalia. Rama main. .gitignore excluye node_modules, .venv, .env. Para actualizar: git add . ; git commit -m "mensaje" ; git push origin main.'],
   ['App en producción (Vercel)', 'URL pública: https://fornitalia.vercel.app/ (vercel.json reescribe / al dashboard). Cada push a main en GitHub dispara redeploy automático en Vercel. Proyecto: fornitalia, equipo Lucas Bustos, plan Hobby.'],
   ['Exportar a Excel', 'Botón en la barra de la tabla (solo icono). Exporta la tabla de transacciones tal como está en Supabase: una hoja "Transacciones" con columnas fecha, mes, anio, tipo_movimiento, monto (valor numérico para fórmulas), status, medio_pago, moneda, descripcion, cliente, categoria, cat_desc, origen_archivo, cuenta_contable, editado, editado_detalle.'],
-  ['Flujo de despliegue', 'Al terminar cada tarea: el usuario prueba en local y confirma; recién entonces el asistente hace git add, commit y push (Vercel redepliega automático). No se despliega hasta confirmación.'],
+  ['Flujo de despliegue', 'Al terminar cada tarea: el usuario prueba en local y confirma; recién entonces el asistente hace git add, commit y push (Vercel redepliega automático). No se despliega hasta confirmación. En cada despliegue el agente redacta el modal «Nueva versión» (scripts/lib/fornitalia-release-blurb.js → fornitalia-release.json).'],
   ['Versiones en bitácora', 'Hoja "Versiones" en Bitacora_tareas.xlsx: registro incremental (1.0, 1.1, …) con fecha y descripción de cada despliegue a Git/Vercel.'],
   ['Campo moneda (BD)', 'Columna moneda en tabla transacciones (ARS/USD). Si está informada, el dashboard la usa salvo reglas de negocio: Mercado Pago y Transferencia Morba siempre ARS para conversión (también morva por typo). Si moneda vacía, infiere desde textos/medio (dólar → USD). Export a Excel incluye moneda.'],
   ['Edición desde modal Errores', 'Retirado: la solapa Errores y su modal de detalle ya no están en el Flujo. La edición de registros sigue en Todas las transacciones.'],
@@ -441,6 +445,8 @@ const funcionalidades = [
   ['Log de excluidos en upload', 'Retirado: la solapa Excluidos upload y su permiso ya no están en el dashboard. La tabla de auditoría en Supabase se conserva.'],
   ['Matriz EF', 'Menú lateral (permiso ver_matriz_ef). ABM de relaciones categoría + cuenta contable + tipo Ingreso/Egreso → ítem y subítem del Estado Financiero, y ABM del árbol ef_estructura (solapa Estructura EF: secciones, subítems y totales). Validaciones: no borrar 1–6, A–D, 6.1–6.3 ni subítems con relaciones/ratios; códigos únicos; rename en cascada a matriz. Nombres = tesorería. Encabezados ordenan la grilla. Sin relación lista pares del Flujo sin fila. Permiso editar_matriz_ef. Componente: scripts/lib/fornitalia-matriz-ef.js + .css. SQL: sql/supabase_cb_credicoop_cajas_sf_matriz_ef.sql y sql/supabase_ef_estructura_abm.sql.'],
   ['Análisis financiero extracto (PDF)', 'npm run analisis-financiero-pdf: métricas desde Fornitalia_Movimientos.xlsx (fallback Extracto legado); ARS vía MontoCambio/Monto en $, TC por fila o MEP; exclusiones y USD sin conversión. Sección ventas: ranking por vendedor desde Resumen_Operaciones (Tabla, Vendedor_RO) por N° operación; ranking proxy por producto (detalle hasta mes cierre feb 2026). Ver docs/ANALISIS_FINANCIERO_EXTRACTO_README.md.'],
+  ['Usuario en tablas', 'Quién cargó, confirmó, descartó o eliminó: se ve el nombre para mostrar (ej. LB) y al pasar el mouse el email. Lo histórico de tesorería, saldos, impuestos y matriz queda a nombre de LB (lucas.bustos.martin@gmail.com). El consolidado de Saldos extractos no tiene actor por fila. rpc get_usuarios_mostrar. sql/supabase_usuarios_mostrar.sql.'],
+  ['Novedades al iniciar sesión', 'Tras cada despliegue, al entrar a la app se muestra el modal «Nueva versión» con 2–4 frases de lo que se nota al recargar (logo, badge de versión, lista). Una vez Entendido, no vuelve a aparecer hasta la siguiente versión. El texto lo actualiza el agente en scripts/lib/fornitalia-release-blurb.js; fornitalia-release.json se sirve por red.'],
 ];
 
 const wsResumen = XLSX.utils.aoa_to_sheet(funcionalidades);
@@ -555,6 +561,7 @@ const versiones = [
   ['2.45', '22/09/2026', 'Despliegue v2.45: tesorería no carga Status Anulado (se eliminaron 20 ya cargados, incl. Id 2102; si el Id existía se borra); popup de resultado de carga en Cajas físicas. sql/supabase_tesoreria_omitir_anulado.sql. Producción Vercel.'],
   ['2.46', '23/09/2026', 'Despliegue v2.46: Efectivo-s/f ARS/USD desde cualquier tesorería (Pendiente nuevo sí se da de alta); Apertura de Caja no entra al corte de Saldos extractos; el histórico no pisa tesorería/cierre (se borraron los 3 cortes inflados de sep-2026). sql/supabase_eb_borrar_saldos_historico_apertura.sql. Producción Vercel.'],
   ['2.47', '23/09/2026', 'Despliegue v2.47: Credicoop en Saldos extractos (solapa, consolidado, gráfico y Excel). Sin extractos históricos: el corte se arma con tesorería de Conciliación (sin Apertura); se siembran 3 cortes (saldo 500.000 al 25/08/2026). sql/supabase_eb_saldo_credicoop.sql. Producción Vercel.'],
+  ['2.48', '23/09/2026', 'Despliegue v2.48: columna Usuario en tablas operativas (nombre para mostrar; al pasar el mouse, el email) y modal «Nueva versión» al iniciar sesión con las novedades de cada despliegue. sql/supabase_usuarios_mostrar.sql. Producción Vercel.'],
 ];
 const versionesParaExcel = preservarFechasHistoricasVersiones(projectRoot, outPath, versiones);
 const wsVersiones = XLSX.utils.aoa_to_sheet(versionesParaExcel);
@@ -603,6 +610,7 @@ const presupuestoRaw = [
   ['Cajas (físicas)', 'Menú de cajas no conciliables. Efectivo-f (ARS) (efectivo pesos), Morba-s/f (ARS) (Transferencia Morba), Efectivo-f (USD) (efectivo dólar pesificado al MEP) y Efectivo-s/f ARS/USD (Caja = Efectivo Pesos (sin factura) / Efectivo Dolar (sin factura), en cualquier tesorería, cierre o histórico) con tesorería abierta, cierre de caja e histórico por Id, sin extracto ni match. Si el Id ya existe se actualizan categoría y cuenta aunque el Excel traiga Pendiente. Tras cada carga se abre el popup de resultado (nuevos, actualizados, sin cambios, omitidos). Apertura de Caja no entra al corte. El histórico no pisa el saldo de tesorería o cierre. El saldo de corte alimenta Saldos extractos. Excel y permisos en Seguridad.', 18],
   ['Impuestos', 'Menú Impuestos (Mercado Pago): combo de percepción CIBBPP (IIBB Reg. General Buenos Aires), CIBCPP (IIBB Rég. General CABA) y CIVAPP (Percepción IVA), cruce por Número de movimiento con el extracto MP (en extracto / conciliado) y conciliación manual de no conciliadas con un movimiento de tesorería MP (queda en Confirmados). Excel y permisos en Seguridad.', 10],
   ['Matriz EF y Flujo desde tesorería', 'El Flujo de caja pasa a alimentarse con tesorería (conciliación + cajas físicas) y la matriz categoría/cuenta/tipo → Estado Financiero (tabla base + ABM de relaciones y de la estructura de ítems/subítems). Incluye Status Pendiente. Se retira la columna Caución del Flujo.', 24],
+  ['Aviso de nueva versión', 'Modal «Nueva versión» al iniciar sesión después de cada despliegue, con las novedades visibles de esa versión (mismo criterio que Pandi).', 2],
 ];
 // HH: se conserva el del Excel si existe; si no, el del script. Importe (USD): se conserva el del Excel; si no hay, queda vacío para que lo complete el usuario.
 const presupuestoRows = presupuestoRaw.slice(1).map(row => {
@@ -619,7 +627,7 @@ wsPresupuesto['!cols'] = [{ wch: 32 }, { wch: 90 }, { wch: 14 }, { wch: 22 }];
 // --- Hoja Tecnología e infraestructura
 const tecnologia = [
   ['Componente', 'Detalle'],
-  ['Frontend', 'Página dashboard-flujo-caja.html (HTML/CSS/JS). Gestión de Proyectos, Conciliación Bancaria, Cajas (físicas), Saldos extractos, Impuestos y Matriz EF en componentes aparte (scripts/lib/fornitalia-gestion-proyectos.*, fornitalia-conciliacion-bancaria.*, fornitalia-cajas-fisicas.*, fornitalia-saldos-extractos.*, fornitalia-impuestos.* y fornitalia-matriz-ef.*). Ayuda de menús en scripts/lib/fornitalia-help.js. Sin framework; llamadas a Supabase desde el cliente. PDFs Galicia ARS/USD con pdf.js en el navegador.'],
+  ['Frontend', 'Página dashboard-flujo-caja.html (HTML/CSS/JS). Gestión de Proyectos, Conciliación Bancaria, Cajas (físicas), Saldos extractos, Impuestos y Matriz EF en componentes aparte (scripts/lib/fornitalia-gestion-proyectos.*, fornitalia-conciliacion-bancaria.*, fornitalia-cajas-fisicas.*, fornitalia-saldos-extractos.*, fornitalia-impuestos.* y fornitalia-matriz-ef.*). Ayuda de menús en scripts/lib/fornitalia-help.js. Novedades de cada versión: scripts/lib/fornitalia-release-blurb.js → fornitalia-release.json. Sin framework; llamadas a Supabase desde el cliente. PDFs Galicia ARS/USD con pdf.js en el navegador.'],
   ['Datos', 'Supabase (PostgreSQL). Tablas: transacciones (respaldo), tipo_de_cambio, config_dashboard, gp_proyecto, gp_entregable, gp_entregable_hora, gp_tarea, gp_tarea_hora, gp_proyecto_hora, gp_dependencia, cb_movimiento, cb_match, cf_movimiento, eb_saldo_extracto, imp_percepcion_mp, matriz_cat_cuenta_ef. Scripts SQL en carpeta sql/ se ejecutan en Supabase SQL Editor.'],
   ['Hosting', 'Vercel. App en producción: fornitalia.vercel.app. Despliegue con vercel --prod tras push a main.'],
   ['Repositorio', 'Git/GitHub, rama main.'],
@@ -639,6 +647,19 @@ XLSX.utils.book_append_sheet(wb, wsTecnologia, 'Tecnología');
 
 XLSX.writeFile(wb, outPath);
 console.log('Creado:', outPath);
+
+try {
+  const releaseBlurb = require('./lib/fornitalia-release-blurb.js');
+  const releasePath = path.join(projectRoot, 'fornitalia-release.json');
+  const payload = {
+    versionLabel: String((releaseBlurb && releaseBlurb.versionLabel) || '').trim(),
+    lines: Array.isArray(releaseBlurb && releaseBlurb.lines) ? releaseBlurb.lines : [],
+  };
+  fs.writeFileSync(releasePath, JSON.stringify(payload, null, 2) + '\n', 'utf8');
+  console.log('Creado:', releasePath);
+} catch (e) {
+  console.warn('No se pudo escribir fornitalia-release.json:', e && e.message ? e.message : e);
+}
 
 const { execSync } = require('child_process');
 try {

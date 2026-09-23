@@ -11,6 +11,7 @@ alwaysApply: true
 - **Backend:** Supabase (PostgreSQL). Tablas: `transacciones`, `tipo_de_cambio`, `config_dashboard`. Scripts SQL en `sql/`.
 - **Moneda (reglas de negocio):** todo movimiento **Mercado Pago** y todo medio tipo **Transferencia Morba** (texto real en extracto; con **b**) se considera **ARS** en la inferencia del normalizado, upload y `esTransaccionUSD` (prevalece sobre el campo `moneda` o menciones de dólar). En código también se reconoce “morva” por si aparece un typo.
 - **Estructura del repo:** `sql/`, `scripts/`, `docs/`. Ver regla **estructura-proyecto**. Bitácora y despliegue: regla **bitacora-tareas**.
+- **Novedades al recargar:** en cada “ok desplegar”, el **agente** (no el usuario) actualiza `scripts/lib/fornitalia-release-blurb.js` (`versionLabel` + `lines` 2–4 visibles) y regenera `fornitalia-release.json`. El modal **«Nueva versión»** aparece al iniciar sesión si esa versión aún no se confirmó. Ver **bitacora-tareas**.
 - **Main vs publicado (no omitir):** antes de editar, `git fetch origin` y alinear `main` local con `origin/main` / Vercel. Ver regla **sync-main-publicado**.
 
 ## Fechas de negocio (regla estricta — no omitir)

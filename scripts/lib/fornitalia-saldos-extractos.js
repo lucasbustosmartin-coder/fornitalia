@@ -71,6 +71,21 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  function htmlUsuario() {
+    if (!global.FornitaliaUsuario) return '<span class="lyp-user">—</span>';
+    return FornitaliaUsuario.celdaDe.apply(FornitaliaUsuario, arguments);
+  }
+
+  function textoUsuario() {
+    if (!global.FornitaliaUsuario) return '';
+    return FornitaliaUsuario.textoDe.apply(FornitaliaUsuario, arguments) || '';
+  }
+
+  async function cargarUsuarios() {
+    if (!global.FornitaliaUsuario || !client()) return;
+    try { await FornitaliaUsuario.cargar(client()); } catch (e) { /* no cortar la vista */ }
+  }
+
   function errMsg(e) {
     if (!e) return 'Error desconocido.';
     return e.message || e.error_description || String(e);
@@ -838,6 +853,7 @@
     state.loading = true;
     renderShell();
     try {
+      await cargarUsuarios();
       await cargarDatos();
       state.err = '';
     } catch (e) {
@@ -1312,7 +1328,7 @@
         return;
       }
       aoa = [['Saldos extractos — Mercado Pago']].concat(meta);
-      aoa.push(['Fecha', 'Saldo total', 'Saldo disponible', 'Saldo a liberar', 'Saldo anterior', 'Variación', 'CUST_ID', 'Archivo']);
+      aoa.push(['Fecha', 'Saldo total', 'Saldo disponible', 'Saldo a liberar', 'Saldo anterior', 'Variación', 'CUST_ID', 'Archivo', 'Usuario']);
       dateCols = [0];
       numCols = [1, 2, 3, 4, 5];
       cols = [{ wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 40 }];
@@ -1325,7 +1341,8 @@
           excelNum(saldoInicialMostrar(r)),
           excelNum(variacionFila(r)),
           r.nro_cuenta || '',
-          r.archivo || ''
+          r.archivo || '',
+          textoUsuario(r.updated_by, r.created_by)
         ]);
       });
       sheetName = 'Saldos MP';
@@ -1337,7 +1354,7 @@
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_GAL]].concat(meta);
-      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Cuenta', 'CBU', 'Documento', 'Archivo']);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Cuenta', 'CBU', 'Documento', 'Archivo', 'Usuario']);
       dateCols = [0, 1, 2];
       numCols = [3, 4, 5];
       cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 24 }, { wch: 22 }, { wch: 40 }];
@@ -1352,7 +1369,8 @@
           r.nro_cuenta || '',
           r.cbu || '',
           r.documento_id || '',
-          r.archivo || ''
+          r.archivo || '',
+          textoUsuario(r.updated_by, r.created_by)
         ]);
       });
       sheetName = 'Saldos Galicia ARS';
@@ -1364,7 +1382,7 @@
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_GAL_USD + ' (ARS, MEP)']].concat(meta);
-      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial ARS', 'Saldo final ARS', 'USD orig.', 'TC MEP', 'Fecha TC', 'Cuenta', 'Archivo']);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial ARS', 'Saldo final ARS', 'USD orig.', 'TC MEP', 'Fecha TC', 'Cuenta', 'Archivo', 'Usuario']);
       dateCols = [0, 1, 2, 7];
       numCols = [3, 4, 5, 6];
       cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 40 }];
@@ -1380,7 +1398,8 @@
           excelNum(raw.tipo_cambio_mep),
           excelDate(raw.tipo_cambio_fecha),
           r.nro_cuenta || '',
-          r.archivo || ''
+          r.archivo || '',
+          textoUsuario(r.updated_by, r.created_by)
         ]);
       });
       sheetName = 'Galicia USD';
@@ -1392,7 +1411,7 @@
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_CRED + ' (desde tesorería)']].concat(meta);
-      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Archivo']);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Archivo', 'Usuario']);
       dateCols = [0, 1, 2];
       numCols = [3, 4, 5];
       cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 40 }];
@@ -1404,7 +1423,8 @@
           excelNum(saldoInicialMostrar(r)),
           excelNum(r.saldo_final),
           excelNum(variacionFila(r)),
-          r.archivo || ''
+          r.archivo || '',
+          textoUsuario(r.updated_by, r.created_by)
         ]);
       });
       sheetName = 'Credicoop';
@@ -1416,7 +1436,7 @@
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_GF]].concat(meta);
-      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Archivo']);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Archivo', 'Usuario']);
       dateCols = [0, 1, 2];
       numCols = [3, 4, 5];
       cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 40 }];
@@ -1428,7 +1448,8 @@
           excelNum(saldoInicialMostrar(r)),
           excelNum(r.saldo_final),
           excelNum(variacionFila(r)),
-          r.archivo || ''
+          r.archivo || '',
+          textoUsuario(r.updated_by, r.created_by)
         ]);
       });
       sheetName = LABEL_GF;
@@ -1440,7 +1461,7 @@
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_MOR]].concat(meta);
-      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Archivo']);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Archivo', 'Usuario']);
       dateCols = [0, 1, 2];
       numCols = [3, 4, 5];
       cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 40 }];
@@ -1452,7 +1473,8 @@
           excelNum(saldoInicialMostrar(r)),
           excelNum(r.saldo_final),
           excelNum(variacionFila(r)),
-          r.archivo || ''
+          r.archivo || '',
+          textoUsuario(r.updated_by, r.created_by)
         ]);
       });
       sheetName = 'Morba-sf (ARS)';
@@ -1464,7 +1486,7 @@
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_USD + ' (ARS, MEP)']].concat(meta);
-      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial ARS', 'Saldo final ARS', 'Variación', 'Archivo']);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial ARS', 'Saldo final ARS', 'Variación', 'Archivo', 'Usuario']);
       dateCols = [0, 1, 2];
       numCols = [3, 4, 5];
       cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 40 }];
@@ -1476,7 +1498,8 @@
           excelNum(saldoInicialMostrar(r)),
           excelNum(r.saldo_final),
           excelNum(variacionFila(r)),
-          r.archivo || ''
+          r.archivo || '',
+          textoUsuario(r.updated_by, r.created_by)
         ]);
       });
       sheetName = 'Efectivo-f USD';
@@ -1488,7 +1511,7 @@
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_SF]].concat(meta);
-      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Archivo']);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Archivo', 'Usuario']);
       dateCols = [0, 1, 2];
       numCols = [3, 4, 5];
       cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 40 }];
@@ -1500,7 +1523,8 @@
           excelNum(saldoInicialMostrar(r)),
           excelNum(r.saldo_final),
           excelNum(variacionFila(r)),
-          r.archivo || ''
+          r.archivo || '',
+          textoUsuario(r.updated_by, r.created_by)
         ]);
       });
       sheetName = LABEL_SF;
@@ -1512,7 +1536,7 @@
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_SF_USD + ' (ARS, MEP)']].concat(meta);
-      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial ARS', 'Saldo final ARS', 'Variación', 'Archivo']);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial ARS', 'Saldo final ARS', 'Variación', 'Archivo', 'Usuario']);
       dateCols = [0, 1, 2];
       numCols = [3, 4, 5];
       cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 40 }];
@@ -1524,7 +1548,8 @@
           excelNum(saldoInicialMostrar(r)),
           excelNum(r.saldo_final),
           excelNum(variacionFila(r)),
-          r.archivo || ''
+          r.archivo || '',
+          textoUsuario(r.updated_by, r.created_by)
         ]);
       });
       sheetName = 'Efectivo-sf USD';
@@ -1587,13 +1612,14 @@
         '<td class="se-col-monto">' + htmlMonto(variacionFila(r), 'var') + '</td>' +
         '<td>' + esc(r.nro_cuenta || '—') + '</td>' +
         '<td>' + esc(r.archivo || '—') + '</td>' +
+        '<td>' + htmlUsuario(r.updated_by, r.created_by) + '</td>' +
       '</tr>';
     });
     return '<div class="se-tabla-wrap"><table class="se-tabla">' +
       '<thead><tr>' +
         '<th>Cierre</th><th>Desde</th><th>Hasta</th>' +
         '<th class="se-col-monto">Saldo inicial</th><th class="se-col-monto">Saldo final</th>' +
-        '<th class="se-col-monto">Variación</th><th>Cuenta</th><th>Archivo</th>' +
+        '<th class="se-col-monto">Variación</th><th>Cuenta</th><th>Archivo</th><th>Usuario</th>' +
       '</tr></thead><tbody>' + html + '</tbody></table></div>';
   }
 
@@ -1615,6 +1641,7 @@
         '<td class="se-col-monto">' + htmlMonto(variacionFila(r), 'var') + '</td>' +
         '<td>' + esc(r.nro_cuenta || '—') + '</td>' +
         '<td>' + esc(r.archivo || '—') + '</td>' +
+        '<td>' + htmlUsuario(r.updated_by, r.created_by) + '</td>' +
       '</tr>';
     });
     return '<div class="se-tabla-wrap"><table class="se-tabla se-tabla-mp">' +
@@ -1625,7 +1652,7 @@
         '<th class="se-col-monto">A liberar</th>' +
         '<th class="se-col-monto">Saldo anterior</th>' +
         '<th class="se-col-monto">Variación</th>' +
-        '<th>CUST_ID</th><th>Archivo</th>' +
+        '<th>CUST_ID</th><th>Archivo</th><th>Usuario</th>' +
       '</tr></thead><tbody>' + html + '</tbody></table></div>';
   }
 
@@ -1650,6 +1677,7 @@
         '<td>' + formatFecha(raw.tipo_cambio_fecha) + '</td>' +
         '<td>' + esc(r.nro_cuenta || '—') + '</td>' +
         '<td>' + esc(r.archivo || '—') + '</td>' +
+        '<td>' + htmlUsuario(r.updated_by, r.created_by) + '</td>' +
       '</tr>';
     });
     return '<div class="se-tabla-wrap"><table class="se-tabla se-tabla-gal-usd">' +
@@ -1657,7 +1685,7 @@
         '<th>Cierre</th><th>Desde</th><th>Hasta</th>' +
         '<th class="se-col-monto">Saldo inicial ARS</th><th class="se-col-monto">Saldo final ARS</th>' +
         '<th class="se-col-monto">USD orig.</th><th class="se-col-monto">TC MEP</th><th>Fecha TC</th>' +
-        '<th>Cuenta</th><th>Archivo</th>' +
+        '<th>Cuenta</th><th>Archivo</th><th>Usuario</th>' +
       '</tr></thead><tbody>' + html + '</tbody></table></div>';
   }
 
@@ -1679,13 +1707,14 @@
         '<td class="se-col-monto">' + htmlMonto(r.saldo_final) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(variacionFila(r), 'var') + '</td>' +
         '<td>' + esc(r.archivo || '—') + '</td>' +
+        '<td>' + htmlUsuario(r.updated_by, r.created_by) + '</td>' +
       '</tr>';
     });
     return '<div class="se-tabla-wrap"><table class="se-tabla">' +
       '<thead><tr>' +
         '<th>Cierre</th><th>Desde</th><th>Hasta</th>' +
         '<th class="se-col-monto">Saldo inicial</th><th class="se-col-monto">Saldo final</th>' +
-        '<th class="se-col-monto">Variación</th><th>Archivo</th>' +
+        '<th class="se-col-monto">Variación</th><th>Archivo</th><th>Usuario</th>' +
       '</tr></thead><tbody>' + html + '</tbody></table></div>';
   }
 
