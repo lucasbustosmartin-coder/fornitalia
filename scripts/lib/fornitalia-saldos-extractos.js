@@ -1,7 +1,7 @@
 /**
  * Saldos de extractos – Fornitalia
  * Galicia ARS (resumen PDF), Galicia USD (PDF Extracto_Cuentas_Galicia_… o Excel Extracto_CCE, pesificado al MEP),
- * Mercado Pago (Carta de saldo MP_Saldos_…)
+ * Mercado Pago (Carta de saldo MP_Saldos_…), Credicoop (corte desde tesorería; no hay extractos históricos)
  * y cajas físicas Efectivo-f (ARS) / Morba-s/f (ARS) / Efectivo-f (USD) / Efectivo-s/f (ARS) / Efectivo-s/f (USD).
  * window.FornitaliaSaldosExtractos.init({ client, hasPerm, getRoot })
  */
@@ -24,6 +24,8 @@
   var CANAL_GAL_USD = 'galicia_usd';
   var LABEL_GAL = 'Galicia (ARS)';
   var LABEL_GAL_USD = 'Galicia (USD)';
+  var CANAL_CRED = 'credicoop';
+  var LABEL_CRED = 'Credicoop';
   var CANAL_CONS = 'consolidado';
   var PERM_VER = 'ver_saldos_extractos';
   var PERM_CARGAR = 'cargar_saldos_extractos';
@@ -213,6 +215,62 @@
   async function guardarCorteGaliciaUsd(filas, archivo) {
     await ensureTipoCambio();
     var snap = snapshotGaliciaUsd(filas, archivo);
+    if (!snap) return null;
+    var res = await client().rpc('eb_guardar_saldos', { p_filas: [snap] });
+    if (res.error) throw res.error;
+    try { await cargarDatos(); } catch (e) { /* ignore */ }
+    return snap;
+  }
+
+  function snapshotCredicoop(filas, archivo) {
+    var orden = (filas || []).filter(function (f) { return f && f.fecha; }).slice().sort(function (a, b) {
+      var c = String(a.fecha).localeCompare(String(b.fecha));
+      if (c) return c;
+      return String(a.origen_id || '').localeCompare(String(b.origen_id || ''));
+    });
+    if (!orden.length) return null;
+    var ini = null;
+    var fin = null;
+    var i;
+    for (i = orden.length - 1; i >= 0; i--) {
+      if (orden[i].saldo != null && isFinite(Number(orden[i].saldo))) {
+        fin = Number(orden[i].saldo);
+        break;
+      }
+    }
+    for (i = 0; i < orden.length; i++) {
+      if (orden[i].saldo != null && isFinite(Number(orden[i].saldo))) {
+        ini = Number(orden[i].saldo);
+        break;
+      }
+    }
+    if (fin == null) {
+      var run = 0;
+      for (i = 0; i < orden.length; i++) {
+        if (orden[i].credito != null) run += Number(orden[i].credito) || 0;
+        if (orden[i].debito != null) run -= Math.abs(Number(orden[i].debito) || 0);
+      }
+      fin = round2(run);
+      if (ini == null) ini = 0;
+    }
+    var fechas = orden.map(function (f) { return String(f.fecha).slice(0, 10); }).sort();
+    return {
+      canal: CANAL_CRED,
+      moneda: 'ARS',
+      nro_cuenta: CANAL_CRED,
+      tipo_cuenta: LABEL_CRED,
+      fecha_desde: fechas[0],
+      fecha_hasta: fechas[fechas.length - 1],
+      saldo_inicial: round2(ini),
+      saldo_final: round2(fin),
+      documento_id: String(archivo || '').replace(/\.[^.]+$/, '') || CANAL_CRED,
+      archivo: archivo || null,
+      raw: { formato: 'tesoreria', sin_apertura: true, movimientos: orden.length }
+    };
+  }
+
+  async function guardarCorteCredicoop(filas, archivo) {
+    var snap = snapshotCredicoop(filas, archivo);
     if (!snap) return null;
     var res = await client().rpc('eb_guardar_saldos', { p_filas: [snap] });
     if (res.error) throw res.error;
@@ -669,6 +727,7 @@
       var g = ultimoSaldoHasta(CANAL_GAL, ym);
       var gUsdRow = ultimoSaldoHasta(CANAL_GAL_USD, ym);
       var m = ultimoSaldoHasta(CANAL_MP, ym);
+      var credRow = ultimoSaldoHasta(CANAL_CRED, ym);
       var gfRow = ultimoSaldoHasta(CANAL_GF, ym);
       var morRow = ultimoSaldoHasta(CANAL_MOR, ym);
       var usdRow = ultimoSaldoHasta(CANAL_USD, ym);
@@ -677,6 +736,7 @@
       var gal = g && mesYYYYMM(g.fecha_hasta) <= ym ? Number(g.saldo_final) : null;
       var galUsd = gUsdRow && mesYYYYMM(gUsdRow.fecha_hasta) <= ym ? Number(gUsdRow.saldo_final) : null;
       var mp = m && mesYYYYMM(m.fecha_hasta) <= ym ? Number(m.saldo_final) : null;
+      var cred = credRow && mesYYYYMM(credRow.fecha_hasta) <= ym ? Number(credRow.saldo_final) : null;
       var gf = gfRow && mesYYYYMM(gfRow.fecha_hasta) <= ym ? Number(gfRow.saldo_final) : null;
       var mor = morRow && mesYYYYMM(morRow.fecha_hasta) <= ym ? Number(morRow.saldo_final) : null;
       var usd = usdRow && mesYYYYMM(usdRow.fecha_hasta) <= ym ? Number(usdRow.saldo_final) : null;
@@ -685,13 +745,14 @@
       if (gal != null && !isFinite(gal)) gal = null;
       if (galUsd != null && !isFinite(galUsd)) galUsd = null;
       if (mp != null && !isFinite(mp)) mp = null;
+      if (cred != null && !isFinite(cred)) cred = null;
       if (gf != null && !isFinite(gf)) gf = null;
       if (mor != null && !isFinite(mor)) mor = null;
       if (usd != null && !isFinite(usd)) usd = null;
       if (sf != null && !isFinite(sf)) sf = null;
       if (sfUsd != null && !isFinite(sfUsd)) sfUsd = null;
-      var total = round2((gal || 0) + (galUsd || 0) + (mp || 0) + (gf || 0) + (mor || 0) + (usd || 0) + (sf || 0) + (sfUsd || 0));
-      if (gal == null && galUsd == null && mp == null && gf == null && mor == null && usd == null && sf == null && sfUsd == null) total = null;
+      var total = round2((gal || 0) + (galUsd || 0) + (mp || 0) + (cred || 0) + (gf || 0) + (mor || 0) + (usd || 0) + (sf || 0) + (sfUsd || 0));
+      if (gal == null && galUsd == null && mp == null && cred == null && gf == null && mor == null && usd == null && sf == null && sfUsd == null) total = null;
       var vari = (prevTotal != null && total != null) ? round2(total - prevTotal) : null;
       if (total != null) prevTotal = total;
       return {
@@ -699,6 +760,7 @@
         galicia: gal,
         galicia_usd: galUsd,
         mercadopago: mp,
+        credicoop: cred,
         galicia_facturada: gf,
         morba_sf: mor,
         galicia_dolar: usd,
@@ -1083,6 +1145,15 @@
             fill: false
           },
           {
+            label: LABEL_CRED,
+            data: meses.map(function (x) { return x.credicoop; }),
+            borderColor: '#111111',
+            backgroundColor: 'transparent',
+            tension: 0.15,
+            pointRadius: 3,
+            fill: false
+          },
+          {
             label: LABEL_GF,
             data: meses.map(function (x) { return x.galicia_facturada; }),
             borderColor: '#b45309',
@@ -1212,16 +1283,17 @@
         return;
       }
       aoa = [['Saldos extractos — Posición consolidada']].concat(meta);
-      aoa.push(['Mes', LABEL_GAL, LABEL_GAL_USD, 'Mercado Pago', LABEL_GF, LABEL_MOR, LABEL_USD, LABEL_SF, LABEL_SF_USD, 'Total', 'Variación']);
+      aoa.push(['Mes', LABEL_GAL, LABEL_GAL_USD, 'Mercado Pago', LABEL_CRED, LABEL_GF, LABEL_MOR, LABEL_USD, LABEL_SF, LABEL_SF_USD, 'Total', 'Variación']);
       dateCols = [];
-      numCols = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-      cols = [{ wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 }];
+      numCols = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+      cols = [{ wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 }];
       meses.forEach(function (x) {
         aoa.push([
           formatMesLabel(x.mes),
           excelNum(x.galicia),
           excelNum(x.galicia_usd),
           excelNum(x.mercadopago),
+          excelNum(x.credicoop),
           excelNum(x.galicia_facturada),
           excelNum(x.morba_sf),
           excelNum(x.galicia_dolar),
@@ -1313,6 +1385,30 @@
       });
       sheetName = 'Galicia USD';
       fileName = 'Saldos_Extractos_Galicia_USD.xlsx';
+    } else if (state.canal === CANAL_CRED) {
+      var rowsCredX = conAnterior(filasCanal(CANAL_CRED));
+      if (!rowsCredX.length) {
+        alert('No hay saldos visibles con el período elegido.');
+        return;
+      }
+      aoa = [['Saldos extractos — ' + LABEL_CRED + ' (desde tesorería)']].concat(meta);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Archivo']);
+      dateCols = [0, 1, 2];
+      numCols = [3, 4, 5];
+      cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 40 }];
+      rowsCredX.forEach(function (r) {
+        aoa.push([
+          excelDate(r.fecha_hasta),
+          excelDate(r.fecha_desde),
+          excelDate(r.fecha_hasta),
+          excelNum(saldoInicialMostrar(r)),
+          excelNum(r.saldo_final),
+          excelNum(variacionFila(r)),
+          r.archivo || ''
+        ]);
+      });
+      sheetName = 'Credicoop';
+      fileName = 'Saldos_Extractos_Credicoop.xlsx';
     } else if (state.canal === CANAL_GF) {
       var rowsGf = conAnterior(filasCanal(CANAL_GF));
       if (!rowsGf.length) {
@@ -1565,12 +1661,13 @@
       '</tr></thead><tbody>' + html + '</tbody></table></div>';
   }
 
-  function renderTablaCajaFisica(canal, label, hintCarga) {
+  function renderTablaCajaFisica(canal, label, hintCarga, menuDestino) {
     var list = conAnterior(filasCanal(canal));
+    var menu = menuDestino || 'Cajas (físicas)';
     if (!list.length) {
       return '<p class="se-empty">' + ((state.rows || []).some(function (r) { return r.canal === canal; })
         ? 'No hay cortes de ' + esc(label) + ' en el período elegido.'
-        : 'Todavía no hay saldo de ' + esc(label) + '. Cargá ' + esc(hintCarga) + ' en el menú Cajas (físicas).') + '</p>';
+        : 'Todavía no hay saldo de ' + esc(label) + '. Cargá ' + esc(hintCarga) + ' en el menú <strong>' + esc(menu) + '</strong>.') + '</p>';
     }
     var html = '';
     list.forEach(function (r) {
@@ -1598,7 +1695,7 @@
 
   function renderTablaConsolidado(meses) {
     if (!meses.length) {
-      return '<p class="se-empty">No hay saldos para consolidar. Cargá ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago y/o las cajas físicas (' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ', ' + esc(LABEL_SF_USD) + ').</p>';
+      return '<p class="se-empty">No hay saldos para consolidar. Cargá ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ' y/o las cajas físicas (' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ', ' + esc(LABEL_SF_USD) + ').</p>';
     }
     var html = '';
     meses.slice().reverse().forEach(function (x) {
@@ -1607,6 +1704,7 @@
         '<td class="se-col-monto">' + htmlMonto(x.galicia) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.galicia_usd) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.mercadopago) + '</td>' +
+        '<td class="se-col-monto">' + htmlMonto(x.credicoop) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.galicia_facturada) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.morba_sf) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.galicia_dolar) + '</td>' +
@@ -1622,6 +1720,7 @@
         '<th class="se-col-monto">' + esc(LABEL_GAL) + '</th>' +
         '<th class="se-col-monto">' + esc(LABEL_GAL_USD) + '</th>' +
         '<th class="se-col-monto">Mercado Pago</th>' +
+        '<th class="se-col-monto">' + esc(LABEL_CRED) + '</th>' +
         '<th class="se-col-monto">' + esc(LABEL_GF) + '</th>' +
         '<th class="se-col-monto">' + esc(LABEL_MOR) + '</th>' +
         '<th class="se-col-monto">' + esc(LABEL_USD) + '</th>' +
@@ -1655,6 +1754,9 @@
     if (state.canal === CANAL_GAL_USD) {
       return 'Resúmenes de <strong>' + esc(LABEL_GAL_USD) + '</strong> (PDF <em>Extracto_Cuentas_Galicia_…</em> de Cuenta Corriente Especial en dólares, o Excel <em>Extracto_CCE…</em>). El saldo en USD se pesifica al MEP de la fecha de cierre (o la última cotización anterior) para verlo en pesos. Elegí uno o varios; se guardan juntos, sin duplicar ni borrar lo anterior.';
     }
+    if (state.canal === CANAL_CRED) {
+      return 'Saldo de <strong>' + esc(LABEL_CRED) + '</strong> (caja banco). No hay extractos históricos: el corte se arma con la tesorería de <strong>Conciliación Bancaria</strong> (<em>tesoreria_transferencia_credicoop_…</em>, cierre o histórico Transferencia Credicoop). Apertura de Caja no entra. Si un mes no tiene corte, el consolidado arrastra el anterior.';
+    }
     if (state.canal === CANAL_GF) {
       return 'Saldo de <strong>' + esc(LABEL_GF) + '</strong> (caja física / efectivo pesos). No se carga acá: se actualiza al importar <em>tesoreria_efectivo_pesos_…</em> o <em>cierre_PES-…</em> en el menú <strong>Cajas (físicas)</strong>.';
     }
@@ -1670,7 +1772,7 @@
     if (state.canal === CANAL_SF_USD) {
       return 'Saldo de <strong>' + esc(LABEL_SF_USD) + '</strong> (caja física / efectivo dólar sin factura, en ARS). No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Dolar (sin factura)</em> o Moneda USD en <strong>Cajas (físicas)</strong>.';
     }
-    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). El promedio de saldo es cuánto dinero queda en promedio.';
+    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). El promedio de saldo es cuánto dinero queda en promedio.';
   }
 
   function renderShell() {
@@ -1691,6 +1793,7 @@
     var rowsMor = filasCanal(CANAL_MOR);
     var rowsUsd = filasCanal(CANAL_USD);
     var rowsGalUsd = filasCanal(CANAL_GAL_USD);
+    var rowsCred = filasCanal(CANAL_CRED);
     var meses = filasConsolidado();
 
     if (state.canal === CANAL_MP) {
@@ -1705,6 +1808,10 @@
       kpisHtml = renderKpis(kpisCanal(rowsGalUsd), 'Cortes');
       tabla = renderTablaGaliciaUsd();
       hayChart = !!rowsGalUsd.length;
+    } else if (state.canal === CANAL_CRED) {
+      kpisHtml = renderKpis(kpisCanal(rowsCred), 'Cortes');
+      tabla = renderTablaCajaFisica(CANAL_CRED, LABEL_CRED, 'tesoreria_transferencia_credicoop_… o el histórico Transferencia Credicoop', 'Conciliación Bancaria');
+      hayChart = !!rowsCred.length;
     } else if (state.canal === CANAL_GF) {
       kpisHtml = renderKpis(kpisCanal(rowsGf), 'Cortes');
       tabla = renderTablaGf(rowsGf);
@@ -1751,6 +1858,7 @@
         '<button type="button" class="se-tab-mp' + (state.canal === CANAL_MP ? ' activo' : '') + '" data-se="canal" data-canal="' + CANAL_MP + '">Mercado Pago</button>' +
         '<button type="button" class="se-tab-gal' + (state.canal === CANAL_GAL ? ' activo' : '') + '" data-se="canal" data-canal="' + CANAL_GAL + '">' + esc(LABEL_GAL) + '</button>' +
         '<button type="button" class="se-tab-gal' + (state.canal === CANAL_GAL_USD ? ' activo' : '') + '" data-se="canal" data-canal="' + CANAL_GAL_USD + '">' + esc(LABEL_GAL_USD) + '</button>' +
+        '<button type="button" class="se-tab-cred' + (state.canal === CANAL_CRED ? ' activo' : '') + '" data-se="canal" data-canal="' + CANAL_CRED + '">' + esc(LABEL_CRED) + '</button>' +
         '<button type="button" class="' + (state.canal === CANAL_GF ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_GF + '">' + esc(LABEL_GF) + '</button>' +
         '<button type="button" class="' + (state.canal === CANAL_MOR ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_MOR + '">' + esc(LABEL_MOR) + '</button>' +
         '<button type="button" class="' + (state.canal === CANAL_USD ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_USD + '">' + esc(LABEL_USD) + '</button>' +
@@ -1772,6 +1880,7 @@
     if (state.canal === CANAL_MP && hayChart) pintarChartCanal(rowsMp, 'Serie de saldos Mercado Pago (carta de saldo)', 'Saldo total (ARS)');
     else if (state.canal === CANAL_GAL && hayChart) pintarChartCanal(rowsGal, 'Serie de saldos ' + LABEL_GAL, 'Saldo de cierre (ARS)');
     else if (state.canal === CANAL_GAL_USD && hayChart) pintarChartCanal(rowsGalUsd, 'Serie de saldos ' + LABEL_GAL_USD + ' (ARS al MEP)', 'Saldo de caja (ARS)');
+    else if (state.canal === CANAL_CRED && hayChart) pintarChartCanal(rowsCred, 'Serie de saldos ' + LABEL_CRED + ' (desde tesorería)', 'Saldo de caja (ARS)');
     else if (state.canal === CANAL_GF && hayChart) pintarChartCanal(rowsGf, 'Serie de saldos ' + LABEL_GF + ' (caja física)', 'Saldo de caja (ARS)');
     else if (state.canal === CANAL_MOR && hayChart) pintarChartCanal(rowsMor, 'Serie de saldos ' + LABEL_MOR + ' (caja física)', 'Saldo de caja (ARS)');
     else if (state.canal === CANAL_USD && hayChart) pintarChartCanal(rowsUsd, 'Serie de saldos ' + LABEL_USD + ' (caja física, ARS al MEP)', 'Saldo de caja (ARS)');
@@ -1835,6 +1944,7 @@
     show: show,
     recargar: recargar,
     guardarCorteGaliciaUsd: guardarCorteGaliciaUsd,
+    guardarCorteCredicoop: guardarCorteCredicoop,
     guardarCorteDesdePdfGalicia: guardarCorteDesdePdfGalicia
   };
 })(typeof window !== 'undefined' ? window : this);

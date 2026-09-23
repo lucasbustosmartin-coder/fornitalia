@@ -2392,6 +2392,28 @@
             notaSaldo = 'El extracto se cargó, pero no pude pesificar el saldo en Saldos extractos: ' + errMsg(eSaldo);
           }
         }
+        var tocoCredicoop = origen === 'sistema' && (parsed.filas || []).some(function (f) {
+          return (f.canal || parsed.canalDetectado || '') === CANAL_CRED;
+        });
+        if (tocoCredicoop && window.FornitaliaSaldosExtractos &&
+            typeof window.FornitaliaSaldosExtractos.guardarCorteCredicoop === 'function') {
+          var movsCred = (state.movimientos || []).filter(function (m) {
+            return m.canal === CANAL_CRED && m.origen === 'sistema' && !m.pendiente_baja;
+          });
+          if (movsCred.length) {
+            try {
+              var snapCred = await window.FornitaliaSaldosExtractos.guardarCorteCredicoop(movsCred, file.name);
+              if (snapCred) {
+                notaSaldo = (notaSaldo ? notaSaldo + ' ' : '') +
+                  'Saldo Credicoop al ' + formatFecha(snapCred.fecha_hasta) + ': $ ' + formatMonto(snapCred.saldo_final) +
+                  ' (tesorería, sin Apertura).';
+              }
+            } catch (eCred) {
+              notaSaldo = (notaSaldo ? notaSaldo + ' ' : '') +
+                'Tesorería Credicoop ok, pero no pude guardar el corte en Saldos extractos: ' + errMsg(eCred);
+            }
+          }
+        }
         if (ingestSf.n && ingestSf.canales && ingestSf.canales.length) {
           notaSaldo = (notaSaldo ? notaSaldo + ' ' : '') +
             'Efectivo-s/f cargado en Cajas físicas y Saldos extractos: ' + ingestSf.canales.join(', ') + '.';
@@ -4894,7 +4916,7 @@
     if (esCanalCredicoop(state.canal)) {
       return {
         hintHtml:
-          '<p>Caja banco <strong>Credicoop</strong> (ARS). Tesorería: <em>tesoreria_transferencia_credicoop_…</em> o el histórico <em>movimientos-historico_…</em> (filas con Caja = Transferencia Credicoop). El Id evita duplicados y actualiza categoría y cuenta aunque el status sea Pendiente, si ese Id ya existía. Status Anulado no se sube.</p>' +
+          '<p>Caja banco <strong>Credicoop</strong> (ARS). Tesorería: <em>tesoreria_transferencia_credicoop_…</em> o el histórico <em>movimientos-historico_…</em> (filas con Caja = Transferencia Credicoop). El Id evita duplicados y actualiza categoría y cuenta aunque el status sea Pendiente, si ese Id ya existía. Status Anulado no se sube. No hay extractos históricos: el saldo de corte se arma con esos movimientos (Apertura de Caja no entra) y va a Saldos extractos.</p>' +
           '<p>Extracto: Excel de cuenta (Fecha, Descripción, Débitos, Créditos y Saldo), mismo criterio que Galicia ARS. Apertura de Caja no se sube. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f y a Saldos extractos. Tras cada carga se abre un resumen.</p>',
         btnBanco: 'Cargar extracto Credicoop',
         btnSistema: 'Cargar tesorería Credicoop',

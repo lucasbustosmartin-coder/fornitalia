@@ -202,6 +202,21 @@
   color: #fff;
 }
 
+.se-tabs button.se-tab-cred {
+  background: #111;
+  border-color: #111;
+  color: #fff;
+  font-weight: 600;
+}
+
+.se-tabs button.se-tab-cred:hover { background: #2a2a2a; }
+
+.se-tabs button.se-tab-cred.activo {
+  background: #000;
+  border-color: #000;
+  color: #fff;
+}
+
 .se-resumen {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -294,7 +309,7 @@
 }
 
 .se-tabla-consolidado {
-  min-width: 88rem;
+  min-width: 96rem;
 }
 
 .se-tabla th,
