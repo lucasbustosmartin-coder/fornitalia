@@ -58,6 +58,8 @@
     },
     modalFiltros: null,
     filtrosDraft: null,
+    modal: null,
+    resumenCarga: null,
     msg: '',
     err: ''
   };
@@ -202,6 +204,10 @@
 
   function normHeader(h) {
     return String(h || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  function esStatusAnulado(status) {
+    return normHeader(status) === 'anulado';
   }
 
   function mapHeaders(row) {
@@ -510,6 +516,8 @@
     var idsVistos = {};
     var filas = [];
     var omitidasPend = 0;
+    var omitidasAnulado = 0;
+    var origenIdsAnulado = [];
     var omitidasSinId = 0;
     var omitidasIdDup = 0;
     var omitidasApertura = 0;
@@ -556,6 +564,11 @@
           if (fecha && (!fechaApertura || fecha < fechaApertura)) fechaApertura = fecha;
           aperturas.push({ fecha: fecha || fechaApertura, usd: Number(salAp) });
         }
+        continue;
+      }
+      if (esStatusAnulado(status)) {
+        omitidasAnulado += 1;
+        if (idCierre) origenIdsAnulado.push('id|' + idCierre);
         continue;
       }
       var esPendiente = normHeader(status) === 'pendiente';
@@ -616,6 +629,24 @@
       });
     }
     if (!filas.length) {
+      if (omitidasAnulado && !omitidasOtraCaja) {
+        return {
+          error: null,
+          filas: [],
+          formatoCierre: esCierre,
+          formatoHistorico: historicoMixto,
+          omitidasPend: omitidasPend,
+          omitidasAnulado: omitidasAnulado,
+          origenIdsAnulado: origenIdsAnulado,
+          omitidasIdDup: omitidasIdDup,
+          omitidasApertura: omitidasApertura,
+          omitidasOtraCaja: omitidasOtraCaja,
+          omitidasSinId: omitidasSinId,
+          saldoApertura: saldoApertura,
+          fechaApertura: fechaApertura,
+          aperturas: aperturas
+        };
+      }
       return {
         error: omitidasOtraCaja && historicoMixto
           ? 'Este histórico no tiene filas de ' + labelDeCanal(state.canal) + '. Mercado Pago, Galicia y Credicoop van a Conciliación Bancaria; en esta solapa solo entra ' + archivosHint(state.canal) + '.'
@@ -631,10 +662,14 @@
       error: null,
       filas: filas,
       formatoCierre: esCierre,
+      formatoHistorico: historicoMixto,
       omitidasPend: omitidasPend,
+      omitidasAnulado: omitidasAnulado,
+      origenIdsAnulado: origenIdsAnulado,
       omitidasIdDup: omitidasIdDup,
       omitidasApertura: omitidasApertura,
       omitidasOtraCaja: omitidasOtraCaja,
+      omitidasSinId: omitidasSinId,
       saldoApertura: saldoApertura,
       fechaApertura: fechaApertura,
       aperturas: aperturas
@@ -1032,6 +1067,176 @@
     return parsed;
   }
 
+  async function borrarTesoreriaAnulada(ids) {
+    var list = (ids || []).filter(Boolean);
+    if (!list.length) return 0;
+    var total = 0;
+    var i;
+    for (i = 0; i < list.length; i += RPC_LOTE) {
+      var res = await client().rpc('cf_borrar_tesoreria_anulada', {
+        p_origen_ids: list.slice(i, i + RPC_LOTE)
+      });
+      if (res.error) throw res.error;
+      total += Number(res.data || 0);
+    }
+    return total;
+  }
+
+  function txtEqCarga(a, b) {
+    return String(a == null ? '' : a).trim() === String(b == null ? '' : b).trim();
+  }
+
+  function numEqCarga(a, b) {
+    var na = Number(a);
+    var nb = Number(b);
+    if (!isFinite(na) && !isFinite(nb)) return true;
+    if (!isFinite(na) || !isFinite(nb)) return false;
+    return Math.round(na * 100) === Math.round(nb * 100);
+  }
+
+  function filaCambioVsExistente(ex, f) {
+    if (!ex || !f) return true;
+    return String(ex.fecha || '').slice(0, 10) !== String(f.fecha || '').slice(0, 10)
+      || !numEqCarga(ex.monto, f.monto)
+      || !txtEqCarga(ex.tipo, f.tipo)
+      || !txtEqCarga(ex.descripcion, f.descripcion)
+      || !txtEqCarga(ex.contraparte, f.contraparte)
+      || !txtEqCarga(ex.categoria, f.categoria)
+      || !txtEqCarga(ex.cuenta_contable, f.cuenta_contable)
+      || !txtEqCarga(ex.moneda, f.moneda);
+  }
+
+  function clasificarFilasUpload(filas) {
+    var map = {};
+    movimientosCanal().forEach(function (m) {
+      if (!m || !m.origen_id) return;
+      map[m.origen_id] = m;
+    });
+    var r = { nNuevos: 0, nCambiaron: 0, nIguales: 0 };
+    (filas || []).forEach(function (f) {
+      if (!f || !f.origen_id) {
+        r.nNuevos += 1;
+        return;
+      }
+      var ex = map[f.origen_id];
+      if (!ex) {
+        r.nNuevos += 1;
+        return;
+      }
+      if (filaCambioVsExistente(ex, f)) r.nCambiaron += 1;
+      else r.nIguales += 1;
+    });
+    return r;
+  }
+
+  function tipoCargaLabel(parsed, archivo) {
+    if (parsed && parsed.formatoCierre) return 'Tesorería cierre de caja (Id único)';
+    if (parsed && parsed.formatoHistorico) return 'Tesorería histórica (Id + Caja)';
+    if (esNombreTesoreriaHistorico(archivo)) return 'Tesorería histórica';
+    return 'Tesorería abierta (Id único)';
+  }
+
+  function htmlResumenCarga(r) {
+    function item(label, n, cls, hint) {
+      var nShow = n == null ? 0 : n;
+      return '<div class="cf-resumen-item' + (cls ? ' ' + cls : '') + '">' +
+        '<dt>' + esc(label) + '</dt>' +
+        '<dd>' + esc(String(nShow)) + '</dd>' +
+        (hint ? '<p class="cf-resumen-hint">' + esc(hint) + '</p>' : '') +
+        '</div>';
+    }
+    function itemSi(label, n, cls, hint) {
+      if (!n) return '';
+      return item(label, n, cls, hint);
+    }
+    var omitHtml = itemSi('Apertura de Caja', r.omitidasApertura, '', 'No se cargan (el saldo, si viene, solo alimenta el corte).')
+      + itemSi('Anulado', r.omitidasAnulado, '', 'Status Anulado no entra a tesorería. Si el Id ya existía, se elimina.')
+      + itemSi('Pendiente (nuevos)', r.omitidasPend, '', 'No se dan de alta. Si el Id ya existía, categoría y cuenta sí se actualizan.')
+      + itemSi('Otras cajas', r.omitidasOtraCaja, '', 'Mercado Pago, Galicia y Credicoop van a Conciliación Bancaria.')
+      + itemSi('Sin Id', r.omitidasSinId, '', 'La columna Id es obligatoria.')
+      + itemSi('Id duplicado en el archivo', r.omitidasIdDup, '', 'Se tomó la primera fila de cada Id.');
+    return '<div class="cf-resumen-carga">' +
+      '<p class="cf-resumen-lead">Se procesó <strong>' + esc(r.archivo || 'el archivo') + '</strong> como <strong>' + esc(r.tipo) + '</strong>.</p>' +
+      '<p class="cf-resumen-canales">Caja: ' + esc(r.canal || labelDeCanal(state.canal)) + '</p>' +
+      '<h3>Qué se hizo</h3>' +
+      '<dl class="cf-resumen-grid">' +
+        item('Filas reconocidas', r.nReconocidas, '', 'Movimientos que se procesan (incluye Pendiente cuyo Id ya estaba, para actualizar categoría y cuenta).') +
+        item('Registros nuevos', r.nNuevos, 'cf-resumen-ok', 'No estaban: se dieron de alta.') +
+        item('Registros que cambiaron', r.nCambiaron, 'cf-resumen-warn', 'Mismo Id: se actualizaron fecha, monto, categoría, cuenta u otro dato.') +
+        item('Sin cambios', r.nIguales, '', 'Mismo Id y mismos datos: no se duplicaron.') +
+        itemSi('A eliminar', r.nBajas, 'cf-resumen-warn', 'Tesorería abierta cuyo Id no vino en este archivo.') +
+      '</dl>' +
+      (omitHtml
+        ? '<h3>Se omitieron</h3><dl class="cf-resumen-grid cf-resumen-omit">' + omitHtml + '</dl>'
+        : '') +
+      (r.nota ? '<p class="cf-resumen-nota">' + esc(r.nota) + '</p>' : '') +
+    '</div>';
+  }
+
+  function msgCortoResumen(r) {
+    var partes = [];
+    partes.push((r.tipo || 'Carga') + ': ' + (r.nReconocidas || 0) + ' reconocidas');
+    partes.push((r.nNuevos || 0) + ' nuevas');
+    partes.push((r.nCambiaron || 0) + ' actualizadas');
+    partes.push((r.nIguales || 0) + ' sin cambios');
+    if (r.nBajas) partes.push(r.nBajas + ' a eliminar');
+    return partes.join(' · ') + '.';
+  }
+
+  function abrirModal(titulo, bodyHtml, footerHtml, extraCls) {
+    cerrarModalFiltros();
+    cerrarModal();
+    var bd = document.createElement('div');
+    bd.className = 'cf-modal-backdrop';
+    bd.innerHTML =
+      '<div class="cf-modal ' + (extraCls || '') + '" role="dialog" aria-modal="true">' +
+        '<div class="modal-header">' +
+          '<h2>' + esc(titulo) + '</h2>' +
+          '<button type="button" class="cf-btn cf-btn-ghost cf-btn-icon-only" data-cf="cerrar-modal" title="Cerrar" aria-label="Cerrar"><span class="btn-icon">' + ICO.x + '</span></button>' +
+        '</div>' +
+        '<div class="modal-body">' + bodyHtml + '</div>' +
+        '<div class="modal-footer">' +
+          '<button type="button" class="cf-btn cf-btn-ghost" data-cf="cerrar-modal"><span class="btn-icon">' + ICO.x + '</span>Cerrar</button>' +
+          (footerHtml || '') +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(bd);
+    state.modal = bd;
+    bd.addEventListener('click', onModalClick);
+    function onEsc(ev) {
+      if (ev.key !== 'Escape') return;
+      if (state.modalFiltros) return;
+      ev.preventDefault();
+      cerrarModal();
+    }
+    document.addEventListener('keydown', onEsc);
+    bd._cfEsc = onEsc;
+  }
+
+  function onModalClick(ev) {
+    var bd = state.modal;
+    if (!bd) return;
+    if (ev.target === bd) { cerrarModal(); return; }
+    var t = ev.target.closest && ev.target.closest('[data-cf]');
+    if (!t || !bd.contains(t)) return;
+    if (t.getAttribute('data-cf') === 'cerrar-modal') {
+      ev.preventDefault();
+      cerrarModal();
+    }
+  }
+
+  function cerrarModal() {
+    if (state.modal) {
+      if (state.modal._cfEsc) document.removeEventListener('keydown', state.modal._cfEsc);
+      if (state.modal.parentNode) state.modal.parentNode.removeChild(state.modal);
+    }
+    state.modal = null;
+  }
+
+  function abrirModalResumenCarga(r) {
+    abrirModal('Resultado de la carga', htmlResumenCarga(r), '', 'cf-modal-resumen');
+  }
+
   async function onUpload() {
     if (!can(PERM_CARGAR)) return;
     if (!global.XLSX) {
@@ -1042,55 +1247,79 @@
       state.loading = true;
       state.err = '';
       state.msg = '';
+      state.resumenCarga = null;
       renderShell();
       try {
         var wb = await leerExcelFile(file);
         var parsed = parseCajaExcel(wb, file.name);
         if (parsed.error) throw new Error(parsed.error);
+        await borrarTesoreriaAnulada(parsed.origenIdsAnulado);
         parsed = await filtrarPendienteCajaSoloSiExiste(parsed);
-        if (!parsed.filas.length) {
-          throw new Error(parsed.omitidasPend
-            ? 'Las filas Pendiente no se dan de alta. No había Ids ya cargados para actualizar.'
-            : 'No encontré filas de caja para cargar.');
+        var hayOmit = !!(parsed.omitidasPend || parsed.omitidasApertura || parsed.omitidasIdDup
+          || parsed.omitidasOtraCaja || parsed.omitidasSinId || parsed.omitidasAnulado);
+        if (!parsed.filas.length && !hayOmit) {
+          throw new Error('No encontré filas de caja para cargar.');
         }
-        if (esCanalUsd(state.canal)) {
-          state.tcLoaded = false;
-          await ensureTipoCambio();
-          pesificarParsed(parsed);
+        var nReconocidas = parsed.filas.length;
+        var snap = null;
+        if (parsed.filas.length) {
+          if (esCanalUsd(state.canal)) {
+            state.tcLoaded = false;
+            await ensureTipoCambio();
+            pesificarParsed(parsed);
+          }
         }
-        var n = await rpcLotes('cf_guardar_movimientos', state.canal, parsed.filas);
-        if (!parsed.formatoCierre) {
-          var ids = parsed.filas.map(function (f) { return f.origen_id; });
-          var baja = await client().rpc('cf_marcar_tesoreria_abierta_ausente', {
-            p_canal: state.canal,
-            p_origen_ids: ids
-          });
-          if (baja.error) throw baja.error;
+        var clsTot = clasificarFilasUpload(parsed.filas);
+        if (parsed.filas.length) {
+          await rpcLotes('cf_guardar_movimientos', state.canal, parsed.filas);
+          if (!parsed.formatoCierre) {
+            var ids = parsed.filas.map(function (f) { return f.origen_id; });
+            var baja = await client().rpc('cf_marcar_tesoreria_abierta_ausente', {
+              p_canal: state.canal,
+              p_origen_ids: ids
+            });
+            if (baja.error) throw baja.error;
+          }
+          snap = snapshotSaldo(
+            parsed.filas,
+            file.name,
+            parsed.formatoCierre,
+            parsed.saldoApertura,
+            parsed.fechaApertura,
+            state.canal
+          );
+          if (snap) {
+            var sRes = await client().rpc('cf_guardar_saldo_caja', { p_filas: [snap] });
+            if (sRes.error) throw sRes.error;
+          }
+          await cargarDatos();
         }
-        var snap = snapshotSaldo(
-          parsed.filas,
-          file.name,
-          parsed.formatoCierre,
-          parsed.saldoApertura,
-          parsed.fechaApertura,
-          state.canal
-        );
+        var nBajas = (!parsed.formatoCierre && parsed.filas.length) ? filasBajas().length : 0;
+        if (nBajas) state.lista = 'bajas';
+        var nota = '';
         if (snap) {
-          var sRes = await client().rpc('cf_guardar_saldo_caja', { p_filas: [snap] });
-          if (sRes.error) throw sRes.error;
+          nota = 'Saldo al ' + formatFecha(snap.fecha_hasta) + ': $ ' + formatMonto(snap.saldo_final) +
+            (esCanalUsd(state.canal) ? ' ARS (pesificado al MEP de cada fecha, o el último anterior).' : '.');
         }
-        await cargarDatos();
-        var extra = '';
-        if (parsed.omitidasApertura) extra += ' Se omitieron ' + parsed.omitidasApertura + ' Apertura de Caja (no se cargan).';
-        if (parsed.omitidasPend) extra += ' Se omitieron ' + parsed.omitidasPend + ' Pendiente nuevos (si el Id ya existía, se actualizó categoría y cuenta).';
-        if (parsed.omitidasIdDup) extra += ' Se omitieron ' + parsed.omitidasIdDup + ' Id duplicados en el archivo.';
-        if (parsed.omitidasOtraCaja) extra += ' Se omitieron ' + parsed.omitidasOtraCaja + ' filas de otras cajas (Mercado Pago/Galicia van a Conciliación Bancaria).';
-        if (!parsed.formatoCierre && filasBajas().length) {
-          extra += ' Hay tesorería abierta a eliminar (' + filasBajas().length + ').';
-        }
-        state.msg = 'Se cargaron o actualizaron ' + n + ' movimientos de ' + labelDeCanal(state.canal) + '. Saldo al ' +
-          formatFecha(snap && snap.fecha_hasta) + ': $ ' + formatMonto(snap && snap.saldo_final) +
-          (esCanalUsd(state.canal) ? ' ARS (pesificado al MEP de cada fecha, o el último anterior).' : '.') + extra;
+        var resumen = {
+          archivo: file.name,
+          tipo: tipoCargaLabel(parsed, file.name),
+          canal: labelDeCanal(state.canal),
+          nReconocidas: nReconocidas,
+          nNuevos: clsTot.nNuevos,
+          nCambiaron: clsTot.nCambiaron,
+          nIguales: clsTot.nIguales,
+          nBajas: nBajas,
+          omitidasApertura: parsed.omitidasApertura || 0,
+          omitidasPend: parsed.omitidasPend || 0,
+          omitidasAnulado: parsed.omitidasAnulado || 0,
+          omitidasOtraCaja: parsed.omitidasOtraCaja || 0,
+          omitidasSinId: parsed.omitidasSinId || 0,
+          omitidasIdDup: parsed.omitidasIdDup || 0,
+          nota: nota
+        };
+        state.msg = msgCortoResumen(resumen);
+        state.resumenCarga = resumen;
         if (window.FornitaliaSaldosExtractos && typeof window.FornitaliaSaldosExtractos.recargar === 'function') {
           window.FornitaliaSaldosExtractos.recargar();
         }
@@ -1099,6 +1328,10 @@
       } finally {
         state.loading = false;
         renderShell();
+        if (state.resumenCarga) {
+          abrirModalResumenCarga(state.resumenCarga);
+          state.resumenCarga = null;
+        }
       }
     });
   }
@@ -1435,7 +1668,7 @@
         '<p>Cajas que <strong>no se concilian</strong> con extracto bancario. Solapas <strong>' + esc(LABEL_GF) + '</strong> (efectivo pesos), <strong>' + esc(LABEL_MOR) + '</strong> (Transferencia Morba), <strong>' + esc(LABEL_USD) + '</strong> (efectivo dólar, pesificado al MEP), <strong>' + esc(LABEL_SF) + '</strong> y <strong>' + esc(LABEL_SF_USD) + '</strong> (histórico Caja Efectivo … sin factura).</p>' +
         '<p>Mismos Excel que tesorería/cierre, con Id para no duplicar. El saldo alimenta Saldos extractos.</p>' +
         '<p>Cargá <em>' + esc(archivosHint(state.canal).split(' o ')[0]) + '</em> o <em>' + esc(archivosHint(state.canal).split(' o ')[1] || '') + '</em>. Tesorería abierta trae saldo corrido; el cierre ya cerrado trae Fecha, Tipo, Monto e Id.</p>' +
-        '<p>Apertura de Caja y filas Pendiente no se suben (el saldo de apertura, si viene, solo alimenta el corte de Saldos extractos). Si un Id de tesorería abierta ya no viene, pasa a <strong>A eliminar</strong>.' +
+        '<p>Apertura de Caja, Status Anulado y filas Pendiente no se suben (el saldo de apertura, si viene, solo alimenta el corte de Saldos extractos). Si un Id de tesorería abierta ya no viene, pasa a <strong>A eliminar</strong>.' +
         (esCanalUsd(state.canal) ? ' Los montos del Excel están en <strong>USD</strong> y se pesifican al <strong>MEP</strong> de <em>tipo_de_cambio</em> (fecha del movimiento o última cotización anterior). La grilla muestra ARS, USD original y el TC usado.' : '') + '</p>') +
       (state.loading ? '<p class="loading">Cargando caja…</p>' : '') +
       (state.err ? '<p class="cf-msg-err">' + esc(state.err) + '</p>' : '') +
@@ -1507,6 +1740,7 @@
       state.cuenta = '';
       state.msg = '';
       state.err = '';
+      cerrarModal();
       recargarTodo();
       return;
     }

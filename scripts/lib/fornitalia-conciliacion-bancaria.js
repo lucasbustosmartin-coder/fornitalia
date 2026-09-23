@@ -234,6 +234,10 @@
     return String(h || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
   }
 
+  function esStatusAnulado(status) {
+    return normHeader(status) === 'anulado';
+  }
+
   function esCanalGalicia(c) {
     return c === CANAL_GAL || c === CANAL_GAL_USD;
   }
@@ -1333,6 +1337,8 @@
     var filas = [];
     var omitidasApertura = 0;
     var omitidasPendiente = 0;
+    var omitidasAnulado = 0;
+    var origenIdsAnulado = [];
     var omitidasCaja = 0;
     var omitidasCajaFisica = 0;
     var omitidasIdDup = 0;
@@ -1367,6 +1373,11 @@
       if (idCierre) tieneIdCierre = true;
       if (esAperturaDeCajaTexto(tipo, desc)) {
         omitidasApertura += 1;
+        continue;
+      }
+      if (esStatusAnulado(status)) {
+        omitidasAnulado += 1;
+        if (idCierre) origenIdsAnulado.push('id|' + idCierre);
         continue;
       }
       var esPendiente = normHeader(status) === 'pendiente';
@@ -1455,6 +1466,8 @@
     var metaOmit = {
       omitidasApertura: omitidasApertura,
       omitidasPendiente: omitidasPendiente,
+      omitidasAnulado: omitidasAnulado,
+      origenIdsAnulado: origenIdsAnulado,
       omitidasCaja: omitidasCaja,
       omitidasCajaFisica: omitidasCajaFisica,
       omitidasIdDup: omitidasIdDup,
@@ -1466,7 +1479,7 @@
       canalesDetectados: canalesEnArchivo
     };
     if (!filas.length) {
-      if (omitidasApertura && !omitidasCaja && !omitidasCajaFisica && !omitidasSinId && !omitidasPendiente) {
+      if ((omitidasApertura || omitidasAnulado) && !omitidasCaja && !omitidasCajaFisica && !omitidasSinId && !omitidasPendiente) {
         return Object.assign({ error: null, filas: [] }, metaOmit);
       }
       if (omitidasCajaFisica && !omitidasCaja && !filas.length && !hayCb) {
@@ -1950,6 +1963,21 @@
     return Number(rpc.data || 0);
   }
 
+  async function borrarTesoreriaAnulada(ids) {
+    var list = (ids || []).filter(Boolean);
+    if (!list.length) return 0;
+    var total = 0;
+    var i;
+    for (i = 0; i < list.length; i += CB_RPC_CHUNK) {
+      var rpc = await client().rpc('cb_borrar_tesoreria_anulada', {
+        p_origen_ids: list.slice(i, i + CB_RPC_CHUNK)
+      });
+      if (rpc.error) throw rpc.error;
+      total += Number(rpc.data || 0);
+    }
+    return total;
+  }
+
   async function retirarTesoreriaDuplicadaCierre(canal, filas) {
     var ids = (filas || []).map(function (f) { return f.origen_id; }).filter(origenIdEsTesoreriaConId);
     if (!ids.length) return 0;
@@ -2142,6 +2170,7 @@
       ? r.canales.join(', ')
       : labelCanalNombre(state.canal);
     var omitHtml = itemSi('Apertura de Caja', r.omitidasApertura, '', 'No se cargan.')
+      + itemSi('Anulado', r.omitidasAnulado, '', 'Status Anulado no entra a tesorería. Si el Id ya existía, se elimina.')
       + itemSi('Pendiente (nuevos)', r.omitidasPendiente, '', 'No se dan de alta. Si el Id ya existía, categoría y cuenta sí se actualizan.')
       + itemSi('Cajas físicas', r.omitidasCajaFisica, '', 'Efectivo y Morba: cargalas en Cajas (físicas).')
       + itemSi('Otras cajas', r.omitidasCaja, '', 'No son Mercado Pago ni Galicia (ARS/USD).')
@@ -2237,6 +2266,7 @@
           throw new Error(parsed.error);
         }
         if (origen === 'sistema') {
+          await borrarTesoreriaAnulada(parsed.origenIdsAnulado);
           await filtrarPendienteSoloSiExiste(parsed);
         }
         if (origen === 'sistema' && parsed.canalDetectado) {
@@ -2330,6 +2360,7 @@
           nRetiradas: nRetiradas,
           omitidasApertura: parsed.omitidasApertura || 0,
           omitidasPendiente: parsed.omitidasPendiente || 0,
+          omitidasAnulado: parsed.omitidasAnulado || 0,
           omitidasCaja: parsed.omitidasCaja || 0,
           omitidasCajaFisica: parsed.omitidasCajaFisica || 0,
           omitidasSinId: parsed.omitidasSinId || 0,
@@ -4811,7 +4842,7 @@
     if (esCanalCredicoop(state.canal)) {
       return {
         hintHtml:
-          '<p>Caja banco <strong>Credicoop</strong> (ARS). Tesorería: <em>tesoreria_transferencia_credicoop_…</em> o el histórico <em>movimientos-historico_…</em> (filas con Caja = Transferencia Credicoop). El Id evita duplicados y actualiza categoría y cuenta aunque el status sea Pendiente, si ese Id ya existía.</p>' +
+          '<p>Caja banco <strong>Credicoop</strong> (ARS). Tesorería: <em>tesoreria_transferencia_credicoop_…</em> o el histórico <em>movimientos-historico_…</em> (filas con Caja = Transferencia Credicoop). El Id evita duplicados y actualiza categoría y cuenta aunque el status sea Pendiente, si ese Id ya existía. Status Anulado no se sube.</p>' +
           '<p>Extracto: Excel de cuenta (Fecha, Descripción, Débitos, Créditos y Saldo), mismo criterio que Galicia ARS. Apertura de Caja no se sube. Tras cada carga se abre un resumen.</p>',
         btnBanco: 'Cargar extracto Credicoop',
         btnSistema: 'Cargar tesorería Credicoop',
@@ -4823,7 +4854,7 @@
         hintHtml:
           '<p>Cargá el extracto de Galicia en dólares: Excel <em>Extracto_CCE…</em> o el PDF <em>Extracto_Cuentas_Galicia_…</em> (Cuenta Corriente Especial en dólares; no duplica lo ya cargado: misma fecha, importe y concepto, aunque cambie el saldo).</p>' +
           '<p>Los importes se concilian en <strong>USD</strong> contra tesorería <em>tesoreria_transferencia_galicia_dolar_…</em> (Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (<em>cierre_CIERRE-…</em> o <em>cierre_DOL-…</em> con Caja = Transferencia Galicia Dolar y Moneda USD) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: solo filas Transferencia Galicia Dolar).</p>' +
-          '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos aunque el status sea Pendiente, si ese Id ya estaba (en cualquier solapa). Pendiente nuevos no se dan de alta. Si un Id de tesorería abierta ya no viene, pasa a <strong>A eliminar</strong>. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
+          '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos aunque el status sea Pendiente, si ese Id ya estaba (en cualquier solapa). Pendiente nuevos no se dan de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Si un Id de tesorería abierta ya no viene, pasa a <strong>A eliminar</strong>. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
           '<p>Al cargar el extracto, el saldo de corte se pesifica al MEP (fecha del último movimiento o cotización anterior) y entra a Saldos extractos. El match es por importe y fecha (máximo 4 días).</p>',
         btnBanco: 'Cargar extracto Galicia (USD)',
         btnSistema: 'Cargar tesorería Galicia (USD)',
@@ -4835,7 +4866,7 @@
         hintHtml:
           '<p>Cargá el extracto de Galicia: Excel de cuenta corriente (<em>Extracto_CC…</em>) o el PDF <em>Extracto_Cuentas_Galicia_…</em> en pesos (no duplica lo ya cargado: misma fecha, importe y concepto, aunque cambie el saldo). El PDF en dólares se abre en la solapa Galicia (USD).</p>' +
           '<p>También la tesorería Transferencia Galicia (<em>tesoreria_transferencia_galicia_…</em>: Tipo, Fecha, Crédito, Débito e Id), el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto). El Id evita duplicados y actualiza si cambió algún dato. La columna Caja reparte Mercado Pago / Galicia ARS / Galicia USD; Efectivo y Morba no entran acá.</p>' +
-          '<p>Si un Id de tesorería abierta ya no viene en el Excel, pasa a <strong>A eliminar</strong>. Apertura de Caja no se sube. Pendiente: si el Id ya existía se actualiza (categoría y cuenta incluidas); si es nuevo no se da de alta. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican.</p>' +
+          '<p>Si un Id de tesorería abierta ya no viene en el Excel, pasa a <strong>A eliminar</strong>. Apertura de Caja no se sube. Status Anulado no se sube. Pendiente: si el Id ya existía se actualiza (categoría y cuenta incluidas); si es nuevo no se da de alta. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican.</p>' +
           '<p>La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde.</p>' +
           '<p>También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1), o dos o más movimientos del mismo extracto si el crédito y el débito se compensan y no hay tesorería. El Excel exporta el listado visible con los filtros activos.</p>',
         btnBanco: 'Cargar extracto Galicia',
@@ -4846,7 +4877,7 @@
     return {
       hintHtml:
         '<p>Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (<em>tesoreria_mercadopago_…</em>: Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em> o <em>MP_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: se cargan las filas MercadoPago; Galicia por Caja; Efectivo/Morba se omiten).</p>' +
-        '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos aunque el status sea Pendiente, si ese Id ya estaba. Pendiente nuevos no se dan de alta. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa <strong>A eliminar</strong> para confirmar la baja. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
+        '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos aunque el status sea Pendiente, si ese Id ya estaba. Pendiente nuevos no se dan de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa <strong>A eliminar</strong> para confirmar la baja. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
         '<p>Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. En Solo banco podés marcar un movimiento como <strong>No requiere conciliación</strong> (con justificación): no se borra del extracto.</p>' +
         '<p>La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde.</p>' +
         '<p>También podés conciliar a mano varios extractos con una o más tesorerías, o dos o más movimientos del mismo extracto si el crédito y el débito se compensan. El Excel exporta el listado visible con los filtros activos.</p>',
