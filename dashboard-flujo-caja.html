@@ -483,11 +483,7 @@
       color: #555;
     }
     #tabla-todas-transacciones th:nth-child(17),
-    #tabla-todas-transacciones td:nth-child(17),
-    #tabla-errores-global th:nth-child(12),
-    #tabla-errores-global td:nth-child(12),
-    #tabla-excluidos-upload td:nth-child(4),
-    #tabla-excluidos-upload td:nth-child(8) { text-align: left; }
+    #tabla-todas-transacciones td:nth-child(17) { text-align: left; }
     .fila-proyeccion { font-style: italic; color: #555; background: #fafafa; cursor: pointer; }
     .fila-proyeccion:hover { background: #f0f0f0; }
     .fila-proyeccion td:first-child { font-weight: 500; }
@@ -522,9 +518,7 @@
     #tabla-evolucion td.num-evolucion.evolucion-clickable:hover { text-decoration: underline; }
     #tabla-evolucion tr.fila-total-evolucion td { border-top: 2px solid #333; background: #f5f5f5; }
 
-    #panel-flujo .flujo-table-wrap table thead th,
-    #tabla-errores-global thead th,
-    #tabla-excluidos-upload thead th {
+    #panel-flujo .flujo-table-wrap table thead th {
       position: sticky;
       top: 0;
       z-index: 2;
@@ -642,26 +636,10 @@
       color: #fff;
       border-color: #1a1a1a;
     }
-    .modal-errores-ancho { max-width: 960px; }
     .modal-evolucion-detalle-ancho { max-width: 960px; }
     .edit-btn { background: none; border: none; cursor: pointer; color: #444; padding: 0.35rem; display: inline-flex; align-items: center; justify-content: center; }
     .edit-btn:hover { color: #1a1a1a; }
     .edit-btn svg { width: 18px; height: 18px; }
-    .ver-duplicado-btn { margin-right: 0.2rem; }
-    .ver-duplicado-btn svg { width: 18px; height: 18px; }
-    .duplicado-comparacion { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.75rem; }
-    .duplicado-bloque { background: #f8f9fa; border-radius: 8px; padding: 0.75rem 1rem; border: 1px solid #e6e6e6; }
-    .duplicado-bloque-titulo { margin: 0 0 0.5rem 0; font-size: 0.95rem; color: #555; }
-    .duplicado-bloque dl { margin: 0; font-size: 0.85rem; }
-    .duplicado-bloque dt { font-weight: 600; color: #444; margin-top: 0.35rem; }
-    .duplicado-bloque dt:first-child { margin-top: 0; }
-    .duplicado-bloque dd { margin: 0.15rem 0 0 0; color: #333; }
-    #modal-duplicado .btn-excluir-calc { background: #b45309; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
-    #modal-duplicado .btn-excluir-calc:hover { background: #9a4607; }
-    #modal-duplicado .btn-eliminar-reg { background: #b91c1c; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; }
-    #modal-duplicado .btn-eliminar-reg:hover { background: #991b1b; }
-    .duplicado-campo-diferente { display: inline-flex; align-items: center; gap: 0.25rem; }
-    .duplicado-campo-diferente .icon-no-coincide { flex-shrink: 0; width: 14px; height: 14px; color: #b45309; vertical-align: middle; }
     #modal-editar-registro .form-group { margin-bottom: 0.75rem; }
     #modal-editar-registro label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.9rem; }
     #modal-editar-registro select, #modal-editar-registro input[type="text"], #modal-editar-registro input[type="number"], #modal-editar-registro input[type="date"], #modal-editar-registro textarea { width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #ccc; font-size: 0.9rem; }
@@ -702,54 +680,6 @@
     .btn-exportar-base { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #16a34a; background: #16a34a; cursor: pointer; font-size: 0.9rem; color: #fff; }
     .btn-exportar-base:hover { background: #15803d; border-color: #15803d; color: #fff; }
     .btn-exportar-base .icon-excel { width: 20px; height: 20px; color: inherit; }
-    .btn-actualizar-base { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #b45309; background: #b45309; cursor: pointer; font-size: 0.9rem; color: #fff; }
-    .btn-actualizar-base:hover { background: #9a4607; border-color: #9a4607; color: #fff; }
-    .btn-actualizar-base:disabled,
-    .btn-actualizar-base[disabled] {
-      opacity: 0.55;
-      cursor: not-allowed;
-      filter: grayscale(20%);
-    }
-    .modal-upload .upload-zone { border: 2px dashed #ccc; border-radius: 8px; padding: 1rem; text-align: center; margin: 0.75rem 0; background: #fafafa; }
-    .modal-upload .upload-progress {
-      margin: 0.75rem 0 0.35rem;
-      font-size: 0.92rem;
-      color: #1f2937;
-      white-space: pre-wrap;
-      background: #eef2ff;
-      border: 1px solid #c7d2fe;
-      border-radius: 8px;
-      padding: 0.55rem 0.65rem;
-      min-height: 56px;
-      font-weight: 600;
-    }
-    .modal-upload .upload-progress:empty {
-      background: #f8fafc;
-      border-color: #e5e7eb;
-      color: #6b7280;
-      font-weight: 500;
-    }
-    .modal-upload .upload-progressbar-wrap {
-      width: 100%;
-      height: 10px;
-      background: #e5e7eb;
-      border-radius: 999px;
-      overflow: hidden;
-      border: 1px solid #d1d5db;
-      margin-bottom: 0.65rem;
-    }
-    .modal-upload .upload-progressbar-fill {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #16a34a, #22c55e);
-      transition: width 0.2s ease;
-    }
-    .modal-upload .upload-error { color: #b91c1c; margin-top: 0.5rem; white-space: pre-wrap; }
-    .modal-upload .upload-ok { color: #0d7d3d; margin-top: 0.5rem; white-space: pre-wrap; }
-    .modal-upload .upload-preview { margin-top: 0.5rem; font-size: 0.88rem; color: #444; background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.6rem 0.75rem; white-space: pre-wrap; }
-    .modal-upload .upload-confirm-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
-    .modal-upload .upload-confirm-row input[type="text"] { padding: 0.45rem 0.6rem; border-radius: 6px; border: 1px solid #ccc; min-width: 170px; }
-    .modal-upload .form-actions { margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
     .icon-document-arrow-down { flex-shrink: 0; }
     .btn-exportar-evolucion { display: inline-flex; align-items: center; gap: 0.4rem; }
     .btn-exportar-evolucion .icon-excel { width: 20px; height: 20px; flex-shrink: 0; }
@@ -937,9 +867,6 @@
       </select>
     </label>
     <div class="acciones-base-wrap">
-      <button type="button" class="btn btn-warning btn-actualizar-base" id="btn-upload-normalizado" title="Cargar extracto normalizado y reemplazar base" aria-label="Actualizar base desde extracto normalizado">
-        <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span> Actualizar base desde normalizado
-      </button>
       <button type="button" class="btn btn-success btn-exportar-base export-excel-btn" id="btn-exportar-excel" title="Exportar base de transacciones a Excel" aria-label="Exportar Base Histórica">
         <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar Base Histórica
       </button>
@@ -952,11 +879,9 @@
     <div class="tabs-toolbar">
       <div class="tabs">
         <button type="button" class="tab activo" data-panel="flujo"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></span>Flujo por mes</button>
-        <button type="button" class="tab" data-panel="errores-global"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>Errores</button>
         <button type="button" class="tab" data-panel="todas-transacciones"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span>Todas las transacciones</button>
         <button type="button" class="tab" data-panel="evolucion"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Evolución</button>
         <button type="button" class="tab" data-panel="estado-financiero"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>Estado Financiero</button>
-        <button type="button" class="tab" data-panel="excluidos-upload"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18A2 2 0 0 0 3.53 21h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></span>Excluidos upload</button>
       </div>
     </div>
     <div id="panel-flujo" class="card panel activo">
@@ -964,7 +889,7 @@
         <div class="th-help-rich-content">
           <p>En <strong>ARS</strong>, movimientos en <strong>USD</strong>: <strong>monto × tipo_cambio</strong> de la fila; si falta, <strong>monto × cotización</strong> de la tabla (MEP/CCL/Oficial); si no hay tasa, <strong>monto_cambio</strong> en BD. Movimientos ya en ARS: se usa <strong>monto</strong> (no <strong>monto_cambio</strong>, que en el extracto puede venir desalineado).</p>
           <p>Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = caja operativa neteada: egresos con <code>ef_subitem</code> de ingreso §1 (Cobranzas, Otros ingresos operativos, etc.) se restan de ambas columnas del mes (devoluciones / ajustes al mismo rubro que el Estado Financiero). <strong>G/P operativo</strong> = Ingresos − Egresos (sin cambio). Fuente: tesorería (conciliación + cajas físicas) unida a la Matriz EF.</p>
-          <p><strong>Comisiones / Ventas %</strong> = egresos con <code>ef_subitem</code> <strong>Comisiones por Ventas</strong> ÷ ingresos con <code>ef_subitem</code> <strong>Cobranzas por Ventas (Efectivo neto ingresado)</strong> del mes (subítems canónicos EF; alias cortos en import se normalizan). Sin <code>ef_subitem</code> la fila no entra al ratio.</p>
+          <p><strong>Comisiones / Ventas %</strong> = egresos con <code>ef_subitem</code> <strong>Comisiones por Ventas</strong> ÷ ingresos con <code>ef_subitem</code> <strong>Cobranzas por Ventas (Efectivo neto ingresado)</strong> del mes (subítems canónicos EF; alias cortos se normalizan). Sin <code>ef_subitem</code> la fila no entra al ratio.</p>
           <p>Columnas <strong>Costo dir.</strong>, <strong>Costo ind.</strong> y <strong>Costo total / Ingreso total</strong> usan la misma fórmula % del Flujo Op. que el Estado Financiero (montos internos sin redondear; solo la visualización de importes es entera).</p>
         </div>
       </template>
@@ -993,59 +918,6 @@
         </thead>
         <tbody id="tbody"></tbody>
         <tfoot id="tfoot-flujo"></tfoot>
-      </table>
-      </div>
-    </div>
-    <div id="panel-errores-global" class="card panel">
-      <template id="template-errores-panel">
-        <div class="th-help-rich-content">
-          <p>Registros de egresos con posibles inconsistencias entre categoría, cuenta contable y descripción del extracto (validación). Pueden corregirse desde el icono de edición.</p>
-          <p>El filtro <strong>Categoría (matriz)</strong> usa <code>nueva_categoria</code> o el mismo fallback que Evolución.</p>
-        </div>
-      </template>
-      <div class="errores-panel-toolbar">
-        <div class="panel-toolbar-start">
-          <button type="button" class="th-help th-help--inline" data-help-template="template-errores-panel" aria-label="Ayuda: Errores" title="Ayuda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
-        <div class="errores-filtros">
-          <label for="filtro-tipo-error">Tipo de error:</label>
-          <select id="filtro-tipo-error" title="Filtrar por tipo de error">
-            <option value="todos">Todos</option>
-            <option value="inconsistencia">Inconsistencia (categoría / cuenta / descripción)</option>
-            <option value="duplicado">Potencial registro duplicado</option>
-          </select>
-          <label for="filtro-categoria-orig">Categoría orig.:</label>
-          <select id="filtro-categoria-orig" title="Filtrar por categoría original">
-            <option value="">Todas</option>
-          </select>
-          <label for="filtro-categoria-mostrada">Categoría (matriz):</label>
-          <select id="filtro-categoria-mostrada" title="Filtrar por categoría de matriz (nueva en BD o fallback)">
-            <option value="">Todas</option>
-          </select>
-        </div>
-        </div>
-        <button type="button" class="btn btn-success btn-ver-errores" id="btn-exportar-errores" title="Exportar lista de errores a Excel"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar errores a Excel</button>
-      </div>
-      <div class="errores-table-wrap">
-      <table id="tabla-errores-global">
-        <thead>
-          <tr>
-            <th>Tipo de error</th>
-            <th>Fecha</th>
-            <th>Id_Origen</th>
-            <th>Id_Operacion</th>
-            <th>Tipo</th>
-            <th>Categoría orig.</th>
-            <th>Categoría (matriz)</th>
-            <th>Cuenta (matriz)</th>
-            <th>Medio</th>
-            <th>Monto</th>
-            <th>Moneda</th>
-            <th>Descripción</th>
-            <th>Origen</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="tbody-errores-global"></tbody>
       </table>
       </div>
     </div>
@@ -1177,36 +1049,6 @@
         <table id="tabla-estado-financiero" class="tabla-layout-ef">
           <thead id="thead-estado-financiero"></thead>
           <tbody id="tbody-estado-financiero"></tbody>
-        </table>
-      </div>
-    </div>
-    <div id="panel-excluidos-upload" class="card panel">
-      <template id="template-excluidos-panel">
-        <div class="th-help-rich-content">
-          <p>Log de registros excluidos durante cargas de extracto normalizado (errores de validación o Apertura/Cierre de Caja).</p>
-        </div>
-      </template>
-      <div class="errores-panel-toolbar">
-        <div class="panel-toolbar-start">
-          <button type="button" class="th-help th-help--inline" data-help-template="template-excluidos-panel" aria-label="Ayuda: Excluidos upload" title="Ayuda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
-        </div>
-        <button type="button" class="btn" id="btn-recargar-excluidos-upload"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10"/><path d="M20.49 15A9 9 0 0 1 6.36 18.36L1 14"/></svg></span> Recargar</button>
-      </div>
-      <div class="errores-table-wrap">
-        <table id="tabla-excluidos-upload">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Archivo</th>
-              <th>Fila Excel</th>
-              <th>Motivo</th>
-              <th>Tipo</th>
-              <th>Moneda</th>
-              <th>Monto</th>
-              <th>Descripción</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-excluidos-upload"></tbody>
         </table>
       </div>
     </div>
@@ -1359,16 +1201,6 @@
     </div>
   </div>
 
-  <div id="modal-errores-backdrop" class="modal-backdrop oculto">
-    <div class="modal modal-errores-ancho" id="modal-errores">
-      <div class="modal-header" id="modal-errores-header-drag">
-        <h2 id="modal-errores-titulo">Errores de clasificación</h2>
-        <button type="button" class="modal-close" id="modal-errores-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
-      </div>
-      <div class="modal-body" id="modal-errores-body"></div>
-    </div>
-  </div>
-
   <div id="modal-editar-backdrop" class="modal-backdrop oculto">
     <div class="modal modal-evolucion-detalle-ancho" id="modal-editar-registro">
       <div class="modal-header" id="modal-editar-header-drag">
@@ -1377,9 +1209,6 @@
       </div>
       <div class="modal-body" id="modal-editar-body">
         <div class="form-grid">
-          <div id="edit-ayuda-wrap" class="form-group form-group-full" style="display:none;">
-            <p id="edit-ayuda-contexto" class="sin-cotizacion-note" style="margin:0;"></p>
-          </div>
           <div class="form-group">
             <label>Fecha</label>
             <input type="date" id="edit-fecha">
@@ -1629,60 +1458,6 @@
     </div>
   </div>
 
-  <div id="modal-upload-normalizado-backdrop" class="modal-backdrop oculto">
-    <div class="modal modal-upload" id="modal-upload-normalizado" style="max-width:620px;">
-      <div class="modal-header" id="modal-upload-normalizado-header-drag">
-        <h2>Cargar Extracto Normalizado</h2>
-        <button type="button" class="modal-close" id="modal-upload-normalizado-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
-      </div>
-      <div class="modal-body">
-        <p style="margin:0 0 0.6rem 0; font-size:0.93rem; color:#555;">Este proceso reemplaza toda la tabla <code>transacciones</code> por el contenido de la hoja <code>Normalizado</code> (generada con <code>npm run normalizar-extracto</code> desde <code>docs/Fornitalia_Movimientos.xlsx</code>, que incluye IDs y <code>cat_desc</code> cuando existen). Se valida estructura y tipos antes de insertar.</p>
-        <div class="upload-zone">
-          <input type="file" id="upload-normalizado-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
-          <p id="upload-normalizado-file-name" style="margin:0.45rem 0 0; font-size:0.9rem; color:#666;"></p>
-        </div>
-        <div id="upload-normalizado-progress" class="upload-progress">Esperando archivo para validar...</div>
-        <div class="upload-progressbar-wrap" aria-hidden="true">
-          <div id="upload-normalizado-progressbar-fill" class="upload-progressbar-fill"></div>
-        </div>
-        <div id="upload-normalizado-preview" class="upload-preview" style="display:none;"></div>
-        <div id="upload-normalizado-error" class="upload-error"></div>
-        <div id="upload-normalizado-ok" class="upload-ok"></div>
-        <div class="form-actions">
-          <button type="button" id="upload-normalizado-btn-confirm" class="btn-actualizar-base" disabled>Continuar y actualizar</button>
-          <button type="button" id="upload-normalizado-btn-cancel" class="btn">Cancelar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="modal-duplicado-backdrop" class="modal-backdrop oculto">
-    <div class="modal" id="modal-duplicado">
-      <div class="modal-header" id="modal-duplicado-header-drag">
-        <h2 id="modal-duplicado-titulo">Posible registro duplicado</h2>
-        <button type="button" class="modal-close" id="modal-duplicado-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
-      </div>
-      <div class="modal-body" id="modal-duplicado-body">
-        <p class="sin-cotizacion-note" style="margin-top:0;">Compará los dos registros. Si confirmás que es duplicado, podés excluir este registro de los cálculos (anular) o eliminarlo.</p>
-        <div class="duplicado-comparacion">
-          <div class="duplicado-bloque">
-            <h3 class="duplicado-bloque-titulo">Este registro</h3>
-            <div id="modal-duplicado-este"></div>
-          </div>
-          <div class="duplicado-bloque">
-            <h3 class="duplicado-bloque-titulo">Posible duplicado (otro registro)</h3>
-            <div id="modal-duplicado-otro"></div>
-          </div>
-        </div>
-        <div class="form-actions" style="margin-top:1rem;">
-          <button type="button" class="btn btn-warning btn-excluir-calc" id="modal-duplicado-excluir"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg></span> Excluir de cálculos (anular)</button>
-          <button type="button" class="btn btn-danger btn-eliminar-reg" id="modal-duplicado-eliminar"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M10 11v6M14 11v6"/></svg></span> Eliminar registro</button>
-          <button type="button" class="btn" id="modal-duplicado-cerrar"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span> Cerrar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <div id="modal-ef-detalle-backdrop" class="modal-backdrop oculto">
     <div class="modal modal-evolucion-detalle-ancho" id="modal-ef-detalle">
       <div class="modal-header" id="modal-ef-detalle-header-drag">
@@ -1750,7 +1525,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.43';
+    const APP_VERSION = '2.44';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -1772,7 +1547,6 @@
     const PERM_DASHBOARD_OPERADOR = 'dashboard_operador';
     const PERM_ASSIGN_ROLES = 'assign_roles';
     const PERM_EDITAR_REGISTROS = 'editar_registros';
-    const PERM_CARGA_NORMALIZADA = 'carga_normalizada';
     const PERM_VER_NOVEDADES = 'ver_novedades';
     const PERM_VER_CONFIGURACION = 'ver_configuracion';
     const PERM_VER_REPORTES = 'ver_reportes';
@@ -1786,25 +1560,20 @@
     /** Solapas del dashboard → permiso granular. */
     const PANEL_PERMISO = {
       flujo: 'ver_solapa_flujo',
-      'errores-global': 'ver_solapa_errores',
       'todas-transacciones': 'ver_solapa_todas_transacciones',
       evolucion: 'ver_solapa_evolucion',
       'estado-financiero': 'ver_solapa_estado_financiero',
-      'excluidos-upload': 'ver_solapa_excluidos_upload',
     };
 
     /** Bundle legacy: si el rol aún tiene solo dashboard_operador, equivale a estos permisos. */
     const OPERADOR_BUNDLE = [
       'ver_solapa_flujo',
-      'ver_solapa_errores',
       'ver_solapa_todas_transacciones',
       'ver_solapa_evolucion',
       'ver_solapa_estado_financiero',
-      'ver_solapa_excluidos_upload',
       'ver_novedades',
       'ver_configuracion',
       'ver_reportes',
-      'carga_normalizada',
       'editar_registros',
     ];
 
@@ -1842,10 +1611,6 @@
 
     function puedeEditarRegistros() {
       return hasPerm(PERM_EDITAR_REGISTROS);
-    }
-
-    function puedeCargarNormalizado() {
-      return hasPerm(PERM_CARGA_NORMALIZADA);
     }
 
     function puedeExportarBaseHistorica() {
@@ -1987,7 +1752,6 @@
       const se = hasPerm(PERM_VER_SALDOS_EXTRACTOS);
       const imp = hasPerm(PERM_VER_IMPUESTOS);
       const mef = hasPerm(PERM_VER_MATRIZ_EF);
-      const carga = puedeCargarNormalizado();
 
       const setVis = (id, visible) => {
         const n = document.getElementById(id);
@@ -2006,9 +1770,6 @@
       setVis('menu-mi-perfil', true);
       setVis('menu-cerrar-sesion', true);
       refreshUserBarLabel();
-
-      const btnUp = document.getElementById('btn-upload-normalizado');
-      if (btnUp) btnUp.style.display = carga ? '' : 'none';
 
       const btnEx = document.getElementById('btn-exportar-excel');
       if (btnEx) btnEx.style.display = exp ? '' : 'none';
@@ -2205,11 +1966,9 @@
         titulo: 'Solapas del dashboard',
         operar: [
           'ver_solapa_flujo',
-          'ver_solapa_errores',
           'ver_solapa_todas_transacciones',
           'ver_solapa_evolucion',
           'ver_solapa_estado_financiero',
-          'ver_solapa_excluidos_upload',
         ],
       },
       {
@@ -2250,7 +2009,7 @@
       {
         id: 'acciones',
         titulo: 'Acciones',
-        operar: ['exportar_base_historica', 'carga_normalizada', 'editar_registros'],
+        operar: ['exportar_base_historica', 'editar_registros'],
       },
       { id: 'admin', titulo: 'Administración', operar: ['assign_roles'] },
     ];
@@ -2958,7 +2717,7 @@
     }
 
     /**
-     * Reglas operativas sin filtro por mes (duplicados, auditoría): anulados, apertura/cierre, traspasos internos.
+     * Reglas operativas sin filtro por mes: anulados, apertura/cierre, traspasos internos.
      */
     function excluirFilaReglasOperativas(r) {
       if (!r) return true;
@@ -2969,7 +2728,7 @@
     }
 
     /**
-     * Fila excluida del flujo operativo agregado (G/P, ratios, Evolución, errores de clasificación en tablero).
+     * Fila excluida del flujo operativo agregado (G/P, ratios, Evolución).
      * Incluye reglas operativas + mes desactivado en Configuración → Inclusión por mes.
      */
     function excluirFilaFlujoOperativo(r) {
@@ -3006,131 +2765,6 @@
       return textoIndicaComision(desc, catDesc);
     }
 
-    /** Normaliza categoría/cuenta para comparar excepciones (minúsculas, sin acentos). */
-    function normParConf(s) {
-      return String(s ?? '')
-        .trim()
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-    }
-
-    /**
-     * Pares categoría / cuenta contable que no deben marcarse como error de inconsistencia
-     * aunque la descripción no contenga palabras clave de la categoría o cuenta.
-     */
-    function esParCategoriaCuentaExcluidoErrores(categoria, cuentaContable) {
-      const c = normParConf(categoria);
-      const u = normParConf(cuentaContable);
-      if (c === 'impuestos' && u === 'iibb') return true;
-      if (c === 'logistica' && u === 'fletes y transportes') return true;
-      const catAlquileres = c === 'alquiler' || c === 'alquileres y servicios';
-      if (catAlquileres && (u === 'alquiler' || u === 'electricidad' || u === 'internet' || u === 'telefonia')) return true;
-      if (c === 'activos' && u === 'hornos') return true;
-      if ((c === 'mantenimiento' || c === 'manteniemiento') && u === 'ferreteria') return true;
-      if (c === 'sueldos') {
-        const cuentasComisionVenta = new Set([
-          'comisoiones venta',
-          'comisiones venta',
-          'comisiones ventas',
-          'comisones venta',
-          'comisones ventas',
-        ]);
-        if (cuentasComisionVenta.has(u)) return true;
-      }
-      if (c === 'marketing' && u === 'creacion de contenido') return true;
-      if (c === 'honorarios' && (u === 'honorarios contable' || u === 'honorarios contables')) return true;
-      return false;
-    }
-
-    // Valida consistencia entre categoría, cuenta contable y descripción (solo Egresos).
-    function esDescripcionConsistenteConCategoriaYCuenta(r) {
-      if (!r || r.tipo_movimiento !== 'Egreso') return true;
-      const catOrig = (r.categoria || '').trim().toLowerCase();
-      const cuentaOrig = (r.cuenta_contable || '').trim().toLowerCase();
-      if (esParCategoriaCuentaExcluidoErrores(r.categoria, r.cuenta_contable)) return true;
-      // Excepción: Comisiones Bancarias / Gastos Bancarios se considera consistente
-      if (catOrig === 'comisiones bancarias' && cuentaOrig === 'gastos bancarios') return true;
-      // Excepción: Impuestos / MercadoPago se considera consistente
-      if (catOrig === 'impuestos' && cuentaOrig === 'mercadopago') return true;
-      // Excepción: Impuestos / Transferencia Morba se considera consistente
-      if (catOrig === 'impuestos' && cuentaOrig === 'transferencia morba') return true;
-      const descBase = ((r.descripcion || '') + ' ' + (r.cat_desc || '') + ' ' + (r.cliente || '')).toLowerCase();
-      const cuenta = (r.cuenta_contable || '').toString().toLowerCase();
-      const catDisplay = getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc).toString().toLowerCase();
-      const tokens = [];
-      function agregarTokens(texto) {
-        texto.split(/[^a-záéíóúüñ0-9]+/i).forEach(t => {
-          const tok = t.trim();
-          if (tok.length >= 3 && !tokens.includes(tok)) tokens.push(tok);
-        });
-      }
-      agregarTokens(catDisplay);
-      agregarTokens(cuenta);
-      if (!tokens.length) return true;
-      const desc = descBase;
-      return tokens.some(t => desc.indexOf(t) !== -1);
-    }
-
-    function getCategoriaDisplayConValidacion(r) {
-      const base = getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc);
-      if (!esDescripcionConsistenteConCategoriaYCuenta(r)) {
-        return { categoria: 'Sin categoría', esError: true, baseCategoria: base };
-      }
-      return { categoria: base, esError: false, baseCategoria: base };
-    }
-
-    const TIPO_ERROR_INCONSISTENCIA = 'Inconsistencia entre Categoria, Cuenta Contable y Descripcion';
-    const TIPO_ERROR_DUPLICADO = 'Potencial registro duplicado';
-
-    function descripcionSimilar(descA, descB) {
-      const na = (descA || '').trim().toLowerCase().replace(/\s+/g, ' ');
-      const nb = (descB || '').trim().toLowerCase().replace(/\s+/g, ' ');
-      if (!na || !nb) return na === nb;
-      if (na.length < 3 && nb.length < 3) return na === nb;
-      return na === nb || na.includes(nb) || nb.includes(na) || na.slice(0, 20) === nb.slice(0, 20);
-    }
-
-    function getPosibleDuplicado(r, lista) {
-      const idR = (r.id || '').toString();
-      const fechaR = fechaStr(r.fecha);
-      const montoR = Number(r.monto);
-      const tipoR = (r.tipo_movimiento || '').trim();
-      const clienteR = (r.cliente || '').trim();
-      const idOrigenR = (r.id_origen || '').toString().trim();
-      const idOperacionR = (r.id_operacion || '').toString().trim();
-      if (!fechaR || (montoR !== 0 && !montoR)) return null;
-      for (let i = 0; i < lista.length; i++) {
-        const s = lista[i];
-        if ((s.status || '').toString().trim() === 'Anulado') continue; // no considerar anulados como duplicado del otro
-        if ((s.id || '').toString() === idR) continue;
-        if (fechaStr(s.fecha) !== fechaR) continue;
-        if (Number(s.monto) !== montoR) continue;
-        if ((s.tipo_movimiento || '').trim() !== tipoR) continue;
-        if ((s.cliente || '').trim() !== clienteR) continue;
-        if (!descripcionSimilar(r.descripcion || r.cliente, s.descripcion || s.cliente)) continue;
-        // Si id_origen es distinto Y id_operacion es distinto (ambas), excluir de duplicados aunque el resto sea igual
-        const idOrigenS = (s.id_origen || '').toString().trim();
-        const idOperacionS = (s.id_operacion || '').toString().trim();
-        if (idOrigenR !== idOrigenS && idOperacionR !== idOperacionS) continue;
-        // Si ambos importes (monto) son 0, excluir de duplicados (p. ej. base simulada)
-        if (montoR === 0 && Number(s.monto) === 0) continue;
-        return s;
-      }
-      return null;
-    }
-
-    function getErroresDuplicados() {
-      // Excluir anulados: un registro confirmado y otro anulado con los mismos datos no es duplicado
-      const lista = cacheTransacciones.filter(r => !excluirFilaReglasOperativas(r));
-      const out = [];
-      lista.forEach(r => {
-        const otro = getPosibleDuplicado(r, lista);
-        if (otro) out.push({ ...r, tipoError: TIPO_ERROR_DUPLICADO, registroPosibleDuplicado: otro });
-      });
-      return out;
-    }
-
     let cacheTransacciones = [];
     let cacheEfEstructura = [];
     let cacheEfSubitemToItem = null;
@@ -3138,7 +2772,6 @@
     let cacheTC = {};
     let fechasConTasa = { mep: [], ccl: [], oficial: [] };
     let detalleProyeccionPorMes = {};
-    let cacheExcluidosUpload = [];
     let flujoMoneda = 'ARS';
     let flujoSimbolo = '$ ';
 
@@ -3388,20 +3021,6 @@
       ['mep','ccl','oficial'].forEach(rateKey => {
         fechasConTasa[rateKey] = Object.keys(map).filter(d => map[d][rateKey] != null && map[d][rateKey] > 0).sort();
       });
-      try {
-        const exRes = await client
-          .from('transacciones_upload_excluidos')
-          .select('created_at, run_ref, archivo, fila_excel, motivo, tipo_movimiento, moneda, monto, descripcion')
-          .order('created_at', { ascending: false })
-          .limit(500);
-        if (!exRes.error) {
-          const rowsEx = exRes.data || [];
-          const latestRun = rowsEx.find(r => r.run_ref != null && String(r.run_ref).trim() !== '');
-          cacheExcluidosUpload = latestRun
-            ? rowsEx.filter(r => String(r.run_ref) === String(latestRun.run_ref))
-            : rowsEx;
-        }
-      } catch (_) { /* tabla opcional */ }
       return { transacciones: cacheTransacciones, tcMap: cacheTC };
     }
 
@@ -3494,7 +3113,7 @@
       ordenados.forEach(key => {
         const [anio, mes] = [parseInt(key.slice(0, 4), 10), parseInt(key.slice(5), 10)];
         const trans = cacheTransacciones.filter(r => r.anio === anio && r.mes === mes && !excluirFilaFlujoOperativo(r));
-        categoriasEnMes[key] = [...new Set(trans.map(r => getCategoriaDisplayConValidacion(r).categoria))];
+        categoriasEnMes[key] = [...new Set(trans.map(r => getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc)))];
       });
       const umbralDesvioPct = getAlertaDesvioPct();
       const categoriasEsperadas = [
@@ -3744,7 +3363,6 @@
       }
       cacheFlujoExcel = { moneda: moneda, filas: filasFlujoExcel };
 
-      renderErroresGlobal();
       renderEvolucion();
       renderEstadoFinanciero();
       actualizarNotaMesesExcluidosFlujo();
@@ -4973,7 +4591,7 @@
       if (!cacheEfEstructura.length) {
         efTablaState = null;
         thead.innerHTML = '<tr><th>Ítem</th><th>Período</th></tr>';
-        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#666;">No hay estructura EF cargada. Subí el extracto con hoja <strong>EF_Estructura</strong> (Actualizar base desde normalizado).</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#666;">No hay estructura EF cargada. Cargala en <strong>Matriz EF → Estructura EF</strong>.</td></tr>';
         return;
       }
 
@@ -5577,29 +5195,6 @@
       XLSX.writeFile(wb, 'Evolucion_Fornitalia_' + fecha + '.xlsx');
     }
 
-    function renderExcluidosUpload() {
-      const tbody = document.getElementById('tbody-excluidos-upload');
-      if (!tbody) return;
-      const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;').replace(/"/g, '&quot;');
-      if (!cacheExcluidosUpload.length) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:left; color:#666;">Sin registros excluidos para mostrar.</td></tr>';
-        programarAjusteTablasScrollAncladas();
-        return;
-      }
-      tbody.innerHTML = cacheExcluidosUpload.map(r => {
-        const fecha = (r.created_at || '').toString().slice(0, 19).replace('T', ' ') || '—';
-        const archivo = esc(r.archivo || '—');
-        const fila = r.fila_excel != null ? r.fila_excel : '—';
-        const motivo = esc(r.motivo || '—');
-        const tipo = esc(r.tipo_movimiento || '—');
-        const moneda = esc((r.moneda || '').toString().toUpperCase() || '—');
-        const monto = (r.monto == null || r.monto === '') ? '—' : formatearNumero(Number(r.monto), 'ARS');
-        const desc = esc(r.descripcion || '—');
-        return `<tr><td>${esc(fecha)}</td><td>${archivo}</td><td>${fila}</td><td style="text-align:left;">${motivo}</td><td>${tipo}</td><td>${moneda}</td><td>${monto}</td><td style="text-align:left;">${desc}</td></tr>`;
-      }).join('');
-      programarAjusteTablasScrollAncladas();
-    }
-
     function exportarAExcel() {
       if (securityModuleActive() && !puedeExportarBaseHistorica()) {
         alert('No tenés permiso para exportar la base histórica.');
@@ -5662,24 +5257,6 @@
 
     function normalizarString(v) {
       return (v == null ? '' : String(v)).trim();
-    }
-
-    function textoCampoDesdeFila(r, keys) {
-      for (let i = 0; i < keys.length; i++) {
-        const val = normalizarString(r[keys[i]]);
-        if (val) return val;
-      }
-      return '';
-    }
-
-    function efItemDesdeFilaNormalizado(r) {
-      const v = textoCampoDesdeFila(r, ['EF_Item', 'ef_item']);
-      return v || null;
-    }
-
-    function efSubitemDesdeFilaNormalizado(r) {
-      const v = textoCampoDesdeFila(r, ['EF_SubItem', 'ef_subitem']);
-      return v || null;
     }
 
     /** Subítems EF canónicos para ratio Comisiones/Ventas % (Flujo por mes). Ver template-flujo-informe-pdf. */
@@ -5829,84 +5406,6 @@
       return EF_SUBITEM_ALIASES[key] || raw;
     }
 
-    function efFormulaDesdeNotas(row) {
-      const notas = normalizarString(row[4]);
-      if (!notas) return '';
-      return notas.replace(/^\s*\[\s*|\s*\]\s*$/g, '').trim();
-    }
-
-    function parseEfEstructuraAoa(aoa) {
-      const lines = [];
-      let curItem = '';
-      let orden = 0;
-      const header = (aoa[0] || []).map(c => normalizarString(c).toLowerCase());
-      const layoutRubroSigno = header.some(h => h.includes('signo'));
-
-      for (let i = 1; i < aoa.length; i++) {
-        const row = aoa[i] || [];
-        const cod = normalizarString(row[0]);
-        const rubro = normalizarString(row[1]);
-        if (!rubro && !cod) continue;
-
-        let signo;
-        let nat;
-        let subitemDetalle;
-
-        if (layoutRubroSigno) {
-          signo = normalizarString(row[2]);
-          nat = normalizarString(row[3]);
-          subitemDetalle = rubro;
-        } else {
-          subitemDetalle = normalizarString(row[2]);
-          signo = normalizarString(row[3]);
-          nat = normalizarString(row[4]);
-        }
-
-        const esTotal = signo === '(=)' || signo === '=' || rubro.startsWith('(=)') || (rubro.includes('(=)') && !subitemDetalle);
-        if (esTotal) {
-          orden += 1;
-          lines.push({ orden, codigo: cod, nivel: 2, ef_item: curItem, ef_subitem: rubro, signo: signo || '(=)', naturaleza: layoutRubroSigno ? (efFormulaDesdeNotas(row) || nat) : subitemDetalle || nat, es_total: true });
-          continue;
-        }
-
-        if (layoutRubroSigno) {
-          const esSeccion = /^\d+$/.test(String(cod)) && rubro && signo !== '+' && signo !== '-';
-          if (esSeccion) {
-            curItem = efItemEtiquetaDisplay(rubro);
-            orden += 1;
-            lines.push({ orden, codigo: cod, nivel: 0, ef_item: curItem, ef_subitem: '', signo, naturaleza: nat, es_total: false });
-            continue;
-          }
-          if (rubro && (signo === '+' || signo === '-')) {
-            orden += 1;
-            lines.push({ orden, codigo: cod, nivel: 1, ef_item: curItem, ef_subitem: subitemDetalle, signo, naturaleza: nat, es_total: false });
-          }
-          continue;
-        }
-
-        const comp = subitemDetalle;
-        if (rubro && !comp) {
-          curItem = efItemEtiquetaDisplay(rubro);
-          orden += 1;
-          lines.push({ orden, codigo: cod, nivel: 0, ef_item: curItem, ef_subitem: '', signo, naturaleza: nat, es_total: false });
-          continue;
-        }
-        if (comp) {
-          orden += 1;
-          lines.push({ orden, codigo: cod, nivel: 1, ef_item: curItem, ef_subitem: comp, signo, naturaleza: nat, es_total: false });
-        }
-      }
-      return lines;
-    }
-
-    function parseEfEstructuraFromWorkbook(wb, fileName) {
-      const sheet = wb.Sheets && (wb.Sheets.EF_Estructura || wb.Sheets['EF_Estructura']);
-      if (!sheet) return [];
-      const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-      const normFile = normalizarString(fileName) || 'upload_normalizado.xlsx';
-      return parseEfEstructuraAoa(aoa).map(l => ({ ...l, fuente_archivo: normFile }));
-    }
-
     async function fetchEfEstructura() {
       const { data, error } = await client
         .from('ef_estructura')
@@ -5916,41 +5415,6 @@
       return data || [];
     }
 
-    async function reemplazarEfEstructuraEnSupabase(lines, batchSize, onProgress) {
-      const { error: delErr } = await client.from('ef_estructura').delete().not('id', 'is', null);
-      if (delErr) throw delErr;
-      if (!lines.length) return 0;
-      const payload = lines.map(l => ({
-        orden: l.orden,
-        codigo: l.codigo || null,
-        nivel: l.nivel,
-        ef_item: l.ef_item,
-        ef_subitem: l.ef_subitem || null,
-        signo: l.signo || null,
-        naturaleza: l.naturaleza || null,
-        es_total: !!l.es_total,
-        fuente_archivo: l.fuente_archivo || null
-      }));
-      let inserted = 0;
-      for (let i = 0; i < payload.length; i += batchSize) {
-        const chunk = payload.slice(i, i + batchSize);
-        const { error } = await client.from('ef_estructura').insert(chunk);
-        if (error) throw error;
-        inserted += chunk.length;
-        if (onProgress) onProgress(inserted, payload.length);
-      }
-      return inserted;
-    }
-
-    /** Flags Y/N del extracto (Costo_Directo / Costo_Indirecto). */
-    function flagCostoDesdeExcel(value) {
-      const s = normalizarString(value).toUpperCase();
-      if (s === 'Y' || s === 'N') return s;
-      if (s === 'S' || s === 'SI' || s === 'YES') return 'Y';
-      if (s === 'NO') return 'N';
-      return normalizarString(value) || null;
-    }
-
     function toNumOrNull(value) {
       if (value == null || value === '') return null;
       if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -5958,23 +5422,6 @@
       if (!s) return null;
       const n = Number(s.replace(/\./g, '').replace(',', '.'));
       return Number.isFinite(n) ? n : null;
-    }
-
-    function parseISODate(value) {
-      const s = normalizarString(value);
-      if (!s) return null;
-      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-      const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-      if (m) return `${m[3]}-${m[2]}-${m[1]}`;
-      return null;
-    }
-
-    function normalizarTipoMovimiento(value) {
-      const raw = normalizarString(value).toLowerCase();
-      if (!raw) return null;
-      if (raw === 'ingreso' || raw === 'ingresos' || raw === 'entrada' || raw === 'entradas') return 'Ingreso';
-      if (raw === 'egreso' || raw === 'egresos' || raw === 'salida' || raw === 'salidas') return 'Egreso';
-      return null;
     }
 
     function esAperturaOCierreCaja(row) {
@@ -6058,202 +5505,6 @@
       return 'ARS';
     }
 
-    function hashString32(input) {
-      let h = 5381;
-      const str = String(input || '');
-      for (let i = 0; i < str.length; i++) h = ((h << 5) + h) + str.charCodeAt(i);
-      return (h >>> 0);
-    }
-
-    function mapearFilasNormalizadoAFilasTransacciones(rows, fileName) {
-      const errores = [];
-      const out = [];
-      let excluidasAperturaCierre = 0;
-      const excluidosDetalle = [];
-      const stampSec = Math.floor(Date.now() / 1000);
-      const normFile = normalizarString(fileName) || 'upload_normalizado.xlsx';
-      rows.forEach((r, idx) => {
-        const rowNum = idx + 2;
-        if (esAperturaOCierreCaja(r)) {
-          excluidasAperturaCierre += 1;
-          return;
-        }
-        const fechaIso = parseISODate(r.fecha_iso || r.fecha_original);
-        if (!fechaIso) {
-          errores.push(`Fila ${rowNum}: fecha inválida (fecha_iso/fecha_original).`);
-          excluidosDetalle.push({
-            fila_excel: rowNum,
-            motivo: 'Fecha inválida',
-            tipo_movimiento: normalizarString(r.tipo_movimiento) || null,
-            moneda: normalizarString(r.moneda).toUpperCase() || null,
-            monto: toNumOrNull(r.monto_original),
-            descripcion: normalizarString(r.descripcion) || null
-          });
-          return;
-        }
-        const tipo = normalizarTipoMovimiento(r.tipo_movimiento);
-        if (!tipo) {
-          const valorTipo = normalizarString(r.tipo_movimiento) || '(vacío)';
-          errores.push(`Fila ${rowNum}: tipo_movimiento inválido (${valorTipo}). Debe ser Ingreso o Egreso.`);
-          excluidosDetalle.push({
-            fila_excel: rowNum,
-            motivo: `Tipo movimiento inválido: ${valorTipo}`,
-            tipo_movimiento: normalizarString(r.tipo_movimiento) || null,
-            moneda: normalizarString(r.moneda).toUpperCase() || null,
-            monto: toNumOrNull(r.monto_original),
-            descripcion: normalizarString(r.descripcion) || null
-          });
-          return;
-        }
-        const montoOriginal = toNumOrNull(r.monto_original);
-        if (montoOriginal == null) {
-          errores.push(`Fila ${rowNum}: monto_original inválido o vacío.`);
-          excluidosDetalle.push({
-            fila_excel: rowNum,
-            motivo: 'Monto inválido o vacío',
-            tipo_movimiento: tipo,
-            moneda: normalizarString(r.moneda).toUpperCase() || null,
-            monto: null,
-            descripcion: normalizarString(r.descripcion) || null
-          });
-          return;
-        }
-        let moneda = normalizarString(r.moneda).toUpperCase();
-        const porMedioTabla = monedaPorMedioFornitaliaTabla(r.medio_pago);
-        if (porMedioTabla) {
-          moneda = porMedioTabla;
-        } else {
-          if (moneda !== 'ARS' && moneda !== 'USD') {
-            moneda = inferMonedaDesdeTextos(r.medio_pago, r.descripcion, r.observaciones, r.cuenta_contable, r.categoria);
-          }
-          if (reglaNegocioMonedaSiempreARS(r.medio_pago, r.descripcion, r.observaciones, r.cuenta_contable, r.categoria)) {
-            moneda = 'ARS';
-          }
-        }
-        const mes = Number(fechaIso.slice(5, 7));
-        const anio = Number(fechaIso.slice(0, 4));
-        const hora = normalizarString(r.hora);
-        const horaFmt = /^\d{2}:\d{2}(:\d{2})?$/.test(hora) ? (hora.length === 5 ? `${hora}:00` : hora) : null;
-        const idOperacionRaw = normalizarString(r.nro_operacion);
-        const idOperacion = (idOperacionRaw && idOperacionRaw !== '-') ? idOperacionRaw : null;
-        const idCierreRaw = normalizarString(r.id_cierre_caja);
-        const idCierreCaja = idCierreRaw || null;
-        const idCompPago = toNumOrNull(r.id_comprobante_pago);
-        const idImp = toNumOrNull(r.id_impuesto);
-        const catDescNorm = normalizarString(r.cat_desc);
-        const obsNorm = normalizarString(r.observaciones);
-        const catDescInsert = catDescNorm || obsNorm || null;
-        const hashFuente = hashString32([
-          fechaIso,
-          tipo,
-          normalizarString(r.medio_pago),
-          montoOriginal,
-          normalizarString(r.descripcion),
-          normalizarString(r.cliente),
-          normalizarString(r.categoria),
-          normalizarString(r.cuenta_contable),
-          idx + 1
-        ].join('|'));
-        const idOrigen = stampSec * 100000 + (idx + 1);
-        const costoDirRaw = r.Costo_Directo != null && String(r.Costo_Directo).trim() !== '' ? r.Costo_Directo : r.costo_directo;
-        const costoIndRaw = r.Costo_Indirecto != null && String(r.Costo_Indirecto).trim() !== '' ? r.Costo_Indirecto : r.costo_indirecto;
-        out.push({
-          titulo: 'Extracto normalizado',
-          id_origen: idOrigen,
-          id_cierre_caja: idCierreCaja,
-          id_operacion: idOperacion,
-          id_comprobante_pago: idCompPago,
-          id_impuesto: idImp,
-          cliente: normalizarString(r.cliente) || null,
-          tipo_movimiento: tipo,
-          medio_pago: normalizarString(r.medio_pago) || null,
-          descripcion: normalizarString(r.descripcion) || null,
-          cat_desc: catDescInsert,
-          observaciones: `hash_fuente:${hashFuente}`,
-          categoria: normalizarString(r.categoria) || 'Sin categoría',
-          cuenta_contable: normalizarString(r.cuenta_contable) || null,
-          nueva_categoria: normalizarString(r.nueva_categoria) || null,
-          nueva_cuenta_contable: normalizarString(r.nueva_cuenta_contable) || null,
-          costo_directo: flagCostoDesdeExcel(costoDirRaw),
-          costo_indirecto: flagCostoDesdeExcel(costoIndRaw),
-          ef_item: efItemDesdeFilaNormalizado(r),
-          ef_subitem: efSubitemDesdeFilaNormalizado(r),
-          monto: montoOriginal,
-          tipo_cambio: toNumOrNull(r.tipo_cambio),
-          monto_cambio: toNumOrNull(r.monto_ars),
-          fecha: fechaIso,
-          mes,
-          mes_anio: `${anio}-${String(mes).padStart(2, '0')}-01`,
-          anio,
-          hora: horaFmt,
-          usuario_app: normalizarString(r.usuario) || null,
-          status: normalizarString(r.estado) || 'Pendiente',
-          creacion_manual: 'Upload normalizado app',
-          origen_archivo: `Normalizado|${normFile}`,
-          moneda,
-          editado: false,
-          editado_detalle: null
-        });
-      });
-      return { filas: out, errores, excluidasAperturaCierre, excluidosDetalle };
-    }
-
-    function leerNormalizadoDesdeWorkbook(workbook) {
-      const sheetName = workbook.Sheets['Normalizado'] ? 'Normalizado' : workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      if (!sheet) return { rows: [], sheetName };
-      const rows = XLSX.utils.sheet_to_json(sheet, { raw: true, defval: null });
-      return { rows, sheetName };
-    }
-
-    function exportarErroresExcel() {
-      if (!window.XLSX || !lastErroresGlobal || !lastErroresGlobal.length) {
-        alert('No hay registros con error para exportar.');
-        return;
-      }
-      const headers = ['tipo_error', 'id', 'id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'categoria_original', 'categoria_matriz', 'cuenta_matriz', 'medio_pago', 'moneda', 'monto', 'descripcion', 'cliente', 'cat_desc', 'origen_archivo', 'editado', 'editado_detalle'];
-      const rows = [['Moneda de los montos: ver columna "moneda" (ARS o USD).'], headers];
-      lastErroresGlobal.forEach(r => {
-        const regIsUSD = esTransaccionUSD(r);
-        const monedaReg = regIsUSD ? 'USD' : 'ARS';
-        const montoNum = (r.monto != null && r.monto !== '') ? Number(r.monto) : '';
-        rows.push([
-          (r.tipoError || '').toString(),
-          (r.id || '').toString(),
-          (r.id_origen != null && r.id_origen !== '') ? String(r.id_origen) : '',
-          (r.id_operacion != null && r.id_operacion !== '') ? String(r.id_operacion) : '',
-          r.fecha != null ? r.fecha : '',
-          r.mes != null ? r.mes : '',
-          r.anio != null ? r.anio : '',
-          (r.tipo_movimiento || '').toString(),
-          (r.categoriaOriginal || '').toString(),
-          (categoriaDistribucionFlujo(r) || '').toString(),
-          (cuentaDistribucionFlujo(r) || '').toString(),
-          (r.medio_pago || '').toString(),
-          monedaReg,
-          montoNum,
-          (r.descripcion || '').toString(),
-          (r.cliente || '').toString(),
-          (r.cat_desc || '').toString(),
-          (r.origen_archivo || '').toString(),
-          r.editado === true ? 'Sí' : '',
-          (r.editado_detalle || '').toString()
-        ]);
-      });
-      const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [
-        { wch: 48 }, { wch: 36 }, { wch: 24 }, { wch: 24 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 16 },
-        { wch: 26 }, { wch: 26 }, { wch: 22 }, { wch: 16 }, { wch: 8 },
-        { wch: 16 }, { wch: 40 }, { wch: 22 }, { wch: 22 }, { wch: 18 },
-        { wch: 8 }, { wch: 32 }
-      ];
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Errores');
-      const hoy = new Date();
-      const fecha = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
-      XLSX.writeFile(wb, 'Errores_clasificacion_Fornitalia_' + fecha + '.xlsx');
-    }
-
     /**
      * Equivalente en moneda de vista. En ARS: USD → monto × tipo_cambio o × cotización de tabla, luego monto_cambio; movimientos ARS → monto.
      */
@@ -6330,8 +5581,7 @@
     function categoriaDistribucionFlujo(r) {
       const nueva = (r.nueva_categoria || '').trim();
       if (nueva) return nueva;
-      const info = getCategoriaDisplayConValidacion(r);
-      return (info.categoria || 'Sin categoría');
+      return getCategoriaDisplay(r.categoria, r.descripcion, r.cat_desc) || 'Sin categoría';
     }
 
     function cuentaDistribucionFlujo(r) {
@@ -6361,7 +5611,6 @@
     }
 
     let chartSerieMensual = null;
-    let lastErroresGlobal = [];
     /** Último mes abierto en el modal de detalle (flujo); sirve para refrescar el HTML tras editar en Supabase. */
     let ultimoModalMesAnio = null;
     let ultimoModalMes = null;
@@ -6573,9 +5822,7 @@
       const dirMapCat = {};
       const indMapCat = {};
       const otrMapCat = {};
-      const erroresClasificacion = [];
       transaccionesMes.forEach(r => {
-        const infoCat = getCategoriaDisplayConValidacion(r);
         const catDisplay = categoriaDistribucionFlujo(r);
         const row = { ...r, montoConvertido: montoConvertido(r, moneda, tipoDolar) };
         if (r.tipo_movimiento === 'Ingreso') {
@@ -6586,13 +5833,6 @@
           const tgt = b === 'directo' ? dirMapCat : (b === 'indirecto' ? indMapCat : otrMapCat);
           if (!tgt[catDisplay]) tgt[catDisplay] = [];
           tgt[catDisplay].push(row);
-        }
-        if (infoCat.esError && r.tipo_movimiento === 'Egreso') {
-          erroresClasificacion.push({
-            ...r,
-            categoriaDisplay: catDisplay,
-            categoriaOriginal: (r.categoria || '').trim() || 'Sin categoría'
-          });
         }
       });
       const ordenAlfModal = (a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' });
@@ -6680,31 +5920,14 @@
         return h;
       };
 
-      const erroresCount = erroresClasificacion.length;
-      const erroresResumenHtml = erroresCount === 0
-        ? '<p class="muted">No hay registros con errores de clasificación en este mes.</p>'
-        : `
-          <p><strong>Tipo de Error:</strong> Inconsistencia entre Categoria , Cuenta Contable y Descripcion</p>
-          <p><strong>Cantidad de registros con este error:</strong> ${erroresCount}</p>
-          <button type="button" class="btn btn-ver-errores" data-anio="${anio}" data-mes="${mes}"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span> Ver detalle de errores</button>
-        `;
-
-      const tabErrores = puedeEditarRegistros() || puedeVerSolapa('errores-global')
-        ? `<button type="button" class="modal-tab" data-panel="errores" role="tab">Errores (${erroresCount})</button>`
-        : '';
-      const panelErrores = puedeEditarRegistros() || puedeVerSolapa('errores-global')
-        ? `<div id="modal-panel-errores" class="modal-panel">${erroresResumenHtml}</div>`
-        : '';
       let html = `
         <p class="sin-cotizacion-note" style="margin:0 0 0.5rem 0;">Agrupado en <strong>Ingresos</strong>, <strong>Costo directo</strong> (<code>costo_directo</code> = Y), <strong>Costo indirecto</strong> (<code>costo_indirecto</code> = Y, solo si no es directo) y <strong>Otros costos</strong> (egresos sin ninguna Y). Si un egreso tiene ambas Y, cuenta en <strong>Costo directo</strong>. Dentro de cada bloque, orden alfabético. Categoría/cuenta: <strong>nueva_categoria</strong> / <strong>nueva_cuenta_contable</strong> si existen en la base; si no, extracto.</p>
         <div class="modal-tabs" role="tablist">
           <button type="button" class="modal-tab activo" data-panel="categoria" role="tab">Por categoría (matriz)</button>
           <button type="button" class="modal-tab" data-panel="cuenta" role="tab">Por cuenta (matriz)</button>
-          ${tabErrores}
         </div>
         <div id="modal-panel-categoria" class="modal-panel activo">${buildTablaGrupos(filasModalGrupos, 'modal-detalle-cat', 'Categoría (matriz)', 'categoria', anio, mes)}</div>
         <div id="modal-panel-cuenta" class="modal-panel">${buildTablaGrupos(filasModalCuentaGrupos, 'modal-detalle-cuenta', 'Cuenta (matriz)', 'cuenta', anio, mes)}</div>
-        ${panelErrores}
       `;
       body.innerHTML = html;
 
@@ -6753,14 +5976,6 @@
         if (record) abrirModalEditar(record);
       });
 
-      const btnVerErrores = body.querySelector('.btn-ver-errores');
-      if (btnVerErrores && erroresClasificacion.length > 0) {
-        btnVerErrores.addEventListener('click', (e) => {
-          e.stopPropagation();
-          abrirModalErrores(labelMes, erroresClasificacion, anio, mes);
-        });
-      }
-
       document.getElementById('modal-backdrop').classList.remove('oculto');
     }
 
@@ -6798,158 +6013,6 @@
       document.getElementById('modal-body').innerHTML = html;
       document.getElementById('modal-backdrop').classList.remove('oculto');
     }
-
-    function getErroresDelMes(anio, mes) {
-      const transaccionesMes = cacheTransacciones.filter(r => r.anio === anio && r.mes === mes && !excluirFilaFlujoOperativo(r));
-      const erroresClasificacion = [];
-      transaccionesMes.forEach(r => {
-        const infoCat = getCategoriaDisplayConValidacion(r);
-        if (infoCat.esError && r.tipo_movimiento === 'Egreso') {
-          erroresClasificacion.push({
-            ...r,
-            tipoError: TIPO_ERROR_INCONSISTENCIA,
-            categoriaDisplay: infoCat.categoria || 'Sin categoría',
-            categoriaOriginal: (r.categoria || '').trim() || 'Sin categoría'
-          });
-        }
-      });
-      const duplicadosMes = getErroresDuplicados().filter(e => e.anio === anio && e.mes === mes);
-      duplicadosMes.forEach(d => {
-        d.categoriaDisplay = getCategoriaDisplay(d.categoria, d.descripcion, d.cat_desc) || 'Sin categoría';
-        d.categoriaOriginal = (d.categoria || '').trim() || 'Sin categoría';
-      });
-      return [...erroresClasificacion, ...duplicadosMes];
-    }
-
-    function getErroresGlobal() {
-      const erroresClasificacion = [];
-      // Excluir anulados de la detección de errores de clasificación
-      cacheTransacciones.filter(r => !excluirFilaFlujoOperativo(r)).forEach(r => {
-        const infoCat = getCategoriaDisplayConValidacion(r);
-        if (infoCat.esError && r.tipo_movimiento === 'Egreso') {
-          erroresClasificacion.push({
-            ...r,
-            tipoError: TIPO_ERROR_INCONSISTENCIA,
-            categoriaDisplay: infoCat.categoria || 'Sin categoría',
-            categoriaOriginal: (r.categoria || '').trim() || 'Sin categoría'
-          });
-        }
-      });
-      const duplicados = getErroresDuplicados();
-      duplicados.forEach(d => {
-        d.categoriaDisplay = getCategoriaDisplay(d.categoria, d.descripcion, d.cat_desc) || 'Sin categoría';
-        d.categoriaOriginal = (d.categoria || '').trim() || 'Sin categoría';
-      });
-      return [...erroresClasificacion, ...duplicados];
-    }
-
-    function getFiltroTipoError() {
-      const sel = document.getElementById('filtro-tipo-error');
-      return (sel && sel.value) ? sel.value : 'todos';
-    }
-
-    function renderErroresGlobal() {
-      const tbody = document.getElementById('tbody-errores-global');
-      const selCatOrig = document.getElementById('filtro-categoria-orig');
-      const selCatMostrada = document.getElementById('filtro-categoria-mostrada');
-      if (!tbody) return;
-      const todos = getErroresGlobal();
-      const filtro = getFiltroTipoError();
-      let errores = filtro === 'todos' ? todos : todos.filter(r => {
-        if (filtro === 'inconsistencia') return r.tipoError === TIPO_ERROR_INCONSISTENCIA;
-        if (filtro === 'duplicado') return r.tipoError === TIPO_ERROR_DUPLICADO;
-        return true;
-      });
-      function catMostrada(r) { return (categoriaDistribucionFlujo(r) || '').trim(); }
-      const catOrigUnicas = [...new Set(errores.map(r => (r.categoriaOriginal || '').trim()).filter(Boolean))].sort();
-      const catMostradaUnicas = [...new Set(errores.map(r => catMostrada(r)).filter(Boolean))].sort();
-      if (selCatOrig) {
-        const valOrig = selCatOrig.value;
-        selCatOrig.innerHTML = '<option value="">Todas</option>' + catOrigUnicas.map(c => '<option value="' + (c.replace(/"/g, '&quot;')) + '">' + (c.replace(/</g, '&lt;')) + '</option>').join('');
-        if (valOrig && catOrigUnicas.includes(valOrig)) selCatOrig.value = valOrig;
-      }
-      if (selCatMostrada) {
-        const valMost = selCatMostrada.value;
-        selCatMostrada.innerHTML = '<option value="">Todas</option>' + catMostradaUnicas.map(c => '<option value="' + (c.replace(/"/g, '&quot;')) + '">' + (c.replace(/</g, '&lt;')) + '</option>').join('');
-        if (valMost && catMostradaUnicas.includes(valMost)) selCatMostrada.value = valMost;
-      }
-      const filtroCatOrig = selCatOrig && selCatOrig.value ? selCatOrig.value : '';
-      const filtroCatMostrada = selCatMostrada && selCatMostrada.value ? selCatMostrada.value : '';
-      if (filtroCatOrig) errores = errores.filter(r => (r.categoriaOriginal || '').trim() === filtroCatOrig);
-      if (filtroCatMostrada) errores = errores.filter(r => catMostrada(r) === filtroCatMostrada);
-      errores = errores.slice().sort((a, b) => {
-        const byTipo = (a.tipoError || '').localeCompare(b.tipoError || '');
-        if (byTipo !== 0) return byTipo;
-        return (Number(b.monto) || 0) - (Number(a.monto) || 0);
-      });
-      lastErroresGlobal = errores;
-      if (!errores.length) {
-        const msg = filtro === 'todos' ? 'No hay registros con errores de clasificación.' : 'No hay registros con el tipo de error seleccionado.';
-        tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; color:#666;">' + msg + '</td></tr>';
-        return;
-      }
-      const puedeEditar = puedeEditarRegistros();
-      const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
-      const rows = errores.map(r => {
-        const regIsUSD = esTransaccionUSD(r);
-        const monedaReg = regIsUSD ? 'USD' : 'ARS';
-        const simboloReg = regIsUSD ? 'US$ ' : '$ ';
-        const montoReg = r.monto != null ? Number(r.monto) : null;
-        const valReg = montoReg != null ? (simboloReg + formatearNumero(montoReg, monedaReg)) : '–';
-        const id = (r.id || '').toString().replace(/"/g, '&quot;');
-        const idOrigen = (r.id_origen != null && r.id_origen !== '') ? String(r.id_origen) : '';
-        const idOperacion = (r.id_operacion != null && r.id_operacion !== '') ? String(r.id_operacion) : '';
-        const esDuplicado = r.tipoError === TIPO_ERROR_DUPLICADO;
-        const btnVer = (puedeEditar && esDuplicado) ? `<button type="button" class="ver-duplicado-btn edit-btn edit-btn-global" data-id="${id}" title="Ver posible duplicado" aria-label="Ver posible duplicado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>` : '';
-        const btnEdit = puedeEditar ? `<button type="button" class="edit-btn edit-btn-global" data-id="${id}" title="Editar registro" aria-label="Editar registro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>` : '';
-        return `
-          <tr>
-            <td>${esc(r.tipoError || '')}</td>
-            <td>${esc(fechaStr(r.fecha))}</td>
-            <td>${esc(idOrigen)}</td>
-            <td>${esc(idOperacion)}</td>
-            <td>${esc(r.tipo_movimiento || '')}</td>
-            <td>${esc(r.categoriaOriginal || '')}</td>
-            <td>${esc(categoriaDistribucionFlujo(r))}</td>
-            <td>${esc(cuentaDistribucionFlujo(r))}</td>
-            <td>${esc(r.medio_pago || '')}</td>
-            <td>${esc(valReg)}</td>
-            <td>${esc(monedaReg)}</td>
-            <td>${esc((r.descripcion || r.cliente || '–').slice(0, 160))}</td>
-            <td>${esc((r.origen_archivo || '').trim() || '—')}</td>
-            <td>${btnVer}${btnEdit}</td>
-          </tr>
-        `;
-      }).join('');
-      tbody.innerHTML = rows;
-      currentErroresList = errores;
-      currentErroresLabel = 'Todos los meses';
-      currentErroresAnio = null;
-      currentErroresMes = null;
-      tbody.querySelectorAll('.edit-btn-global').forEach(btn => {
-        if (btn.classList.contains('ver-duplicado-btn')) return;
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const id = btn.getAttribute('data-id');
-          const record = currentErroresList.find(x => (x.id || '').toString() === id);
-          if (record) abrirModalEditar(record);
-        });
-      });
-      tbody.querySelectorAll('.ver-duplicado-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const id = btn.getAttribute('data-id');
-          const record = currentErroresList.find(x => (x.id || '').toString() === id);
-          if (record && record.tipoError === TIPO_ERROR_DUPLICADO && record.registroPosibleDuplicado) abrirModalDuplicado(record);
-        });
-      });
-      programarAjusteTablasScrollAncladas();
-    }
-
-    let currentErroresList = [];
-    let currentErroresLabel = '';
-    let currentErroresAnio = null;
-    let currentErroresMes = null;
 
     let currentTodasTransaccionesList = [];
 
@@ -7077,87 +6140,6 @@
       programarAjusteTablasScrollAncladas();
     }
 
-    function abrirModalErrores(labelMes, errores, anio, mes) {
-      const backdrop = document.getElementById('modal-errores-backdrop');
-      const body = document.getElementById('modal-errores-body');
-      const titulo = document.getElementById('modal-errores-titulo');
-      if (!backdrop || !body || !titulo) return;
-      currentErroresLabel = labelMes || '';
-      currentErroresAnio = anio != null ? anio : null;
-      currentErroresMes = mes != null ? mes : null;
-      titulo.textContent = 'Errores — ' + (labelMes || '');
-      if (!errores || errores.length === 0) {
-        currentErroresList = [];
-        body.innerHTML = '<p class="muted">No hay registros con errores de clasificación para este mes.</p>';
-      } else {
-        const ordenados = errores.slice().sort((a, b) => {
-          const byTipo = (a.tipoError || '').localeCompare(b.tipoError || '');
-          if (byTipo !== 0) return byTipo;
-          return (Number(b.monto) || 0) - (Number(a.monto) || 0);
-        });
-        currentErroresList = ordenados;
-        const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
-        const rows = ordenados.map(r => {
-          const id = (r.id || '').toString().replace(/"/g, '&quot;');
-          const esDup = r.tipoError === TIPO_ERROR_DUPLICADO;
-          const btnVer = esDup ? `<button type="button" class="ver-duplicado-btn-modal edit-btn" data-id="${id}" title="Ver posible duplicado" aria-label="Ver posible duplicado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>` : '';
-          return `
-          <tr>
-            <td>${esc(r.tipoError || '')}</td>
-            <td>${esc(fechaStr(r.fecha))}</td>
-            <td>${esc(r.tipo_movimiento || '')}</td>
-            <td>${esc(r.categoriaOriginal || '')}</td>
-            <td>${esc(categoriaDistribucionFlujo(r))}</td>
-            <td>${esc(cuentaDistribucionFlujo(r))}</td>
-            <td>${esc(r.medio_pago || '')}</td>
-            <td>${esc((r.descripcion || r.cliente || '–').slice(0, 160))}</td>
-            <td>${esc((r.origen_archivo || '').trim() || '—')}</td>
-            <td>${btnVer}<button type="button" class="edit-btn" data-id="${id}" title="Editar registro" aria-label="Editar registro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>
-          </tr>
-        `;
-        }).join('');
-        body.innerHTML = `
-          <table class="detalle-tabla">
-            <thead>
-              <tr>
-                <th>Tipo de error</th>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Categoría orig.</th>
-                <th>Categoría (matriz)</th>
-                <th>Cuenta (matriz)</th>
-                <th>Medio</th>
-                <th>Descripción</th>
-                <th>Origen</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-            </tbody>
-          </table>
-        `;
-        body.querySelectorAll('.edit-btn').forEach(btn => {
-          if (btn.classList.contains('ver-duplicado-btn-modal')) {
-            btn.addEventListener('click', (e) => {
-              e.stopPropagation();
-              const id = btn.getAttribute('data-id');
-              const record = currentErroresList.find(x => (x.id || '').toString() === id);
-              if (record && record.tipoError === TIPO_ERROR_DUPLICADO && record.registroPosibleDuplicado) abrirModalDuplicado(record);
-            });
-            return;
-          }
-          btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const id = btn.getAttribute('data-id');
-            const record = currentErroresList.find(x => (x.id || '').toString() === id);
-            if (record) abrirModalEditar(record);
-          });
-        });
-      }
-      backdrop.classList.remove('oculto');
-    }
-
     function optionize(list, emptyLabel) {
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;').replace(/"/g, '&quot;');
       return (emptyLabel ? '<option value="">' + esc(emptyLabel) + '</option>' : '') + list.map(v => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join('');
@@ -7256,20 +6238,6 @@
       if (editEfSubitem) editEfSubitem.value = efSubitemActual;
       if (editCostoDirecto) editCostoDirecto.value = costoFlagSelectValueDesdeRecord(record.costo_directo);
       if (editCostoIndirecto) editCostoIndirecto.value = costoFlagSelectValueDesdeRecord(record.costo_indirecto);
-
-      const ayudaWrap = get('edit-ayuda-wrap');
-      const ayudaP = get('edit-ayuda-contexto');
-      if (ayudaWrap && ayudaP) {
-        const chk = getCategoriaDisplayConValidacion(record);
-        if (chk.esError && (record.tipo_movimiento || '').trim() === 'Egreso') {
-          ayudaWrap.style.display = '';
-          ayudaP.textContent =
-            'Este egreso está marcado por inconsistencia entre categoría, cuenta contable y descripción: la descripción (y Cat desc / cliente) debe contener al menos una palabra clave (≥3 letras) alineada con la categoría o la cuenta. En la base la categoría puede ser correcta aunque el listado muestre «Sin categoría». Si tocás Guardar sin modificar ningún campo, no se envía nada a Supabase (no hay cambios que guardar).';
-        } else {
-          ayudaWrap.style.display = 'none';
-          ayudaP.textContent = '';
-        }
-      }
 
       const guardarBtn = get('edit-guardar');
       const cancelarBtn = get('edit-cancelar');
@@ -7416,118 +6384,12 @@
         ) {
           abrirModal(ultimoModalMesAnio, ultimoModalMes);
         }
-        renderErroresGlobal();
         renderTodasTransacciones();
-        if (currentErroresAnio != null && currentErroresMes != null) {
-          const nuevosErrores = getErroresDelMes(currentErroresAnio, currentErroresMes);
-          abrirModalErrores(currentErroresLabel, nuevosErrores, currentErroresAnio, currentErroresMes);
-        }
       };
       guardarBtn.replaceWith(guardarBtn.cloneNode(true));
       cancelarBtn.replaceWith(cancelarBtn.cloneNode(true));
       get('edit-guardar').addEventListener('click', oneGuardar);
       get('edit-cancelar').addEventListener('click', () => backdrop.classList.add('oculto'));
-      backdrop.classList.remove('oculto');
-    }
-
-    let currentDuplicadoRecord = null;
-
-    const ICONO_NO_COINCIDE = '<span class="icon-no-coincide" title="No coincide con el otro registro" aria-label="No coincide"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 5h10M3 11h10M5 4l6 8"/></svg></span>';
-
-    function getValorParaCompararDuplicado(reg, key) {
-      if (!reg) return '';
-      const v = (x) => (x == null || x === '' ? '' : String(x).trim());
-      switch (key) {
-        case 'id_origen': return v(reg.id_origen);
-        case 'id_operacion': return v(reg.id_operacion);
-        case 'Fecha': return fechaStr(reg.fecha) || '';
-        case 'Tipo': return v(reg.tipo_movimiento);
-        case 'Monto': return reg.monto != null && reg.monto !== '' ? String(Number(reg.monto)) : '';
-        case 'Cliente': return v(reg.cliente);
-        case 'Medio de pago': return v(reg.medio_pago);
-        case 'Categoría': return v(reg.categoria);
-        case 'Cuenta contable': return v(reg.cuenta_contable);
-        case 'Descripción': return v(reg.descripcion || reg.cliente).slice(0, 200);
-        case 'Origen': return v(reg.origen_archivo);
-        default: return '';
-      }
-    }
-
-    function camposQueDifierenDuplicado(record, otro) {
-      if (!otro) return [];
-      const keys = ['id_origen', 'id_operacion', 'Fecha', 'Tipo', 'Monto', 'Cliente', 'Medio de pago', 'Categoría', 'Cuenta contable', 'Descripción', 'Origen'];
-      return keys.filter(k => getValorParaCompararDuplicado(record, k) !== getValorParaCompararDuplicado(otro, k));
-    }
-
-    function renderRegistroEnModal(reg, camposDiferentes) {
-      const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
-      const moneda = esTransaccionUSD(reg) ? 'USD' : 'ARS';
-      const sim = esTransaccionUSD(reg) ? 'US$ ' : '$ ';
-      const monto = reg.monto != null ? sim + formatearNumero(Number(reg.monto), moneda) : '–';
-      const diff = camposDiferentes || [];
-      const dt = (label) => diff.includes(label) ? `<span class="duplicado-campo-diferente">${label} ${ICONO_NO_COINCIDE}</span>` : label;
-      return `
-        <dl>
-          <dt>${dt('id_origen')}</dt><dd>${esc(reg.id_origen)}</dd>
-          <dt>${dt('id_operacion')}</dt><dd>${esc(reg.id_operacion)}</dd>
-          <dt>${dt('Fecha')}</dt><dd>${esc(fechaStr(reg.fecha))}</dd>
-          <dt>${dt('Tipo')}</dt><dd>${esc(reg.tipo_movimiento)}</dd>
-          <dt>${dt('Monto')}</dt><dd>${esc(monto)}</dd>
-          <dt>${dt('Cliente')}</dt><dd>${esc(reg.cliente || '—')}</dd>
-          <dt>${dt('Medio de pago')}</dt><dd>${esc(reg.medio_pago)}</dd>
-          <dt>${dt('Categoría')}</dt><dd>${esc(reg.categoria)}</dd>
-          <dt>${dt('Cuenta contable')}</dt><dd>${esc(reg.cuenta_contable)}</dd>
-          <dt>${dt('Descripción')}</dt><dd>${esc((reg.descripcion || reg.cliente || '–').slice(0, 200))}</dd>
-          <dt>${dt('Origen')}</dt><dd>${esc(reg.origen_archivo || '—')}</dd>
-        </dl>
-      `;
-    }
-
-    function abrirModalDuplicado(record) {
-      if (!puedeEditarRegistros()) return;
-      const backdrop = document.getElementById('modal-duplicado-backdrop');
-      const bodyEste = document.getElementById('modal-duplicado-este');
-      const bodyOtro = document.getElementById('modal-duplicado-otro');
-      if (!backdrop || !bodyEste || !bodyOtro) return;
-      currentDuplicadoRecord = record;
-      const otro = record.registroPosibleDuplicado;
-      const camposDiferentes = otro ? camposQueDifierenDuplicado(record, otro) : [];
-      bodyEste.innerHTML = renderRegistroEnModal(record, camposDiferentes);
-      bodyOtro.innerHTML = otro ? renderRegistroEnModal(otro, camposDiferentes) : '<p class="muted">—</p>';
-
-      const btnCerrar = document.getElementById('modal-duplicado-close');
-      const btnExcluir = document.getElementById('modal-duplicado-excluir');
-      const btnEliminar = document.getElementById('modal-duplicado-eliminar');
-      const btnCerrarAbajo = document.getElementById('modal-duplicado-cerrar');
-
-      const cerrar = () => { backdrop.classList.add('oculto'); currentDuplicadoRecord = null; };
-
-      const oneExcluir = async () => {
-        if (!currentDuplicadoRecord || !currentDuplicadoRecord.id) return;
-        if (!confirm('¿Excluir este registro de todos los cálculos (marcar como anulado)? No se borrará, pero dejará de sumar en el flujo.')) return;
-        const { error } = await client.from('transacciones').update({ status: 'Anulado' }).eq('id', currentDuplicadoRecord.id);
-        if (error) { alert('Error al anular: ' + (error.message || 'Unknown')); return; }
-        cerrar();
-        await cargarDatos();
-        recalcular();
-        renderErroresGlobal();
-      };
-      const oneEliminar = async () => {
-        if (!currentDuplicadoRecord || !currentDuplicadoRecord.id) return;
-        if (!confirm('¿Eliminar este registro de la base de datos? Esta acción no se puede deshacer.')) return;
-        const { error } = await client.from('transacciones').delete().eq('id', currentDuplicadoRecord.id);
-        if (error) { alert('Error al eliminar: ' + (error.message || 'Unknown')); return; }
-        cerrar();
-        await cargarDatos();
-        recalcular();
-        renderErroresGlobal();
-      };
-
-      btnCerrar.onclick = cerrar;
-      btnCerrarAbajo.onclick = cerrar;
-      btnExcluir.onclick = oneExcluir;
-      btnEliminar.onclick = oneEliminar;
-
       backdrop.classList.remove('oculto');
     }
 
@@ -7719,12 +6581,6 @@
         });
         document.getElementById('tipoDolar').addEventListener('change', recalcular);
         document.getElementById('btn-exportar-excel').addEventListener('click', exportarAExcel);
-        document.getElementById('btn-exportar-errores').addEventListener('click', exportarErroresExcel);
-        document.getElementById('filtro-tipo-error').addEventListener('change', renderErroresGlobal);
-        const filtroCatOrigEl = document.getElementById('filtro-categoria-orig');
-        const filtroCatMostradaEl = document.getElementById('filtro-categoria-mostrada');
-        if (filtroCatOrigEl) filtroCatOrigEl.addEventListener('change', renderErroresGlobal);
-        if (filtroCatMostradaEl) filtroCatMostradaEl.addEventListener('change', renderErroresGlobal);
         labelTipoDolar.style.display = getMoneda() === 'USD' ? 'flex' : 'none';
         recalcular();
 
@@ -7770,8 +6626,6 @@
         });
         setupEstadoFinancieroGraficos();
         setupEstadoFinancieroDetalleCeldas();
-        document.getElementById('modal-errores-close').addEventListener('click', () => document.getElementById('modal-errores-backdrop').classList.add('oculto'));
-        setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-errores-backdrop'), () => document.getElementById('modal-errores-backdrop').classList.add('oculto'));
         document.getElementById('modal-editar-close').addEventListener('click', () => document.getElementById('modal-editar-backdrop').classList.add('oculto'));
         setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-editar-backdrop'), () => document.getElementById('modal-editar-backdrop').classList.add('oculto'));
 
@@ -7806,7 +6660,6 @@
         setupModalDrag('modal-alertas', 'modal-alertas-header-drag', 'modal-alertas-close');
         setupModalDrag('modal-grafico', 'modal-grafico-header-drag', 'modal-grafico-close');
         setupModalDrag('modal-ef-detalle', 'modal-ef-detalle-header-drag', 'modal-ef-detalle-close');
-        setupModalDrag('modal-errores', 'modal-errores-header-drag', 'modal-errores-close');
         setupModalDrag('modal-editar-registro', 'modal-editar-header-drag', 'modal-editar-close');
 
         document.querySelectorAll('.tab').forEach(btn => {
@@ -7820,7 +6673,6 @@
             if (id === 'evolucion') renderEvolucion();
             if (id === 'estado-financiero') renderEstadoFinanciero();
             if (id === 'todas-transacciones') renderTodasTransacciones();
-            if (id === 'excluidos-upload') renderExcluidosUpload();
             programarAjusteTablasScrollAncladas();
           });
         });
@@ -7845,11 +6697,6 @@
         if (efPeriodoEl) efPeriodoEl.addEventListener('change', renderEstadoFinanciero);
         const btnExportEf = document.getElementById('btn-exportar-estado-financiero');
         if (btnExportEf) btnExportEf.addEventListener('click', exportarEstadoFinancieroExcel);
-        const btnRecargarExcluidos = document.getElementById('btn-recargar-excluidos-upload');
-        if (btnRecargarExcluidos) btnRecargarExcluidos.addEventListener('click', async () => {
-          await cargarDatos();
-          renderExcluidosUpload();
-        });
         document.getElementById('modal-evolucion-detalle-close').addEventListener('click', () => document.getElementById('modal-evolucion-detalle-backdrop').classList.add('oculto'));
         setupBackdropCloseOnlyOnRealClick(document.getElementById('modal-evolucion-detalle-backdrop'), () => document.getElementById('modal-evolucion-detalle-backdrop').classList.add('oculto'));
         const modalEfDetClose = document.getElementById('modal-ef-detalle-close');
@@ -8062,276 +6909,6 @@
         });
         setupModalDrag('modal-configuracion', 'modal-configuracion-header-drag', 'modal-configuracion-close');
 
-        (function setupModalUploadNormalizado() {
-          const backdrop = document.getElementById('modal-upload-normalizado-backdrop');
-          const btnOpen = document.getElementById('btn-upload-normalizado');
-          const btnClose = document.getElementById('modal-upload-normalizado-close');
-          const btnCancel = document.getElementById('upload-normalizado-btn-cancel');
-          const fileInput = document.getElementById('upload-normalizado-file');
-          const fileNameEl = document.getElementById('upload-normalizado-file-name');
-          const btnConfirm = document.getElementById('upload-normalizado-btn-confirm');
-          const progressEl = document.getElementById('upload-normalizado-progress');
-          const progressBarFillEl = document.getElementById('upload-normalizado-progressbar-fill');
-          const errorEl = document.getElementById('upload-normalizado-error');
-          const okEl = document.getElementById('upload-normalizado-ok');
-          const previewEl = document.getElementById('upload-normalizado-preview');
-          if (!backdrop || !btnOpen) return;
-
-          let filasPreparadas = [];
-          let efEstructuraPreparada = [];
-          let erroresPreparacion = [];
-          let excluidosPreparacion = [];
-          let uploadEnCurso = false;
-
-          function setUploadUIBusy(isBusy) {
-            uploadEnCurso = !!isBusy;
-            fileInput.disabled = uploadEnCurso;
-            btnCancel.disabled = uploadEnCurso;
-            btnClose.disabled = uploadEnCurso;
-            btnOpen.disabled = uploadEnCurso;
-            refreshSubmitState();
-          }
-
-          function updateProgress(accion, actual, total) {
-            const safeTotal = Number(total) || 0;
-            const safeActual = Math.min(Number(actual) || 0, safeTotal);
-            const pct = safeTotal > 0 ? Math.round((safeActual / safeTotal) * 100) : 100;
-            progressEl.textContent = `${accion}\n${safeActual} / ${safeTotal} (${pct}%)`;
-            if (progressBarFillEl) progressBarFillEl.style.width = `${Math.max(0, Math.min(100, pct))}%`;
-          }
-
-          function canSubmit() {
-            const hasFile = fileInput.files && fileInput.files[0];
-            return !!hasFile && filasPreparadas.length > 0;
-          }
-
-          function refreshSubmitState() {
-            btnConfirm.disabled = uploadEnCurso || !canSubmit();
-            if (uploadEnCurso) {
-              btnConfirm.title = 'Procesando actualización...';
-              return;
-            }
-            if (!fileInput.files || !fileInput.files[0]) {
-              btnConfirm.title = 'Seleccioná un archivo .xlsx.';
-            } else if (!filasPreparadas.length) {
-              btnConfirm.title = 'No hay filas válidas para insertar.';
-            } else {
-              btnConfirm.title = erroresPreparacion.length > 0
-                ? `Listo para actualizar (se excluirán ${erroresPreparacion.length} filas con error).`
-                : 'Listo para actualizar.';
-            }
-          }
-
-          function resetModal() {
-            fileInput.value = '';
-            fileNameEl.textContent = '';
-            progressEl.textContent = '';
-            if (progressBarFillEl) progressBarFillEl.style.width = '0%';
-            errorEl.textContent = '';
-            okEl.textContent = '';
-            previewEl.style.display = 'none';
-            previewEl.textContent = '';
-            filasPreparadas = [];
-            efEstructuraPreparada = [];
-            erroresPreparacion = [];
-            excluidosPreparacion = [];
-            refreshSubmitState();
-          }
-
-          async function prepararArchivo(file) {
-            filasPreparadas = [];
-            efEstructuraPreparada = [];
-            erroresPreparacion = [];
-            excluidosPreparacion = [];
-            previewEl.style.display = 'none';
-            previewEl.textContent = '';
-            errorEl.textContent = '';
-            okEl.textContent = '';
-            progressEl.textContent = 'Validando archivo...';
-            if (progressBarFillEl) progressBarFillEl.style.width = '5%';
-            const ab = await file.arrayBuffer();
-            const wb = XLSX.read(ab, { type: 'array' });
-            const { rows, sheetName } = leerNormalizadoDesdeWorkbook(wb);
-            if (!rows || rows.length === 0) throw new Error(`La hoja "${sheetName}" no tiene filas de datos.`);
-            const mapped = mapearFilasNormalizadoAFilasTransacciones(rows, file.name);
-            filasPreparadas = mapped.filas;
-            erroresPreparacion = mapped.errores;
-            excluidosPreparacion = mapped.excluidosDetalle || [];
-            efEstructuraPreparada = parseEfEstructuraFromWorkbook(wb, file.name);
-            const resumen = [
-              `Hoja detectada: ${sheetName}`,
-              `Filas leídas: ${rows.length}`,
-              `Excluidas por definición (Apertura/Cierre de Caja): ${mapped.excluidasAperturaCierre || 0}`,
-              `Filas válidas: ${filasPreparadas.length}`,
-              `Líneas EF_Estructura: ${efEstructuraPreparada.length}`,
-              `Errores (informativo): ${erroresPreparacion.length}`
-            ];
-            if (!efEstructuraPreparada.length) {
-              errorEl.textContent = (errorEl.textContent ? errorEl.textContent + '\n' : '') + 'Aviso: el archivo no tiene hoja EF_Estructura; no se actualizará la estructura en Supabase.';
-            }
-            previewEl.textContent = resumen.join('\n');
-            previewEl.style.display = 'block';
-            if (erroresPreparacion.length > 0) {
-              errorEl.textContent = `Errores de validación informativos (primeros 8). Estas filas se excluirán de la carga:\n- ${erroresPreparacion.slice(0, 8).join('\n- ')}`;
-            } else {
-              okEl.textContent = 'Validación OK. Ya podés ejecutar la actualización.';
-            }
-            progressEl.textContent = '';
-            if (progressBarFillEl) progressBarFillEl.style.width = '0%';
-            refreshSubmitState();
-          }
-
-          async function vaciarTransaccionesPorLotes(batchSize) {
-            const ids = [];
-            const take = 1000;
-            let offset = 0;
-            while (true) {
-              progressEl.textContent = `Listando registros actuales...\n${ids.length} encontrados`;
-              if (progressBarFillEl) progressBarFillEl.style.width = '10%';
-              const { data, error } = await client.from('transacciones').select('id').range(offset, offset + take - 1);
-              if (error) throw error;
-              const chunk = data || [];
-              chunk.forEach(r => ids.push(r.id));
-              if (chunk.length < take) break;
-              offset += take;
-            }
-            if (!ids.length) return 0;
-            for (let i = 0; i < ids.length; i += batchSize) {
-              const block = ids.slice(i, i + batchSize);
-              const { error } = await client.from('transacciones').delete().in('id', block);
-              if (error) throw error;
-              updateProgress('Eliminando registros actuales...', Math.min(i + block.length, ids.length), ids.length);
-            }
-            return ids.length;
-          }
-
-          async function insertarTransaccionesPorLotes(filas, batchSize) {
-            let inserted = 0;
-            for (let i = 0; i < filas.length; i += batchSize) {
-              const chunk = filas.slice(i, i + batchSize);
-              const { error } = await client.from('transacciones').insert(chunk);
-              if (error) throw error;
-              inserted += chunk.length;
-              updateProgress('Insertando filas normalizadas...', inserted, filas.length);
-            }
-            return inserted;
-          }
-
-          btnOpen.addEventListener('click', () => {
-            if (!puedeCargarNormalizado()) {
-              alert('No tenés permiso para actualizar la base desde el extracto normalizado.');
-              return;
-            }
-            resetModal();
-            backdrop.classList.remove('oculto');
-          });
-          btnClose.addEventListener('click', () => backdrop.classList.add('oculto'));
-          btnCancel.addEventListener('click', () => backdrop.classList.add('oculto'));
-          setupBackdropCloseOnlyOnRealClick(backdrop, () => {
-            if (!uploadEnCurso) backdrop.classList.add('oculto');
-          });
-          setupModalDrag('modal-upload-normalizado', 'modal-upload-normalizado-header-drag', 'modal-upload-normalizado-close');
-
-          fileInput.addEventListener('change', async () => {
-            const file = fileInput.files && fileInput.files[0];
-            fileNameEl.textContent = file ? file.name : '';
-            if (!file) {
-              filasPreparadas = [];
-              erroresPreparacion = [];
-              previewEl.style.display = 'none';
-              progressEl.textContent = '';
-              errorEl.textContent = '';
-              okEl.textContent = '';
-              refreshSubmitState();
-              return;
-            }
-            try {
-              await prepararArchivo(file);
-            } catch (err) {
-              progressEl.textContent = '';
-              errorEl.textContent = 'Error al validar: ' + (err.message || String(err));
-              filasPreparadas = [];
-              erroresPreparacion = [];
-              excluidosPreparacion = [];
-              refreshSubmitState();
-            }
-          });
-
-          btnConfirm.addEventListener('click', async () => {
-            if (!canSubmit()) return;
-            setUploadUIBusy(true);
-            errorEl.textContent = '';
-            okEl.textContent = '';
-            try {
-              progressEl.textContent = 'Iniciando reemplazo total...\n0 / 0 (0%)';
-              if (progressBarFillEl) progressBarFillEl.style.width = '2%';
-              const deleted = await vaciarTransaccionesPorLotes(200);
-              progressEl.textContent = `Eliminación completada.\n${deleted} / ${deleted} (100%)`;
-              if (progressBarFillEl) progressBarFillEl.style.width = '55%';
-              const inserted = await insertarTransaccionesPorLotes(filasPreparadas, 200);
-              let efInserted = 0;
-              if (efEstructuraPreparada.length > 0) {
-                try {
-                  efInserted = await reemplazarEfEstructuraEnSupabase(efEstructuraPreparada, 100, (act, tot) => {
-                    updateProgress('Actualizando estructura EF...', act, tot);
-                  });
-                } catch (efErr) {
-                  throw new Error('Transacciones insertadas, pero falló EF_Estructura: ' + (efErr.message || String(efErr)));
-                }
-              }
-              try {
-                await client.from('transacciones_upload_excluidos').delete().not('id', 'is', null);
-              } catch (_) { /* tabla opcional */ }
-              if (excluidosPreparacion.length > 0) {
-                const archivoNombre = (fileInput.files && fileInput.files[0] && fileInput.files[0].name) ? fileInput.files[0].name : null;
-                const runRef = `run_${Date.now()}`;
-                for (let i = 0; i < excluidosPreparacion.length; i += 200) {
-                  const chunk = excluidosPreparacion.slice(i, i + 200).map(x => ({
-                    run_ref: runRef,
-                    archivo: archivoNombre,
-                    fila_excel: x.fila_excel,
-                    motivo: x.motivo,
-                    tipo_movimiento: x.tipo_movimiento,
-                    moneda: x.moneda,
-                    monto: x.monto,
-                    descripcion: x.descripcion,
-                    raw_payload: x
-                  }));
-                  try {
-                    await client.from('transacciones_upload_excluidos').insert(chunk);
-                  } catch (_) { /* tabla opcional */ }
-                }
-              }
-              try {
-                const archivo = (fileInput.files && fileInput.files[0] && fileInput.files[0].name) ? fileInput.files[0].name : null;
-                await client.rpc('log_upload_normalizado', {
-                  p_filas_insertadas: inserted,
-                  p_archivo: archivo,
-                  p_detalle: `Carga desde modal de upload normalizado. Excluidos: ${excluidosPreparacion.length}`
-                });
-              } catch (_) { /* rpc opcional */ }
-              progressEl.textContent = 'Recargando vista...\n100%';
-              if (progressBarFillEl) progressBarFillEl.style.width = '95%';
-              await cargarDatos();
-              recalcular();
-              renderErroresGlobal();
-              renderTodasTransacciones();
-              renderExcluidosUpload();
-              okEl.textContent = `Actualización completada. Filas insertadas: ${inserted}. Estructura EF: ${efInserted} líneas. Excluidas/logueadas: ${excluidosPreparacion.length}.`;
-              if (progressBarFillEl) progressBarFillEl.style.width = '100%';
-              setTimeout(() => {
-                backdrop.classList.add('oculto');
-                resetModal();
-              }, 1300);
-            } catch (err) {
-              progressEl.textContent = '';
-              if (progressBarFillEl) progressBarFillEl.style.width = '0%';
-              errorEl.textContent = 'Error durante la actualización: ' + (err.message || String(err));
-            } finally {
-              setUploadUIBusy(false);
-            }
-          });
-        })();
       } catch (e) {
         errorEl.textContent = 'Error: ' + (e.message || String(e));
         errorEl.style.display = 'block';
