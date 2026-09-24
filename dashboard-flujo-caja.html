@@ -16,8 +16,8 @@
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.49"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.49">
   <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.49"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.49">
-  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.49"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.50">
+  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.50"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.49">
   <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.49"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.49">
@@ -591,6 +591,49 @@
     }
     #tabla-todas-transacciones th:nth-child(17),
     #tabla-todas-transacciones td:nth-child(17) { text-align: left; }
+    .dash-th-sort { padding: 0; vertical-align: middle; }
+    .dash-th-sort-inner {
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+    }
+    .dash-th-sort-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      flex: 1;
+      width: 100%;
+      min-height: 44px;
+      padding: 0.45rem 0.55rem;
+      background: transparent;
+      border: 0;
+      color: inherit;
+      font: inherit;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+      font-family: inherit;
+      box-sizing: border-box;
+      white-space: nowrap;
+    }
+    .dash-th-sort-btn:hover,
+    .dash-th-sort-btn:focus-visible {
+      background: rgba(0, 0, 0, 0.04);
+      outline: none;
+    }
+    .dash-sort-ind {
+      opacity: 0.4;
+      font-size: 0.7rem;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .dash-th-sort-activo .dash-sort-ind { opacity: 1; }
+    #panel-flujo .flujo-table-wrap thead th.dash-th-sort { padding: 0; }
+    #panel-flujo .flujo-table-wrap thead th.dash-th-sort:first-child { background: #fff; }
+    #tabla-todas-transacciones thead th.dash-th-sort { padding: 0; background: #f2f3f5; }
+    @media (max-width: 768px) {
+      .dash-th-sort-btn { min-height: 44px; }
+    }
     .fila-proyeccion { font-style: italic; color: #555; background: #fafafa; cursor: pointer; }
     .fila-proyeccion:hover { background: #f0f0f0; }
     .fila-proyeccion td:first-child { font-weight: 500; }
@@ -1014,17 +1057,17 @@
         <button type="button" class="btn btn-success btn-ver-errores btn-exportar-evolucion" id="btn-exportar-flujo-mes" title="Exportar tabla Flujo por mes a Excel"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar Flujo a Excel</button>
       </div>
       <div class="flujo-table-wrap">
-      <table>
+      <table id="tabla-flujo-mes">
         <thead>
           <tr>
-            <th>Mes-Año</th>
-            <th>Ingresos <span class="th-help" data-help="Ingresos operativos del mes, netos de devoluciones con ef_subitem de ingreso §1 (mismo criterio que FLUJO OPERATIVO GENERADO en EF). El importe se resta también de Egresos para no alterar el balance." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></th>
-            <th>Egresos <span class="th-help" data-help="Egresos operativos del mes, menos devoluciones §1 (egresos imputados al mismo ef_subitem que un ingreso de §1). Alineado al neteo de Ingresos." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></th>
-            <th>G/P operativo</th>
-            <th>Comisiones <span class="th-help" data-help="Comisiones por Ventas (ef_subitem) ÷ Cobranzas por Ventas (Efectivo neto ingresado) (ef_subitem), por mes. Solo filas con subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ventas %</th>
-            <th>Costo dir. <span class="th-help" data-help="Total COSTOS DIRECTOS (Efectivo) (ef_item §2) ÷ total FLUJO OPERATIVO GENERADO (ef_item §1) del mes. Alineado al Estado Financiero. Solo filas con ítem/subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
-            <th>Costo ind. <span class="th-help" data-help="Total COSTOS INDIRECTOS (Estructura) (ef_item §3) ÷ total FLUJO OPERATIVO GENERADO (ef_item §1) del mes. Alineado al Estado Financiero. Solo filas con ítem/subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingresos</th>
-            <th>Costo total <span class="th-help" data-help="Total egresos operativos del mes ÷ total FLUJO OPERATIVO GENERADO (ef_item §1). Alineado al Estado Financiero (% del Flujo Op.)." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span> / Ingreso total</th>
+            <th class="dash-th-sort dash-th-sort-activo"><button type="button" class="dash-th-sort-btn" data-sort="mes" data-label="Mes-Año" title="Ordenar Mes-Año (ascendente)" aria-label="Ordenar por Mes-Año, ascendente">Mes-Año<span class="dash-sort-ind" aria-hidden="true">▲</span></button></th>
+            <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="ingresos" data-label="Ingresos" title="Ordenar Ingresos" aria-label="Ordenar por Ingresos">Ingresos<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="Ingresos operativos del mes, netos de devoluciones con ef_subitem de ingreso §1 (mismo criterio que FLUJO OPERATIVO GENERADO en EF). El importe se resta también de Egresos para no alterar el balance." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
+            <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="egresos" data-label="Egresos" title="Ordenar Egresos" aria-label="Ordenar por Egresos">Egresos<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="Egresos operativos del mes, menos devoluciones §1 (egresos imputados al mismo ef_subitem que un ingreso de §1). Alineado al neteo de Ingresos." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
+            <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="gp" data-label="G/P operativo" title="Ordenar G/P operativo" aria-label="Ordenar por G/P operativo">G/P operativo<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+            <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="comVentas" data-label="Comisiones / Ventas %" title="Ordenar Comisiones / Ventas %" aria-label="Ordenar por Comisiones / Ventas %">Comisiones / Ventas %<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="Comisiones por Ventas (ef_subitem) ÷ Cobranzas por Ventas (Efectivo neto ingresado) (ef_subitem), por mes. Solo filas con subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
+            <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="costoDir" data-label="Costo dir. / Ingresos" title="Ordenar Costo dir. / Ingresos" aria-label="Ordenar por Costo dir. / Ingresos">Costo dir. / Ingresos<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="Total COSTOS DIRECTOS (Efectivo) (ef_item §2) ÷ total FLUJO OPERATIVO GENERADO (ef_item §1) del mes. Alineado al Estado Financiero. Solo filas con ítem/subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
+            <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="costoInd" data-label="Costo ind. / Ingresos" title="Ordenar Costo ind. / Ingresos" aria-label="Ordenar por Costo ind. / Ingresos">Costo ind. / Ingresos<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="Total COSTOS INDIRECTOS (Estructura) (ef_item §3) ÷ total FLUJO OPERATIVO GENERADO (ef_item §1) del mes. Alineado al Estado Financiero. Solo filas con ítem/subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
+            <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="costoTotal" data-label="Costo total / Ingreso total" title="Ordenar Costo total / Ingreso total" aria-label="Ordenar por Costo total / Ingreso total">Costo total / Ingreso total<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="Total egresos operativos del mes ÷ total FLUJO OPERATIVO GENERADO (ef_item §1). Alineado al Estado Financiero (% del Flujo Op.)." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
             <th class="alert-icon-cell"></th>
           </tr>
         </thead>
@@ -1036,7 +1079,7 @@
     <div id="panel-todas-transacciones" class="card panel">
       <template id="template-todas-transacciones-panel">
         <div class="th-help-rich-content">
-          <p>Listado de todas las transacciones. Filtros por mes, <strong>categoría y cuenta nueva (BD)</strong>, <strong>cliente</strong>, tipo e id de operación. En la tabla: categoría/cuenta del extracto (vieja) y nueva en BD por separado. Al guardar se marca como editado.</p>
+          <p>Listado de todas las transacciones. Filtros por mes, <strong>categoría y cuenta nueva (BD)</strong>, <strong>cliente</strong>, tipo, y buscador por <strong>id de operación o descripción</strong>. Clic en un encabezado para ordenar. En la tabla: categoría/cuenta del extracto (vieja) y nueva en BD por separado. Al guardar se marca como editado.</p>
         </div>
       </template>
       <div class="errores-panel-toolbar">
@@ -1063,8 +1106,8 @@
           <select id="filtro-todas-cliente" title="Filtrar por cliente">
             <option value="todos">Todos</option>
           </select>
-          <label for="filtro-todas-id-operacion" style="margin-left:0.75rem;">Id operación:</label>
-          <input type="text" id="filtro-todas-id-operacion" placeholder="Buscar por id operación" title="Filtrar por id operación (coincidencia parcial)" style="padding:0.35rem 0.6rem; border-radius:6px; border:1px solid #ccc; font-size:0.9rem; min-width:140px;">
+          <label for="filtro-todas-id-operacion" style="margin-left:0.75rem;">Buscar:</label>
+          <input type="text" id="filtro-todas-id-operacion" placeholder="Id operación o descripción" title="Filtrar por id operación o descripción (coincidencia parcial)" style="padding:0.35rem 0.6rem; border-radius:6px; border:1px solid #ccc; font-size:0.9rem; min-width:180px;">
         </div>
         </div>
       </div>
@@ -1072,31 +1115,31 @@
         <table id="tabla-todas-transacciones">
           <thead>
             <tr>
-              <th>Fecha</th>
-              <th>Mes</th>
-              <th>Año</th>
-              <th>Tipo</th>
-              <th>Monto</th>
-              <th>Moneda</th>
-              <th>Status</th>
-              <th>Medio pago</th>
-              <th>Categoría (extracto)</th>
-              <th>Cuenta (extracto)</th>
-              <th>Categoría nueva (BD)</th>
-              <th>Cuenta nueva (BD)</th>
-              <th>Costo directo</th>
-              <th>Costo indirecto</th>
-              <th>EF Item</th>
-              <th>EF SubItem</th>
-              <th>Descripción</th>
-              <th>Cliente</th>
-              <th>Cat desc</th>
-              <th>Origen</th>
-              <th>Id origen</th>
-              <th>Id operación</th>
-              <th>Usuario</th>
-              <th>Editado</th>
-              <th>Editado detalle</th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="fecha" data-label="Fecha" title="Ordenar Fecha" aria-label="Ordenar por Fecha">Fecha<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="mes" data-label="Mes" title="Ordenar Mes" aria-label="Ordenar por Mes">Mes<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="anio" data-label="Año" title="Ordenar Año" aria-label="Ordenar por Año">Año<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="tipo" data-label="Tipo" title="Ordenar Tipo" aria-label="Ordenar por Tipo">Tipo<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="monto" data-label="Monto" title="Ordenar Monto" aria-label="Ordenar por Monto">Monto<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="moneda" data-label="Moneda" title="Ordenar Moneda" aria-label="Ordenar por Moneda">Moneda<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="status" data-label="Status" title="Ordenar Status" aria-label="Ordenar por Status">Status<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="medio_pago" data-label="Medio pago" title="Ordenar Medio pago" aria-label="Ordenar por Medio pago">Medio pago<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="categoria" data-label="Categoría (extracto)" title="Ordenar Categoría (extracto)" aria-label="Ordenar por Categoría (extracto)">Categoría (extracto)<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="cuenta_contable" data-label="Cuenta (extracto)" title="Ordenar Cuenta (extracto)" aria-label="Ordenar por Cuenta (extracto)">Cuenta (extracto)<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="nueva_categoria" data-label="Categoría nueva (BD)" title="Ordenar Categoría nueva (BD)" aria-label="Ordenar por Categoría nueva (BD)">Categoría nueva (BD)<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="nueva_cuenta" data-label="Cuenta nueva (BD)" title="Ordenar Cuenta nueva (BD)" aria-label="Ordenar por Cuenta nueva (BD)">Cuenta nueva (BD)<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="costo_directo" data-label="Costo directo" title="Ordenar Costo directo" aria-label="Ordenar por Costo directo">Costo directo<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="costo_indirecto" data-label="Costo indirecto" title="Ordenar Costo indirecto" aria-label="Ordenar por Costo indirecto">Costo indirecto<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="ef_item" data-label="EF Item" title="Ordenar EF Item" aria-label="Ordenar por EF Item">EF Item<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="ef_subitem" data-label="EF SubItem" title="Ordenar EF SubItem" aria-label="Ordenar por EF SubItem">EF SubItem<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="descripcion" data-label="Descripción" title="Ordenar Descripción" aria-label="Ordenar por Descripción">Descripción<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="cliente" data-label="Cliente" title="Ordenar Cliente" aria-label="Ordenar por Cliente">Cliente<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="cat_desc" data-label="Cat desc" title="Ordenar Cat desc" aria-label="Ordenar por Cat desc">Cat desc<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="origen" data-label="Origen" title="Ordenar Origen" aria-label="Ordenar por Origen">Origen<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="id_origen" data-label="Id origen" title="Ordenar Id origen" aria-label="Ordenar por Id origen">Id origen<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="id_operacion" data-label="Id operación" title="Ordenar Id operación" aria-label="Ordenar por Id operación">Id operación<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="usuario" data-label="Usuario" title="Ordenar Usuario" aria-label="Ordenar por Usuario">Usuario<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="editado" data-label="Editado" title="Ordenar Editado" aria-label="Ordenar por Editado">Editado<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="editado_detalle" data-label="Editado detalle" title="Ordenar Editado detalle" aria-label="Ordenar por Editado detalle">Editado detalle<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
               <th></th>
             </tr>
           </thead>
@@ -1681,7 +1724,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.49';
+    const APP_VERSION = '2.50';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -3566,7 +3609,6 @@
       `;
       document.getElementById('resumen').style.display = 'flex';
 
-      const tbody = document.getElementById('tbody');
       const configProy = getProyeccionConfig();
       const N = configProy.meses;
       const mesesAProyectar = configProy.mesesAProyectar;
@@ -3604,7 +3646,8 @@
           costoTotal: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresos),
           alertas: textoPlanoAlertasFlujo(alertas)
         });
-        return `<tr class="fila-mes" data-anio="${d.anio}" data-mes="${d.mes}">
+        return {
+          html: `<tr class="fila-mes" data-anio="${d.anio}" data-mes="${d.mes}">
           <td>${label}</td>
           <td class="ingresos">${simbolo}${formatearNumero(d.ingresos, moneda)}</td>
           <td class="egresos">${simbolo}${formatearNumero(d.egresos, moneda)}</td>
@@ -3614,7 +3657,18 @@
           <td>${costoIndIngPct}</td>
           <td>${costoTotalIngPct}</td>
           <td class="alert-icon-cell">${iconoAlert}</td>
-        </tr>`;
+        </tr>`,
+          sort: {
+            mes: key,
+            ingresos: d.ingresos != null ? Number(d.ingresos) : 0,
+            egresos: d.egresos != null ? Number(d.egresos) : 0,
+            gp: Number(balance),
+            comVentas: fraccionComisionesSobreVentas(comisionesParaRatio, ventas),
+            costoDir: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresosCostoDirecto),
+            costoInd: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresosCostoIndirecto),
+            costoTotal: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresos)
+          }
+        };
       });
 
       let filasProy = '';
@@ -3692,7 +3746,8 @@
           keyProy = siguienteMesKey(keyProy);
         }
       }
-      tbody.innerHTML = filasReales.join('');
+      cacheFilasFlujoReales = filasReales;
+      pintarTbodyFlujo();
 
       const totalComisiones = ordenados.reduce((s, k) => {
         const pm = porMes[k];
@@ -3783,6 +3838,94 @@
     let evolucionSimbolo = '$ ';
     /** Snapshot de Flujo por mes para export Excel (mismos números que la tabla). */
     let cacheFlujoExcel = null;
+    let cacheFilasFlujoReales = [];
+    let sortFlujo = { key: 'mes', dir: 'asc' };
+    let sortTodas = { key: '', dir: 'asc' };
+    const FLUJO_SORT_NUMERIC = { ingresos: true, egresos: true, gp: true, comVentas: true, costoDir: true, costoInd: true, costoTotal: true };
+    const TODAS_SORT_NUMERIC = { mes: true, anio: true, monto: true, editado: true };
+
+    function valorSortVacio(v) {
+      return v == null || v === '' || (typeof v === 'number' && !Number.isFinite(v));
+    }
+
+    function cmpSort(a, b, dir) {
+      const emptyA = valorSortVacio(a);
+      const emptyB = valorSortVacio(b);
+      if (emptyA && emptyB) return 0;
+      if (emptyA) return 1;
+      if (emptyB) return -1;
+      let r = 0;
+      if (typeof a === 'number' && typeof b === 'number') r = a - b;
+      else r = String(a).localeCompare(String(b), 'es', { numeric: true, sensitivity: 'base' });
+      return dir === 'desc' ? -r : r;
+    }
+
+    function toggleSortState(state, key, numeric) {
+      if (!key) return;
+      if (state.key === key) {
+        state.dir = state.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.key = key;
+        state.dir = numeric ? 'desc' : 'asc';
+      }
+    }
+
+    function actualizarIndicadoresSort(root, state) {
+      if (!root) return;
+      root.querySelectorAll('.dash-th-sort-btn').forEach(btn => {
+        const key = btn.getAttribute('data-sort');
+        const th = btn.closest('th');
+        const ind = btn.querySelector('.dash-sort-ind');
+        const activo = !!(state.key && state.key === key);
+        if (th) th.classList.toggle('dash-th-sort-activo', activo);
+        if (ind) ind.textContent = activo ? (state.dir === 'asc' ? '▲' : '▼') : '↕';
+        const label = btn.getAttribute('data-label') || '';
+        const dirTxt = activo ? (state.dir === 'asc' ? 'ascendente' : 'descendente') : 'sin ordenar';
+        btn.title = 'Ordenar ' + label + ' (' + dirTxt + ')';
+        btn.setAttribute('aria-label', 'Ordenar por ' + label + ', ' + dirTxt);
+      });
+    }
+
+    function pintarTbodyFlujo() {
+      const tbody = document.getElementById('tbody');
+      if (!tbody) return;
+      const key = sortFlujo.key || 'mes';
+      const dir = sortFlujo.dir || 'asc';
+      const rows = cacheFilasFlujoReales.slice().sort((a, b) => cmpSort((a.sort || {})[key], (b.sort || {})[key], dir));
+      tbody.innerHTML = rows.map(r => r.html).join('');
+      actualizarIndicadoresSort(document.querySelector('#tabla-flujo-mes thead'), sortFlujo);
+    }
+
+    function valorSortTodas(r, key) {
+      switch (key) {
+        case 'fecha': return fechaStr(r.fecha) || '';
+        case 'mes': return r.mes != null && r.mes !== '' ? Number(r.mes) : null;
+        case 'anio': return r.anio != null && r.anio !== '' ? Number(r.anio) : null;
+        case 'tipo': return r.tipo_movimiento || '';
+        case 'monto': return r.monto != null ? Number(r.monto) : null;
+        case 'moneda': return esTransaccionUSD(r) ? 'USD' : 'ARS';
+        case 'status': return r.status || '';
+        case 'medio_pago': return r.medio_pago || '';
+        case 'categoria': return (r.categoria || '').trim();
+        case 'cuenta_contable': return (r.cuenta_contable || '').trim();
+        case 'nueva_categoria': return categoriaNuevaBd(r);
+        case 'nueva_cuenta': return cuentaNuevaBd(r);
+        case 'costo_directo': return (r.costo_directo || '').toString();
+        case 'costo_indirecto': return (r.costo_indirecto || '').toString();
+        case 'ef_item': return (r.ef_item || '').toString();
+        case 'ef_subitem': return (r.ef_subitem || '').toString();
+        case 'descripcion': return r.descripcion || '';
+        case 'cliente': return r.cliente || '';
+        case 'cat_desc': return r.cat_desc || '';
+        case 'origen': return (r.origen_archivo || '').trim();
+        case 'id_origen': return r.id_origen != null ? String(r.id_origen) : '';
+        case 'id_operacion': return r.id_operacion != null ? String(r.id_operacion) : '';
+        case 'usuario': return window.FornitaliaUsuario ? FornitaliaUsuario.textoDe(r.updated_by, r.created_by) : '';
+        case 'editado': return r.editado ? 1 : 0;
+        case 'editado_detalle': return (r.editado_detalle || '').toString();
+        default: return '';
+      }
+    }
 
     function formatearColHeaderEvolucion(key, periodo) {
       if (key === '__total_real__') return 'Total real';
@@ -6485,7 +6628,14 @@
       const valorIdOperacion = (inputIdOperacion && inputIdOperacion.value) ? String(inputIdOperacion.value).trim() : '';
       if (valorIdOperacion) {
         const busqueda = valorIdOperacion.toLowerCase();
-        list = list.filter(r => ((r.id_operacion || '').toString().toLowerCase()).includes(busqueda));
+        list = list.filter(r => {
+          const idOp = ((r.id_operacion || '').toString().toLowerCase());
+          const desc = ((r.descripcion || '').toString().toLowerCase());
+          return idOp.includes(busqueda) || desc.includes(busqueda);
+        });
+      }
+      if (sortTodas.key) {
+        list = list.slice().sort((a, b) => cmpSort(valorSortTodas(a, sortTodas.key), valorSortTodas(b, sortTodas.key), sortTodas.dir));
       }
       currentTodasTransaccionesList = list;
       const puedeEditar = puedeEditarRegistros();
@@ -6535,6 +6685,7 @@
         `;
       }).join('');
       tbody.innerHTML = rows;
+      actualizarIndicadoresSort(document.querySelector('#tabla-todas-transacciones thead'), sortTodas);
       tbody.querySelectorAll('.edit-btn-todas').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -7097,6 +7248,30 @@
         document.getElementById('filtro-todas-cliente').addEventListener('change', renderTodasTransacciones);
         const filtroIdOperacionEl = document.getElementById('filtro-todas-id-operacion');
         if (filtroIdOperacionEl) filtroIdOperacionEl.addEventListener('input', renderTodasTransacciones);
+        const theadFlujo = document.querySelector('#tabla-flujo-mes thead');
+        if (theadFlujo) {
+          theadFlujo.addEventListener('click', (e) => {
+            if (e.target.closest('.th-help')) return;
+            const btn = e.target.closest('.dash-th-sort-btn');
+            if (!btn) return;
+            const key = btn.getAttribute('data-sort');
+            if (!key) return;
+            toggleSortState(sortFlujo, key, !!FLUJO_SORT_NUMERIC[key]);
+            pintarTbodyFlujo();
+            programarAjusteTablasScrollAncladas();
+          });
+        }
+        const theadTodas = document.querySelector('#tabla-todas-transacciones thead');
+        if (theadTodas) {
+          theadTodas.addEventListener('click', (e) => {
+            const btn = e.target.closest('.dash-th-sort-btn');
+            if (!btn) return;
+            const key = btn.getAttribute('data-sort');
+            if (!key) return;
+            toggleSortState(sortTodas, key, !!TODAS_SORT_NUMERIC[key]);
+            renderTodasTransacciones();
+          });
+        }
         document.getElementById('evolucion-agrupar').addEventListener('change', renderEvolucion);
         document.getElementById('evolucion-periodo').addEventListener('change', renderEvolucion);
         document.getElementById('btn-exportar-evolucion').addEventListener('click', exportarEvolucionExcel);

@@ -8,10 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.49',
+    versionLabel: 'v2.50',
     lines: [
-      'En Flujo de caja podés cargar el Excel histórico una sola vez: se reparte solo a todas las cajas (bancos y cajas físicas).',
-      'Al terminar ves el mismo resumen de carga (nuevos, actualizados y omitidos), sin tener que subirlo solapa por solapa.'
+      'En Flujo por mes y Todas las transacciones podés ordenar clicando el encabezado de cualquier columna.',
+      'El buscador de Todas las transacciones también encuentra por descripción, no solo por id de operación.',
+      'En Saldos extractos, los bancos muestran una fila Mes en curso (celeste) con el saldo hasta hoy: último corte más créditos menos débitos.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

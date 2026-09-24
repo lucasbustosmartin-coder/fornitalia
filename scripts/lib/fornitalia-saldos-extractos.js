@@ -55,6 +55,7 @@
     mesHasta: '',
     msg: '',
     err: '',
+    movsMes: [],
     chart: null,
     tcLoaded: false,
     tcMap: {},
@@ -712,18 +713,159 @@
       var ym = mesYYYYMM(r.fecha_hasta);
       if (ym) set[ym] = true;
     });
+    var ymHoy = mesYYYYMM(hoyYmd());
+    if (ymHoy) set[ymHoy] = true;
     return Object.keys(set).sort();
   }
 
   function ultimoSaldoHasta(canal, ymInclusive) {
     var best = null;
     (state.rows || []).forEach(function (r) {
-      if (r.canal !== canal) return;
+      if (r.canal !== canal || r._vivo) return;
       var ym = mesYYYYMM(r.fecha_hasta);
       if (!ym || ym > ymInclusive) return;
       if (!best || String(r.fecha_hasta) > String(best.fecha_hasta)) best = r;
     });
     return best;
+  }
+
+  function esCanalBancoSe(canal) {
+    return canal === CANAL_MP || canal === CANAL_GAL || canal === CANAL_GAL_USD || canal === CANAL_CRED;
+  }
+
+  function primerDiaMesYmd(ymd) {
+    var s = String(ymd || hoyYmd()).slice(0, 7);
+    return /^\d{4}-\d{2}$/.test(s) ? (s + '-01') : '';
+  }
+
+  function addDaysYmd(ymd, n) {
+    var p = String(ymd || '').slice(0, 10).split('-');
+    if (p.length !== 3) return '';
+    var dt = new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + Number(n)));
+    if (isNaN(dt.getTime())) return '';
+    return dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) + '-' + pad2(dt.getUTCDate());
+  }
+
+  function esAperturaSe(m) {
+    var t = String((m && m.tipo) || '') + ' ' + String((m && m.descripcion) || '') + ' ' + String((m && m.categoria) || '');
+    return t.toLowerCase().indexOf('apertura de caja') >= 0;
+  }
+
+  function netoMovimientoSe(m) {
+    var cred = m && m.credito != null && m.credito !== '' ? Number(m.credito) : null;
+    var deb = m && m.debito != null && m.debito !== '' ? Number(m.debito) : null;
+    if (cred != null && isFinite(cred) || deb != null && isFinite(deb)) {
+      return round2((isFinite(cred) ? cred : 0) - Math.abs(isFinite(deb) ? deb : 0));
+    }
+    var n = Number(m && m.monto);
+    return isFinite(n) ? round2(n) : 0;
+  }
+
+  function ultimoCorteAntesDe(canal, ymdExclusive) {
+    var best = null;
+    (state.rows || []).forEach(function (r) {
+      if (!r || r._vivo || r.canal !== canal) return;
+      var f = String(r.fecha_hasta || '').slice(0, 10);
+      if (!f || f >= String(ymdExclusive)) return;
+      if (!best || f > String(best.fecha_hasta).slice(0, 10)) best = r;
+    });
+    return best;
+  }
+
+  function origenMovsCanalSe(canal) {
+    return canal === CANAL_CRED ? 'sistema' : 'banco';
+  }
+
+  function movsMesCanal(canal, desde, hasta) {
+    return (state.movsMes || []).filter(function (m) {
+      if (!m || m.canal !== canal) return false;
+      if (m.origen !== origenMovsCanalSe(canal)) return false;
+      if (esAperturaSe(m)) return false;
+      var f = String(m.fecha || '').slice(0, 10);
+      if (!f) return false;
+      if (desde && f < desde) return false;
+      if (hasta && f > hasta) return false;
+      return true;
+    }).slice().sort(function (a, b) {
+      var c = String(a.fecha).localeCompare(String(b.fecha));
+      if (c) return c;
+      return String(a.id || '').localeCompare(String(b.id || ''));
+    });
+  }
+
+  function htmlFechaCierre(r) {
+    var f = formatFecha(r && r.fecha_hasta);
+    if (!(r && r._vivo)) return f;
+    return f + ' <span class="se-badge-vivo">Mes en curso</span>';
+  }
+
+  function filaMesEnCurso(canal) {
+    if (!esCanalBancoSe(canal)) return null;
+    var hoy = hoyYmd();
+    var primer = primerDiaMesYmd(hoy);
+    if (!hoy || !primer) return null;
+    var last = ultimoCorteAntesDe(canal, hoy);
+    if (last && String(last.fecha_hasta).slice(0, 10) >= hoy) return null;
+    var desde = primer;
+    if (last) {
+      var sig = addDaysYmd(String(last.fecha_hasta).slice(0, 10), 1);
+      if (sig && sig > desde) desde = sig;
+    }
+    if (desde > hoy) return null;
+    var movs = movsMesCanal(canal, desde, hoy);
+    if (!last && !movs.length) return null;
+    var ini = last && last.saldo_final != null ? Number(last.saldo_final) : null;
+    if (ini != null && !isFinite(ini)) ini = null;
+    var neto = 0;
+    movs.forEach(function (m) {
+      neto = round2((neto || 0) + (netoMovimientoSe(m) || 0));
+    });
+    var fin = null;
+    var finUsd = null;
+    var tc = null;
+    if (canal === CANAL_GAL_USD) {
+      var iniUsd = last && last.raw && last.raw.saldo_usd != null ? Number(last.raw.saldo_usd) : null;
+      if (iniUsd != null && !isFinite(iniUsd)) iniUsd = null;
+      finUsd = round2((iniUsd || 0) + (neto || 0));
+      tc = tasaMepParaFecha(hoy);
+      if (tc && tc.tasa > 0) fin = round2(finUsd * tc.tasa);
+      else if (ini != null) fin = round2(ini + ((neto || 0) * ((tc && tc.tasa) || 0)));
+      else fin = null;
+    } else if (ini != null) {
+      fin = round2(ini + (neto || 0));
+    } else {
+      fin = round2(neto || 0);
+    }
+    return {
+      _vivo: true,
+      canal: canal,
+      moneda: 'ARS',
+      nro_cuenta: (last && last.nro_cuenta) || (canal === CANAL_CRED ? CANAL_CRED : ''),
+      tipo_cuenta: last && last.tipo_cuenta,
+      fecha_desde: desde,
+      fecha_hasta: hoy,
+      saldo_inicial: ini != null ? round2(ini) : null,
+      saldo_final: fin,
+      documento_id: 'mes-en-curso-' + canal,
+      archivo: 'Mes en curso (movimientos banco)',
+      created_by: null,
+      updated_by: null,
+      raw: {
+        vivo: true,
+        n_movs: movs.length,
+        neto: neto,
+        saldo_usd: finUsd,
+        tipo_cambio_mep: tc && tc.tasa,
+        tipo_cambio_fecha: tc && tc.fechaTc
+      }
+    };
+  }
+
+  function filasCanalConVivo(canal) {
+    var rows = filasCanal(canal);
+    var vivo = filaMesEnCurso(canal);
+    if (vivo && pasaFiltroMes(vivo.fecha_hasta)) return [vivo].concat(rows);
+    return rows;
   }
 
   function mesesConsolidado() {
@@ -732,46 +874,51 @@
       var ym = mesYYYYMM(r.fecha_hasta);
       if (ym && pasaFiltroMes(r.fecha_hasta)) set[ym] = true;
     });
+    var ymHoy = mesYYYYMM(hoyYmd());
+    if (ymHoy && pasaFiltroMes(ymHoy + '-01')) {
+      if (Object.keys(set).length || filaMesEnCurso(CANAL_MP) || filaMesEnCurso(CANAL_GAL) ||
+          filaMesEnCurso(CANAL_GAL_USD) || filaMesEnCurso(CANAL_CRED)) {
+        set[ymHoy] = true;
+      }
+    }
     return Object.keys(set).sort();
+  }
+
+  function saldoCanalMes(canal, ym) {
+    var ymHoy = mesYYYYMM(hoyYmd());
+    if (ym === ymHoy) {
+      var vivo = filaMesEnCurso(canal);
+      if (vivo && vivo.saldo_final != null && isFinite(Number(vivo.saldo_final))) {
+        return Number(vivo.saldo_final);
+      }
+    }
+    var r = ultimoSaldoHasta(canal, ym);
+    if (!r) return null;
+    var n = Number(r.saldo_final);
+    return isFinite(n) ? n : null;
   }
 
   function filasConsolidado() {
     var meses = mesesConsolidado();
+    var ymHoy = mesYYYYMM(hoyYmd());
     var prevTotal = null;
     return meses.map(function (ym) {
-      var g = ultimoSaldoHasta(CANAL_GAL, ym);
-      var gUsdRow = ultimoSaldoHasta(CANAL_GAL_USD, ym);
-      var m = ultimoSaldoHasta(CANAL_MP, ym);
-      var credRow = ultimoSaldoHasta(CANAL_CRED, ym);
-      var gfRow = ultimoSaldoHasta(CANAL_GF, ym);
-      var morRow = ultimoSaldoHasta(CANAL_MOR, ym);
-      var usdRow = ultimoSaldoHasta(CANAL_USD, ym);
-      var sfRow = ultimoSaldoHasta(CANAL_SF, ym);
-      var sfUsdRow = ultimoSaldoHasta(CANAL_SF_USD, ym);
-      var gal = g && mesYYYYMM(g.fecha_hasta) <= ym ? Number(g.saldo_final) : null;
-      var galUsd = gUsdRow && mesYYYYMM(gUsdRow.fecha_hasta) <= ym ? Number(gUsdRow.saldo_final) : null;
-      var mp = m && mesYYYYMM(m.fecha_hasta) <= ym ? Number(m.saldo_final) : null;
-      var cred = credRow && mesYYYYMM(credRow.fecha_hasta) <= ym ? Number(credRow.saldo_final) : null;
-      var gf = gfRow && mesYYYYMM(gfRow.fecha_hasta) <= ym ? Number(gfRow.saldo_final) : null;
-      var mor = morRow && mesYYYYMM(morRow.fecha_hasta) <= ym ? Number(morRow.saldo_final) : null;
-      var usd = usdRow && mesYYYYMM(usdRow.fecha_hasta) <= ym ? Number(usdRow.saldo_final) : null;
-      var sf = sfRow && mesYYYYMM(sfRow.fecha_hasta) <= ym ? Number(sfRow.saldo_final) : null;
-      var sfUsd = sfUsdRow && mesYYYYMM(sfUsdRow.fecha_hasta) <= ym ? Number(sfUsdRow.saldo_final) : null;
-      if (gal != null && !isFinite(gal)) gal = null;
-      if (galUsd != null && !isFinite(galUsd)) galUsd = null;
-      if (mp != null && !isFinite(mp)) mp = null;
-      if (cred != null && !isFinite(cred)) cred = null;
-      if (gf != null && !isFinite(gf)) gf = null;
-      if (mor != null && !isFinite(mor)) mor = null;
-      if (usd != null && !isFinite(usd)) usd = null;
-      if (sf != null && !isFinite(sf)) sf = null;
-      if (sfUsd != null && !isFinite(sfUsd)) sfUsd = null;
+      var gal = saldoCanalMes(CANAL_GAL, ym);
+      var galUsd = saldoCanalMes(CANAL_GAL_USD, ym);
+      var mp = saldoCanalMes(CANAL_MP, ym);
+      var cred = saldoCanalMes(CANAL_CRED, ym);
+      var gf = saldoCanalMes(CANAL_GF, ym);
+      var mor = saldoCanalMes(CANAL_MOR, ym);
+      var usd = saldoCanalMes(CANAL_USD, ym);
+      var sf = saldoCanalMes(CANAL_SF, ym);
+      var sfUsd = saldoCanalMes(CANAL_SF_USD, ym);
       var total = round2((gal || 0) + (galUsd || 0) + (mp || 0) + (cred || 0) + (gf || 0) + (mor || 0) + (usd || 0) + (sf || 0) + (sfUsd || 0));
       if (gal == null && galUsd == null && mp == null && cred == null && gf == null && mor == null && usd == null && sf == null && sfUsd == null) total = null;
       var vari = (prevTotal != null && total != null) ? round2(total - prevTotal) : null;
       if (total != null) prevTotal = total;
       return {
         mes: ym,
+        _vivo: ym === ymHoy,
         galicia: gal,
         galicia_usd: galUsd,
         mercadopago: mp,
@@ -849,12 +996,45 @@
     state.rows = all;
   }
 
+  async function cargarMovimientosMes() {
+    state.movsMes = [];
+    var hoy = hoyYmd();
+    var desde = primerDiaMesYmd(hoy);
+    if (!hoy || !desde || !client()) return;
+    var all = [];
+    var offset = 0;
+    for (;;) {
+      var res = await client().from('cb_movimiento')
+        .select('id,canal,origen,fecha,monto,credito,debito,tipo,descripcion,categoria,moneda')
+        .gte('fecha', desde)
+        .lte('fecha', hoy)
+        .in('canal', [CANAL_MP, CANAL_GAL, CANAL_GAL_USD, CANAL_CRED])
+        .order('fecha', { ascending: true })
+        .range(offset, offset + SUPABASE_PAGE - 1);
+      if (res.error) {
+        state.movsMes = [];
+        return;
+      }
+      var chunk = res.data || [];
+      all = all.concat(chunk);
+      if (chunk.length < SUPABASE_PAGE) break;
+      offset += SUPABASE_PAGE;
+    }
+    state.movsMes = all;
+  }
+
   async function recargar() {
     state.loading = true;
     renderShell();
     try {
       await cargarUsuarios();
       await cargarDatos();
+      await cargarMovimientosMes();
+      var hayUsd = (state.rows || []).some(function (r) { return r.canal === CANAL_GAL_USD; }) ||
+        (state.movsMes || []).some(function (m) { return m.canal === CANAL_GAL_USD; });
+      if (hayUsd) {
+        try { await ensureTipoCambio(); } catch (eTc) { /* el mes en curso ARS sigue */ }
+      }
       state.err = '';
     } catch (e) {
       state.err = 'No se pudo cargar Saldos extractos: ' + errMsg(e);
@@ -1074,7 +1254,9 @@
             borderColor: '#0f172a',
             backgroundColor: 'rgba(15, 23, 42, 0.08)',
             tension: 0.15,
-            pointRadius: 4,
+            pointRadius: orden.map(function (r) { return r._vivo ? 6 : 4; }),
+            pointBackgroundColor: orden.map(function (r) { return r._vivo ? '#0284c7' : '#0f172a'; }),
+            pointBorderColor: orden.map(function (r) { return r._vivo ? '#0369a1' : '#0f172a'; }),
             fill: true
           },
           {
@@ -1128,7 +1310,8 @@
             borderColor: '#0f172a',
             backgroundColor: 'rgba(15, 23, 42, 0.08)',
             tension: 0.15,
-            pointRadius: 4,
+            pointRadius: meses.map(function (x) { return x._vivo ? 6 : 4; }),
+            pointBackgroundColor: meses.map(function (x) { return x._vivo ? '#0284c7' : '#0f172a'; }),
             fill: true
           },
           {
@@ -1305,7 +1488,7 @@
       cols = [{ wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 }];
       meses.forEach(function (x) {
         aoa.push([
-          formatMesLabel(x.mes),
+          formatMesLabel(x.mes) + (x._vivo ? ' (en curso)' : ''),
           excelNum(x.galicia),
           excelNum(x.galicia_usd),
           excelNum(x.mercadopago),
@@ -1322,7 +1505,7 @@
       sheetName = 'Consolidado';
       fileName = 'Saldos_Extractos_Consolidado.xlsx';
     } else if (state.canal === CANAL_MP) {
-      var rowsMp = conAnterior(filasCanal(CANAL_MP));
+      var rowsMp = conAnterior(filasCanalConVivo(CANAL_MP));
       if (!rowsMp.length) {
         alert('No hay saldos visibles con el período elegido.');
         return;
@@ -1348,7 +1531,7 @@
       sheetName = 'Saldos MP';
       fileName = 'Saldos_Extractos_MercadoPago.xlsx';
     } else if (state.canal === CANAL_GAL) {
-      var rowsG = conAnterior(filasCanal(CANAL_GAL));
+      var rowsG = conAnterior(filasCanalConVivo(CANAL_GAL));
       if (!rowsG.length) {
         alert('No hay saldos visibles con el período elegido.');
         return;
@@ -1376,7 +1559,7 @@
       sheetName = 'Saldos Galicia ARS';
       fileName = 'Saldos_Extractos_Galicia_ARS.xlsx';
     } else if (state.canal === CANAL_GAL_USD) {
-      var rowsGUsd = conAnterior(filasCanal(CANAL_GAL_USD));
+      var rowsGUsd = conAnterior(filasCanalConVivo(CANAL_GAL_USD));
       if (!rowsGUsd.length) {
         alert('No hay saldos visibles con el período elegido.');
         return;
@@ -1405,7 +1588,7 @@
       sheetName = 'Galicia USD';
       fileName = 'Saldos_Extractos_Galicia_USD.xlsx';
     } else if (state.canal === CANAL_CRED) {
-      var rowsCredX = conAnterior(filasCanal(CANAL_CRED));
+      var rowsCredX = conAnterior(filasCanalConVivo(CANAL_CRED));
       if (!rowsCredX.length) {
         alert('No hay saldos visibles con el período elegido.');
         return;
@@ -1603,8 +1786,8 @@
     }
     var html = '';
     list.forEach(function (r) {
-      html += '<tr>' +
-        '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
+      html += '<tr' + (r._vivo ? ' class="se-fila-vivo"' : '') + '>' +
+        '<td>' + htmlFechaCierre(r) + '</td>' +
         '<td>' + formatFecha(r.fecha_desde) + '</td>' +
         '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(saldoInicialMostrar(r)) + '</td>' +
@@ -1632,8 +1815,8 @@
     }
     var html = '';
     list.forEach(function (r) {
-      html += '<tr>' +
-        '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
+      html += '<tr' + (r._vivo ? ' class="se-fila-vivo"' : '') + '>' +
+        '<td>' + htmlFechaCierre(r) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(r.saldo_final) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(extraSaldo(r, 'saldo_disponible')) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(extraSaldo(r, 'saldo_a_liberar')) + '</td>' +
@@ -1657,7 +1840,7 @@
   }
 
   function renderTablaGaliciaUsd() {
-    var list = conAnterior(filasCanal(CANAL_GAL_USD));
+    var list = conAnterior(filasCanalConVivo(CANAL_GAL_USD));
     if (!list.length) {
       return '<p class="se-empty">' + ((state.rows || []).some(function (r) { return r.canal === CANAL_GAL_USD; })
         ? 'No hay cortes de ' + esc(LABEL_GAL_USD) + ' en el período elegido.'
@@ -1666,8 +1849,8 @@
     var html = '';
     list.forEach(function (r) {
       var raw = r.raw || {};
-      html += '<tr>' +
-        '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
+      html += '<tr' + (r._vivo ? ' class="se-fila-vivo"' : '') + '>' +
+        '<td>' + htmlFechaCierre(r) + '</td>' +
         '<td>' + formatFecha(r.fecha_desde) + '</td>' +
         '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(saldoInicialMostrar(r)) + '</td>' +
@@ -1690,7 +1873,7 @@
   }
 
   function renderTablaCajaFisica(canal, label, hintCarga, menuDestino) {
-    var list = conAnterior(filasCanal(canal));
+    var list = conAnterior(filasCanalConVivo(canal));
     var menu = menuDestino || 'Cajas (físicas)';
     if (!list.length) {
       return '<p class="se-empty">' + ((state.rows || []).some(function (r) { return r.canal === canal; })
@@ -1699,8 +1882,8 @@
     }
     var html = '';
     list.forEach(function (r) {
-      html += '<tr>' +
-        '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
+      html += '<tr' + (r._vivo ? ' class="se-fila-vivo"' : '') + '>' +
+        '<td>' + htmlFechaCierre(r) + '</td>' +
         '<td>' + formatFecha(r.fecha_desde) + '</td>' +
         '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(saldoInicialMostrar(r)) + '</td>' +
@@ -1728,8 +1911,8 @@
     }
     var html = '';
     meses.slice().reverse().forEach(function (x) {
-      html += '<tr>' +
-        '<td>' + esc(formatMesLabel(x.mes)) + '</td>' +
+      html += '<tr' + (x._vivo ? ' class="se-fila-vivo"' : '') + '>' +
+        '<td>' + esc(formatMesLabel(x.mes)) + (x._vivo ? ' <span class="se-badge-vivo">Mes en curso</span>' : '') + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.galicia) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.galicia_usd) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.mercadopago) + '</td>' +
@@ -1775,16 +1958,16 @@
 
   function hintCanal() {
     if (state.canal === CANAL_MP) {
-      return 'Cartas de saldo de <strong>Mercado Pago</strong> (PDF <em>MP_Saldos_YYYYMMDD</em>). Cada archivo es el saldo al día (total, disponible, a liberar). La variación es contra la carta anterior. Se guardan sin duplicar ni borrar lo previo.';
+      return 'Cartas de saldo de <strong>Mercado Pago</strong> (PDF <em>MP_Saldos_YYYYMMDD</em>). Cada archivo es el saldo al día (total, disponible, a liberar). La variación es contra la carta anterior. Se guardan sin duplicar ni borrar lo previo. El <strong>mes en curso</strong> (celeste) suma los movimientos del extracto MP desde el último corte hasta hoy.';
     }
     if (state.canal === CANAL_GAL) {
-      return 'Resúmenes de <strong>' + esc(LABEL_GAL) + '</strong> (PDF <em>Extracto_Cuentas_Galicia_…</em>): saldo inicial y de cierre del período. Elegí uno o varios; se leen de a uno y se guardan juntos, sin duplicar ni borrar lo anterior.';
+      return 'Resúmenes de <strong>' + esc(LABEL_GAL) + '</strong> (PDF <em>Extracto_Cuentas_Galicia_…</em>): saldo inicial y de cierre del período. Elegí uno o varios; se leen de a uno y se guardan juntos, sin duplicar ni borrar lo anterior. El <strong>mes en curso</strong> (celeste) toma el último cierre y le suma los movimientos del extracto del mes, hasta hoy.';
     }
     if (state.canal === CANAL_GAL_USD) {
-      return 'Resúmenes de <strong>' + esc(LABEL_GAL_USD) + '</strong> (PDF <em>Extracto_Cuentas_Galicia_…</em> de Cuenta Corriente Especial en dólares, o Excel <em>Extracto_CCE…</em>). El saldo en USD se pesifica al MEP de la fecha de cierre (o la última cotización anterior) para verlo en pesos. Elegí uno o varios; se guardan juntos, sin duplicar ni borrar lo anterior.';
+      return 'Resúmenes de <strong>' + esc(LABEL_GAL_USD) + '</strong> (PDF <em>Extracto_Cuentas_Galicia_…</em> de Cuenta Corriente Especial en dólares, o Excel <em>Extracto_CCE…</em>). El saldo en USD se pesifica al MEP de la fecha de cierre (o la última cotización anterior) para verlo en pesos. Elegí uno o varios; se guardan juntos, sin duplicar ni borrar lo anterior. El <strong>mes en curso</strong> (celeste) suma los movimientos del extracto del mes y los pesifica al MEP de hoy.';
     }
     if (state.canal === CANAL_CRED) {
-      return 'Saldo de <strong>' + esc(LABEL_CRED) + '</strong> (caja banco). No hay extractos históricos: el corte se arma con la tesorería de <strong>Conciliación Bancaria</strong> (<em>tesoreria_transferencia_credicoop_…</em>, cierre o histórico Transferencia Credicoop). Apertura de Caja no entra. Si un mes no tiene corte, el consolidado arrastra el anterior.';
+      return 'Saldo de <strong>' + esc(LABEL_CRED) + '</strong> (caja banco). No hay extractos históricos: el corte se arma con la tesorería de <strong>Conciliación Bancaria</strong> (<em>tesoreria_transferencia_credicoop_…</em>, cierre o histórico Transferencia Credicoop). Apertura de Caja no entra. Si un mes no tiene corte, el consolidado arrastra el anterior. El <strong>mes en curso</strong> (celeste) suma la tesorería del mes hasta hoy.';
     }
     if (state.canal === CANAL_GF) {
       return 'Saldo de <strong>' + esc(LABEL_GF) + '</strong> (caja física / efectivo pesos). No se carga acá: se actualiza al importar <em>tesoreria_efectivo_pesos_…</em> o <em>cierre_PES-…</em> en el menú <strong>Cajas (físicas)</strong>.';
@@ -1801,7 +1984,7 @@
     if (state.canal === CANAL_SF_USD) {
       return 'Saldo de <strong>' + esc(LABEL_SF_USD) + '</strong> (caja física / efectivo dólar sin factura, en ARS). No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Dolar (sin factura)</em> o Moneda USD en <strong>Cajas (físicas)</strong>.';
     }
-    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). El promedio de saldo es cuánto dinero queda en promedio.';
+    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). En bancos, el <strong>mes en curso</strong> (celeste) usa el saldo vivo hasta hoy. El promedio de saldo es cuánto dinero queda en promedio.';
   }
 
   function renderShell() {
@@ -1816,13 +1999,13 @@
     var tabla = '';
     var kpisHtml = '';
     var hayChart = false;
-    var rowsMp = filasCanal(CANAL_MP);
-    var rowsGal = filasCanal(CANAL_GAL);
+    var rowsMp = filasCanalConVivo(CANAL_MP);
+    var rowsGal = filasCanalConVivo(CANAL_GAL);
     var rowsGf = filasCanal(CANAL_GF);
     var rowsMor = filasCanal(CANAL_MOR);
     var rowsUsd = filasCanal(CANAL_USD);
-    var rowsGalUsd = filasCanal(CANAL_GAL_USD);
-    var rowsCred = filasCanal(CANAL_CRED);
+    var rowsGalUsd = filasCanalConVivo(CANAL_GAL_USD);
+    var rowsCred = filasCanalConVivo(CANAL_CRED);
     var meses = filasConsolidado();
 
     if (state.canal === CANAL_MP) {
@@ -1878,7 +2061,7 @@
 
     el.innerHTML =
       FornitaliaHelp.header(ICO.chart, 'Saldos extractos', 'tpl-se-help', 'Ayuda: Saldos extractos',
-        '<p>Serie de <strong>saldos de cierre</strong> (no el detalle de movimientos).</p>' +
+        '<p>Serie de <strong>saldos de cierre</strong> (no el detalle de movimientos). En bancos, la fila <strong>Mes en curso</strong> (celeste) es el último corte más los movimientos del mes, totalizado hasta hoy.</p>' +
         '<p>' + hintCanal() + '</p>') +
       (state.loading ? '<p class="loading">Procesando resúmenes…</p>' : '') +
       (state.err ? '<p class="se-msg-err">' + esc(state.err) + '</p>' : '') +

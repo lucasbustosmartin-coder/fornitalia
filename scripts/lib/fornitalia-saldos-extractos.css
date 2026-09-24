@@ -344,6 +344,27 @@
 .se-monto-pos { color: #0d7d3d; }
 .se-monto-neg { color: #b91c1c; }
 
+.se-tabla tbody tr.se-fila-vivo td {
+  background: #e0f2fe;
+  box-shadow: inset 3px 0 0 #0284c7;
+}
+.se-tabla tbody tr.se-fila-vivo:hover td {
+  background: #bae6fd;
+}
+.se-badge-vivo {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: #0284c7;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 @media (max-width: 1100px) {
   .se-resumen { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
