@@ -1092,7 +1092,7 @@
       (state.err ? '<p class="imp-msg-err">' + esc(state.err) + '</p>' : '') +
       (state.msg ? '<p class="imp-msg-ok">' + esc(state.msg) + '</p>' : '') +
       '<div class="imp-tabs">' +
-        '<button type="button" class="imp-tab-mp' + (state.canal === 'mercadopago' ? ' activo' : '') + '" data-imp="canal" data-canal="mercadopago">Mercado Pago</button>' +
+        FornitaliaHelp.tabButton('imp-tab-mp', state.canal === 'mercadopago', 'data-imp="canal" data-canal="mercadopago"', 'Mercado Pago') +
       '</div>' +
       '<div class="imp-regimen-title">' +
         '<label class="imp-regimen-label" for="imp-regimen">Régimen</label>' +

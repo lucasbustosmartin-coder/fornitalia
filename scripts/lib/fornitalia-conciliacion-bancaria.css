@@ -138,6 +138,7 @@
   font-family: inherit;
   font-size: 0.9rem;
   color: #334155;
+  box-sizing: border-box;
 }
 
 .cb-tabs button.activo {

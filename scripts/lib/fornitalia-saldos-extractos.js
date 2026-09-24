@@ -1791,12 +1791,12 @@
 
   function htmlTabCanalSe(canal) {
     var act = state.canal === canal;
-    return '<button type="button" role="tab" class="' + claseTabCanalSe(canal) + (act ? ' activo' : '') +
-      '" data-se="canal" data-canal="' + canal + '"' +
-      (act ? ' aria-selected="true" aria-current="true" title="Vista activa"' : ' aria-selected="false"') + '>' +
-      esc(labelCanalSe(canal)) +
-      (act ? '<span class="se-tab-activo-mark">Activo</span>' : '') +
-      '</button>';
+    return FornitaliaHelp.tabButton(
+      claseTabCanalSe(canal),
+      act,
+      'data-se="canal" data-canal="' + canal + '"',
+      esc(labelCanalSe(canal))
+    );
   }
 
   function textoPeriodoSe() {
@@ -1871,6 +1871,9 @@
     if (cards) {
       var cardsClone = cards.cloneNode(true);
       cardsClone.classList.add('se-print-cards');
+      Array.prototype.forEach.call(cardsClone.querySelectorAll('.th-help, template'), function (n) {
+        n.parentNode.removeChild(n);
+      });
       mount.appendChild(cardsClone);
     }
     if (canvas && canvas.width > 8) {
@@ -2149,15 +2152,54 @@
       '</tr></thead><tbody>' + html + '</tbody></table></div>';
   }
 
+  function htmlKpiLab(label, tplId, helpHtml) {
+    var help = global.FornitaliaHelp
+      ? FornitaliaHelp.inline(tplId, 'Ayuda: ' + label, helpHtml)
+      : '';
+    return '<p class="lab"><span class="lab-txt">' + esc(label) + '</span>' + help + '</p>';
+  }
+
   function renderKpis(k, nLabel) {
+    var esCons = state.canal === CANAL_CONS;
+    var unidad = esCons ? 'mes' : 'corte';
+    var nLower = String(nLabel || 'cortes').toLowerCase();
+    var periodo = textoPeriodoSe();
+    var subUltimo = k.fechaUltimo
+      ? '<p class="sub">' + (String(k.fechaUltimo).length === 10
+        ? formatFecha(k.fechaUltimo)
+        : esc(formatMesLabel(String(k.fechaUltimo).slice(0, 7)))) + '</p>'
+      : '';
     return '<div class="se-resumen">' +
-      '<div class="se-resumen-card"><p class="lab">' + esc(nLabel) + '</p><p class="val">' + k.n + '</p></div>' +
-      '<div class="se-resumen-card"><p class="lab">Último saldo</p><p class="val">' + esc(formatMonto(k.ultimo)) + '</p>' +
-        (k.fechaUltimo ? '<p class="sub">' + (String(k.fechaUltimo).length === 10 ? formatFecha(k.fechaUltimo) : esc(formatMesLabel(String(k.fechaUltimo).slice(0, 7)))) + '</p>' : '') + '</div>' +
-      '<div class="se-resumen-card"><p class="lab">Variación del período</p><p class="val">' + esc(formatMonto(k.varPer)) + '</p></div>' +
-      '<div class="se-resumen-card"><p class="lab">Promedio de saldo</p><p class="val">' + esc(formatMonto(k.promedioSaldo)) + '</p>' +
+      '<div class="se-resumen-card">' +
+        htmlKpiLab(nLabel, 'tpl-se-kpi-n',
+          '<p>Cuántos <strong>' + esc(nLower) + '</strong> ves ahora, con el filtro Desde / Hasta.</p>' +
+          '<p>Es un recuento. No es plata.</p>') +
+        '<p class="val">' + k.n + '</p></div>' +
+      '<div class="se-resumen-card">' +
+        htmlKpiLab('Último saldo', 'tpl-se-kpi-ultimo',
+          esCons
+            ? '<p><strong>Cuánta plata hay ahora</strong>: la suma de todas las cajas en el último mes visible.</p>' +
+              '<p>Si aparece Mes en curso (celeste), es ese. No es cuánto subió ni bajó: eso está en Variación del período.</p>'
+            : '<p><strong>Cuánta plata hay ahora</strong>: el saldo de cierre del último corte visible.</p>' +
+              '<p>Si aparece Mes en curso (celeste), es ese. No es cuánto subió ni bajó: eso está en Variación del período.</p>') +
+        '<p class="val">' + esc(formatMonto(k.ultimo)) + '</p>' + subUltimo + '</div>' +
+      '<div class="se-resumen-card">' +
+        htmlKpiLab('Variación del período', 'tpl-se-kpi-var',
+          '<p><strong>Cuánto cambió</strong> la plata en el período de abajo: último saldo menos con cuánto arrancó el primero.</p>' +
+          '<p>No es lo mismo que Último saldo. Si no dan igual, está bien: la diferencia es el arranque.</p>') +
+        '<p class="val">' + esc(formatMonto(k.varPer)) + '</p>' +
+        '<p class="sub">' + esc(periodo) + '</p></div>' +
+      '<div class="se-resumen-card">' +
+        htmlKpiLab('Promedio de saldo', 'tpl-se-kpi-prom-saldo',
+          '<p><strong>Cuánta plata queda, en promedio</strong>, en cada ' + unidad + ' del período.</p>' +
+          '<p>No es el último saldo ni cuánto cambió.</p>') +
+        '<p class="val">' + esc(formatMonto(k.promedioSaldo)) + '</p>' +
         '<p class="sub">Cuánto queda en promedio</p></div>' +
-      '<div class="se-resumen-card"><p class="lab">Promedio de variación</p><p class="val">' + esc(formatMonto(k.promedioVar)) + '</p>' +
+      '<div class="se-resumen-card">' +
+        htmlKpiLab('Promedio de variación', 'tpl-se-kpi-prom-var',
+          '<p><strong>Cuánto se mueve, en promedio</strong>, de un ' + unidad + ' al siguiente.</p>' +
+          '<p>No es el total del período: eso es Variación del período.</p>') +
+        '<p class="val">' + esc(formatMonto(k.promedioVar)) + '</p>' +
         '<p class="sub">Cambio medio entre cortes</p></div>' +
     '</div>';
   }

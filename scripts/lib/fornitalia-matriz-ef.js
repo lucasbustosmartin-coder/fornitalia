@@ -1106,9 +1106,9 @@
       (state.err ? '<p class="mef-msg-err">' + esc(state.err) + '</p>' : '') +
       (state.msg ? '<p class="mef-msg-ok">' + esc(state.msg) + '</p>' : '') +
       '<div class="mef-tabs">' +
-        '<button type="button" class="' + (state.lista === 'relaciones' ? 'activo' : '') + '" data-mef="lista" data-lista="relaciones">Relaciones (' + nRel + ')</button>' +
-        '<button type="button" class="' + (state.lista === 'sin-relacion' ? 'activo' : '') + (sin.length ? ' mef-tab-warn' : '') + '" data-mef="lista" data-lista="sin-relacion">Sin relación (' + sin.length + ')</button>' +
-        '<button type="button" class="' + (esEst ? 'activo' : '') + '" data-mef="lista" data-lista="estructura">Estructura EF (' + nEst + ')</button>' +
+        FornitaliaHelp.tabButton('', state.lista === 'relaciones', 'data-mef="lista" data-lista="relaciones"', 'Relaciones (' + nRel + ')') +
+        FornitaliaHelp.tabButton(sin.length ? 'mef-tab-warn' : '', state.lista === 'sin-relacion', 'data-mef="lista" data-lista="sin-relacion"', 'Sin relación (' + sin.length + ')') +
+        FornitaliaHelp.tabButton('', esEst, 'data-mef="lista" data-lista="estructura"', 'Estructura EF (' + nEst + ')') +
       '</div>' +
       (esEst
         ? '<p class="mef-hint">Este árbol es el que dibuja la tabla del Estado Financiero. Podés sacar renglones que ya no uses (por ejemplo Otros Ingresos Operativos) si no tienen relaciones y no son una fórmula. Las secciones 1–6, los totales A–D y 6.1–6.3 están bloqueados.</p>'

@@ -5156,17 +5156,17 @@
         htmlResumenCard('Tesorería eliminada', k.eliminados, k.sumEliminados, '', 'eliminados', 'Ver tesorería ya borrada') +
       '</div>' +
       '<div class="cb-tabs">' +
-        '<button type="button" class="' + (state.lista === 'sugeridos' ? 'activo' : '') + '" data-cb="lista" data-lista="sugeridos">Sugeridos</button>' +
-        '<button type="button" class="' + (state.lista === 'confirmados' ? 'activo' : '') + '" data-cb="lista" data-lista="confirmados">Confirmados</button>' +
-        '<button type="button" class="' + (state.lista === 'banco' ? 'activo' : '') + '" data-cb="lista" data-lista="banco">Solo banco</button>' +
-        '<button type="button" class="' + (state.lista === 'sistema' ? 'activo' : '') + '" data-cb="lista" data-lista="sistema">Solo sistema</button>' +
-        '<button type="button" class="' + (state.lista === 'dups' ? 'activo' : '') + (k.dups ? ' cb-tab-warn' : '') + '" data-cb="lista" data-lista="dups">Potenciales duplicados' + (k.dups ? ' (' + k.dups + ')' : '') + '</button>' +
-        '<button type="button" class="' + (state.lista === 'dups_desc' ? 'activo' : '') + '" data-cb="lista" data-lista="dups_desc">Duplicados descartados' + (k.dupsDesc ? ' (' + k.dupsDesc + ')' : '') + '</button>' +
-        '<button type="button" class="' + (state.lista === 'bajas' ? 'activo' : '') + (k.bajas ? ' cb-tab-warn' : '') + '" data-cb="lista" data-lista="bajas">A eliminar' + (k.bajas ? ' (' + k.bajas + ')' : '') + '</button>' +
-        '<button type="button" class="' + (state.lista === 'eliminados' ? 'activo' : '') + '" data-cb="lista" data-lista="eliminados">Tesorería eliminada' + (k.eliminados ? ' (' + k.eliminados + ')' : '') + '</button>' +
+        FornitaliaHelp.tabButton('', state.lista === 'sugeridos', 'data-cb="lista" data-lista="sugeridos"', 'Sugeridos') +
+        FornitaliaHelp.tabButton('', state.lista === 'confirmados', 'data-cb="lista" data-lista="confirmados"', 'Confirmados') +
+        FornitaliaHelp.tabButton('', state.lista === 'banco', 'data-cb="lista" data-lista="banco"', 'Solo banco') +
+        FornitaliaHelp.tabButton('', state.lista === 'sistema', 'data-cb="lista" data-lista="sistema"', 'Solo sistema') +
+        FornitaliaHelp.tabButton(k.dups ? 'cb-tab-warn' : '', state.lista === 'dups', 'data-cb="lista" data-lista="dups"', 'Potenciales duplicados' + (k.dups ? ' (' + k.dups + ')' : '')) +
+        FornitaliaHelp.tabButton('', state.lista === 'dups_desc', 'data-cb="lista" data-lista="dups_desc"', 'Duplicados descartados' + (k.dupsDesc ? ' (' + k.dupsDesc + ')' : '')) +
+        FornitaliaHelp.tabButton(k.bajas ? 'cb-tab-warn' : '', state.lista === 'bajas', 'data-cb="lista" data-lista="bajas"', 'A eliminar' + (k.bajas ? ' (' + k.bajas + ')' : '')) +
+        FornitaliaHelp.tabButton('', state.lista === 'eliminados', 'data-cb="lista" data-lista="eliminados"', 'Tesorería eliminada' + (k.eliminados ? ' (' + k.eliminados + ')' : '')) +
         (state.canal === CANAL_MP
-          ? '<button type="button" class="' + (state.lista === 'anulados' ? 'activo' : '') + '" data-cb="lista" data-lista="anulados">Mercado Pago Anulados</button>' +
-            '<button type="button" class="' + (state.lista === 'norequiere' ? 'activo' : '') + '" data-cb="lista" data-lista="norequiere">No requiere</button>'
+          ? FornitaliaHelp.tabButton('', state.lista === 'anulados', 'data-cb="lista" data-lista="anulados"', 'Mercado Pago Anulados') +
+            FornitaliaHelp.tabButton('', state.lista === 'norequiere', 'data-cb="lista" data-lista="norequiere"', 'No requiere')
           : '') +
       '</div>' +
       listaHtml;
@@ -5181,10 +5181,10 @@
       (state.loading ? '<p class="loading">Cargando conciliación…</p>' : '') +
       (state.err ? '<p class="cb-msg-err">' + esc(state.err) + '</p>' : '') +
       '<div class="cb-tabs">' +
-        '<button type="button" class="cb-tab-mp' + (state.canal === CANAL_MP ? ' activo' : '') + '" data-cb="canal" data-canal="' + CANAL_MP + '">Mercado Pago</button>' +
-        '<button type="button" class="cb-tab-gal' + (state.canal === CANAL_GAL ? ' activo' : '') + '" data-cb="canal" data-canal="' + CANAL_GAL + '">' + esc(LABEL_GAL) + '</button>' +
-        '<button type="button" class="cb-tab-gal' + (state.canal === CANAL_GAL_USD ? ' activo' : '') + '" data-cb="canal" data-canal="' + CANAL_GAL_USD + '">' + esc(LABEL_GAL_USD) + '</button>' +
-        '<button type="button" class="cb-tab-cred' + (state.canal === CANAL_CRED ? ' activo' : '') + '" data-cb="canal" data-canal="' + CANAL_CRED + '">' + esc(LABEL_CRED) + '</button>' +
+        FornitaliaHelp.tabButton('cb-tab-mp', state.canal === CANAL_MP, 'data-cb="canal" data-canal="' + CANAL_MP + '"', 'Mercado Pago') +
+        FornitaliaHelp.tabButton('cb-tab-gal', state.canal === CANAL_GAL, 'data-cb="canal" data-canal="' + CANAL_GAL + '"', esc(LABEL_GAL)) +
+        FornitaliaHelp.tabButton('cb-tab-gal', state.canal === CANAL_GAL_USD, 'data-cb="canal" data-canal="' + CANAL_GAL_USD + '"', esc(LABEL_GAL_USD)) +
+        FornitaliaHelp.tabButton('cb-tab-cred', state.canal === CANAL_CRED, 'data-cb="canal" data-canal="' + CANAL_CRED + '"', esc(LABEL_CRED)) +
       '</div>' +
       renderCanal();
 

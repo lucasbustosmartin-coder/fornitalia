@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.51",
+  "versionLabel": "v2.52",
   "lines": [
-    "En Saldos extractos, las cajas en dólares muestran el monto en US$ debajo del peso, en letra chica.",
-    "La solapa que estás viendo queda marcada como Activo, más visible.",
-    "Podés bajar un PDF gráfico de esa misma vista: cards, gráfico y tabla, con el botón activo indicado."
+    "En Saldos extractos, cada card tiene un icono de ayuda y Variación del período muestra debajo el rango de fechas filtrado.",
+    "En todas las pantallas, la solapa que estás viendo queda marcada como Activo.",
+    "Al volver a Home se actualiza el Flujo de caja con lo último cargado."
   ]
 }

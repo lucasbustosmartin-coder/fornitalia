@@ -2329,10 +2329,10 @@
       '</div>' +
       (p ? renderResumen() : '') +
       (p ? '<div class="gp-tabs">' +
-        '<button type="button" class="' + (state.tab === 'plan' ? 'activo' : '') + '" data-gp="tab" data-tab="plan"><span class="tab-icon">' + ICO.list + '</span>To-Do / Plan</button>' +
-        '<button type="button" class="' + (state.tab === 'gantt' ? 'activo' : '') + '" data-gp="tab" data-tab="gantt"><span class="tab-icon">' + ICO.gantt + '</span>Gantt</button>' +
-        '<button type="button" class="' + (state.tab === 'horas' ? 'activo' : '') + '" data-gp="tab" data-tab="horas"><span class="tab-icon">' + ICO.clock + '</span>Horas cons.</button>' +
-        '<button type="button" class="' + (state.tab === 'archivos' ? 'activo' : '') + '" data-gp="tab" data-tab="archivos"><span class="tab-icon">' + ICO.paperclip + '</span>Archivos</button>' +
+        FornitaliaHelp.tabButton('', state.tab === 'plan', 'data-gp="tab" data-tab="plan"', '<span class="tab-icon">' + ICO.list + '</span>To-Do / Plan') +
+        FornitaliaHelp.tabButton('', state.tab === 'gantt', 'data-gp="tab" data-tab="gantt"', '<span class="tab-icon">' + ICO.gantt + '</span>Gantt') +
+        FornitaliaHelp.tabButton('', state.tab === 'horas', 'data-gp="tab" data-tab="horas"', '<span class="tab-icon">' + ICO.clock + '</span>Horas cons.') +
+        FornitaliaHelp.tabButton('', state.tab === 'archivos', 'data-gp="tab" data-tab="archivos"', '<span class="tab-icon">' + ICO.paperclip + '</span>Archivos') +
       '</div>' : '') +
       '<div class="gp-panel' + (state.tab === 'plan' ? ' activo' : '') + '" id="gp-panel-plan">' + (p ? renderPlanTabla() : '') + '</div>' +
       '<div class="gp-panel' + (state.tab === 'gantt' ? ' activo' : '') + '" id="gp-panel-gantt">' + (p ? renderGantt() : '') + '</div>' +

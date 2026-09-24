@@ -180,7 +180,8 @@
   box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.28), 0 4px 10px rgba(15, 23, 42, 0.16);
 }
 
-.se-tab-activo-mark {
+.se-tab-activo-mark,
+.lyp-tab-activo-mark {
   display: inline-flex;
   align-items: center;
   margin-left: 0.15rem;
@@ -289,12 +290,30 @@
 }
 
 .se-resumen-card .lab {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-wrap: wrap;
   margin: 0;
   font-size: 0.75rem;
   color: #64748b;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+}
+
+.se-resumen-card .lab-txt { min-width: 0; }
+
+.se-resumen-card .th-help {
+  margin: 0;
+  flex-shrink: 0;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.se-resumen-card .th-help svg {
+  width: 14px;
+  height: 14px;
 }
 
 .se-resumen-card .val {
@@ -449,6 +468,7 @@
 @media (max-width: 768px) {
   .vista-se { padding: 1rem 0.75rem 1.5rem; }
   .se-resumen { grid-template-columns: 1fr 1fr; }
+  .se-resumen-card .th-help { min-width: 44px; min-height: 44px; }
   .se-filtros select { min-width: 100%; max-width: 100%; width: 100%; }
   .se-filtros .form-group { width: 100%; }
   .se-acciones { width: 100%; }
@@ -556,6 +576,11 @@
     padding: 0.55rem 0.7rem;
     background: #fff;
     break-inside: avoid;
+  }
+  body.se-printing #se-print-root .th-help,
+  body.se-printing #se-print-root template {
+    display: none !important;
+    visibility: hidden !important;
   }
   body.se-printing .se-print-chart {
     display: block;

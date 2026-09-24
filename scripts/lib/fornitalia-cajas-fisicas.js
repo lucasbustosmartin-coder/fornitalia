@@ -1927,11 +1927,11 @@
       (state.err ? '<p class="cf-msg-err">' + esc(state.err) + '</p>' : '') +
       (state.msg ? '<p class="cf-msg-ok">' + esc(state.msg) + '</p>' : '') +
       '<div class="cf-tabs">' +
-        '<button type="button" class="' + (state.canal === CANAL_GF ? 'activo' : '') + '" data-cf="canal" data-canal="' + CANAL_GF + '">' + esc(LABEL_GF) + '</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_MOR ? 'activo' : '') + '" data-cf="canal" data-canal="' + CANAL_MOR + '">' + esc(LABEL_MOR) + '</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_USD ? 'activo' : '') + '" data-cf="canal" data-canal="' + CANAL_USD + '">' + esc(LABEL_USD) + '</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_SF ? 'activo' : '') + '" data-cf="canal" data-canal="' + CANAL_SF + '">' + esc(LABEL_SF) + '</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_SF_USD ? 'activo' : '') + '" data-cf="canal" data-canal="' + CANAL_SF_USD + '">' + esc(LABEL_SF_USD) + '</button>' +
+        FornitaliaHelp.tabButton('', state.canal === CANAL_GF, 'data-cf="canal" data-canal="' + CANAL_GF + '"', esc(LABEL_GF)) +
+        FornitaliaHelp.tabButton('', state.canal === CANAL_MOR, 'data-cf="canal" data-canal="' + CANAL_MOR + '"', esc(LABEL_MOR)) +
+        FornitaliaHelp.tabButton('', state.canal === CANAL_USD, 'data-cf="canal" data-canal="' + CANAL_USD + '"', esc(LABEL_USD)) +
+        FornitaliaHelp.tabButton('', state.canal === CANAL_SF, 'data-cf="canal" data-canal="' + CANAL_SF + '"', esc(LABEL_SF)) +
+        FornitaliaHelp.tabButton('', state.canal === CANAL_SF_USD, 'data-cf="canal" data-canal="' + CANAL_SF_USD + '"', esc(LABEL_SF_USD)) +
       '</div>' +
       '<div class="cf-toolbar"><div class="cf-acciones">' +
         (can(PERM_CARGAR) ? '<button type="button" class="cf-btn cf-btn-navy" data-cf="up"><span class="btn-icon">' + ICO.upload + '</span>Cargar tesorería / cierre</button>' : '') +
@@ -1946,8 +1946,8 @@
         '<div class="cf-resumen-card' + (k.bajas ? ' cf-resumen-warn' : '') + '" data-cf="lista" data-lista="bajas" role="button" tabindex="0"><p class="lab">A eliminar</p><p class="val">' + k.bajas + '</p></div>' +
       '</div>' +
       '<div class="cf-tabs">' +
-        '<button type="button" class="' + (state.lista === 'movimientos' ? 'activo' : '') + '" data-cf="lista" data-lista="movimientos">Movimientos</button>' +
-        '<button type="button" class="' + (state.lista === 'bajas' ? 'activo' : '') + (k.bajas ? ' cf-tab-warn' : '') + '" data-cf="lista" data-lista="bajas">A eliminar' + (k.bajas ? ' (' + k.bajas + ')' : '') + '</button>' +
+        FornitaliaHelp.tabButton('', state.lista === 'movimientos', 'data-cf="lista" data-lista="movimientos"', 'Movimientos') +
+        FornitaliaHelp.tabButton(k.bajas ? 'cf-tab-warn' : '', state.lista === 'bajas', 'data-cf="lista" data-lista="bajas"', 'A eliminar' + (k.bajas ? ' (' + k.bajas + ')' : '')) +
       '</div>' +
       renderTabla();
 

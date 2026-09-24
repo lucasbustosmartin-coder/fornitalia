@@ -8,22 +8,22 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-  <script src="scripts/lib/fornitalia-help.js?v=2.49"></script>
+  <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.49"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.49">
-  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.49"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.49">
-  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.49"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.51">
-  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.51"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.51">
-  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.51"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.49">
-  <script src="scripts/lib/fornitalia-impuestos.js?v=2.49"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.49">
-  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.49"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
+  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.52"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.52">
+  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.52"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.52">
+  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.52"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.52">
+  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.52"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.52">
+  <script src="scripts/lib/fornitalia-impuestos.js?v=2.52"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.52">
+  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.52"></script>
   <style>
     .lyp-user {
       font-weight: 600;
@@ -303,11 +303,78 @@
     .toggle-moneda { display: inline-flex; border-radius: 8px; border: 1px solid #ccc; overflow: hidden; background: #eee; }
     .toggle-moneda button { padding: 0.5rem 1rem; border: none; background: transparent; cursor: pointer; font-size: 1rem; }
     .toggle-moneda button.activo { background: #1a1a1a; color: #fff; font-weight: 600; }
-    .tabs { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; }
-    .tabs button { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; border: 1px solid #ccc; background: #fff; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 0.9rem; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.5rem; }
+    .tabs button { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; min-height: 2.25rem; border: 1px solid #ccc; background: #fff; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 0.9rem; box-sizing: border-box; position: relative; }
     .tabs button .tab-icon { width: 18px; height: 18px; flex-shrink: 0; }
     .tabs button .tab-icon svg { width: 100%; height: 100%; stroke: currentColor; }
     .tabs button.activo { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+    .lyp-tab-activo-mark {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 0.15rem;
+      padding: 0.08rem 0.4rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.28);
+      color: inherit;
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+    .tabs button:not(.activo),
+    .modal-body .modal-tabs button:not(.activo),
+    .cb-tabs button:not(.activo),
+    .cf-tabs button:not(.activo),
+    .imp-tabs button:not(.activo),
+    .mef-tabs button:not(.activo),
+    .gp-tabs button:not(.activo) {
+      opacity: 0.82;
+      font-weight: 500;
+    }
+    .tabs button.activo,
+    .modal-body .modal-tabs button.activo,
+    .cb-tabs button.activo,
+    .cf-tabs button.activo,
+    .imp-tabs button.activo,
+    .mef-tabs button.activo,
+    .gp-tabs button.activo {
+      opacity: 1;
+      font-weight: 700;
+      z-index: 1;
+      box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.28), 0 4px 10px rgba(15, 23, 42, 0.16);
+    }
+    .cb-tabs button,
+    .cf-tabs button,
+    .imp-tabs button,
+    .mef-tabs button,
+    .gp-tabs button {
+      position: relative;
+    }
+    .mef-tabs button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .cb-tabs button.cb-tab-mp.activo,
+    .imp-tabs button.imp-tab-mp.activo {
+      box-shadow: 0 0 0 3px rgba(0, 158, 227, 0.4), 0 4px 10px rgba(0, 119, 179, 0.28);
+    }
+    .cb-tabs button.cb-tab-gal.activo {
+      box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.38), 0 4px 10px rgba(224, 94, 0, 0.28);
+    }
+    .cb-tabs button.cb-tab-cred.activo {
+      box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.45), 0 4px 10px rgba(0, 0, 0, 0.35);
+    }
+    .cb-tabs button.cb-tab-warn.activo,
+    .cf-tabs button.cf-tab-warn.activo,
+    .mef-tabs button.mef-tab-warn.activo {
+      box-shadow: 0 0 0 3px rgba(146, 64, 14, 0.35), 0 4px 10px rgba(180, 83, 9, 0.22);
+    }
+    @media (max-width: 768px) {
+      .tabs button,
+      .modal-body .modal-tabs button { min-height: 44px; }
+    }
     .th-help { display: inline-flex; align-items: center; vertical-align: middle; margin: 0 0.15rem; color: #666; cursor: pointer; }
     .th-help:hover { color: #333; }
     .th-help svg { flex-shrink: 0; }
@@ -712,8 +779,8 @@
     .modal-header h2 { margin: 0; font-size: 1.25rem; }
     .modal-close { font-size: inherit; }
     .modal-body { padding: 1rem 1.25rem; overflow-y: auto; flex: 1 1 auto; min-height: 0; -webkit-overflow-scrolling: touch; }
-    .modal-body .modal-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.75rem; }
-    .modal-body .modal-tabs button { padding: 0.5rem 1rem; border: 1px solid #ccc; background: #fff; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .modal-body .modal-tabs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.75rem; }
+    .modal-body .modal-tabs button { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1rem; min-height: 2.25rem; border: 1px solid #ccc; background: #fff; border-radius: 8px; cursor: pointer; font-size: 0.9rem; position: relative; }
     .modal-body .modal-tabs button.activo { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
     .modal-body .modal-panel { display: none; }
     .modal-body .modal-panel.activo { display: block; }
@@ -1028,10 +1095,10 @@
   <div id="tabla-wrap" style="display:none;">
     <div class="tabs-toolbar">
       <div class="tabs">
-        <button type="button" class="tab activo" data-panel="flujo"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></span>Flujo por mes</button>
-        <button type="button" class="tab" data-panel="todas-transacciones"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span>Todas las transacciones</button>
-        <button type="button" class="tab" data-panel="evolucion"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Evolución</button>
-        <button type="button" class="tab" data-panel="estado-financiero"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>Estado Financiero</button>
+        <button type="button" class="tab activo" data-panel="flujo" role="tab" aria-selected="true" aria-current="true" title="Vista activa"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></span>Flujo por mes<span class="lyp-tab-activo-mark">Activo</span></button>
+        <button type="button" class="tab" data-panel="todas-transacciones" role="tab" aria-selected="false"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span>Todas las transacciones</button>
+        <button type="button" class="tab" data-panel="evolucion" role="tab" aria-selected="false"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Evolución</button>
+        <button type="button" class="tab" data-panel="estado-financiero" role="tab" aria-selected="false"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>Estado Financiero</button>
       </div>
     </div>
     <div id="panel-flujo" class="card panel activo">
@@ -1724,7 +1791,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.51';
+    const APP_VERSION = '2.52';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -2125,15 +2192,18 @@
 
       const activeTab = tabs.find((t) => t.classList.contains('activo') && t.style.display !== 'none');
       if (!activeTab && firstVisiblePanel) {
-        tabs.forEach((t) => t.classList.remove('activo'));
         document.querySelectorAll('#tabla-wrap .panel').forEach((p) => p.classList.remove('activo'));
         const tabShow = tabs.find((t) => t.getAttribute('data-panel') === firstVisiblePanel);
-        if (tabShow) tabShow.classList.add('activo');
+        if (window.FornitaliaHelp && FornitaliaHelp.syncTabsActivo) FornitaliaHelp.syncTabsActivo(tabs, tabShow || null);
+        else tabs.forEach((t) => t.classList.toggle('activo', t === tabShow));
         const panelEl = document.getElementById('panel-' + firstVisiblePanel);
         if (panelEl) panelEl.classList.add('activo');
       } else if (!activeTab && !firstVisiblePanel) {
-        tabs.forEach((t) => t.classList.remove('activo'));
+        if (window.FornitaliaHelp && FornitaliaHelp.syncTabsActivo) FornitaliaHelp.syncTabsActivo(tabs, null);
+        else tabs.forEach((t) => t.classList.remove('activo'));
         document.querySelectorAll('#tabla-wrap .panel').forEach((p) => p.classList.remove('activo'));
+      } else if (activeTab && window.FornitaliaHelp && FornitaliaHelp.syncTabsActivo) {
+        FornitaliaHelp.syncTabsActivo(tabs, activeTab);
       }
 
       const vSeg = document.getElementById('view-seguridad');
@@ -2235,6 +2305,7 @@
       if (vse) vse.style.display = idVista === 'saldos-extractos' ? 'block' : 'none';
       if (vimp) vimp.style.display = idVista === 'impuestos' ? 'block' : 'none';
       if (vmef) vmef.style.display = idVista === 'matriz-ef' ? 'block' : 'none';
+      if (idVista === 'dashboard') void refrescarDashboardFlujo();
     }
 
     function actualizarReportesMatrizStats() {
@@ -3100,6 +3171,7 @@
     }
 
     let cacheTransacciones = [];
+    let pRefreshFlujoHome = null;
     let cacheEfEstructura = [];
     let cacheEfSubitemToItem = null;
     let cacheEfSec1IngresoSubitemKeys = null;
@@ -3358,6 +3430,46 @@
         fechasConTasa[rateKey] = Object.keys(map).filter(d => map[d][rateKey] != null && map[d][rateKey] > 0).sort();
       });
       return { transacciones: cacheTransacciones, tcMap: cacheTC };
+    }
+
+    async function refrescarDashboardFlujo() {
+      if (pRefreshFlujoHome) return pRefreshFlujoHome;
+      const loading = document.getElementById('loading');
+      const errorEl = document.getElementById('error');
+      const filtrosWrap = document.getElementById('filtros-wrap');
+      const tablaWrap = document.getElementById('tabla-wrap');
+      pRefreshFlujoHome = (async function () {
+        if (errorEl) errorEl.style.display = 'none';
+        if (loading) {
+          loading.textContent = 'Cargando tesorería, cajas y tipos de cambio…';
+          loading.style.display = 'block';
+        }
+        try {
+          await syncConfigFromSupabase();
+          await cargarDatos();
+          if (filtrosWrap) filtrosWrap.style.display = 'flex';
+          if (tablaWrap) tablaWrap.style.display = 'block';
+          recalcular();
+          const panel = document.querySelector('#tabla-wrap .panel.activo');
+          const pid = panel && panel.id;
+          if (pid === 'panel-evolucion') renderEvolucion();
+          else if (pid === 'panel-estado-financiero') renderEstadoFinanciero();
+          else if (pid === 'panel-todas-transacciones') renderTodasTransacciones();
+          programarAjusteTablasScrollAncladas();
+        } catch (e) {
+          if (errorEl) {
+            errorEl.textContent = 'Error: ' + ((e && e.message) || String(e));
+            errorEl.style.display = 'block';
+          }
+        } finally {
+          if (loading) loading.style.display = 'none';
+        }
+      })();
+      try {
+        await pRefreshFlujoHome;
+      } finally {
+        pRefreshFlujoHome = null;
+      }
     }
 
     function esNombreTesoreriaHistoricoFlujo(nombre) {
@@ -6471,8 +6583,8 @@
       let html = `
         <p class="sin-cotizacion-note" style="margin:0 0 0.5rem 0;">Agrupado en <strong>Ingresos</strong>, <strong>Costo directo</strong> (<code>costo_directo</code> = Y), <strong>Costo indirecto</strong> (<code>costo_indirecto</code> = Y, solo si no es directo) y <strong>Otros costos</strong> (egresos sin ninguna Y). Si un egreso tiene ambas Y, cuenta en <strong>Costo directo</strong>. Dentro de cada bloque, orden alfabético. Categoría/cuenta: <strong>nueva_categoria</strong> / <strong>nueva_cuenta_contable</strong> si existen en la base; si no, extracto.</p>
         <div class="modal-tabs" role="tablist">
-          <button type="button" class="modal-tab activo" data-panel="categoria" role="tab">Por categoría (matriz)</button>
-          <button type="button" class="modal-tab" data-panel="cuenta" role="tab">Por cuenta (matriz)</button>
+          <button type="button" class="modal-tab activo" data-panel="categoria" role="tab" aria-selected="true" aria-current="true" title="Vista activa">Por categoría (matriz)<span class="lyp-tab-activo-mark">Activo</span></button>
+          <button type="button" class="modal-tab" data-panel="cuenta" role="tab" aria-selected="false">Por cuenta (matriz)</button>
         </div>
         <div id="modal-panel-categoria" class="modal-panel activo">${buildTablaGrupos(filasModalGrupos, 'modal-detalle-cat', 'Categoría (matriz)', 'categoria', anio, mes)}</div>
         <div id="modal-panel-cuenta" class="modal-panel">${buildTablaGrupos(filasModalCuentaGrupos, 'modal-detalle-cuenta', 'Cuenta (matriz)', 'cuenta', anio, mes)}</div>
@@ -6482,9 +6594,13 @@
       body.querySelectorAll('.modal-tab').forEach(tab => {
         tab.addEventListener('click', () => {
           const panelId = tab.getAttribute('data-panel');
-          body.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('activo'));
+          const modalTabs = body.querySelectorAll('.modal-tab');
+          if (window.FornitaliaHelp && FornitaliaHelp.syncTabsActivo) FornitaliaHelp.syncTabsActivo(modalTabs, tab);
+          else {
+            modalTabs.forEach(t => t.classList.remove('activo'));
+            tab.classList.add('activo');
+          }
           body.querySelectorAll('.modal-panel').forEach(p => p.classList.remove('activo'));
-          tab.classList.add('activo');
           const panel = document.getElementById('modal-panel-' + panelId);
           if (panel) panel.classList.add('activo');
         });
@@ -7226,9 +7342,13 @@
           btn.addEventListener('click', () => {
             const id = btn.getAttribute('data-panel');
             if (securityModuleActive() && id && !puedeVerSolapa(id)) return;
-            document.querySelectorAll('.tab').forEach(b => b.classList.remove('activo'));
-            document.querySelectorAll('.panel').forEach(p => p.classList.remove('activo'));
-            btn.classList.add('activo');
+            const dashTabs = document.querySelectorAll('.tabs-toolbar .tab[data-panel]');
+            if (window.FornitaliaHelp && FornitaliaHelp.syncTabsActivo) FornitaliaHelp.syncTabsActivo(dashTabs, btn);
+            else {
+              dashTabs.forEach(b => b.classList.remove('activo'));
+              btn.classList.add('activo');
+            }
+            document.querySelectorAll('#tabla-wrap .panel').forEach(p => p.classList.remove('activo'));
             if (id) document.getElementById('panel-' + id).classList.add('activo');
             if (id === 'evolucion') renderEvolucion();
             if (id === 'estado-financiero') renderEstadoFinanciero();

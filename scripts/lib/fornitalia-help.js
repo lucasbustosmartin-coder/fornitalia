@@ -39,12 +39,58 @@
       '</div>' + tpl(tplId, innerHtml);
   }
 
+  function tabMark(act) {
+    return act ? '<span class="lyp-tab-activo-mark">Activo</span>' : '';
+  }
+
+  function tabButton(className, act, extraAttrs, innerHtml) {
+    var cls = String(className || '').replace(/\s+/g, ' ').trim();
+    if (act) cls = (cls ? cls + ' ' : '') + 'activo';
+    return '<button type="button" role="tab" class="' + escAttr(cls) + '"' +
+      (extraAttrs ? ' ' + extraAttrs : '') +
+      (act ? ' aria-selected="true" aria-current="true" title="Vista activa"' : ' aria-selected="false"') + '>' +
+      (innerHtml || '') + tabMark(act) + '</button>';
+  }
+
+  function setTabActivo(btn, on) {
+    if (!btn) return;
+    if (on) {
+      btn.classList.add('activo');
+      btn.setAttribute('aria-selected', 'true');
+      btn.setAttribute('aria-current', 'true');
+      btn.setAttribute('title', 'Vista activa');
+      if (!btn.querySelector('.lyp-tab-activo-mark')) {
+        var mark = document.createElement('span');
+        mark.className = 'lyp-tab-activo-mark';
+        mark.textContent = 'Activo';
+        btn.appendChild(mark);
+      }
+      return;
+    }
+    btn.classList.remove('activo');
+    btn.setAttribute('aria-selected', 'false');
+    btn.removeAttribute('aria-current');
+    if (btn.getAttribute('title') === 'Vista activa') btn.removeAttribute('title');
+    var old = btn.querySelector('.lyp-tab-activo-mark');
+    if (old) old.parentNode.removeChild(old);
+  }
+
+  function syncTabsActivo(buttons, activeEl) {
+    Array.prototype.forEach.call(buttons || [], function (b) {
+      setTabActivo(b, b === activeEl);
+    });
+  }
+
   global.FornitaliaHelp = {
     SVG: SVG,
     btn: btn,
     tpl: tpl,
     inline: inline,
     row: row,
-    header: header
+    header: header,
+    tabMark: tabMark,
+    tabButton: tabButton,
+    setTabActivo: setTabActivo,
+    syncTabsActivo: syncTabsActivo
   };
 })(window);
