@@ -269,6 +269,10 @@
     return c === CANAL_GAL_USD;
   }
 
+  function canalesCb() {
+    return [CANAL_MP, CANAL_GAL, CANAL_GAL_USD, CANAL_CRED];
+  }
+
   function labelCanalNombre(c) {
     if (c === CANAL_GAL_USD) return LABEL_GAL_USD;
     if (c === CANAL_GAL) return LABEL_GAL;
@@ -2071,6 +2075,34 @@
     return Number(rpc.data || 0);
   }
 
+  async function guardarTesoreriaEnCanal(canal, parte, opciones) {
+    opciones = opciones || {};
+    state.canal = canal;
+    await cargarDatos();
+    var cls = { nNuevos: 0, nCambiaron: 0, nIguales: 0 };
+    var nRetiradas = 0;
+    var nBajas = 0;
+    if (parte && parte.length) {
+      await adoptarIdTesoreria(canal, parte);
+      await cargarDatos();
+      cls = clasificarFilasUpload(parte, 'sistema');
+      await guardarFilas('sistema', parte);
+      nRetiradas = await retirarTesoreriaDuplicadaCierre(canal, parte);
+      if (opciones.marcarBajas) {
+        nBajas = await marcarTesoreriaAbiertaAusente(canal, parte);
+      }
+    }
+    await cargarDatos();
+    return { cls: cls, nRetiradas: nRetiradas, nBajas: nBajas };
+  }
+
+  async function regenerarSugerenciasEnCanal(canal) {
+    state.canal = canal;
+    await cargarDatos();
+    if (!bancoRowsConciliables().length || !sistemaRows().length) return 0;
+    return await regenerarSugerencias();
+  }
+
   function matchSugeridoEsAnulado(m) {
     if (!m || m.estado !== 'sugerido') return false;
     var an = mapaIdsMpAnulados();
@@ -2354,27 +2386,36 @@
         var nBajas = 0;
         var nSug = 0;
         var canalesCargados = [];
+        var notaSaldo = '';
         if (origen === 'sistema' && parsed.tieneIdCierre) {
           var agrup = gruposCanalTesoreria(parsed.filas, state.canal);
           var ci;
           for (ci = 0; ci < agrup.order.length; ci++) {
             var canalSave = agrup.order[ci];
-            state.canal = canalSave;
-            await cargarDatos();
+            if (!canalSave) continue;
             var parte = agrup.groups[canalSave];
-            if (parte.length) {
-              await adoptarIdTesoreria(canalSave, parte);
-              await cargarDatos();
-              clsTot = sumarClasificacion(clsTot, clasificarFilasUpload(parte, origen));
-              await guardarFilas(origen, parte);
-              nRetiradas += await retirarTesoreriaDuplicadaCierre(canalSave, parte);
-              if (!parsed.formatoCierre && !parsed.formatoHistorico) {
-                nBajas += await marcarTesoreriaAbiertaAusente(canalSave, parte);
-              }
-              canalesCargados.push(labelCanalNombre(canalSave) + ' (' + parte.length + ')');
+            if (!parte.length) continue;
+            var rec = await guardarTesoreriaEnCanal(canalSave, parte, {
+              marcarBajas: !parsed.formatoCierre && !parsed.formatoHistorico
+            });
+            clsTot = sumarClasificacion(clsTot, rec.cls);
+            nRetiradas += rec.nRetiradas;
+            nBajas += rec.nBajas;
+            canalesCargados.push(labelCanalNombre(canalSave) + ' (' + parte.length + ')');
+          }
+          var canalesSug = agrup.order.filter(Boolean);
+          if (parsed.formatoHistorico) {
+            canalesCb().forEach(function (c) {
+              if (canalesSug.indexOf(c) < 0) canalesSug.push(c);
+            });
+          }
+          for (ci = 0; ci < canalesSug.length; ci++) {
+            try {
+              nSug += await regenerarSugerenciasEnCanal(canalesSug[ci]);
+            } catch (eSug) {
+              notaSaldo = (notaSaldo ? notaSaldo + ' ' : '') +
+                'Sugeridos de ' + labelCanalNombre(canalesSug[ci]) + ': ' + errMsg(eSug);
             }
-            await cargarDatos();
-            if (bancoRowsConciliables().length && sistemaRows().length) nSug += await regenerarSugerencias();
           }
           if (agrup.order.indexOf(canalAntes) >= 0) state.canal = canalAntes;
           else if (agrup.order.length) state.canal = agrup.order[0];
@@ -2388,15 +2429,18 @@
             clsTot = { nNuevos: 0, nCambiaron: 0, nIguales: nYaContenido };
           }
           if (parsed.filas.length) await guardarFilas(origen, parsed.filas);
-          await cargarDatos();
-          if (bancoRowsConciliables().length && sistemaRows().length) nSug = await regenerarSugerencias();
+          try {
+            nSug = await regenerarSugerenciasEnCanal(state.canal);
+          } catch (eSug) {
+            notaSaldo = (notaSaldo ? notaSaldo + ' ' : '') +
+              'Sugeridos de ' + labelCanalNombre(state.canal) + ': ' + errMsg(eSug);
+          }
           canalesCargados.push(labelCanalNombre(state.canal) + ' (' + (parsed.filas.length + nYaContenido) + ')');
         }
         await cargarDatos();
         var extraOrigen = origen !== origenPedido
           ? (origen === 'sistema' ? 'Detecté tesorería del sistema.' : 'Detecté extracto del banco.')
           : '';
-        var notaSaldo = '';
         if (origen === 'banco' && esCanalGalUsd(state.canal) && window.FornitaliaSaldosExtractos) {
           try {
             if (parsed.fuentePdf && parsed.pdfText &&
@@ -2505,23 +2549,37 @@
       var nReconocidas = parsed.filas.length;
       var agrup = gruposCanalTesoreria(parsed.filas, null);
       var ci;
+      var notasCarga = [];
       for (ci = 0; ci < agrup.order.length; ci++) {
         var canalSave = agrup.order[ci];
         if (!canalSave) continue;
-        state.canal = canalSave;
-        await cargarDatos();
         var parte = agrup.groups[canalSave];
         if (!parte.length) continue;
-        await adoptarIdTesoreria(canalSave, parte);
-        await cargarDatos();
-        clsTot = sumarClasificacion(clsTot, clasificarFilasUpload(parte, 'sistema'));
-        await guardarFilas('sistema', parte);
-        await retirarTesoreriaDuplicadaCierre(canalSave, parte);
-        canalesCargados.push(labelCanalNombre(canalSave) + ' (' + parte.length + ')');
-        await cargarDatos();
-        if (bancoRowsConciliables().length && sistemaRows().length) nSug += await regenerarSugerencias();
+        try {
+          var rec = await guardarTesoreriaEnCanal(canalSave, parte, { marcarBajas: false });
+          clsTot = sumarClasificacion(clsTot, rec.cls);
+          canalesCargados.push(labelCanalNombre(canalSave) + ' (' + parte.length + ')');
+        } catch (eSave) {
+          notasCarga.push(labelCanalNombre(canalSave) + ': ' + errMsg(eSave));
+        }
+      }
+      if (parsed.filas.length && !canalesCargados.length) {
+        return { err: notasCarga.length ? notasCarga.join(' ') : 'No pude guardar tesorería histórica en Conciliación.' };
+      }
+      var notasSug = [];
+      for (ci = 0; ci < canalesCb().length; ci++) {
+        var canalSug = canalesCb()[ci];
+        try {
+          nSug += await regenerarSugerenciasEnCanal(canalSug);
+        } catch (eSug) {
+          notasSug.push(labelCanalNombre(canalSug) + ': ' + errMsg(eSug));
+        }
       }
       var notaSaldo = '';
+      var notasTodas = notasCarga.concat(notasSug);
+      if (notasTodas.length) {
+        notaSaldo = notasTodas.join(' ');
+      }
       var tocoCredicoop = (parsed.filas || []).some(function (f) {
         return (f.canal || '') === CANAL_CRED;
       });
@@ -2536,11 +2594,13 @@
           try {
             var snapCred = await window.FornitaliaSaldosExtractos.guardarCorteCredicoop(movsCred, file.name);
             if (snapCred) {
-              notaSaldo = 'Saldo Credicoop al ' + formatFecha(snapCred.fecha_hasta) + ': $ ' + formatMonto(snapCred.saldo_final) +
+              notaSaldo = (notaSaldo ? notaSaldo + ' ' : '') +
+                'Saldo Credicoop al ' + formatFecha(snapCred.fecha_hasta) + ': $ ' + formatMonto(snapCred.saldo_final) +
                 ' (tesorería, sin Apertura).';
             }
           } catch (eCred) {
-            notaSaldo = 'Tesorería Credicoop ok, pero no pude guardar el corte en Saldos extractos: ' + errMsg(eCred);
+            notaSaldo = (notaSaldo ? notaSaldo + ' ' : '') +
+              'Tesorería Credicoop ok, pero no pude guardar el corte en Saldos extractos: ' + errMsg(eCred);
           }
         }
       }

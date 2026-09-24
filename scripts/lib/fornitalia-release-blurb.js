@@ -8,11 +8,10 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.52',
+    versionLabel: 'v2.53',
     lines: [
-      'En Saldos extractos, cada card tiene un icono de ayuda y Variación del período muestra debajo el rango de fechas filtrado.',
-      'En todas las pantallas, la solapa que estás viendo queda marcada como Activo.',
-      'Al volver a Home se actualiza el Flujo de caja con lo último cargado.'
+      'Al cargar tesorería histórica desde Flujo, Conciliación arma los sugeridos de cada caja como si las cargaras una por una.',
+      'Si una caja no puede armar sugeridos, las demás siguen.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
