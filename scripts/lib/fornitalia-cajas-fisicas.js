@@ -381,6 +381,7 @@
       var t = conv(f.monto, f.fecha);
       var cred = f.credito != null ? conv(f.credito, f.fecha) : null;
       var deb = f.debito != null ? conv(f.debito, f.fecha) : null;
+      var saldoUsdOrig = f.saldo != null && isFinite(Number(f.saldo)) ? round2(Number(f.saldo)) : null;
       var sal = f.saldo != null ? conv(f.saldo, f.fecha) : null;
       if (!t) return;
       f.monto_usd = round2(f.monto);
@@ -390,12 +391,14 @@
       f.credito = cred && cred.ars != null ? cred.ars : null;
       f.debito = deb && deb.ars != null ? Math.abs(deb.ars) : null;
       f.saldo = sal && sal.ars != null ? sal.ars : null;
+      f.saldo_usd = saldoUsdOrig;
       f.moneda = 'ARS';
       if (!f.raw) f.raw = {};
       f.raw.monto_usd = f.monto_usd;
       f.raw.tipo_cambio_mep = t.tasa;
       f.raw.tipo_cambio_fecha = t.fechaTc;
       f.raw.moneda_origen = 'USD';
+      if (saldoUsdOrig != null) f.raw.saldo_usd = saldoUsdOrig;
     });
     if (faltan.length) {
       throw new Error(
@@ -773,6 +776,32 @@
       if (ini == null) ini = 0;
     }
     var c = esCanalCaja(canal) ? canal : CANAL_GF;
+    var raw = { formato: formatoCierre ? 'cierre' : 'tesoreria', movimientos: filas.length, pesificado_mep: esCanalUsd(c) };
+    if (esCanalUsd(c)) {
+      var usdIni = null;
+      var usdFin = null;
+      var tcLast = null;
+      for (i = orden.length - 1; i >= 0; i--) {
+        if (usdFin == null && orden[i].saldo_usd != null && isFinite(Number(orden[i].saldo_usd))) {
+          usdFin = Number(orden[i].saldo_usd);
+        }
+        if (tcLast == null && orden[i].tipo_cambio_mep != null && Number(orden[i].tipo_cambio_mep) > 0) {
+          tcLast = Number(orden[i].tipo_cambio_mep);
+        }
+        if (usdFin != null && tcLast != null) break;
+      }
+      for (i = 0; i < orden.length; i++) {
+        if (orden[i].saldo_usd != null && isFinite(Number(orden[i].saldo_usd))) {
+          usdIni = Number(orden[i].saldo_usd);
+          break;
+        }
+      }
+      if (usdFin == null && fin != null && tcLast > 0) usdFin = round2(Number(fin) / tcLast);
+      if (usdIni == null && ini != null && tcLast > 0) usdIni = round2(Number(ini) / tcLast);
+      if (usdFin != null) raw.saldo_usd = round2(usdFin);
+      if (usdIni != null) raw.saldo_usd_inicial = round2(usdIni);
+      if (tcLast > 0) raw.tipo_cambio_mep = tcLast;
+    }
     return {
       canal: c,
       moneda: 'ARS',
@@ -784,7 +813,7 @@
       saldo_final: round2(fin),
       documento_id: String(archivo || '').replace(/\.[^.]+$/, ''),
       archivo: archivo,
-      raw: { formato: formatoCierre ? 'cierre' : 'tesoreria', movimientos: filas.length, pesificado_mep: esCanalUsd(c) }
+      raw: raw
     };
   }
 

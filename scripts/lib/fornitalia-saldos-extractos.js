@@ -42,7 +42,8 @@
   var ICO = {
     chart: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 14 12 9 16 13 21 6"/></svg>',
     upload: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
-    download: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>'
+    download: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>',
+    file: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
   };
 
   var opts = { client: null, hasPerm: function () { return true; }, getRoot: function () { return null; } };
@@ -62,6 +63,7 @@
     tcFechas: []
   };
   var pdfjsReady = null;
+  var printCleanupBound = false;
 
   function client() { return opts.client; }
   function can(perm) { return typeof opts.hasPerm === 'function' ? opts.hasPerm(perm) : true; }
@@ -898,6 +900,20 @@
     return isFinite(n) ? n : null;
   }
 
+  function usdCanalMes(canal, ym) {
+    if (!esCanalUsdSe(canal)) return null;
+    var ymHoy = mesYYYYMM(hoyYmd());
+    if (ym === ymHoy) {
+      var vivo = filaMesEnCurso(canal);
+      if (vivo) {
+        var uVivo = usdFinalDeFilaSe(vivo);
+        if (uVivo != null) return uVivo;
+      }
+    }
+    var r = ultimoSaldoHasta(canal, ym);
+    return r ? usdFinalDeFilaSe(r) : null;
+  }
+
   function filasConsolidado() {
     var meses = mesesConsolidado();
     var ymHoy = mesYYYYMM(hoyYmd());
@@ -921,13 +937,16 @@
         _vivo: ym === ymHoy,
         galicia: gal,
         galicia_usd: galUsd,
+        galicia_usd_orig: usdCanalMes(CANAL_GAL_USD, ym),
         mercadopago: mp,
         credicoop: cred,
         galicia_facturada: gf,
         morba_sf: mor,
         galicia_dolar: usd,
+        galicia_dolar_orig: usdCanalMes(CANAL_USD, ym),
         efectivo_sf: sf,
         efectivo_sf_usd: sfUsd,
+        efectivo_sf_usd_orig: usdCanalMes(CANAL_SF_USD, ym),
         total: total,
         variacion: vari
       };
@@ -1030,8 +1049,9 @@
       await cargarUsuarios();
       await cargarDatos();
       await cargarMovimientosMes();
-      var hayUsd = (state.rows || []).some(function (r) { return r.canal === CANAL_GAL_USD; }) ||
-        (state.movsMes || []).some(function (m) { return m.canal === CANAL_GAL_USD; });
+      var hayUsd = (state.rows || []).some(function (r) {
+        return r.canal === CANAL_GAL_USD || r.canal === CANAL_USD || r.canal === CANAL_SF_USD;
+      }) || (state.movsMes || []).some(function (m) { return m.canal === CANAL_GAL_USD; });
       if (hayUsd) {
         try { await ensureTipoCambio(); } catch (eTc) { /* el mes en curso ARS sigue */ }
       }
@@ -1747,6 +1767,135 @@
     global.XLSX.writeFile(wb, fileName, { cellStyles: true, cellDates: false });
   }
 
+  function labelCanalSe(canal) {
+    if (canal === CANAL_MP) return 'Mercado Pago';
+    if (canal === CANAL_GAL) return LABEL_GAL;
+    if (canal === CANAL_GAL_USD) return LABEL_GAL_USD;
+    if (canal === CANAL_CRED) return LABEL_CRED;
+    if (canal === CANAL_GF) return LABEL_GF;
+    if (canal === CANAL_MOR) return LABEL_MOR;
+    if (canal === CANAL_USD) return LABEL_USD;
+    if (canal === CANAL_SF) return LABEL_SF;
+    if (canal === CANAL_SF_USD) return LABEL_SF_USD;
+    if (canal === CANAL_CONS) return 'Consolidado';
+    return canal || '';
+  }
+
+  function claseTabCanalSe(canal) {
+    if (canal === CANAL_MP) return 'se-tab-mp';
+    if (canal === CANAL_GAL || canal === CANAL_GAL_USD) return 'se-tab-gal';
+    if (canal === CANAL_CRED) return 'se-tab-cred';
+    if (canal === CANAL_CONS) return 'se-tab-cons';
+    return 'se-tab-caja';
+  }
+
+  function htmlTabCanalSe(canal) {
+    var act = state.canal === canal;
+    return '<button type="button" role="tab" class="' + claseTabCanalSe(canal) + (act ? ' activo' : '') +
+      '" data-se="canal" data-canal="' + canal + '"' +
+      (act ? ' aria-selected="true" aria-current="true" title="Vista activa"' : ' aria-selected="false"') + '>' +
+      esc(labelCanalSe(canal)) +
+      (act ? '<span class="se-tab-activo-mark">Activo</span>' : '') +
+      '</button>';
+  }
+
+  function textoPeriodoSe() {
+    var d = state.mesDesde;
+    var h = state.mesHasta;
+    if (!d && !h) return 'Todos los cortes';
+    if (d && h) return formatMesLabel(d) + ' a ' + formatMesLabel(h);
+    if (d) return 'Desde ' + formatMesLabel(d);
+    return 'Hasta ' + formatMesLabel(h);
+  }
+
+  function limpiarImpresionPdf() {
+    document.body.classList.remove('se-printing');
+    var mount = document.getElementById('se-print-root');
+    if (mount && mount.parentNode) mount.parentNode.removeChild(mount);
+    var prev = document.body.getAttribute('data-se-title-prev');
+    if (prev != null) {
+      document.title = prev;
+      document.body.removeAttribute('data-se-title-prev');
+    }
+  }
+
+  function asegurarLimpiezaPrint() {
+    if (printCleanupBound) return;
+    printCleanupBound = true;
+    window.addEventListener('afterprint', limpiarImpresionPdf);
+    if (window.matchMedia) {
+      try {
+        window.matchMedia('print').addEventListener('change', function (e) {
+          if (!e.matches) limpiarImpresionPdf();
+        });
+      } catch (err) { /* ignore */ }
+    }
+  }
+
+  function exportarPdf() {
+    if (!can(PERM_EXPORTAR)) return;
+    var el = root();
+    if (!el) return;
+    var cards = el.querySelector('.se-resumen');
+    var canvas = el.querySelector('#se-chart');
+    var tabla = el.querySelector('.se-tabla-wrap');
+    if (!cards && !tabla) {
+      alert('No hay saldos para armar el reporte.');
+      return;
+    }
+    asegurarLimpiezaPrint();
+    limpiarImpresionPdf();
+    var lab = labelCanalSe(state.canal);
+    var mount = document.createElement('div');
+    mount.id = 'se-print-root';
+    mount.setAttribute('aria-hidden', 'true');
+    var head = document.createElement('div');
+    head.className = 'se-print-head';
+    head.innerHTML =
+      '<div class="se-print-brand">' +
+        '<img src="favicon.svg" width="44" height="44" alt="Fornitalia" />' +
+        '<div>' +
+          '<p class="se-print-kicker">Saldos extractos</p>' +
+          '<h1>Reporte de saldos</h1>' +
+        '</div>' +
+      '</div>' +
+      '<div class="se-print-meta">' +
+        '<p><strong>Al</strong> ' + esc(formatFecha(hoyYmd())) + '</p>' +
+        '<p><strong>Período</strong> ' + esc(textoPeriodoSe()) + '</p>' +
+        '<p class="se-print-canal ' + claseTabCanalSe(state.canal) + '">' +
+          '<span class="se-print-canal-lab">Botón activo</span>' +
+          '<span class="se-print-canal-val">' + esc(lab) + '</span>' +
+        '</p>' +
+      '</div>';
+    mount.appendChild(head);
+    if (cards) {
+      var cardsClone = cards.cloneNode(true);
+      cardsClone.classList.add('se-print-cards');
+      mount.appendChild(cardsClone);
+    }
+    if (canvas && canvas.width > 8) {
+      try {
+        var img = document.createElement('img');
+        img.className = 'se-print-chart';
+        img.alt = 'Gráfico de saldos ' + lab;
+        img.src = canvas.toDataURL('image/png');
+        mount.appendChild(img);
+      } catch (eChart) { /* canvas no listo */ }
+    }
+    if (tabla) {
+      var tClone = tabla.cloneNode(true);
+      tClone.classList.add('se-print-tabla');
+      mount.appendChild(tClone);
+    }
+    document.body.appendChild(mount);
+    document.body.setAttribute('data-se-title-prev', document.title);
+    document.title = 'Saldos extractos — ' + lab + ' — ' + formatFecha(hoyYmd());
+    document.body.classList.add('se-printing');
+    global.requestAnimationFrame(function () {
+      global.requestAnimationFrame(function () { window.print(); });
+    });
+  }
+
   function htmlMonto(n, clsExtra) {
     var v = Number(n);
     var cls = '';
@@ -1755,6 +1904,62 @@
       else if (v < 0) cls = ' se-monto-neg';
     }
     return '<span class="se-col-monto' + cls + '">' + esc(formatMonto(n)) + '</span>';
+  }
+
+  function esCanalUsdSe(canal) {
+    return canal === CANAL_GAL_USD || canal === CANAL_USD || canal === CANAL_SF_USD;
+  }
+
+  function tcDeFilaSe(r) {
+    var raw = r && r.raw;
+    var t = raw && raw.tipo_cambio_mep != null ? Number(raw.tipo_cambio_mep) : NaN;
+    if (isFinite(t) && t > 0) return t;
+    var mep = tasaMepParaFecha(r && r.fecha_hasta);
+    return mep && mep.tasa > 0 ? mep.tasa : null;
+  }
+
+  function usdDesdeArsSe(r, ars) {
+    var n = Number(ars);
+    var tc = tcDeFilaSe(r);
+    if (!isFinite(n) || !(tc > 0)) return null;
+    return round2(n / tc);
+  }
+
+  function usdFinalDeFilaSe(r) {
+    if (!r) return null;
+    var raw = r.raw || {};
+    var u = raw.saldo_usd != null ? Number(raw.saldo_usd) : NaN;
+    if (isFinite(u)) return u;
+    if (!esCanalUsdSe(r.canal)) return null;
+    return usdDesdeArsSe(r, r.saldo_final);
+  }
+
+  function usdInicialDeFilaSe(r) {
+    if (!r) return null;
+    var raw = r.raw || {};
+    var u = raw.saldo_usd_inicial != null ? Number(raw.saldo_usd_inicial) : NaN;
+    if (isFinite(u)) return u;
+    if (r._prev) {
+      var pu = usdFinalDeFilaSe(r._prev);
+      if (pu != null) return pu;
+    }
+    if (!esCanalUsdSe(r.canal)) return null;
+    return usdDesdeArsSe(r, saldoInicialMostrar(r));
+  }
+
+  function usdVariacionDeFilaSe(r) {
+    var fin = usdFinalDeFilaSe(r);
+    var ini = usdInicialDeFilaSe(r);
+    if (fin == null || ini == null) return null;
+    return round2(fin - ini);
+  }
+
+  function htmlMontoConUsd(ars, usd, clsExtra) {
+    var main = htmlMonto(ars, clsExtra);
+    var u = Number(usd);
+    if (usd == null || usd === '' || !isFinite(u)) return main;
+    return '<span class="se-monto-stack">' + main +
+      '<span class="se-usd-sub">US$ ' + esc(formatMonto(u)) + '</span></span>';
   }
 
   function renderFiltros() {
@@ -1853,8 +2058,8 @@
         '<td>' + htmlFechaCierre(r) + '</td>' +
         '<td>' + formatFecha(r.fecha_desde) + '</td>' +
         '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
-        '<td class="se-col-monto">' + htmlMonto(saldoInicialMostrar(r)) + '</td>' +
-        '<td class="se-col-monto">' + htmlMonto(r.saldo_final) + '</td>' +
+        '<td class="se-col-monto">' + htmlMontoConUsd(saldoInicialMostrar(r), usdInicialDeFilaSe(r)) + '</td>' +
+        '<td class="se-col-monto">' + htmlMontoConUsd(r.saldo_final, usdFinalDeFilaSe(r)) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(raw.saldo_usd) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(raw.tipo_cambio_mep) + '</td>' +
         '<td>' + formatFecha(raw.tipo_cambio_fecha) + '</td>' +
@@ -1880,15 +2085,16 @@
         ? 'No hay cortes de ' + esc(label) + ' en el período elegido.'
         : 'Todavía no hay saldo de ' + esc(label) + '. Cargá ' + esc(hintCarga) + ' en el menú <strong>' + esc(menu) + '</strong>.') + '</p>';
     }
+    var usd = esCanalUsdSe(canal);
     var html = '';
     list.forEach(function (r) {
       html += '<tr' + (r._vivo ? ' class="se-fila-vivo"' : '') + '>' +
         '<td>' + htmlFechaCierre(r) + '</td>' +
         '<td>' + formatFecha(r.fecha_desde) + '</td>' +
         '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
-        '<td class="se-col-monto">' + htmlMonto(saldoInicialMostrar(r)) + '</td>' +
-        '<td class="se-col-monto">' + htmlMonto(r.saldo_final) + '</td>' +
-        '<td class="se-col-monto">' + htmlMonto(variacionFila(r), 'var') + '</td>' +
+        '<td class="se-col-monto">' + (usd ? htmlMontoConUsd(saldoInicialMostrar(r), usdInicialDeFilaSe(r)) : htmlMonto(saldoInicialMostrar(r))) + '</td>' +
+        '<td class="se-col-monto">' + (usd ? htmlMontoConUsd(r.saldo_final, usdFinalDeFilaSe(r)) : htmlMonto(r.saldo_final)) + '</td>' +
+        '<td class="se-col-monto">' + (usd ? htmlMontoConUsd(variacionFila(r), usdVariacionDeFilaSe(r), 'var') : htmlMonto(variacionFila(r), 'var')) + '</td>' +
         '<td>' + esc(r.archivo || '—') + '</td>' +
         '<td>' + htmlUsuario(r.updated_by, r.created_by) + '</td>' +
       '</tr>';
@@ -1914,14 +2120,14 @@
       html += '<tr' + (x._vivo ? ' class="se-fila-vivo"' : '') + '>' +
         '<td>' + esc(formatMesLabel(x.mes)) + (x._vivo ? ' <span class="se-badge-vivo">Mes en curso</span>' : '') + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.galicia) + '</td>' +
-        '<td class="se-col-monto">' + htmlMonto(x.galicia_usd) + '</td>' +
+        '<td class="se-col-monto">' + htmlMontoConUsd(x.galicia_usd, x.galicia_usd_orig) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.mercadopago) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.credicoop) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.galicia_facturada) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.morba_sf) + '</td>' +
-        '<td class="se-col-monto">' + htmlMonto(x.galicia_dolar) + '</td>' +
+        '<td class="se-col-monto">' + htmlMontoConUsd(x.galicia_dolar, x.galicia_dolar_orig) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.efectivo_sf) + '</td>' +
-        '<td class="se-col-monto">' + htmlMonto(x.efectivo_sf_usd) + '</td>' +
+        '<td class="se-col-monto">' + htmlMontoConUsd(x.efectivo_sf_usd, x.efectivo_sf_usd_orig) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.total) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.variacion, 'var') + '</td>' +
       '</tr>';
@@ -2062,26 +2268,28 @@
     el.innerHTML =
       FornitaliaHelp.header(ICO.chart, 'Saldos extractos', 'tpl-se-help', 'Ayuda: Saldos extractos',
         '<p>Serie de <strong>saldos de cierre</strong> (no el detalle de movimientos). En bancos, la fila <strong>Mes en curso</strong> (celeste) es el último corte más los movimientos del mes, totalizado hasta hoy.</p>' +
+        '<p>El botón de solapa con la etiqueta <strong>Activo</strong> es la vista que estás viendo. El <strong>PDF</strong> arma un reporte gráfico de esa misma vista (cards, gráfico y tabla) e indica el botón activo.</p>' +
         '<p>' + hintCanal() + '</p>') +
       (state.loading ? '<p class="loading">Procesando resúmenes…</p>' : '') +
       (state.err ? '<p class="se-msg-err">' + esc(state.err) + '</p>' : '') +
       (state.msg ? '<p class="se-msg-ok">' + esc(state.msg) + '</p>' : '') +
-      '<div class="se-tabs">' +
-        '<button type="button" class="se-tab-mp' + (state.canal === CANAL_MP ? ' activo' : '') + '" data-se="canal" data-canal="' + CANAL_MP + '">Mercado Pago</button>' +
-        '<button type="button" class="se-tab-gal' + (state.canal === CANAL_GAL ? ' activo' : '') + '" data-se="canal" data-canal="' + CANAL_GAL + '">' + esc(LABEL_GAL) + '</button>' +
-        '<button type="button" class="se-tab-gal' + (state.canal === CANAL_GAL_USD ? ' activo' : '') + '" data-se="canal" data-canal="' + CANAL_GAL_USD + '">' + esc(LABEL_GAL_USD) + '</button>' +
-        '<button type="button" class="se-tab-cred' + (state.canal === CANAL_CRED ? ' activo' : '') + '" data-se="canal" data-canal="' + CANAL_CRED + '">' + esc(LABEL_CRED) + '</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_GF ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_GF + '">' + esc(LABEL_GF) + '</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_MOR ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_MOR + '">' + esc(LABEL_MOR) + '</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_USD ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_USD + '">' + esc(LABEL_USD) + '</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_SF ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_SF + '">' + esc(LABEL_SF) + '</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_SF_USD ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_SF_USD + '">' + esc(LABEL_SF_USD) + '</button>' +
-        '<button type="button" class="' + (state.canal === CANAL_CONS ? 'activo' : '') + '" data-se="canal" data-canal="' + CANAL_CONS + '">Consolidado</button>' +
+      '<div class="se-tabs" role="tablist" aria-label="Caja o banco">' +
+        htmlTabCanalSe(CANAL_MP) +
+        htmlTabCanalSe(CANAL_GAL) +
+        htmlTabCanalSe(CANAL_GAL_USD) +
+        htmlTabCanalSe(CANAL_CRED) +
+        htmlTabCanalSe(CANAL_GF) +
+        htmlTabCanalSe(CANAL_MOR) +
+        htmlTabCanalSe(CANAL_USD) +
+        htmlTabCanalSe(CANAL_SF) +
+        htmlTabCanalSe(CANAL_SF_USD) +
+        htmlTabCanalSe(CANAL_CONS) +
       '</div>' +
       '<div class="se-toolbar">' +
         '<div class="se-acciones">' +
           btnUp +
           (canXls ? '<button type="button" class="se-btn se-btn-excel" data-se="xlsx"><span class="btn-icon">' + ICO.download + '</span>Excel</button>' : '') +
+          (canXls ? '<button type="button" class="se-btn se-btn-navy" data-se="pdf" title="Reporte PDF de esta vista" aria-label="Reporte PDF"><span class="btn-icon">' + ICO.file + '</span>PDF</button>' : '') +
         '</div>' +
         renderFiltros() +
       '</div>' +
@@ -2126,6 +2334,7 @@
     if (a === 'up-gal') { onUpload(CANAL_GAL); return; }
     if (a === 'up-gal-usd') { onUploadGaliciaUsd(); return; }
     if (a === 'xlsx') { exportarExcel(); return; }
+    if (a === 'pdf') { exportarPdf(); return; }
     if (a === 'canal') {
       state.canal = t.getAttribute('data-canal') || CANAL_MP;
       state.msg = '';

@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.50',
+    versionLabel: 'v2.51',
     lines: [
-      'En Flujo por mes y Todas las transacciones podés ordenar clicando el encabezado de cualquier columna.',
-      'El buscador de Todas las transacciones también encuentra por descripción, no solo por id de operación.',
-      'En Saldos extractos, los bancos muestran una fila Mes en curso (celeste) con el saldo hasta hoy: último corte más créditos menos débitos.'
+      'En Saldos extractos, las cajas en dólares muestran el monto en US$ debajo del peso, en letra chica.',
+      'La solapa que estás viendo queda marcada como Activo, más visible.',
+      'Podés bajar un PDF gráfico de esa misma vista: cards, gráfico y tabla, con el botón activo indicado.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
