@@ -8,10 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.53',
+    versionLabel: 'v2.54',
     lines: [
-      'Al cargar tesorería histórica desde Flujo, Conciliación arma los sugeridos de cada caja como si las cargaras una por una.',
-      'Si una caja no puede armar sugeridos, las demás siguen.'
+      'En Saldos extractos hay un botón Tesorería saldos para subir el Excel tesoreria_saldos.',
+      'Compara el saldo de cada caja con el mes en curso.',
+      'Si coincide ves un tilde verde; si no, una cruz roja con el monto de la diferencia.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

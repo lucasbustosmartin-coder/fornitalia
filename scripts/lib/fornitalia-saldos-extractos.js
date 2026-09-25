@@ -43,7 +43,9 @@
     chart: '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 14 12 9 16 13 21 6"/></svg>',
     upload: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
     download: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>',
-    file: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+    file: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    x: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
   };
 
   var opts = { client: null, hasPerm: function () { return true; }, getRoot: function () { return null; } };
@@ -60,7 +62,8 @@
     chart: null,
     tcLoaded: false,
     tcMap: {},
-    tcFechas: []
+    tcFechas: [],
+    modalCmp: null
   };
   var pdfjsReady = null;
   var printCleanupBound = false;
@@ -342,6 +345,19 @@
     var v = Number(n);
     if (!isFinite(v)) return '—';
     return v.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function formatMontoMoneda(n, moneda) {
+    if (n == null || n === '' || !isFinite(Number(n))) return '—';
+    var pref = String(moneda || '').toUpperCase() === 'USD' ? 'US$ ' : '$ ';
+    return pref + formatMonto(n);
+  }
+
+  function formatFechaDdMm(ymd) {
+    var s = String(ymd || '').slice(0, 10);
+    var p = s.split('-');
+    if (p.length !== 3) return s || '—';
+    return p[2] + '/' + p[1] + '/' + p[0];
   }
 
   function excelDate(ymd) {
@@ -1118,6 +1134,290 @@
       reader.onerror = function () { reject(new Error('No se pudo leer el archivo.')); };
       reader.readAsArrayBuffer(file);
     });
+  }
+
+  function esArchivoTesoreriaSaldos(nombre) {
+    var t = normHeader(nombre);
+    return /tesoreria[_\s-]*saldos/.test(t);
+  }
+
+  function fechaDeNombreTesoreriaSaldos(nombre) {
+    var m = String(nombre || '').match(/(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  }
+
+  function extraerFechaAlDeTexto(s) {
+    var m = String(s || '').match(/al\s+(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/i);
+    if (!m) return '';
+    var y = m[3].length === 2 ? ('20' + m[3]) : m[3];
+    return y + '-' + pad2(m[2]) + '-' + pad2(m[1]);
+  }
+
+  function canalPorCajaTesoreriaSaldos(caja) {
+    var t = normHeader(caja);
+    if (!t) return '';
+    var esUsd = t.indexOf('dolar') >= 0 || t.indexOf('usd') >= 0;
+    if (t.indexOf('sin factura') >= 0) return esUsd ? CANAL_SF_USD : CANAL_SF;
+    if (t.indexOf('morba') >= 0 || t.indexOf('morva') >= 0) return CANAL_MOR;
+    if (t.indexOf('credicoop') >= 0) return CANAL_CRED;
+    if (t.indexOf('galicia') >= 0) return esUsd ? CANAL_GAL_USD : CANAL_GAL;
+    if (t.indexOf('mercadopago') >= 0 || t.indexOf('mercado pago') >= 0) return CANAL_MP;
+    if (t.indexOf('efectivo') >= 0) return esUsd ? CANAL_USD : CANAL_GF;
+    return '';
+  }
+
+  function monedaTesoreriaSaldos(v, canal) {
+    var t = normHeader(v);
+    if (t.indexOf('usd') >= 0 || t.indexOf('dolar') >= 0) return 'USD';
+    if (esCanalUsdSe(canal)) return 'USD';
+    return 'ARS';
+  }
+
+  function parseTesoreriaSaldos(wb, archivo) {
+    if (!wb) return { error: 'No pude leer el Excel.' };
+    var names = wb.SheetNames || [];
+    var name = '';
+    var i;
+    for (i = 0; i < names.length; i++) {
+      var n = normHeader(names[i]);
+      if (n.indexOf('tesoreria') >= 0 || n.indexOf('saldos') >= 0) { name = names[i]; break; }
+    }
+    if (!name) name = names[0] || '';
+    var sheet = name ? wb.Sheets[name] : null;
+    if (!sheet) return { error: (archivo || '') + ': el Excel no tiene hojas.' };
+    var rows = global.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' });
+    if (!rows.length) return { error: (archivo || '') + ': el Excel no tiene filas.' };
+    var fechaAl = fechaDeNombreTesoreriaSaldos(archivo);
+    var hdr = null;
+    var r;
+    var c;
+    for (r = 0; r < Math.min(rows.length, 30); r++) {
+      var row = rows[r] || [];
+      var map = {};
+      var textoFila = '';
+      for (c = 0; c < row.length; c++) {
+        var h = normHeader(row[c]);
+        if (h) map[h] = c;
+        textoFila += ' ' + String(row[c] || '');
+      }
+      if (!fechaAl) fechaAl = extraerFechaAlDeTexto(textoFila);
+      if (map.caja != null && (map['saldo calculado'] != null || map.saldo != null)) {
+        hdr = { i: r, map: map };
+        break;
+      }
+    }
+    if (!hdr) {
+      return { error: (archivo || '') + ': no reconocí las columnas Caja y Saldo calculado (tesoreria_saldos).' };
+    }
+    var iCaja = hdr.map.caja;
+    var iMon = hdr.map.moneda;
+    var iSaldo = hdr.map['saldo calculado'] != null ? hdr.map['saldo calculado'] : hdr.map.saldo;
+    var cajas = [];
+    for (r = hdr.i + 1; r < rows.length; r++) {
+      var fila = rows[r] || [];
+      var caja = String(fila[iCaja] != null ? fila[iCaja] : '').trim();
+      if (!caja) continue;
+      var cajaN = normHeader(caja);
+      if (cajaN.indexOf('total') === 0) continue;
+      if (cajaN.indexOf('como leer') >= 0) continue;
+      if (caja.charAt(0) === '·' || caja.charAt(0) === '-' || caja.charAt(0) === '•') continue;
+      var canal = canalPorCajaTesoreriaSaldos(caja);
+      var moneda = monedaTesoreriaSaldos(iMon != null ? fila[iMon] : '', canal);
+      var saldo = parseMontoSe(fila[iSaldo]);
+      if (saldo == null && !canal) continue;
+      cajas.push({
+        caja: caja,
+        canal: canal,
+        moneda: moneda,
+        saldo: saldo,
+        fila_excel: r + 1
+      });
+    }
+    if (!cajas.length) {
+      return { error: (archivo || '') + ': no encontré cajas para comparar.' };
+    }
+    return { archivo: archivo || '', fechaAl: fechaAl, cajas: cajas };
+  }
+
+  function saldoAppMesEnCurso(canal, moneda) {
+    var ym = mesYYYYMM(hoyYmd());
+    if (!canal || !ym) return { monto: null, moneda: moneda || 'ARS' };
+    if (moneda === 'USD' || esCanalUsdSe(canal)) {
+      return { monto: usdCanalMes(canal, ym), moneda: 'USD' };
+    }
+    return { monto: saldoCanalMes(canal, ym), moneda: 'ARS' };
+  }
+
+  function coincideSaldoSe(a, b) {
+    if (a == null || b == null || !isFinite(Number(a)) || !isFinite(Number(b))) return false;
+    return Math.abs(round2(a) - round2(b)) < 0.015;
+  }
+
+  function compararTesoreriaSaldos(parsed) {
+    var hoy = hoyYmd();
+    var filas = (parsed.cajas || []).map(function (c) {
+      var app = c.canal ? saldoAppMesEnCurso(c.canal, c.moneda) : { monto: null, moneda: c.moneda };
+      var ok = !!(c.canal && coincideSaldoSe(c.saldo, app.monto));
+      var diff = null;
+      if (c.saldo != null && app.monto != null) diff = round2(c.saldo - app.monto);
+      else if (c.saldo != null && app.monto == null) diff = round2(c.saldo);
+      var motivo = '';
+      if (!c.canal) motivo = 'Caja no reconocida';
+      else if (app.monto == null) motivo = 'Sin mes en curso';
+      return {
+        caja: c.caja,
+        canal: c.canal,
+        moneda: app.moneda || c.moneda,
+        excel: c.saldo,
+        app: app.monto,
+        ok: ok,
+        diff: diff,
+        motivo: motivo
+      };
+    });
+    var nOk = filas.filter(function (f) { return f.ok; }).length;
+    var nBad = filas.length - nOk;
+    return {
+      archivo: parsed.archivo || '',
+      fechaAl: parsed.fechaAl || '',
+      hoy: hoy,
+      filas: filas,
+      nOk: nOk,
+      nBad: nBad
+    };
+  }
+
+  function htmlResultadoCmp(f) {
+    if (f.ok) {
+      return '<span class="se-cmp-ok" title="Coincide">' + ICO.check + '</span>';
+    }
+    var det = f.diff != null
+      ? '<span class="se-cmp-diff">Dif. ' + esc(formatMontoMoneda(f.diff, f.moneda)) + '</span>'
+      : '';
+    var mot = f.motivo ? '<span class="se-cmp-motivo">' + esc(f.motivo) + '</span>' : '';
+    return '<span class="se-cmp-bad"><span class="se-cmp-x" title="No coincide">' + ICO.x + '</span>' + det + mot + '</span>';
+  }
+
+  function cerrarModalCmp() {
+    var bd = state.modalCmp;
+    if (!bd) return;
+    if (bd._seEsc) document.removeEventListener('keydown', bd._seEsc);
+    if (bd.parentNode) bd.parentNode.removeChild(bd);
+    state.modalCmp = null;
+  }
+
+  function abrirModalCmp(titulo, bodyHtml) {
+    cerrarModalCmp();
+    var bd = document.createElement('div');
+    bd.className = 'se-modal-backdrop';
+    bd.innerHTML =
+      '<div class="se-modal" role="dialog" aria-modal="true" aria-labelledby="se-cmp-titulo">' +
+        '<div class="modal-header">' +
+          '<h2 id="se-cmp-titulo">' + esc(titulo) + '</h2>' +
+          '<button type="button" class="se-btn se-btn-ghost se-btn-icon-only" data-se="cerrar-cmp" title="Cerrar" aria-label="Cerrar"><span class="btn-icon">' + ICO.x + '</span></button>' +
+        '</div>' +
+        '<div class="modal-body">' + bodyHtml + '</div>' +
+        '<div class="modal-footer">' +
+          '<button type="button" class="se-btn se-btn-navy" data-se="cerrar-cmp"><span class="btn-icon">' + ICO.x + '</span>Cerrar</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(bd);
+    state.modalCmp = bd;
+    bd.addEventListener('click', function (ev) {
+      if (ev.target === bd) { cerrarModalCmp(); return; }
+      var t = ev.target.closest && ev.target.closest('[data-se]');
+      if (!t || !bd.contains(t)) return;
+      if (t.getAttribute('data-se') === 'cerrar-cmp') {
+        ev.preventDefault();
+        cerrarModalCmp();
+      }
+    });
+    function onEsc(ev) {
+      if (ev.key !== 'Escape') return;
+      ev.preventDefault();
+      cerrarModalCmp();
+    }
+    document.addEventListener('keydown', onEsc);
+    bd._seEsc = onEsc;
+  }
+
+  function renderModalCmpTesoreria(cmp) {
+    var al = cmp.fechaAl ? formatFechaDdMm(cmp.fechaAl) : '—';
+    var hoy = formatFechaDdMm(cmp.hoy);
+    var rows = (cmp.filas || []).map(function (f) {
+      return '<tr class="' + (f.ok ? 'se-cmp-fila-ok' : 'se-cmp-fila-bad') + '">' +
+        '<td>' + esc(f.caja) + (f.canal ? '<div class="se-cmp-canal">' + esc(labelCanalSe(f.canal)) + '</div>' : '') + '</td>' +
+        '<td class="se-col-monto">' + esc(formatMontoMoneda(f.excel, f.moneda)) + '</td>' +
+        '<td class="se-col-monto">' + esc(formatMontoMoneda(f.app, f.moneda)) + '</td>' +
+        '<td class="se-cmp-res">' + htmlResultadoCmp(f) + '</td>' +
+      '</tr>';
+    }).join('');
+    var body =
+      '<p class="se-cmp-meta">Archivo al <strong>' + esc(al) + '</strong> · Mes en curso de la app al <strong>' + esc(hoy) + '</strong>.</p>' +
+      '<p class="se-cmp-note">El Excel arma el saldo desde la última apertura; la app usa el mes calendario (último corte + movimientos hasta hoy). En cajas dólar se compara US$.</p>' +
+      '<div class="se-cmp-chips">' +
+        '<span class="se-cmp-chip se-cmp-chip-ok">Coinciden ' + cmp.nOk + '</span>' +
+        '<span class="se-cmp-chip se-cmp-chip-bad">Diferencias ' + cmp.nBad + '</span>' +
+      '</div>' +
+      '<div class="se-tabla-wrap se-cmp-tabla-wrap">' +
+        '<table class="se-tabla se-tabla-cmp">' +
+          '<thead><tr>' +
+            '<th>Caja</th>' +
+            '<th class="se-col-monto">Saldo Excel</th>' +
+            '<th class="se-col-monto">Mes en curso</th>' +
+            '<th>Resultado</th>' +
+          '</tr></thead>' +
+          '<tbody>' + (rows || '<tr><td colspan="4">Sin filas.</td></tr>') + '</tbody>' +
+        '</table>' +
+      '</div>';
+    abrirModalCmp('Tesorería vs mes en curso', body);
+  }
+
+  function pedirTesoreriaSaldos(onFile) {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    input.addEventListener('change', function () {
+      var file = input.files && input.files[0];
+      if (file) onFile(file);
+    });
+    input.click();
+  }
+
+  async function onUploadTesoreriaSaldos() {
+    pedirTesoreriaSaldos(function (file) {
+      onUploadTesoreriaSaldosFile(file);
+    });
+  }
+
+  async function onUploadTesoreriaSaldosFile(file) {
+    if (!file) return;
+    var nombre = file.name || '';
+    if (!esArchivoTesoreriaSaldos(nombre)) {
+      state.err = 'Esperaba tesoreria_saldos_YYYY-MM-DD.xlsx.';
+      state.msg = '';
+      renderShell();
+      return;
+    }
+    state.err = '';
+    state.msg = 'Comparando tesorería saldos…';
+    renderShell();
+    try {
+      if (!(state.rows && state.rows.length) && !state.loading) {
+        await recargar();
+      }
+      var wb = await leerExcelFile(file);
+      var parsed = parseTesoreriaSaldos(wb, nombre);
+      if (parsed.error) throw new Error(parsed.error);
+      var cmp = compararTesoreriaSaldos(parsed);
+      state.msg = 'Comparación de tesorería: ' + cmp.nOk + ' coinciden, ' + cmp.nBad + ' con diferencia.';
+      renderShell();
+      renderModalCmpTesoreria(cmp);
+    } catch (e) {
+      state.err = errMsg(e);
+      state.msg = '';
+      renderShell();
+    }
   }
 
   function parseExtractoCceExcel(wb, archivo) {
@@ -2298,6 +2598,7 @@
       hayChart = !!meses.length;
     }
 
+    var btnCmp = '<button type="button" class="se-btn se-btn-navy" data-se="up-teso-saldos" title="Comparar tesoreria_saldos con el mes en curso" aria-label="Cargar tesorería saldos"><span class="btn-icon">' + ICO.upload + '</span>Tesorería saldos</button>';
     var btnUp = '';
     if (canCargar && state.canal === CANAL_MP) {
       btnUp = '<button type="button" class="se-btn se-btn-mp" data-se="up-mp"><span class="btn-icon">' + ICO.upload + '</span>Cargar cartas Mercado Pago</button>';
@@ -2310,6 +2611,7 @@
     el.innerHTML =
       FornitaliaHelp.header(ICO.chart, 'Saldos extractos', 'tpl-se-help', 'Ayuda: Saldos extractos',
         '<p>Serie de <strong>saldos de cierre</strong> (no el detalle de movimientos). En bancos, la fila <strong>Mes en curso</strong> (celeste) es el último corte más los movimientos del mes, totalizado hasta hoy.</p>' +
+        '<p><strong>Tesorería saldos</strong> sube tesoreria_saldos_YYYY-MM-DD.xlsx y compara el saldo de cada caja con el mes en curso: tilde verde si coincide, cruz roja con la diferencia si no.</p>' +
         '<p>El botón de solapa con la etiqueta <strong>Activo</strong> es la vista que estás viendo. El <strong>PDF</strong> arma un reporte gráfico de esa misma vista (cards, gráfico y tabla) e indica el botón activo.</p>' +
         '<p>' + hintCanal() + '</p>') +
       (state.loading ? '<p class="loading">Procesando resúmenes…</p>' : '') +
@@ -2329,6 +2631,7 @@
       '</div>' +
       '<div class="se-toolbar">' +
         '<div class="se-acciones">' +
+          btnCmp +
           btnUp +
           (canXls ? '<button type="button" class="se-btn se-btn-excel" data-se="xlsx"><span class="btn-icon">' + ICO.download + '</span>Excel</button>' : '') +
           (canXls ? '<button type="button" class="se-btn se-btn-navy" data-se="pdf" title="Reporte PDF de esta vista" aria-label="Reporte PDF"><span class="btn-icon">' + ICO.file + '</span>PDF</button>' : '') +
@@ -2372,6 +2675,7 @@
     var el = root();
     if (el && !el.contains(t)) return;
     var a = t.getAttribute('data-se');
+    if (a === 'up-teso-saldos') { onUploadTesoreriaSaldos(); return; }
     if (a === 'up-mp') { onUpload(CANAL_MP); return; }
     if (a === 'up-gal') { onUpload(CANAL_GAL); return; }
     if (a === 'up-gal-usd') { onUploadGaliciaUsd(); return; }

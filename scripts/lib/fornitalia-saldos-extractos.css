@@ -74,6 +74,19 @@
 
 .se-btn-navy:hover { background: #1e293b; }
 
+.se-btn-ghost {
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.se-btn-ghost:hover { background: #f1f5f9; }
+
+.se-btn-icon-only {
+  padding: 0.5rem;
+  min-width: 2.25rem;
+}
+
 .se-btn-mp {
   background: #009ee3;
   border-color: #009ee3;
@@ -447,6 +460,158 @@
 .se-tabla tbody tr.se-fila-vivo:hover td {
   background: #bae6fd;
 }
+.se-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.se-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: min(720px, 100%);
+  max-height: min(90vh, 760px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+
+.se-modal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.se-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.se-modal .modal-body {
+  overflow: auto;
+  padding: 1rem 1.1rem;
+  max-height: min(70vh, 560px);
+  -webkit-overflow-scrolling: touch;
+}
+
+.se-modal .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1.1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.se-cmp-meta {
+  margin: 0 0 0.45rem;
+  color: #334155;
+  font-size: 0.92rem;
+}
+
+.se-cmp-note {
+  margin: 0 0 0.75rem;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.se-cmp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0 0 0.75rem;
+}
+
+.se-cmp-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.15rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.se-cmp-chip-ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.se-cmp-chip-bad {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.se-tabla.se-tabla-cmp {
+  min-width: 36rem;
+}
+
+.se-cmp-tabla-wrap {
+  max-height: min(52vh, 420px);
+}
+
+.se-cmp-canal {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.1rem;
+}
+
+.se-cmp-res {
+  white-space: nowrap;
+}
+
+.se-cmp-ok,
+.se-cmp-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.se-cmp-ok { background: #16a34a; }
+.se-cmp-x { background: #dc2626; }
+
+.se-cmp-ok svg,
+.se-cmp-x svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+}
+
+.se-cmp-bad {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.se-cmp-diff {
+  font-variant-numeric: tabular-nums;
+}
+
+.se-cmp-motivo {
+  font-weight: 600;
+  color: #64748b;
+}
+
+.se-tabla tbody tr.se-cmp-fila-ok td { background: #f0fdf4; }
+.se-tabla tbody tr.se-cmp-fila-bad td { background: #fef2f2; }
+
 .se-badge-vivo {
   display: inline-block;
   margin-left: 0.35rem;
@@ -476,6 +641,9 @@
   .se-filtros-flag { width: 100%; justify-content: center; }
   .se-chart-wrap { height: 240px; }
   .se-tabs button { min-height: 44px; flex: 1 1 auto; justify-content: center; }
+  .se-modal { width: 100%; max-height: 94vh; }
+  .se-modal .modal-footer .se-btn { min-height: 44px; }
+  .se-tabla.se-tabla-cmp { min-width: 32rem; }
 }
 
 @media (max-width: 480px) {
