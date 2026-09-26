@@ -121,7 +121,7 @@
 
   function esCodigoSeccionProtegido(cod) {
     var c = String(cod || '').trim();
-    return c === '1' || c === '2' || c === '3' || c === '4' || c === '5' || c === '6';
+    return c === '1' || c === '1.2' || c === '2' || c === '3' || c === '4' || c === '5' || c === '6';
   }
 
   function esCodigoTotalProtegido(cod) {
@@ -1099,7 +1099,7 @@
     el.innerHTML =
       (global.FornitaliaHelp ? FornitaliaHelp.header(ICO.grid, 'Matriz EF', 'tpl-mef-help', 'Ayuda: Matriz EF',
         '<p>Conecta <strong>categoría + cuenta contable + tipo</strong> de tesorería con el <strong>ítem y subítem</strong> del Estado Financiero. Los nombres son los de tesorería.</p>' +
-        '<p>La solapa <strong>Estructura EF</strong> es el ABM del árbol (secciones, subítems y totales). Un renglón vacío se dibuja si está acá, aunque no tenga relaciones. No se pueden borrar las secciones 1–6, los totales A–D ni los subítems 6.1–6.3 (fórmulas); tampoco un subítem con relaciones en la matriz.</p>' +
+        '<p>La solapa <strong>Estructura EF</strong> es el ABM del árbol (secciones, subítems y totales). Un renglón vacío se dibuja si está acá, aunque no tenga relaciones. No se pueden borrar las secciones 1–6 ni 1.2 (ajuste de saldos), los totales A–D ni los subítems 6.1–6.3 (fórmulas); tampoco un subítem con relaciones en la matriz.</p>' +
         '<p>La tabla de relaciones ya está cargada. Usá el ABM para <strong>nuevos rubros</strong> o <strong>nuevas relaciones</strong>. Sin relación lista pares del Flujo sin fila. Clic en un encabezado para <strong>ordenar</strong>.</p>'
       ) : '<h1>Matriz EF</h1>') +
       (state.loading ? '<p class="loading">Cargando matriz…</p>' : '') +
@@ -1111,7 +1111,7 @@
         FornitaliaHelp.tabButton('', esEst, 'data-mef="lista" data-lista="estructura"', 'Estructura EF (' + nEst + ')') +
       '</div>' +
       (esEst
-        ? '<p class="mef-hint">Este árbol es el que dibuja la tabla del Estado Financiero. Podés sacar renglones que ya no uses (por ejemplo Otros Ingresos Operativos) si no tienen relaciones y no son una fórmula. Las secciones 1–6, los totales A–D y 6.1–6.3 están bloqueados.</p>'
+        ? '<p class="mef-hint">Este árbol es el que dibuja la tabla del Estado Financiero. AJUSTE DE SALDOS (CAJA) va debajo de FLUJO OPERATIVO GENERADO y entra en el total D (no en A–C). Podés sacar renglones que ya no uses si no tienen relaciones y no son una fórmula. Las secciones 1–6 y 1.2, los totales A–D y 6.1–6.3 están bloqueados.</p>'
         : '') +
       '<div class="mef-toolbar"><div class="mef-acciones">' +
         (can(PERM_EDITAR)

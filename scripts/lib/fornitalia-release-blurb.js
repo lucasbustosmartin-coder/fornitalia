@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.55',
+    versionLabel: 'v2.56',
     lines: [
-      'En las tablas de movimientos hay una columna Observaciones, junto a la descripción.',
-      'Se ve en Todas las transacciones, Conciliación, Cajas y en los detalles del Flujo.',
-      'Si el movimiento tenía nota en el Excel, ya aparece; también se puede editar desde el registro.'
+      'En el Estado Financiero, AJUSTE DE SALDOS (CAJA) aparece debajo de FLUJO OPERATIVO GENERADO.',
+      'El ajuste suma o resta en el Flujo de caja neto del período, según sea ingreso o egreso.',
+      'No modifica el margen ni el EBITDA: solo el neto del período.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

@@ -10,7 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.55"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.56"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.52"></script>
@@ -22,8 +22,8 @@
   <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.55"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.55">
   <script src="scripts/lib/fornitalia-impuestos.js?v=2.55"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.52">
-  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.52"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.56">
+  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.56"></script>
   <style>
     .lyp-user {
       font-weight: 600;
@@ -1806,7 +1806,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.55';
+    const APP_VERSION = '2.56';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -4699,12 +4699,15 @@
         return efColMapSubAbs(columnas, efColMapSubAbs(columnas, totalRow('B'), section('4')), section('5'));
       }
       if (/Flujo\s+Neto\s+C/i.test(t) && /6\.1/i.test(t)) {
-        // 6.2 / 6.3 ya vienen con signo (egreso −, ingreso +) para que un cobro y un pago
-        // de la misma línea (p. ej. cuotas/intereses) se neteen en el Flujo neto D.
+        // 6.2 / 6.3 y el ajuste 1.2 ya vienen con signo (egreso −, ingreso +).
         return efColMapAdd(
           columnas,
-          efColMapAdd(columnas, totalRow('C'), subitem('6.1')),
-          efColMapAdd(columnas, subitem('6.2'), subitem('6.3'))
+          efColMapAdd(
+            columnas,
+            efColMapAdd(columnas, totalRow('C'), subitem('6.1')),
+            efColMapAdd(columnas, subitem('6.2'), subitem('6.3'))
+          ),
+          section('1.2')
         );
       }
       if (codigoEq(line.codigo) === '7.2') {
