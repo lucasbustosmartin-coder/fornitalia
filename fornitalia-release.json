@@ -1,8 +1,9 @@
 {
-  "versionLabel": "v2.57",
+  "versionLabel": "v2.58",
   "lines": [
-    "En Saldos extractos y el Consolidado, Galicia muestra el saldo que figura en el extracto del banco.",
-    "Ya no se infla por cargas repetidas del mismo Excel ni por cheques que cambiaron de leyenda.",
-    "Tesorería y la conciliación siguen igual: el control es la diferencia entre banco y sistema."
+    "Después del último corte, el saldo de Galicia se arma con los movimientos del Excel del extracto.",
+    "El PDF del banco ya no carga movimientos: solo muestra cuáles del período no están en el resumen.",
+    "Si recargás el Excel de Galicia, salen del extracto los que el archivo ya no trae (cheques en proceso, cargas viejas).",
+    "Los extractos ya cargados no cambian. Tesorería se sigue conciliando aparte."
   ]
 }

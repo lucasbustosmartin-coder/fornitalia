@@ -237,6 +237,9 @@
     await ensureTipoCambio();
     var snap = snapshotGaliciaUsd(filas, archivo);
     if (!snap) return null;
+    try { await cargarDatos(); } catch (e) { /* ignore */ }
+    snap = await completarCorteConMovimientosBanco(snap, filas);
+    if (snap._omitidoHistorico) return snap;
     var res = await client().rpc('eb_guardar_saldos', { p_filas: [snap] });
     if (res.error) throw res.error;
     try { await cargarDatos(); } catch (e) { /* ignore */ }
@@ -553,18 +556,332 @@
     };
   }
 
-  async function guardarCorteDesdePdfGalicia(text, archivo) {
-    var parsed = parseGaliciaResumenTexto(text, archivo);
-    if (parsed.error) throw new Error(parsed.error);
-    if (!parsed.esUsd || !parsed.meta) {
-      throw new Error((archivo || 'PDF') + ': es un resumen de Galicia (ARS). Cargalo en la solapa ' + LABEL_GAL + '.');
+  function tieneReglaMovimientos(raw) {
+    var v = raw && raw.regla_movimientos;
+    return v === true || v === 1 || v === '1' || v === 'true';
+  }
+
+  function corteHistoricoSinRegla(canal, fechaHasta) {
+    var f = String(fechaHasta || '').slice(0, 10);
+    return (state.rows || []).some(function (r) {
+      if (!r || r._vivo || r.canal !== canal) return false;
+      if (String(r.fecha_hasta || '').slice(0, 10) !== f) return false;
+      return !tieneReglaMovimientos(r.raw);
+    });
+  }
+
+  function normTxtSeClave(s) {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function stemConceptoSe(m) {
+    var t = (m && m.tipo) || '';
+    if (!t && m && m.descripcion) t = String(m.descripcion).split(' · ')[0];
+    return normTxtSeClave(t).replace(/\bcoelsa\b/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function montoClaveSe(m) {
+    var n = m && m.monto != null && m.monto !== '' ? Number(m.monto) : NaN;
+    if (!isFinite(n)) n = netoMovimientoSe(m);
+    if (!isFinite(n)) return '';
+    return (Math.round(n * 100) / 100).toFixed(2);
+  }
+
+  function claveLaxaBancoSe(m) {
+    return [String((m && m.fecha) || '').slice(0, 10), montoClaveSe(m), stemConceptoSe(m)].join('|');
+  }
+
+  function esMovimientoExcelBanco(m) {
+    if (!m || (m.origen && m.origen !== 'banco')) return false;
+    if (m.pendiente_baja) return false;
+    if (esAperturaSe(m)) return false;
+    var raw = m.raw || {};
+    if (String(raw.fuente || '').toLowerCase() === 'pdf') return false;
+    var arch = String(m.archivo || raw.archivo || '');
+    if (/extracto_cuentas_galicia/i.test(arch) && /\.pdf$/i.test(arch)) return false;
+    return true;
+  }
+
+  function leftoverBancoVsExtracto(filasExtracto, movsBanco, desde, hasta) {
+    var bag = {};
+    (filasExtracto || []).forEach(function (f) {
+      var k = claveLaxaBancoSe(f);
+      bag[k] = (bag[k] || 0) + 1;
+    });
+    var leftover = [];
+    (movsBanco || []).forEach(function (m) {
+      if (!esMovimientoExcelBanco(m)) return;
+      var f = String(m.fecha || '').slice(0, 10);
+      if ((desde && f < desde) || (hasta && f > hasta)) return;
+      var k = claveLaxaBancoSe(m);
+      if ((bag[k] || 0) > 0) {
+        bag[k] -= 1;
+        return;
+      }
+      leftover.push(m);
+    });
+    var neto = 0;
+    leftover.forEach(function (m) {
+      neto = round2((neto || 0) + (netoMovimientoSe(m) || 0));
+    });
+    return { leftover: leftover, n: leftover.length, neto: neto };
+  }
+
+  function nExtractoYaEnBanco(filasExtracto, movsBanco) {
+    var bag = {};
+    (movsBanco || []).forEach(function (m) {
+      if (!esMovimientoExcelBanco(m)) return;
+      var k = claveLaxaBancoSe(m);
+      bag[k] = (bag[k] || 0) + 1;
+    });
+    var n = 0;
+    (filasExtracto || []).forEach(function (f) {
+      var k = claveLaxaBancoSe(f);
+      if ((bag[k] || 0) > 0) {
+        bag[k] -= 1;
+        n += 1;
+      }
+    });
+    return n;
+  }
+
+  function ultimoSaldoCorridoDe(movs, hasta) {
+    var best = null;
+    (movs || []).forEach(function (m) {
+      if (!m || (m.origen && m.origen !== 'banco')) return;
+      if (esAperturaSe(m)) return;
+      if (m.saldo == null || m.saldo === '') return;
+      var sal = Number(m.saldo);
+      if (!isFinite(sal)) return;
+      var f = String(m.fecha || '').slice(0, 10);
+      if (!f) return;
+      if (hasta && f > String(hasta).slice(0, 10)) return;
+      if (!best) {
+        best = m;
+        return;
+      }
+      var bf = String(best.fecha || '').slice(0, 10);
+      if (f > bf) {
+        best = m;
+        return;
+      }
+      if (f < bf) return;
+      var fe = Number(m.fila_excel) || 0;
+      var bfe = Number(best.fila_excel) || 0;
+      if (fe > bfe) best = m;
+      else if (fe === bfe && String(m.created_at || '') > String(best.created_at || '')) best = m;
+    });
+    return best;
+  }
+
+  async function fetchMovsBancoPeriodo(canal, desde, hasta) {
+    if (!client() || !canal || !desde || !hasta) return [];
+    var all = [];
+    var offset = 0;
+    for (;;) {
+      var res = await client().from('cb_movimiento')
+        .select('id,canal,origen,fecha,monto,credito,debito,saldo,fila_excel,archivo,created_at,tipo,descripcion,pendiente_baja,raw')
+        .eq('canal', canal)
+        .eq('origen', 'banco')
+        .gte('fecha', desde)
+        .lte('fecha', hasta)
+        .order('fecha', { ascending: true })
+        .range(offset, offset + SUPABASE_PAGE - 1);
+      if (res.error) return all;
+      var chunk = res.data || [];
+      all = all.concat(chunk);
+      if (chunk.length < SUPABASE_PAGE) break;
+      offset += SUPABASE_PAGE;
     }
-    await ensureTipoCambio();
-    var fila = pesificarResumenGaliciaUsd(parsed.meta);
+    return all;
+  }
+
+  function resumenVerificacionBanco(fila, leftover, filasExtracto, movsBanco) {
+    var nExt = (filasExtracto || []).length;
+    var corrido = ultimoSaldoCorridoDe(movsBanco, fila && fila.fecha_hasta);
+    var saldoBancoApp = corrido && corrido.saldo != null && corrido.saldo !== ''
+      ? Number(corrido.saldo) : null;
+    if (saldoBancoApp != null && !isFinite(saldoBancoApp)) saldoBancoApp = null;
+    var saldoExtracto = fila && fila.raw && fila.raw.saldo_extracto != null
+      ? Number(fila.raw.saldo_extracto)
+      : (fila ? Number(fila.saldo_final) : null);
+    var saldoCompleto = fila ? Number(fila.saldo_final) : null;
+    return {
+      nExtracto: nExt,
+      nYaEnBanco: nExtractoYaEnBanco(filasExtracto, movsBanco),
+      nFueraDeCorte: leftover && leftover.n ? leftover.n : 0,
+      netoFuera: leftover && leftover.neto != null ? leftover.neto : 0,
+      saldoExtracto: isFinite(saldoExtracto) ? round2(saldoExtracto) : null,
+      saldoCompleto: isFinite(saldoCompleto) ? round2(saldoCompleto) : null,
+      saldoBancoApp: saldoBancoApp != null ? round2(saldoBancoApp) : null,
+      diffExtractoVsBanco: (saldoBancoApp != null && isFinite(saldoExtracto))
+        ? round2(saldoExtracto - saldoBancoApp) : null
+    };
+  }
+
+  async function completarCorteConMovimientosBanco(fila, filasExtracto) {
+    if (!fila || (fila.canal !== CANAL_GAL && fila.canal !== CANAL_GAL_USD && fila.canal !== CANAL_MP)) {
+      return fila;
+    }
+    var hasta = String(fila.fecha_hasta || '').slice(0, 10);
+    var desde = String(fila.fecha_desde || hasta).slice(0, 10);
+    if (!hasta) return fila;
+    if (corteHistoricoSinRegla(fila.canal, hasta)) {
+      fila._omitidoHistorico = true;
+      return fila;
+    }
+    if (fila.canal === CANAL_MP) return fila;
+    var last = ultimoCorteAntesDe(fila.canal, hasta);
+    var desdeMovs = last ? addDaysYmd(String(last.fecha_hasta).slice(0, 10), 1) : desde;
+    if (!desdeMovs || desdeMovs > hasta) desdeMovs = hasta;
+    var movsSaldo = (await fetchMovsBancoPeriodo(fila.canal, desdeMovs, hasta)).filter(esMovimientoExcelBanco);
+    var movsVerif = movsSaldo;
+    if (desde && desde !== desdeMovs) {
+      movsVerif = (await fetchMovsBancoPeriodo(fila.canal, desde, hasta)).filter(esMovimientoExcelBanco);
+    }
+    var raw = Object.assign({}, fila.raw || {});
+    var saldoExtracto = Number(fila.saldo_final);
+    var saldoExtractoUsd = raw.saldo_usd != null ? Number(raw.saldo_usd) : null;
+    var hayPdf = (filasExtracto || []).some(function (f) { return !!stemConceptoSe(f); });
+    raw.regla_movimientos = true;
+    raw.calculo = 'corte_mas_movimientos_excel';
+    raw.fuente_verificacion = hayPdf ? 'pdf_resumen' : 'excel_corrido';
+    if (hayPdf) {
+      raw.saldo_extracto = isFinite(saldoExtracto) ? round2(saldoExtracto) : null;
+      if (saldoExtractoUsd != null && isFinite(saldoExtractoUsd)) {
+        raw.saldo_extracto_usd = round2(saldoExtractoUsd);
+      }
+    }
+    var leftover = { n: 0, neto: 0, leftover: [] };
+    if (hayPdf) {
+      leftover = leftoverBancoVsExtracto(filasExtracto, movsVerif, desde, hasta);
+      raw.n_fuera_de_corte = leftover.n;
+      raw.neto_fuera_de_corte = leftover.neto;
+      var neto = 0;
+      movsSaldo.forEach(function (m) {
+        neto = round2((neto || 0) + (netoMovimientoSe(m) || 0));
+      });
+      raw.n_movs_periodo = movsSaldo.length;
+      raw.neto_periodo = neto;
+      raw.corte_anterior = last ? String(last.fecha_hasta).slice(0, 10) : null;
+      if (fila.canal === CANAL_GAL_USD) {
+        var iniUsd = last && last.raw && last.raw.saldo_usd != null ? Number(last.raw.saldo_usd) : 0;
+        if (!isFinite(iniUsd)) iniUsd = 0;
+        raw.saldo_usd = round2(iniUsd + neto);
+        var tc = tasaMepParaFecha(hasta);
+        if (tc && tc.tasa > 0) {
+          fila.saldo_final = round2(raw.saldo_usd * tc.tasa);
+          raw.tipo_cambio_mep = tc.tasa;
+          raw.tipo_cambio_fecha = tc.fechaTc;
+        }
+      } else {
+        var ini = last && last.saldo_final != null ? Number(last.saldo_final) : 0;
+        if (!isFinite(ini)) ini = 0;
+        fila.saldo_final = round2(ini + neto);
+      }
+    } else {
+      raw.n_fuera_de_corte = 0;
+      raw.neto_fuera_de_corte = 0;
+      raw.extracto_corrido = true;
+    }
+    fila.raw = raw;
+    fila._verificacion = resumenVerificacionBanco(fila, leftover, filasExtracto, movsVerif);
+    return fila;
+  }
+
+  async function filasExtractoPdfGaliciaSe(file) {
+    var cb = global.FornitaliaConciliacionBancaria;
+    if (cb && typeof cb.parseExtractoGaliciaPdfArchivo === 'function') {
+      try {
+        var p = await cb.parseExtractoGaliciaPdfArchivo(file);
+        if (p && !p.error) return p.filas || [];
+      } catch (e) { /* el encabezado del PDF igual sirve */ }
+    }
+    return [];
+  }
+
+  async function prepararCortesNuevos(items) {
+    var filas = [];
+    var nHist = 0;
+    var verifs = [];
+    var i;
+    for (i = 0; i < (items || []).length; i++) {
+      var fila = items[i] && items[i].fila;
+      if (!fila) continue;
+      if (fila.canal === CANAL_GAL || fila.canal === CANAL_GAL_USD) {
+        fila = await completarCorteConMovimientosBanco(fila, (items[i] && items[i].filasExtracto) || []);
+        if (fila._omitidoHistorico) {
+          nHist += 1;
+          continue;
+        }
+        if (fila._verificacion) verifs.push(fila._verificacion);
+      }
+      filas.push(fila);
+    }
+    return { filas: filas, nHist: nHist, verifs: verifs };
+  }
+
+  function textoVerifBanco(v) {
+    if (!v) return '';
+    var partes = [];
+    if (v.saldoCompleto != null) partes.push('Saldo del período (Excel) $ ' + formatMonto(v.saldoCompleto));
+    if (v.saldoExtracto != null) partes.push('PDF verifica $ ' + formatMonto(v.saldoExtracto));
+    if (v.nFueraDeCorte) {
+      partes.push(v.nFueraDeCorte + ' movs. del Excel no están en el PDF (neto $ ' + formatMonto(v.netoFuera) + ')');
+    }
+    if (v.nExtracto) {
+      partes.push((v.nYaEnBanco || 0) + ' de ' + v.nExtracto + ' líneas del PDF ya estaban en el Excel');
+    }
+    if (v.saldoBancoApp != null) {
+      partes.push('saldo corrido Excel $ ' + formatMonto(v.saldoBancoApp));
+      if (v.diffExtractoVsBanco != null && Math.abs(v.diffExtractoVsBanco) >= 0.015) {
+        partes.push('dif. PDF vs Excel $ ' + formatMonto(v.diffExtractoVsBanco) +
+          ' (el PDF no incluye todos los movimientos del período)');
+      }
+    }
+    return partes.join('. ') + (partes.length ? '.' : '');
+  }
+
+  async function guardarCorteGaliciaDesdeExtracto(opts) {
+    opts = opts || {};
+    var parsed = parseGaliciaResumenTexto(opts.text, opts.archivo);
+    if (parsed.error) throw new Error(parsed.error);
+    var fila;
+    if (parsed.esUsd) {
+      if (!parsed.meta) throw new Error((opts.archivo || 'PDF') + ': no pude leer el resumen Galicia (USD).');
+      await ensureTipoCambio();
+      fila = pesificarResumenGaliciaUsd(parsed.meta);
+    } else {
+      fila = parsed.fila;
+    }
+    if (!fila) throw new Error((opts.archivo || 'PDF') + ': no pude armar el corte Galicia.');
+    try { await cargarDatos(); } catch (e) { /* ignore */ }
+    fila = await completarCorteConMovimientosBanco(fila, opts.filasExtracto || []);
+    if (fila._omitidoHistorico) {
+      return {
+        omitidoHistorico: true,
+        fecha_hasta: fila.fecha_hasta,
+        fila: fila,
+        verificacion: null
+      };
+    }
     var res = await client().rpc('eb_guardar_saldos', { p_filas: [fila] });
     if (res.error) throw res.error;
     try { await cargarDatos(); } catch (e) { /* ignore */ }
-    return fila;
+    return {
+      omitidoHistorico: false,
+      fila: fila,
+      verificacion: fila._verificacion || null
+    };
+  }
+
+  async function guardarCorteDesdePdfGalicia(text, archivo, filasExtracto) {
+    return guardarCorteGaliciaDesdeExtracto({
+      text: text,
+      archivo: archivo,
+      filasExtracto: filasExtracto || []
+    });
   }
 
   function parseMpCartaSaldo(text, archivo) {
@@ -642,7 +959,10 @@
       if (!gal.error && gal.esUsd) {
         return { error: nombre + ': es un resumen de Galicia (USD). Cargalo en la solapa ' + LABEL_GAL_USD + '.' };
       }
-      if (!gal.error) return gal;
+      if (!gal.error) {
+        gal.filasExtracto = await filasExtractoPdfGaliciaSe(file);
+        return gal;
+      }
       if (!mp.error) {
         return { error: nombre + ': es una Carta de saldo de Mercado Pago. Cargalo en la solapa Mercado Pago.' };
       }
@@ -651,7 +971,11 @@
     if (canalEsperado === CANAL_GAL_USD) {
       if (!gal.error && gal.esUsd && gal.meta) {
         await ensureTipoCambio();
-        return { error: null, fila: pesificarResumenGaliciaUsd(gal.meta) };
+        return {
+          error: null,
+          fila: pesificarResumenGaliciaUsd(gal.meta),
+          filasExtracto: await filasExtractoPdfGaliciaSe(file)
+        };
       }
       if (!gal.error && !gal.esUsd) {
         return { error: nombre + ': es un resumen de Galicia (ARS). Cargalo en la solapa ' + LABEL_GAL + '.' };
@@ -664,9 +988,16 @@
     if (!mp.error) return mp;
     if (!gal.error && gal.esUsd && gal.meta) {
       await ensureTipoCambio();
-      return { error: null, fila: pesificarResumenGaliciaUsd(gal.meta) };
+      return {
+        error: null,
+        fila: pesificarResumenGaliciaUsd(gal.meta),
+        filasExtracto: await filasExtractoPdfGaliciaSe(file)
+      };
     }
-    if (!gal.error) return gal;
+    if (!gal.error) {
+      gal.filasExtracto = await filasExtractoPdfGaliciaSe(file);
+      return gal;
+    }
     return { error: mp.error || gal.error };
   }
 
@@ -1525,7 +1856,7 @@
             if (esArchivoPdfSe(files[i])) {
               var parsedPdf = await parseArchivo(files[i], CANAL_GAL_USD);
               if (parsedPdf.error) { fallos.push(parsedPdf.error); continue; }
-              okPdf.push(parsedPdf.fila);
+              okPdf.push({ fila: parsedPdf.fila, filasExtracto: parsedPdf.filasExtracto || [] });
             } else {
               if (!global.XLSX) throw new Error('No está disponible la librería Excel.');
               var wb = await leerExcelFile(files[i]);
@@ -1538,15 +1869,24 @@
             fallos.push((files[i] && files[i].name ? files[i].name + ': ' : '') + errMsg(e));
           }
         }
+        var nHistUsd = 0;
+        var extraVerifUsd = '';
         if (okPdf.length) {
           await cargarDatos();
-          var rpc = await client().rpc('eb_guardar_saldos', { p_filas: okPdf });
-          if (rpc.error) throw rpc.error;
+          var listosUsd = await prepararCortesNuevos(okPdf);
+          nHistUsd = listosUsd.nHist || 0;
+          if (listosUsd.verifs && listosUsd.verifs[0]) extraVerifUsd = ' ' + textoVerifBanco(listosUsd.verifs[0]);
+          if (listosUsd.filas.length) {
+            var rpc = await client().rpc('eb_guardar_saldos', { p_filas: listosUsd.filas });
+            if (rpc.error) throw rpc.error;
+          }
         }
-        var ok = okPdf.length + okXls;
-        if (!ok) throw new Error(fallos.length ? fallos.join('\n') : 'No se pudo leer ningún resumen Galicia (USD).');
+        var ok = (okPdf.length - nHistUsd) + okXls;
+        if (!ok && !nHistUsd) throw new Error(fallos.length ? fallos.join('\n') : 'No se pudo leer ningún resumen Galicia (USD).');
         await cargarDatos();
-        state.msg = LABEL_GAL_USD + ': ' + ok + ' extracto(s) pesificado(s) al MEP.' +
+        state.msg = LABEL_GAL_USD + ': ' + (okPdf.length + okXls) + ' extracto(s) pesificado(s) al MEP.' +
+          extraVerifUsd +
+          (nHistUsd ? ' ' + nHistUsd + ' ya estaban (no se recalculan).' : '') +
           (fallos.length ? ' No reconocí ' + fallos.length + ' archivo(s).' : '');
         if (fallos.length) state.err = fallos.slice(0, 4).join(' · ');
       } catch (e) {
@@ -1574,7 +1914,7 @@
           try {
             var parsed = await parseArchivo(files[i], canalEsperado);
             if (parsed.error) fallos.push(parsed.error);
-            else ok.push(parsed.fila);
+            else ok.push({ fila: parsed.fila, filasExtracto: parsed.filasExtracto || [] });
           } catch (e) {
             fallos.push((files[i] && files[i].name ? files[i].name + ': ' : '') + errMsg(e));
           }
@@ -1582,15 +1922,24 @@
         if (!ok.length) throw new Error(fallos.length ? fallos.join('\n') : 'No se pudo leer ningún PDF.');
         await cargarDatos();
         var nAntes = state.rows.length;
-        var rpc = await client().rpc('eb_guardar_saldos', { p_filas: ok });
-        if (rpc.error) throw rpc.error;
+        var listos = await prepararCortesNuevos(ok);
+        if (!listos.filas.length && !listos.nHist) {
+          throw new Error(fallos.length ? fallos.join('\n') : 'No se pudo armar ningún corte.');
+        }
+        if (listos.filas.length) {
+          var rpc = await client().rpc('eb_guardar_saldos', { p_filas: listos.filas });
+          if (rpc.error) throw rpc.error;
+        }
         await cargarDatos();
         var nNuevos = Math.max(0, state.rows.length - nAntes);
-        var nYa = Math.max(0, ok.length - nNuevos);
+        var nYa = Math.max(0, ok.length - nNuevos - (listos.nHist || 0));
         var extraDup = nNuevos
           ? (nYa ? ' ' + nNuevos + ' nuevos; ' + nYa + ' ya estaban (no se duplican).' : ' ' + nNuevos + ' nuevos.')
-          : ' Ninguno nuevo: los ' + ok.length + ' ya estaban (no se duplican).';
+          : (listos.nHist
+            ? ' Ninguno nuevo: ' + listos.nHist + ' ya estaban (no se recalculan).'
+            : ' Ninguno nuevo: los ' + ok.length + ' ya estaban (no se duplican).');
         extraDup += ' No se borró ningún resumen anterior.';
+        if (listos.verifs && listos.verifs[0]) extraDup += ' ' + textoVerifBanco(listos.verifs[0]);
         if (fallos.length) extraDup += ' No reconocí ' + fallos.length + ' archivo(s).';
         var lab = canalEsperado === CANAL_MP ? 'Mercado Pago' : 'Galicia';
         state.msg = lab + ': ' + ok.length + ' resumen(es) leído(s).' + extraDup;
@@ -1913,17 +2262,21 @@
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_GAL]].concat(meta);
-      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Cuenta', 'CBU', 'Documento', 'Archivo', 'Usuario']);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Saldo extracto', 'Fuera de corte', 'Neto fuera', 'Variación', 'Cuenta', 'CBU', 'Documento', 'Archivo', 'Usuario']);
       dateCols = [0, 1, 2];
-      numCols = [3, 4, 5];
-      cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 24 }, { wch: 22 }, { wch: 40 }];
+      numCols = [3, 4, 5, 6, 7, 8];
+      cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 24 }, { wch: 22 }, { wch: 40 }];
       rowsG.forEach(function (r) {
+        var rawG = r.raw || {};
         aoa.push([
           excelDate(r.fecha_hasta),
           excelDate(r.fecha_desde),
           excelDate(r.fecha_hasta),
           excelNum(saldoInicialMostrar(r)),
           excelNum(r.saldo_final),
+          excelNum(rawG.saldo_extracto),
+          excelNum(rawG.n_fuera_de_corte),
+          excelNum(rawG.neto_fuera_de_corte),
           excelNum(variacionFila(r)),
           r.nro_cuenta || '',
           r.cbu || '',
@@ -2265,6 +2618,25 @@
     return '<span class="se-col-monto' + cls + '">' + esc(formatMonto(n)) + '</span>';
   }
 
+  function htmlSubExtractoBanco(r) {
+    var raw = (r && r.raw) || {};
+    if (r && r._vivo) return '';
+    if (!tieneReglaMovimientos(raw)) return '';
+    var ext = raw.saldo_extracto;
+    var n = Number(raw.n_fuera_de_corte) || 0;
+    if (ext == null || !isFinite(Number(ext))) return '';
+    if (Math.abs(Number(ext) - Number(r.saldo_final)) < 0.015 && !n) return '';
+    return '<span class="se-extracto-sub">PDF verifica $ ' + esc(formatMonto(ext)) +
+      (n ? ' · ' + n + ' del Excel no están en el PDF' : '') + '</span>';
+  }
+
+  function htmlMontoBancoCierre(r) {
+    var main = htmlMonto(r && r.saldo_final);
+    var sub = htmlSubExtractoBanco(r);
+    if (!sub) return main;
+    return '<span class="se-monto-stack">' + main + sub + '</span>';
+  }
+
   function esCanalUsdSe(canal) {
     return canal === CANAL_GAL_USD || canal === CANAL_USD || canal === CANAL_SF_USD;
   }
@@ -2355,7 +2727,7 @@
         '<td>' + formatFecha(r.fecha_desde) + '</td>' +
         '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(saldoInicialMostrar(r)) + '</td>' +
-        '<td class="se-col-monto">' + htmlMonto(r.saldo_final) + '</td>' +
+        '<td class="se-col-monto">' + htmlMontoBancoCierre(r) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(variacionFila(r), 'var') + '</td>' +
         '<td>' + esc(r.nro_cuenta || '—') + '</td>' +
         '<td>' + esc(r.archivo || '—') + '</td>' +
@@ -2418,7 +2790,8 @@
         '<td>' + formatFecha(r.fecha_desde) + '</td>' +
         '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
         '<td class="se-col-monto">' + htmlMontoConUsd(saldoInicialMostrar(r), usdInicialDeFilaSe(r)) + '</td>' +
-        '<td class="se-col-monto">' + htmlMontoConUsd(r.saldo_final, usdFinalDeFilaSe(r)) + '</td>' +
+        '<td class="se-col-monto">' + htmlMontoConUsd(r.saldo_final, usdFinalDeFilaSe(r)) +
+          htmlSubExtractoBanco(r) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(raw.saldo_usd) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(raw.tipo_cambio_mep) + '</td>' +
         '<td>' + formatFecha(raw.tipo_cambio_fecha) + '</td>' +
@@ -2562,13 +2935,13 @@
 
   function hintCanal() {
     if (state.canal === CANAL_MP) {
-      return 'Cartas de saldo de <strong>Mercado Pago</strong> (PDF <em>MP_Saldos_YYYYMMDD</em>). Cada archivo es el saldo al día (total, disponible, a liberar). La variación es contra la carta anterior. Se guardan sin duplicar ni borrar lo previo. El <strong>mes en curso</strong> (celeste) suma los movimientos del extracto MP desde el último corte hasta hoy.';
+      return 'Cartas de saldo de <strong>Mercado Pago</strong> (PDF <em>MP_Saldos_YYYYMMDD</em>). El banco es la fuente de verdad: lo que no está en el extracto MP no está. Tesorería son los movimientos administrativos de la app; las diferencias se ven en Conciliación. Cada carta verifica el saldo al día. El <strong>mes en curso</strong> (celeste) suma los movimientos banco del extracto MP desde el último corte hasta hoy.';
     }
     if (state.canal === CANAL_GAL) {
-      return 'Resúmenes de <strong>' + esc(LABEL_GAL) + '</strong> (PDF <em>Extracto_Cuentas_Galicia_…</em>): saldo inicial y de cierre del período. Elegí uno o varios; se leen de a uno y se guardan juntos, sin duplicar ni borrar lo anterior. El <strong>mes en curso</strong> (celeste) muestra el saldo corrido de la última fila del extracto Excel (el saldo real del banco), más lo que haya después de esa fecha. No suma de nuevo todos los movimientos: así no se infla por re-subidas ni cheques en proceso. Tesorería no se toca.';
+      return 'Después del último corte, el saldo lo calculan los <strong>movimientos del Excel</strong> (Extracto_CC…), no el PDF. El PDF <em>Extracto_Cuentas_Galicia_…</em> solo verifica: muestra movimientos del período que el banco no metió en el resumen. Tesorería no entra en este saldo. Los cortes ya cargados no se recalculan. El <strong>mes en curso</strong> (celeste) es el saldo corrido de la última fila del Excel CC.';
     }
     if (state.canal === CANAL_GAL_USD) {
-      return 'Resúmenes de <strong>' + esc(LABEL_GAL_USD) + '</strong> (PDF <em>Extracto_Cuentas_Galicia_…</em> de Cuenta Corriente Especial en dólares, o Excel <em>Extracto_CCE…</em>). El saldo en USD se pesifica al MEP de la fecha de cierre (o la última cotización anterior) para verlo en pesos. Elegí uno o varios; se guardan juntos, sin duplicar ni borrar lo anterior. El <strong>mes en curso</strong> (celeste) toma el saldo corrido de la última fila del extracto y lo pesifica al MEP de hoy.';
+      return 'Igual que Galicia ARS: el día a día entra por el Excel <em>Extracto_CCE…</em>. El PDF solo verifica. Un corte nuevo = último corte + movimientos Excel; históricos no se tocan. El USD se pesifica al MEP. El <strong>mes en curso</strong> (celeste) toma el saldo corrido del Excel y lo pesifica al MEP de hoy.';
     }
     if (state.canal === CANAL_CRED) {
       return 'Saldo de <strong>' + esc(LABEL_CRED) + '</strong> (caja banco). No hay extractos históricos: el corte se arma con la tesorería de <strong>Conciliación Bancaria</strong> (<em>tesoreria_transferencia_credicoop_…</em>, cierre o histórico Transferencia Credicoop). Apertura de Caja no entra. Si un mes no tiene corte, el consolidado arrastra el anterior. El <strong>mes en curso</strong> (celeste) suma la tesorería del mes hasta hoy.';
@@ -2666,7 +3039,7 @@
 
     el.innerHTML =
       FornitaliaHelp.header(ICO.chart, 'Saldos extractos', 'tpl-se-help', 'Ayuda: Saldos extractos',
-        '<p>Serie de <strong>saldos de cierre</strong> (no el detalle de movimientos). En bancos, la fila <strong>Mes en curso</strong> (celeste) es el último corte más los movimientos del mes, totalizado hasta hoy.</p>' +
+        '<p>Serie de <strong>saldos de cierre del banco</strong>. Después del último corte, mandan los movimientos cargados por el <strong>Excel</strong> del extracto (CC / CCE / MP). El PDF del banco solo verifica que hay movimientos del período que no están en su saldo. Tesorería se compara en Conciliación. Los extractos ya cargados no se recalculan. La fila <strong>Mes en curso</strong> (celeste) sigue el Excel hasta hoy.</p>' +
         '<p><strong>Tesorería saldos</strong> sube tesoreria_saldos_YYYY-MM-DD.xlsx y compara el saldo de cada caja con el mes en curso: tilde verde si coincide, cruz roja con la diferencia si no.</p>' +
         '<p>El botón de solapa con la etiqueta <strong>Activo</strong> es la vista que estás viendo. El <strong>PDF</strong> arma un reporte gráfico de esa misma vista (cards, gráfico y tabla) e indica el botón activo.</p>' +
         '<p>' + hintCanal() + '</p>') +
@@ -2768,6 +3141,8 @@
     recargar: recargar,
     guardarCorteGaliciaUsd: guardarCorteGaliciaUsd,
     guardarCorteCredicoop: guardarCorteCredicoop,
-    guardarCorteDesdePdfGalicia: guardarCorteDesdePdfGalicia
+    guardarCorteDesdePdfGalicia: guardarCorteDesdePdfGalicia,
+    guardarCorteGaliciaDesdeExtracto: guardarCorteGaliciaDesdeExtracto,
+    textoVerifBanco: textoVerifBanco
   };
 })(typeof window !== 'undefined' ? window : this);

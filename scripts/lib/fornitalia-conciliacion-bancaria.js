@@ -2006,6 +2006,21 @@
     return total;
   }
 
+  async function retirarExtractoBancoAusente(canal, filas) {
+    var list = (filas || []).filter(function (f) { return f && f.origen_id && f.fecha; });
+    if (list.length < 5) return 0;
+    var fechas = list.map(function (f) { return String(f.fecha).slice(0, 10); }).filter(Boolean).sort();
+    if (!fechas.length) return 0;
+    var rpc = await client().rpc('cb_retirar_extracto_banco_ausente', {
+      p_canal: canal,
+      p_fecha_desde: fechas[0],
+      p_fecha_hasta: fechas[fechas.length - 1],
+      p_origen_ids: list.map(function (f) { return f.origen_id; })
+    });
+    if (rpc.error) throw rpc.error;
+    return Number(rpc.data || 0);
+  }
+
   async function adoptarIdTesoreria(canal, filas) {
     var parte = (filas || []).filter(function (f) { return origenIdEsTesoreriaConId(f.origen_id); });
     if (!parte.length) return 0;
@@ -2242,7 +2257,7 @@
 
   function tipoCargaLabel(origen, parsed, archivo) {
     if (origen === 'banco') {
-      if (parsed && parsed.fuentePdf) return 'Extracto ' + labelCanalNombre(state.canal) + ' (PDF)';
+      if (parsed && parsed.fuentePdf) return 'Resumen PDF ' + labelCanalNombre(state.canal) + ' (verifica; no carga movimientos)';
       return 'Extracto ' + labelCanalNombre(state.canal);
     }
     if (parsed && parsed.formatoHistorico) return 'Tesorería histórica (Id + Caja)';
@@ -2286,11 +2301,26 @@
         item('Registros que cambiaron', r.nCambiaron, 'cb-resumen-warn', 'Mismo Id: se actualizaron fecha, monto, categoría, cuenta u otro dato.') +
         item('Sin cambios', r.nIguales, '', 'Mismo Id y mismos datos: no se duplicaron.') +
         itemSi('Ya coincidían (sin Id)', r.nYaContenido, '', 'Misma fecha, monto, descripción, categoría y cliente.') +
-        item('Sugerencias reconocidas', r.nSug, r.nSug ? 'cb-resumen-ok' : '', 'Parejas extracto ↔ tesorería propuestas al recálcular.') +
+        item('Sugerencias reconocidas', r.nSug, r.nSug ? 'cb-resumen-ok' : '', 'Parejas banco (Excel) ↔ tesorería. Lo que no entra acá es la diferencia a revisar (Solo banco / Solo sistema).') +
         itemSi('A eliminar', r.nBajas, 'cb-resumen-warn', 'Tesorería abierta cuyo Id no vino en este archivo.') +
+        itemSi('Extracto temporal retirado', r.nBancoAusentes, 'cb-resumen-warn', 'Movimientos banco de una carga previa (cheque en proceso, PDF viejo) que este Excel ya no trae. Tesorería no se toca.') +
         itemSi('Tesorerías viejas sin Id retiradas', r.nRetiradas, '', 'Se reemplazaron por el mismo movimiento con Id.') +
         itemSi('Efectivo-s/f', r.nCajaSf, 'cb-resumen-ok', 'Caja Efectivo Pesos/Dolar (sin factura): se cargaron en Cajas físicas y Saldos extractos.') +
       '</dl>' +
+      (r.esPdfVerif
+        ? '<p class="cb-resumen-lead">Este PDF es solo verificación: los movimientos del día a día se cargan con el Excel del extracto (CC / CCE / MP), no con el resumen del banco.</p>'
+        : '') +
+      (r.verifBanco
+        ? '<h3>Verificación del PDF</h3>' +
+          '<p class="cb-resumen-lead">El saldo del período lo calculan los movimientos del Excel desde el último corte. El PDF solo muestra si el banco omitió movimientos de ese período.</p>' +
+          '<dl class="cb-resumen-grid">' +
+            item('Saldo del PDF', r.saldoExtractoTxt || '—', '', 'Cierre impreso del resumen. No manda el saldo.') +
+            itemSi('Movs. Excel del período no en el PDF', r.nFueraDeCorte, 'cb-resumen-warn', 'Ya están en la app por el Excel. El banco no los metió en el resumen (corte).') +
+            item('Saldo del período (Excel)', r.saldoCompletoTxt || '—', 'cb-resumen-ok', 'Último corte + movimientos banco cargados por Excel.') +
+            item('Líneas del PDF ya en el Excel', (r.nYaEnBanco || 0) + ' de ' + (r.nExtracto || 0), '', 'El PDF no da de alta movimientos.') +
+            item('Saldo corrido del Excel', r.saldoBancoAppTxt || '—', '', 'Última fila con saldo del extracto Excel.') +
+          '</dl>'
+        : '') +
       (omitHtml
         ? '<h3>Se omitieron</h3><dl class="cb-resumen-grid cb-resumen-omit">' + omitHtml + '</dl>'
         : '') +
@@ -2306,7 +2336,9 @@
     partes.push((r.nIguales || 0) + ' sin cambios');
     if (r.nSug) partes.push(r.nSug + ' sugerencias');
     if (r.nBajas) partes.push(r.nBajas + ' a eliminar');
+    if (r.nBancoAusentes) partes.push(r.nBancoAusentes + ' temporales de extracto retirados');
     if (r.nCajaSf) partes.push(r.nCajaSf + ' a Efectivo-s/f');
+    if (r.nFueraDeCorte) partes.push(r.nFueraDeCorte + ' movs. banco fuera de corte');
     return partes.join(' · ') + '.';
   }
 
@@ -2391,6 +2423,8 @@
           var filDup = filasTesoreriaListasParaGuardar(parsed.filas);
           parsed.filas = filDup.filas;
           nYaContenido = filDup.nYa;
+        } else if (origen === 'banco' && parsed.fuentePdf) {
+          nYaContenido = parsed.filas.length;
         } else if (origen === 'banco' && esCanalExtractoBanco(state.canal)) {
           var filDupGal = filtrarExtractoGaliciaYaCargado(parsed.filas);
           parsed.filas = filDupGal.filas;
@@ -2399,9 +2433,11 @@
         var clsTot = { nNuevos: 0, nCambiaron: 0, nIguales: 0 };
         var nRetiradas = 0;
         var nBajas = 0;
+        var nBancoAusentes = 0;
         var nSug = 0;
         var canalesCargados = [];
         var notaSaldo = '';
+        var corteVerif = null;
         if (origen === 'sistema' && parsed.tieneIdCierre) {
           var agrup = gruposCanalTesoreria(parsed.filas, state.canal);
           var ci;
@@ -2435,7 +2471,9 @@
           if (agrup.order.indexOf(canalAntes) >= 0) state.canal = canalAntes;
           else if (agrup.order.length) state.canal = agrup.order[0];
         } else {
-          if (origen === 'banco' && esCanalExtractoBanco(state.canal)) {
+          if (origen === 'banco' && parsed.fuentePdf) {
+            clsTot = { nNuevos: 0, nCambiaron: 0, nIguales: nYaContenido };
+          } else if (origen === 'banco' && esCanalExtractoBanco(state.canal)) {
             clsTot = { nNuevos: parsed.filas.length, nCambiaron: 0, nIguales: nYaContenido };
           } else if (parsed.filas.length) {
             clsTot = clasificarFilasUpload(parsed.filas, origen);
@@ -2443,7 +2481,12 @@
           } else {
             clsTot = { nNuevos: 0, nCambiaron: 0, nIguales: nYaContenido };
           }
-          if (parsed.filas.length) await guardarFilas(origen, parsed.filas);
+          if (parsed.filas.length && !(origen === 'banco' && parsed.fuentePdf)) {
+            await guardarFilas(origen, parsed.filas);
+          }
+          if (origen === 'banco' && esCanalGalicia(state.canal) && !parsed.fuentePdf && filasParaSaldo) {
+            nBancoAusentes = await retirarExtractoBancoAusente(state.canal, filasParaSaldo);
+          }
           try {
             nSug = await regenerarSugerenciasEnCanal(state.canal);
           } catch (eSug) {
@@ -2456,16 +2499,33 @@
         var extraOrigen = origen !== origenPedido
           ? (origen === 'sistema' ? 'Detecté tesorería del sistema.' : 'Detecté extracto del banco.')
           : '';
-        if (origen === 'banco' && esCanalGalUsd(state.canal) && window.FornitaliaSaldosExtractos) {
+        if (origen === 'banco' && esCanalGalicia(state.canal) && window.FornitaliaSaldosExtractos) {
           try {
             if (parsed.fuentePdf && parsed.pdfText &&
-                typeof window.FornitaliaSaldosExtractos.guardarCorteDesdePdfGalicia === 'function') {
-              await window.FornitaliaSaldosExtractos.guardarCorteDesdePdfGalicia(parsed.pdfText, file.name);
-            } else if (filasParaSaldo && typeof window.FornitaliaSaldosExtractos.guardarCorteGaliciaUsd === 'function') {
+                typeof window.FornitaliaSaldosExtractos.guardarCorteGaliciaDesdeExtracto === 'function') {
+              var corte = await window.FornitaliaSaldosExtractos.guardarCorteGaliciaDesdeExtracto({
+                text: parsed.pdfText,
+                archivo: file.name,
+                filasExtracto: filasParaSaldo || []
+              });
+              if (corte && corte.omitidoHistorico) {
+                notaSaldo = (notaSaldo ? notaSaldo + ' ' : '') +
+                  'El corte al ' + formatFecha(corte.fecha_hasta) + ' ya estaba: no se recalcula.';
+              } else if (corte && corte.verificacion) {
+                corteVerif = corte.verificacion;
+                notaSaldo = (notaSaldo ? notaSaldo + ' ' : '') +
+                  'El PDF no carga movimientos (van por el Excel). ' +
+                  (typeof window.FornitaliaSaldosExtractos.textoVerifBanco === 'function'
+                    ? window.FornitaliaSaldosExtractos.textoVerifBanco(corte.verificacion)
+                    : '') +
+                  ' Las diferencias vs tesorería se ven en Sugeridos, Solo banco y Solo sistema.';
+              }
+            } else if (esCanalGalUsd(state.canal) && filasParaSaldo &&
+                typeof window.FornitaliaSaldosExtractos.guardarCorteGaliciaUsd === 'function') {
               await window.FornitaliaSaldosExtractos.guardarCorteGaliciaUsd(filasParaSaldo, file.name);
             }
           } catch (eSaldo) {
-            notaSaldo = 'El extracto se cargó, pero no pude pesificar el saldo en Saldos extractos: ' + errMsg(eSaldo);
+            notaSaldo = 'El extracto se cargó, pero no pude guardar el saldo en Saldos extractos: ' + errMsg(eSaldo);
           }
         }
         var tocoCredicoop = origen === 'sistema' && (parsed.filas || []).some(function (f) {
@@ -2506,6 +2566,7 @@
           nYaContenido: (origen === 'sistema' && !parsed.tieneIdCierre) ? nYaContenido : 0,
           nSug: nSug,
           nBajas: nBajas,
+          nBancoAusentes: nBancoAusentes,
           nRetiradas: nRetiradas,
           nCajaSf: ingestSf.n || 0,
           omitidasApertura: parsed.omitidasApertura || 0,
@@ -2515,7 +2576,15 @@
           omitidasCajaFisica: parsed.omitidasCajaFisica || 0,
           omitidasSinId: parsed.omitidasSinId || 0,
           omitidasIdDup: parsed.omitidasIdDup || 0,
-          nota: notaSaldo
+          nota: notaSaldo,
+          esPdfVerif: !!(origen === 'banco' && parsed.fuentePdf),
+          verifBanco: !!corteVerif,
+          nFueraDeCorte: corteVerif ? corteVerif.nFueraDeCorte : 0,
+          nYaEnBanco: corteVerif ? corteVerif.nYaEnBanco : 0,
+          nExtracto: corteVerif ? corteVerif.nExtracto : 0,
+          saldoExtractoTxt: corteVerif && corteVerif.saldoExtracto != null ? formatMonto(corteVerif.saldoExtracto) : '',
+          saldoCompletoTxt: corteVerif && corteVerif.saldoCompleto != null ? formatMonto(corteVerif.saldoCompleto) : '',
+          saldoBancoAppTxt: corteVerif && corteVerif.saldoBancoApp != null ? formatMonto(corteVerif.saldoBancoApp) : ''
         };
         state.msg = msgCortoResumen(resumen);
         state.resumenCarga = resumen;
@@ -5172,7 +5241,7 @@
     if (esCanalGalUsd(state.canal)) {
       return {
         hintHtml:
-          '<p>Cargá el extracto de Galicia en dólares: Excel <em>Extracto_CCE…</em> o el PDF <em>Extracto_Cuentas_Galicia_…</em> (Cuenta Corriente Especial en dólares; no duplica lo ya cargado: misma fecha, importe y concepto, aunque cambie el saldo).</p>' +
+          '<p>El día a día se carga con el Excel <em>Extracto_CCE…</em>. El PDF <em>Extracto_Cuentas_Galicia_…</em> (cuenta en dólares) solo verifica; no da de alta movimientos. El Excel retira lo que ya no trae. Tesorería se compara aparte.</p>' +
           '<p>Los importes se concilian en <strong>USD</strong> contra tesorería <em>tesoreria_transferencia_galicia_dolar_…</em> (Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (<em>cierre_CIERRE-…</em> o <em>cierre_DOL-…</em> con Caja = Transferencia Galicia Dolar y Moneda USD) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: solo filas Transferencia Galicia Dolar).</p>' +
           '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos aunque el status sea Pendiente, si ese Id ya estaba (en cualquier solapa). Pendiente nuevos no se dan de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Si un Id de tesorería abierta ya no viene, pasa a <strong>A eliminar</strong>. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
           '<p>Al cargar el extracto, el saldo de corte se pesifica al MEP (fecha del último movimiento o cotización anterior) y entra a Saldos extractos. El match es por importe y fecha (máximo 4 días).</p>',
@@ -5184,7 +5253,8 @@
     if (state.canal === CANAL_GAL) {
       return {
         hintHtml:
-          '<p>Cargá el extracto de Galicia: Excel de cuenta corriente (<em>Extracto_CC…</em>) o el PDF <em>Extracto_Cuentas_Galicia_…</em> en pesos (no duplica lo ya cargado: misma fecha, importe y concepto, aunque cambie el saldo). El PDF en dólares se abre en la solapa Galicia (USD).</p>' +
+          '<p>Cargá el extracto de Galicia: Excel de cuenta corriente (<em>Extracto_CC…</em>) o el PDF <em>Extracto_Cuentas_Galicia_…</em> en pesos (no duplica lo ya cargado: misma fecha, importe y concepto, aunque cambie el saldo). Si el Excel ya no trae un movimiento temporal (cheque en proceso, carga vieja), se retira del extracto. Tesorería no se toca. El PDF en dólares se abre en la solapa Galicia (USD).</p>' +
+          '<p>El día a día se carga con el <strong>Excel Extracto_CC…</strong>. El PDF <em>Extracto_Cuentas_Galicia_…</em> no da de alta movimientos: solo verifica que hay líneas del período (ya en el Excel) que el resumen del banco no incluye. El saldo de un período nuevo = último corte + movimientos del Excel. Tesorería se compara en Sugeridos / Solo banco / Solo sistema. Los cortes ya cargados no se recalculan.</p>' +
           '<p>También la tesorería Transferencia Galicia (<em>tesoreria_transferencia_galicia_…</em>: Tipo, Fecha, Crédito, Débito e Id), el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto). El Id evita duplicados y actualiza si cambió algún dato. La columna Caja reparte Mercado Pago / Galicia ARS / Galicia USD; Efectivo y Morba no entran acá.</p>' +
           '<p>Si un Id de tesorería abierta ya no viene en el Excel, pasa a <strong>A eliminar</strong>. Apertura de Caja no se sube. Status Anulado no se sube. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f y a Saldos extractos. Pendiente: si el Id ya existía se actualiza (categoría y cuenta incluidas); si es nuevo no se da de alta. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican.</p>' +
           '<p>La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde.</p>' +
@@ -5197,6 +5267,7 @@
     return {
       hintHtml:
         '<p>Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (<em>tesoreria_mercadopago_…</em>: Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em> o <em>MP_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: se cargan las filas MercadoPago; Galicia por Caja; Efectivo/Morba se omiten).</p>' +
+        '<p><strong>El extracto MP es el banco (fuente de verdad)</strong>: lo que no está ahí no está. Tesorería son los movimientos administrativos de la app; las diferencias se ven en Sugeridos, Solo banco y Solo sistema.</p>' +
         '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos aunque el status sea Pendiente, si ese Id ya estaba. Pendiente nuevos no se dan de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa <strong>A eliminar</strong> para confirmar la baja. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
         '<p>Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. En Solo banco podés marcar un movimiento como <strong>No requiere conciliación</strong> (con justificación): no se borra del extracto.</p>' +
         '<p>La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde.</p>' +
@@ -5380,6 +5451,7 @@
   global.FornitaliaConciliacionBancaria = {
     init: init,
     show: show,
-    ingestHistoricoCompleto: ingestHistoricoCompleto
+    ingestHistoricoCompleto: ingestHistoricoCompleto,
+    parseExtractoGaliciaPdfArchivo: parseExtractoGaliciaPdfArchivo
   };
 })(window);
