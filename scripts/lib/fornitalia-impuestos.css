@@ -496,7 +496,7 @@
   background: #fff;
 }
 
-.imp-tabla.imp-pick-tabla { min-width: 36rem; }
+.imp-tabla.imp-pick-tabla { min-width: 48rem; }
 
 .imp-pick-row { cursor: pointer; }
 .imp-pick-row td { min-height: 44px; }

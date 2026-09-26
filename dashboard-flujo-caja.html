@@ -10,18 +10,18 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.54"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.55"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.52"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.52">
-  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.53"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.55">
+  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.55"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.54">
   <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.54"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.52">
-  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.52"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.52">
-  <script src="scripts/lib/fornitalia-impuestos.js?v=2.52"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.55">
+  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.55"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.55">
+  <script src="scripts/lib/fornitalia-impuestos.js?v=2.55"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.52">
   <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.52"></script>
   <style>
@@ -657,7 +657,15 @@
       color: #555;
     }
     #tabla-todas-transacciones th:nth-child(17),
-    #tabla-todas-transacciones td:nth-child(17) { text-align: left; }
+    #tabla-todas-transacciones td:nth-child(17),
+    #tabla-todas-transacciones th:nth-child(18),
+    #tabla-todas-transacciones td:nth-child(18) { text-align: left; }
+    #tabla-todas-transacciones td:nth-child(18),
+    .detalle-tabla td.obs {
+      max-width: 16rem;
+      white-space: normal;
+      word-break: break-word;
+    }
     .dash-th-sort { padding: 0; vertical-align: middle; }
     .dash-th-sort-inner {
       display: flex;
@@ -1174,7 +1182,7 @@
             <option value="todos">Todos</option>
           </select>
           <label for="filtro-todas-id-operacion" style="margin-left:0.75rem;">Buscar:</label>
-          <input type="text" id="filtro-todas-id-operacion" placeholder="Id operación o descripción" title="Filtrar por id operación o descripción (coincidencia parcial)" style="padding:0.35rem 0.6rem; border-radius:6px; border:1px solid #ccc; font-size:0.9rem; min-width:180px;">
+          <input type="text" id="filtro-todas-id-operacion" placeholder="Id, descripción u observaciones" title="Filtrar por id operación, descripción u observaciones (coincidencia parcial)" style="padding:0.35rem 0.6rem; border-radius:6px; border:1px solid #ccc; font-size:0.9rem; min-width:180px;">
         </div>
         </div>
       </div>
@@ -1199,6 +1207,7 @@
               <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="ef_item" data-label="EF Item" title="Ordenar EF Item" aria-label="Ordenar por EF Item">EF Item<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
               <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="ef_subitem" data-label="EF SubItem" title="Ordenar EF SubItem" aria-label="Ordenar por EF SubItem">EF SubItem<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
               <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="descripcion" data-label="Descripción" title="Ordenar Descripción" aria-label="Ordenar por Descripción">Descripción<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="observaciones" data-label="Observaciones" title="Ordenar Observaciones" aria-label="Ordenar por Observaciones">Observaciones<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
               <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="cliente" data-label="Cliente" title="Ordenar Cliente" aria-label="Ordenar por Cliente">Cliente<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
               <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="cat_desc" data-label="Cat desc" title="Ordenar Cat desc" aria-label="Ordenar por Cat desc">Cat desc<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
               <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="origen" data-label="Origen" title="Ordenar Origen" aria-label="Ordenar por Origen">Origen<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
@@ -1512,6 +1521,10 @@
             <label>Descripción</label>
             <input type="text" id="edit-descripcion" placeholder="Texto libre">
           </div>
+          <div class="form-group form-group-full">
+            <label>Observaciones</label>
+            <input type="text" id="edit-observaciones" placeholder="Observaciones del movimiento">
+          </div>
           <div class="form-group">
             <label>Cliente</label>
             <select id="edit-cliente"></select>
@@ -1742,6 +1755,7 @@
                 <th>Categoría (matriz)</th>
                 <th>Cuenta (matriz)</th>
                 <th>Descripción</th>
+                <th>Observaciones</th>
                 <th>Tipo</th>
                 <th>Monto</th>
                 <th>Origen</th>
@@ -1770,6 +1784,7 @@
               <th>Categoría (matriz)</th>
               <th>Cuenta (matriz)</th>
               <th>Descripción</th>
+              <th>Observaciones</th>
               <th>Monto</th>
               <th>Origen</th>
               <th>Id_Origen</th>
@@ -1791,7 +1806,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.54';
+    const APP_VERSION = '2.55';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -3321,6 +3336,8 @@
         medio_pago: medio,
         moneda: moneda,
         descripcion: m.descripcion || '',
+        observaciones: String(raw.observaciones || '').trim(),
+        raw: raw,
         cliente: m.contraparte || raw.cliente || '',
         categoria: cat,
         cat_desc: raw.observaciones || '',
@@ -4027,6 +4044,7 @@
         case 'ef_item': return (r.ef_item || '').toString();
         case 'ef_subitem': return (r.ef_subitem || '').toString();
         case 'descripcion': return r.descripcion || '';
+        case 'observaciones': return r.observaciones || '';
         case 'cliente': return r.cliente || '';
         case 'cat_desc': return r.cat_desc || '';
         case 'origen': return (r.origen_archivo || '').trim();
@@ -4081,7 +4099,7 @@
       const colLabel = colKey === '__total__' ? 'Total' : formatearColHeaderEvolucion(colKey, periodo);
       titulo.textContent = 'Detalle — ' + (rowKey || '').replace(/</g, '&lt;') + (colKey !== '__total__' ? ' · ' + colLabel : ' (' + colLabel + ')');
       if (!list || list.length === 0) {
-        tbodyDet.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#666;">No hay registros.</td></tr>';
+        tbodyDet.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#666;">No hay registros.</td></tr>';
       } else {
         const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
         tbodyDet.innerHTML = list.map(item => `
@@ -4090,6 +4108,7 @@
             <td>${esc(item.categoria)}</td>
             <td>${esc(item.cuenta != null ? item.cuenta : '—')}</td>
             <td>${esc((item.descripcion || '—').slice(0, 200))}</td>
+            <td>${esc((item.observaciones || '—').slice(0, 160))}</td>
             <td class="${item.monto >= 0 ? 'ingresos' : 'egresos'}">${evolucionSimbolo}${formatearNumero(item.monto, evolucionMoneda)}</td>
             <td>${esc(item.origen_archivo || '—')}</td>
             <td>${esc(item.id_origen || '—')}</td>
@@ -4149,6 +4168,7 @@
           categoria: categoriaDistribucionFlujo(r),
           cuenta: cuentaDistribucionFlujo(r),
           descripcion: (r.descripcion || r.cliente || '').trim() || '—',
+          observaciones: (r.observaciones || '').trim() || '—',
           monto: valor,
           origen_archivo: (r.origen_archivo || '').trim() || '—',
           id_origen: (r.id_origen != null && r.id_origen !== '') ? String(r.id_origen) : '—'
@@ -4397,6 +4417,7 @@
         categoria: categoriaDistribucionFlujo(r),
         cuenta: cuentaDistribucionFlujo(r),
         descripcion: (r.descripcion || r.cliente || '').trim() || '—',
+        observaciones: (r.observaciones || '').trim() || '—',
         tipo_movimiento: (r.tipo_movimiento || '').trim() || '—',
         monto: signo * montoConv,
         origen_archivo: (r.origen_archivo || '').trim() || '—',
@@ -4541,7 +4562,7 @@
           + (list.length ? ' · Suma listada: ' + simbolo + formatearNumero(sumaList, st.moneda) : '');
       }
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#666;">No hay transacciones imputadas con <code>ef_subitem</code> para este rubro y período.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#666;">No hay transacciones imputadas con <code>ef_subitem</code> para este rubro y período.</td></tr>';
         if (tfoot) tfoot.innerHTML = '';
       } else {
         tbody.innerHTML = list.map(item => `
@@ -4552,6 +4573,7 @@
             <td>${esc(item.categoria)}</td>
             <td>${esc(item.cuenta != null ? item.cuenta : '—')}</td>
             <td>${esc((item.descripcion || '—').slice(0, 240))}</td>
+            <td>${esc((item.observaciones || '—').slice(0, 160))}</td>
             <td>${esc(item.tipo_movimiento)}</td>
             <td class="${item.monto >= 0 ? 'ingresos' : 'egresos'}">${simbolo}${formatearNumero(item.monto, st.moneda)}</td>
             <td>${esc(item.origen_archivo)}</td>
@@ -4559,7 +4581,7 @@
           </tr>
         `).join('');
         if (tfoot) {
-          tfoot.innerHTML = '<tr><td colspan="7" style="font-weight:600;text-align:right;">Suma</td><td class="' + (sumaList >= 0 ? 'ingresos' : 'egresos') + '" style="font-weight:600;">' + simbolo + formatearNumero(sumaList, st.moneda) + '</td><td colspan="2"></td></tr>';
+          tfoot.innerHTML = '<tr><td colspan="8" style="font-weight:600;text-align:right;">Suma</td><td class="' + (sumaList >= 0 ? 'ingresos' : 'egresos') + '" style="font-weight:600;">' + simbolo + formatearNumero(sumaList, st.moneda) + '</td><td colspan="2"></td></tr>';
         }
       }
       backdrop.classList.remove('oculto');
@@ -5864,7 +5886,7 @@
         return;
       }
       const tipoDolar = document.getElementById('tipoDolar') && document.getElementById('tipoDolar').value ? document.getElementById('tipoDolar').value : 'mep';
-      const headers = ['id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'Tipo_Cambio', 'Monto_ARS', 'Monto_USD', 'descripcion', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'nueva_categoria', 'nueva_cuenta_contable', 'costo_directo', 'costo_indirecto', 'ef_item', 'ef_subitem', 'usuario', 'editado', 'editado_detalle'];
+      const headers = ['id_origen', 'id_operacion', 'fecha', 'mes', 'anio', 'tipo_movimiento', 'monto', 'status', 'medio_pago', 'moneda', 'Tipo_Cambio', 'Monto_ARS', 'Monto_USD', 'descripcion', 'observaciones', 'cliente', 'categoria', 'cat_desc', 'origen_archivo', 'cuenta_contable', 'nueva_categoria', 'nueva_cuenta_contable', 'costo_directo', 'costo_indirecto', 'ef_item', 'ef_subitem', 'usuario', 'editado', 'editado_detalle'];
       const rows = [['Exportado: Base histórica. Tipo_Cambio según selector de tipo de dólar (MEP/CCL/Oficial). Monto_ARS y Monto_USD son las conversiones aplicadas.'], headers];
       cacheTransacciones.forEach(r => {
         const montoOrig = (r.monto != null && r.monto !== '') ? Number(r.monto) : 0;
@@ -5890,6 +5912,7 @@
           typeof montoARS === 'number' ? montoARS : '',
           typeof montoUSD === 'number' ? montoUSD : '',
           (r.descripcion || '').toString(),
+          (r.observaciones || '').toString(),
           (r.cliente || '').toString(),
           (r.categoria || '').toString(),
           (r.cat_desc || '').toString(),
@@ -6422,6 +6445,7 @@
                 <th>TC (${esc((tipoDolar || '').toString().toUpperCase())})</th>
                 <th>Cliente</th>
                 <th>Descripción</th>
+                <th>Observaciones</th>
                 <th>Origen</th>
                 ${puedeEditarFilas ? '<th class="detalle-accion" aria-label="Acciones"></th>' : ''}
               </tr>
@@ -6452,6 +6476,7 @@
               ? `<span class="muted">${esc(fmtTC(Number(tasa)))}</span>`
               : '<span class="muted">sin cot.</span>');
           const desc = (i.descripcion || '–').slice(0, 120);
+          const obs = (i.observaciones || '').trim();
           const cliente = (i.cliente || '').trim();
           const origen = (i.origen_archivo || '').trim();
           const idReg = (i.id || '').toString().replace(/"/g, '&quot;');
@@ -6469,6 +6494,7 @@
               <td>${valTC}</td>
               <td class="cliente">${cliente ? esc(cliente) : '<span class="muted">—</span>'}</td>
               <td class="desc">${esc(desc)}</td>
+              <td class="obs">${obs ? esc(obs.slice(0, 160)) : '<span class="muted">—</span>'}</td>
               <td>${origen ? `<span class="origen-detalle" title="Origen">${esc(origen)}</span>` : '<span class="muted">—</span>'}</td>
               ${celdaAccion}
             </tr>
@@ -6691,7 +6717,7 @@
       if (!tbody || !selMes || !selCat || !selCuenta || !selTipo || !selCliente) return;
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       if (cacheTransacciones.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="26" style="text-align:center; color:#666;">No hay transacciones cargadas.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="27" style="text-align:center; color:#666;">No hay transacciones cargadas.</td></tr>';
         programarAjusteTablasScrollAncladas();
         return;
       }
@@ -6747,7 +6773,8 @@
         list = list.filter(r => {
           const idOp = ((r.id_operacion || '').toString().toLowerCase());
           const desc = ((r.descripcion || '').toString().toLowerCase());
-          return idOp.includes(busqueda) || desc.includes(busqueda);
+          const obs = ((r.observaciones || '').toString().toLowerCase());
+          return idOp.includes(busqueda) || desc.includes(busqueda) || obs.includes(busqueda);
         });
       }
       if (sortTodas.key) {
@@ -6756,7 +6783,7 @@
       currentTodasTransaccionesList = list;
       const puedeEditar = puedeEditarRegistros();
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="26" style="text-align:center; color:#666;">No hay registros con los filtros seleccionados.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="27" style="text-align:center; color:#666;">No hay registros con los filtros seleccionados.</td></tr>';
         programarAjusteTablasScrollAncladas();
         return;
       }
@@ -6788,6 +6815,7 @@
             <td>${esc((r.ef_item || '').toString().slice(0, 80))}</td>
             <td>${esc((r.ef_subitem || '').toString().slice(0, 80))}</td>
             <td>${esc((r.descripcion || '').slice(0, 120))}</td>
+            <td>${esc((r.observaciones || '').slice(0, 160))}</td>
             <td>${esc(r.cliente || '')}</td>
             <td>${esc((r.cat_desc || '').slice(0, 80))}</td>
             <td>${esc((r.origen_archivo || '').trim() || '')}</td>
@@ -6838,6 +6866,7 @@
       const editNuevaCuenta = get('edit-nueva-cuenta-contable');
       const editOrigen = get('edit-origen-archivo');
       const editDescripcion = get('edit-descripcion');
+      const editObservaciones = get('edit-observaciones');
       const editCliente = get('edit-cliente');
       const editCatDesc = get('edit-cat-desc');
       const editIdOrigen = get('edit-id-origen');
@@ -6862,6 +6891,7 @@
       editAnio.value = record.anio != null ? String(record.anio) : '';
       editMonto.value = record.monto != null ? String(record.monto) : '';
       editDescripcion.value = (record.descripcion || '').toString();
+      if (editObservaciones) editObservaciones.value = (record.observaciones || '').toString();
       editCatDesc.value = (record.cat_desc || '').toString();
       editIdOrigen.value = (record.id_origen != null ? String(record.id_origen) : '');
       editIdOperacion.value = (record.id_operacion != null ? String(record.id_operacion) : '');
@@ -6938,6 +6968,7 @@
         if (editNuevaCuenta && v(editNuevaCuenta) !== (record.nueva_cuenta_contable || '').trim()) { payload.nueva_cuenta_contable = v(editNuevaCuenta) || null; partes.push('Nueva cuenta contable'); }
         if (v(editOrigen) !== (record.origen_archivo || '').trim()) { payload.origen_archivo = v(editOrigen) || null; partes.push('Origen archivo'); }
         if (v(editDescripcion) !== (record.descripcion || '').toString().trim()) { payload.descripcion = v(editDescripcion) || null; partes.push('Descripcion'); }
+        if (editObservaciones && v(editObservaciones) !== (record.observaciones || '').toString().trim()) { payload.observaciones = v(editObservaciones) || null; partes.push('Observaciones'); }
         if (v(editCliente) !== (record.cliente || '').toString().trim()) { payload.cliente = v(editCliente) || null; partes.push('Cliente'); }
         if (v(editCatDesc) !== (record.cat_desc || '').toString().trim()) { payload.cat_desc = v(editCatDesc) || null; partes.push('Cat desc'); }
         if (v(editIdOrigen) !== (record.id_origen != null ? String(record.id_origen) : '')) { payload.id_origen = v(editIdOrigen) || null; partes.push('Id origen'); }
@@ -6990,6 +7021,11 @@
           }
           if (payload.moneda) mov.moneda = payload.moneda;
           if (payload.descripcion !== undefined) mov.descripcion = payload.descripcion;
+          if (payload.observaciones !== undefined) {
+            const nextRaw = Object.assign({}, record.raw && typeof record.raw === 'object' ? record.raw : {});
+            nextRaw.observaciones = payload.observaciones;
+            mov.raw = nextRaw;
+          }
           if (payload.cliente !== undefined) mov.contraparte = payload.cliente;
           const catNueva = payload.nueva_categoria !== undefined ? payload.nueva_categoria : payload.categoria;
           const ctaNueva = payload.nueva_cuenta_contable !== undefined ? payload.nueva_cuenta_contable : payload.cuenta_contable;

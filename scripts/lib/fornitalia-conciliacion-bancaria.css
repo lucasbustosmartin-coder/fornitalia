@@ -320,11 +320,17 @@
   flex-shrink: 0;
 }
 
+.cb-col-obs {
+  max-width: 16rem;
+  white-space: normal;
+  word-break: break-word;
+}
+
 .cb-tabla {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.88rem;
-  min-width: 68rem;
+  min-width: 76rem;
 }
 
 .cb-tabla th,

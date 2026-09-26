@@ -921,11 +921,26 @@
     return n;
   }
 
+  function observacionesDe(m) {
+    if (!m) return '';
+    var top = m.observaciones != null ? String(m.observaciones).trim() : '';
+    if (top) return top;
+    var raw = m.raw && typeof m.raw === 'object' ? m.raw : {};
+    return String(raw.observaciones || '').trim();
+  }
+
+  function hidratarObservaciones(arr) {
+    (arr || []).forEach(function (m) {
+      if (m && !m.observaciones) m.observaciones = observacionesDe(m);
+    });
+    return arr;
+  }
+
   function pasaBuscar(m) {
     var q = normHeader(state.q);
     if (!q) return true;
     var blob = normHeader([
-      m.fecha, m.tipo, m.descripcion, m.contraparte, m.categoria, m.cuenta_contable,
+      m.fecha, m.tipo, m.descripcion, observacionesDe(m), m.contraparte, m.categoria, m.cuenta_contable,
       m.origen_id, m.monto, m.credito, m.debito, m.saldo, m.monto_usd, m.tipo_cambio_mep
     ].join(' '));
     return blob.indexOf(q) >= 0;
@@ -970,6 +985,7 @@
   function valFila(m, key) {
     if (key === 'tipo') return { v: m.tipo, t: 'txt' };
     if (key === 'descripcion') return { v: m.descripcion, t: 'txt' };
+    if (key === 'observaciones') return { v: observacionesDe(m), t: 'txt' };
     if (key === 'contraparte') return { v: m.contraparte, t: 'txt' };
     if (key === 'categoria') return { v: valorCatCta(m.categoria), t: 'txt' };
     if (key === 'cuenta_contable') return { v: valorCatCta(m.cuenta_contable), t: 'txt' };
@@ -1072,7 +1088,7 @@
       if (chunk.length < SUPABASE_PAGE) break;
       offset += SUPABASE_PAGE;
     }
-    state.movimientos = all;
+    state.movimientos = hidratarObservaciones(all);
   }
 
   async function recargarTodo() {
@@ -1624,14 +1640,15 @@
     }
     var usd = esCanalUsd(state.canal);
     var headers = usd
-      ? ['Fecha', 'Tipo', 'Descripción', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito ARS', 'Débito ARS', 'Saldo ARS', 'Importe ARS', 'USD orig.', 'TC MEP', 'Fecha TC', 'ID', 'Usuario']
-      : ['Fecha', 'Tipo', 'Descripción', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito', 'Débito', 'Saldo', 'Importe', 'ID', 'Usuario'];
+      ? ['Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito ARS', 'Débito ARS', 'Saldo ARS', 'Importe ARS', 'USD orig.', 'TC MEP', 'Fecha TC', 'ID', 'Usuario']
+      : ['Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito', 'Débito', 'Saldo', 'Importe', 'ID', 'Usuario'];
     var aoa = [headers];
     list.forEach(function (m) {
       var row = [
         excelDate(m.fecha),
         m.tipo || '',
         m.descripcion || '',
+        observacionesDe(m),
         m.contraparte || '',
         m.categoria || '',
         m.cuenta_contable || '',
@@ -1649,20 +1666,20 @@
     var ws = global.XLSX.utils.aoa_to_sheet(aoa);
     ws['!cols'] = usd
       ? [
-        { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 24 }, { wch: 22 }, { wch: 28 },
+        { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 22 }, { wch: 28 },
         { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 10 }
       ]
       : [
-        { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 24 }, { wch: 22 }, { wch: 28 },
+        { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 22 }, { wch: 28 },
         { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 10 }
       ];
     var range = global.XLSX.utils.decode_range(ws['!ref']);
     var r;
     var c;
-    var dateSet = usd ? { 0: true, 12: true } : { 0: true };
+    var dateSet = usd ? { 0: true, 13: true } : { 0: true };
     var numSet = usd
-      ? { 6: true, 7: true, 8: true, 9: true, 10: true, 11: true }
-      : { 6: true, 7: true, 8: true, 9: true };
+      ? { 7: true, 8: true, 9: true, 10: true, 11: true, 12: true }
+      : { 7: true, 8: true, 9: true, 10: true };
     for (r = 0; r <= range.e.r; r++) {
       for (c = 0; c <= range.e.c; c++) {
         var addr = global.XLSX.utils.encode_cell({ r: r, c: c });
@@ -1703,6 +1720,7 @@
         '<td>' + formatFecha(m.fecha) + '</td>' +
         '<td>' + esc(m.tipo || '—') + '</td>' +
         '<td>' + esc(m.descripcion || '—') + '</td>' +
+        '<td class="cf-col-obs">' + esc(observacionesDe(m) || '—') + '</td>' +
         '<td>' + esc(m.contraparte || '—') + '</td>' +
         '<td>' + esc(m.categoria || '—') + '</td>' +
         '<td>' + esc(m.cuenta_contable || '—') + '</td>' +
@@ -1726,6 +1744,7 @@
         thSort('fecha', 'Fecha') +
         thSort('tipo', 'Tipo') +
         thSort('descripcion', 'Descripción') +
+        thSort('observaciones', 'Observaciones') +
         thSort('contraparte', 'Cliente') +
         thSort('categoria', 'Categoría') +
         thSort('cuenta_contable', 'Cuenta contable') +

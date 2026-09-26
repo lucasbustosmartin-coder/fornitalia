@@ -1553,6 +1553,21 @@
     return Object.assign({ error: null, filas: filas }, metaOmit);
   }
 
+  function observacionesDe(m) {
+    if (!m) return '';
+    var top = m.observaciones != null ? String(m.observaciones).trim() : '';
+    if (top) return top;
+    var raw = m.raw && typeof m.raw === 'object' ? m.raw : {};
+    return String(raw.observaciones || raw.observaciones_cliente || '').trim();
+  }
+
+  function hidratarObservaciones(arr) {
+    (arr || []).forEach(function (m) {
+      if (m && !m.observaciones) m.observaciones = observacionesDe(m);
+    });
+    return arr;
+  }
+
   function textoMov(m) {
     if (!m) return '';
     var raw = m.raw && typeof m.raw === 'object' ? m.raw : {};
@@ -1959,19 +1974,19 @@
   }
 
   async function cargarDatos() {
-    state.movimientos = await fetchAllCanal('cb_movimiento', [
+    state.movimientos = hidratarObservaciones(await fetchAllCanal('cb_movimiento', [
       { name: 'fecha', asc: true },
       { name: 'origen_id', asc: true }
-    ]);
+    ]));
     state.matches = await fetchAllCanal('cb_match', [
       { name: 'created_at', asc: false }
     ]);
     state.dupsDescartados = await fetchAllCanal('cb_dup_descartado', [
       { name: 'descartado_at', asc: false }
     ]);
-    state.eliminados = await fetchAllCanal('cb_movimiento_eliminado', [
+    state.eliminados = hidratarObservaciones(await fetchAllCanal('cb_movimiento_eliminado', [
       { name: 'eliminado_at', asc: false }
-    ]);
+    ]));
   }
 
   var CB_RPC_CHUNK = 250;
@@ -3261,7 +3276,7 @@
   function valoresCampo(movs, campo) {
     var vals = [];
     (movs || []).forEach(function (x) {
-      var raw = x && x[campo];
+      var raw = campo === 'observaciones' ? observacionesDe(x) : (x && x[campo]);
       var v = (campo === 'categoria' || campo === 'cuenta_contable') ? valorCatCta(raw) : String(raw || '').trim();
       if (v && vals.indexOf(v) < 0) vals.push(v);
     });
@@ -3456,7 +3471,7 @@
 
   function blobMov(m) {
     if (!m) return '';
-    return [m.fecha, m.tipo, m.descripcion, m.contraparte, m.origen_id, m.id_movimiento_banco, m.monto, m.categoria, m.cuenta_contable].join(' ');
+    return [m.fecha, m.tipo, m.descripcion, observacionesDe(m), m.contraparte, m.origen_id, m.id_movimiento_banco, m.monto, m.categoria, m.cuenta_contable].join(' ');
   }
 
   function sortActual() {
@@ -3503,6 +3518,7 @@
     }
     if (key === 'fecha_sistema') return { v: fechaGrupo(ss), t: 'fecha' };
     if (key === 'sistema') return { v: labelGrupo(ss, false), t: 'txt' };
+    if (key === 'observaciones') return { v: textoCampoGrupo(ss, 'observaciones'), t: 'txt' };
     if (key === 'categoria_sistema') return { v: labelCampoGrupo(ss, 'categoria'), t: 'txt' };
     if (key === 'cuenta_sistema') return { v: labelCampoGrupo(ss, 'cuenta_contable'), t: 'txt' };
     if (key === 'monto_sistema') return { v: sumaMontos(ss), t: 'num' };
@@ -3516,6 +3532,7 @@
     if (key === 'tipo') return { v: m.tipo, t: 'txt' };
     if (key === 'concepto') return { v: m.tipo || m.descripcion, t: 'txt' };
     if (key === 'descripcion') return { v: m.descripcion, t: 'txt' };
+    if (key === 'observaciones') return { v: observacionesDe(m), t: 'txt' };
     if (key === 'contraparte') return { v: m.contraparte, t: 'txt' };
     if (key === 'monto') return { v: m.monto, t: 'num' };
     if (key === 'sugerido') return { v: matchSugeridoDe(m.id) ? 1 : 0, t: 'num' };
@@ -3658,6 +3675,7 @@
           : (esMatchSoloExtracto(m) ? htmlMontoSoloExtracto(bs) : htmlMonto(sumaMontos(bs)))) + '</td>' +
         '<td>' + formatFecha(fechaGrupo(ss)) + '</td>' +
         '<td>' + esc(esMatchSoloExtracto(m) ? 'Sin tesorería' : labelGrupo(ss, false)) + '</td>' +
+        '<td class="cb-col-obs">' + esc(labelCampoGrupo(ss, 'observaciones')) + '</td>' +
         '<td>' + esc(labelCampoGrupo(ss, 'categoria')) + '</td>' +
         '<td>' + esc(labelCampoGrupo(ss, 'cuenta_contable')) + '</td>' +
         '<td class="cb-col-monto">' + htmlMonto(sumaMontos(ss)) + '</td>' +
@@ -3696,6 +3714,7 @@
         thSort('monto_banco', 'Importe', 'cb-col-monto') +
         thSort('fecha_sistema', 'Fecha sistema') +
         thSort('sistema', 'Sistema') +
+        thSort('observaciones', 'Observaciones') +
         thSort('categoria_sistema', 'Categoría') +
         thSort('cuenta_sistema', 'Cuenta contable') +
         thSort('monto_sistema', 'Importe', 'cb-col-monto') +
@@ -3720,6 +3739,7 @@
         '<td>' + formatFecha(m.fecha) + '</td>' +
         '<td>' + esc(m.tipo || '—') + '</td>' +
         '<td>' + esc(m.descripcion || '—') + '</td>' +
+        '<td class="cb-col-obs">' + esc(observacionesDe(m) || '—') + '</td>' +
         '<td>' + esc(m.contraparte || '—') + '</td>' +
         (esSis
           ? '<td>' + celdaCatCta(m.categoria) + '</td><td>' + celdaCatCta(m.cuenta_contable) + '</td>'
@@ -3751,6 +3771,7 @@
         thSort('fecha', 'Fecha') +
         thSort('tipo', 'Tipo') +
         thSort('descripcion', 'Descripción') +
+        thSort('observaciones', 'Observaciones') +
         thSort('contraparte', 'Contraparte') +
         (esSis
           ? thSort('categoria', 'Categoría') + thSort('cuenta_contable', 'Cuenta contable')
@@ -3781,6 +3802,7 @@
         '<td>' + celdaCatCta(m.categoria) + '</td>' +
         '<td>' + celdaCatCta(m.cuenta_contable) + '</td>' +
         '<td>' + esc(m.descripcion || m.tipo || '—') + '</td>' +
+        '<td class="cb-col-obs">' + esc(observacionesDe(m) || '—') + '</td>' +
         '<td>' + htmlUsuario(m.updated_by, m.created_by) + '</td>' +
         '<td class="cb-col-acc">' +
           btnIcon('ver-mov', m.id, 'Ver detalle del movimiento', ICO.eye) +
@@ -3805,6 +3827,7 @@
         thSort('categoria', 'Categoría') +
         thSort('cuenta_contable', 'Cuenta contable') +
         thSort('descripcion', 'Descripción') +
+        thSort('observaciones', 'Observaciones') +
         thSort('usuario', 'Usuario') +
         '<th class="cb-col-acc">Acciones</th>' +
       '</tr></thead>' +
@@ -3820,6 +3843,7 @@
         '<td>' + esc(idTesoreriaVisible(m)) + '</td>' +
         '<td class="cb-col-monto">' + htmlMonto(m.monto) + '</td>' +
         '<td>' + esc(m.descripcion || m.tipo || '—') + '</td>' +
+        '<td class="cb-col-obs">' + esc(observacionesDe(m) || '—') + '</td>' +
         '<td>' + esc(m.contraparte || '—') + '</td>' +
         '<td>' + celdaCatCta(m.categoria) + '</td>' +
         '<td>' + celdaCatCta(m.cuenta_contable) + '</td>' +
@@ -3846,6 +3870,7 @@
         thSort('id', 'Id') +
         thSort('monto', 'Importe', 'cb-col-monto') +
         thSort('descripcion', 'Descripción') +
+        thSort('observaciones', 'Observaciones') +
         thSort('contraparte', 'Contraparte') +
         thSort('categoria', 'Categoría') +
         thSort('cuenta_contable', 'Cuenta contable') +
@@ -4010,6 +4035,7 @@
         '<td>' + formatFecha(m.fecha) + '</td>' +
         '<td>' + esc(m.tipo || '—') + '</td>' +
         '<td>' + esc(m.descripcion || '—') + '</td>' +
+        '<td class="cb-col-obs">' + esc(observacionesDe(m) || '—') + '</td>' +
         '<td class="cb-col-monto">' + htmlMonto(m.monto) + '</td>' +
         '<td class="cb-just-cell">' + esc(m.no_requiere_justificacion || '—') + '</td>' +
         '<td>' + formatFecha(isoAFechaArgentina(m.no_requiere_at)) + '</td>' +
@@ -4035,6 +4061,7 @@
         thSort('fecha', 'Fecha') +
         thSort('tipo', 'Tipo') +
         thSort('descripcion', 'Descripción') +
+        thSort('observaciones', 'Observaciones') +
         thSort('monto', 'Importe', 'cb-col-monto') +
         thSort('justificacion', 'Justificación') +
         thSort('marcado', 'Marcado') +
@@ -4055,12 +4082,14 @@
     var extra = '';
     Object.keys(raw).forEach(function (k) {
       if (raw[k] == null || raw[k] === '') return;
+      if (k === 'observaciones' || k === 'observaciones_cliente') return;
       extra += dlCampo(k, raw[k]);
     });
     return '<div class="cb-detalle-bloque"><h3>' + esc(titulo) + '</h3><dl>' +
       dlCampo('Fecha', formatFecha(m.fecha)) +
       dlCampo('Tipo', m.tipo) +
       dlCampo('Descripción', m.descripcion) +
+      dlCampo('Observaciones', observacionesDe(m)) +
       dlCampo('Contraparte / cliente', m.contraparte) +
       dlCampo('Importe', formatMonto(m.monto) + ' ' + (m.moneda || 'ARS')) +
       dlCampo('Categoría', valorCatCta(m.categoria) || '—') +
@@ -4199,16 +4228,17 @@
       '. Mismo importe y hasta ' + DUP_TESORERIA_DIAS + ' días entre registros.' +
       (extraHint || '') + '</p>';
     var resumen = '<div class="cb-tabla-wrap cb-dup-resumen"><table class="cb-tabla"><thead><tr>' +
-      '<th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Contraparte</th><th>Categoría</th><th>Cuenta contable</th>' +
+      '<th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Observaciones</th><th>Contraparte</th><th>Categoría</th><th>Cuenta contable</th>' +
       '<th class="cb-col-monto">Importe</th><th>Id</th><th>Estado</th></tr></thead><tbody>';
     if (!movs.length) {
-      resumen += '<tr><td colspan="9">Los movimientos de este conjunto ya no están en tesorería.</td></tr>';
+      resumen += '<tr><td colspan="10">Los movimientos de este conjunto ya no están en tesorería.</td></tr>';
     }
     movs.forEach(function (m) {
       resumen += '<tr>' +
         '<td>' + formatFecha(m.fecha) + '</td>' +
         '<td>' + esc(m.tipo || '—') + '</td>' +
         '<td>' + esc(m.descripcion || '—') + '</td>' +
+        '<td class="cb-col-obs">' + esc(observacionesDe(m) || '—') + '</td>' +
         '<td>' + esc(m.contraparte || '—') + '</td>' +
         '<td>' + celdaCatCta(m.categoria) + '</td>' +
         '<td>' + celdaCatCta(m.cuenta_contable) + '</td>' +
@@ -4546,6 +4576,7 @@
         '<td>' + esc(m.tipo || m.descripcion || '—') + '</td>' +
         (esSis
           ? '<td>' + esc(m.descripcion || '—') + '</td>' +
+            '<td class="cb-col-obs">' + esc(observacionesDe(m) || '—') + '</td>' +
             '<td>' + celdaCatCta(m.categoria) + '</td><td>' + celdaCatCta(m.cuenta_contable) + '</td>'
           : '<td>' + esc(m.contraparte || '—') + '</td>') +
         '<td class="cb-col-monto">' + htmlMonto(m.monto) + '</td>' +
@@ -4564,6 +4595,7 @@
         thSortManual(origen, 'concepto', 'Concepto') +
         (esSis
           ? thSortManual(origen, 'descripcion', 'Descripción') +
+            thSortManual(origen, 'observaciones', 'Observaciones') +
             thSortManual(origen, 'categoria', 'Categoría') +
             thSortManual(origen, 'cuenta_contable', 'Cuenta contable')
           : thSortManual(origen, 'contraparte', 'Contraparte')) +
@@ -4859,10 +4891,10 @@
     var cols = [];
     var esMatch = state.lista === 'sugeridos' || state.lista === 'confirmados';
     if (esMatch) {
-      aoa.push(['Fecha banco', 'Extracto', 'Importe banco', 'Fecha sistema', 'Tesorería', 'Categoría', 'Cuenta contable', 'Importe sistema', 'Diferencia', 'Criterio', 'Justificación', 'Estado', 'ID extracto', 'ID tesorería', 'Usuario']);
+      aoa.push(['Fecha banco', 'Extracto', 'Importe banco', 'Fecha sistema', 'Tesorería', 'Observaciones', 'Categoría', 'Cuenta contable', 'Importe sistema', 'Diferencia', 'Criterio', 'Justificación', 'Estado', 'ID extracto', 'ID tesorería', 'Usuario']);
       dateCols = [0, 3];
-      numCols = [2, 7, 8];
-      cols = [{ wch: 12 }, { wch: 36 }, { wch: 14 }, { wch: 12 }, { wch: 36 }, { wch: 22 }, { wch: 24 }, { wch: 14 }, { wch: 12 }, { wch: 32 }, { wch: 40 }, { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 10 }];
+      numCols = [2, 8, 9];
+      cols = [{ wch: 12 }, { wch: 36 }, { wch: 14 }, { wch: 12 }, { wch: 36 }, { wch: 32 }, { wch: 22 }, { wch: 24 }, { wch: 14 }, { wch: 12 }, { wch: 32 }, { wch: 40 }, { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 10 }];
       var estado = state.lista === 'confirmados' ? 'confirmado' : 'sugerido';
       var matches = filasVisiblesMatch(estado);
       if (!matches.length) {
@@ -4880,6 +4912,7 @@
             : (esMatchSoloExtracto(m) ? sumaMontosSigno(bs, true) : sumaMontos(bs))),
           excelDate(fechaGrupo(ss)),
           esMatchSoloExtracto(m) ? 'Sin tesorería' : textoGrupo(ss, false),
+          textoCampoGrupo(ss, 'observaciones'),
           textoCampoGrupo(ss, 'categoria'),
           textoCampoGrupo(ss, 'cuenta_contable'),
           excelNum(esMatchSoloExtracto(m) ? sumaMontosSigno(bs, false) : sumaMontos(ss)),
@@ -4919,10 +4952,10 @@
         ]);
       });
     } else if (state.lista === 'norequiere') {
-      aoa.push(['Fecha', 'Tipo', 'Descripción', 'Contraparte', 'Importe', 'Justificación', 'Marcado', 'ID', 'Usuario']);
-      dateCols = [0, 6];
-      numCols = [4];
-      cols = [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 24 }, { wch: 14 }, { wch: 40 }, { wch: 12 }, { wch: 22 }, { wch: 10 }];
+      aoa.push(['Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Contraparte', 'Importe', 'Justificación', 'Marcado', 'ID', 'Usuario']);
+      dateCols = [0, 7];
+      numCols = [5];
+      cols = [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 14 }, { wch: 40 }, { wch: 12 }, { wch: 22 }, { wch: 10 }];
       var excl = filasVisiblesNoRequiere();
       if (!excl.length) {
         alert('No hay filas visibles con los filtros activos para exportar.');
@@ -4933,6 +4966,7 @@
           excelDate(m.fecha),
           m.tipo || '',
           m.descripcion || '',
+          observacionesDe(m),
           m.contraparte || '',
           excelNum(m.monto),
           m.no_requiere_justificacion || '',
@@ -4942,10 +4976,10 @@
         ]);
       });
     } else if (state.lista === 'dups') {
-      aoa.push(['Grupo', 'Veces', 'Fecha', 'Tipo', 'Descripción', 'Contraparte', 'Categoría', 'Cuenta contable', 'Importe', 'Id', 'Estado']);
+      aoa.push(['Grupo', 'Veces', 'Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Contraparte', 'Categoría', 'Cuenta contable', 'Importe', 'Id', 'Estado']);
       dateCols = [2];
-      numCols = [1, 8];
-      cols = [{ wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 24 }, { wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 22 }, { wch: 14 }];
+      numCols = [1, 9];
+      cols = [{ wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 22 }, { wch: 14 }];
       var dups = filasVisiblesDups();
       if (!dups.length) {
         alert('No hay filas visibles con los filtros activos para exportar.');
@@ -4960,6 +4994,7 @@
             excelDate(m.fecha),
             m.tipo || '',
             m.descripcion || '',
+            observacionesDe(m),
             m.contraparte || '',
             valorCatCta(m.categoria) || null,
             valorCatCta(m.cuenta_contable) || null,
@@ -4970,10 +5005,10 @@
         });
       });
     } else if (state.lista === 'dups_desc') {
-      aoa.push(['Grupo', 'Veces', 'Fecha', 'Tipo', 'Descripción', 'Contraparte', 'Categoría', 'Cuenta contable', 'Importe', 'Id', 'Estado', 'Descartado', 'Usuario']);
-      dateCols = [2, 11];
-      numCols = [1, 8];
-      cols = [{ wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 24 }, { wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
+      aoa.push(['Grupo', 'Veces', 'Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Contraparte', 'Categoría', 'Cuenta contable', 'Importe', 'Id', 'Estado', 'Descartado', 'Usuario']);
+      dateCols = [2, 12];
+      numCols = [1, 9];
+      cols = [{ wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
       var dupsOff = filasVisiblesDupsDesc();
       if (!dupsOff.length) {
         alert('No hay filas visibles con los filtros activos para exportar.');
@@ -4988,6 +5023,7 @@
             nGrupo,
             excelNum(g.veces),
             null,
+            '',
             '',
             '',
             '',
@@ -5008,6 +5044,7 @@
             excelDate(m.fecha),
             m.tipo || '',
             m.descripcion || '',
+            observacionesDe(m),
             m.contraparte || '',
             valorCatCta(m.categoria) || null,
             valorCatCta(m.cuenta_contable) || null,
@@ -5020,10 +5057,10 @@
         });
       });
     } else if (state.lista === 'bajas') {
-      aoa.push(['Id', 'Fecha', 'Importe', 'Categoría', 'Cuenta contable', 'Descripción', 'Usuario']);
+      aoa.push(['Id', 'Fecha', 'Importe', 'Categoría', 'Cuenta contable', 'Descripción', 'Observaciones', 'Usuario']);
       dateCols = [1];
       numCols = [2];
-      cols = [{ wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 28 }, { wch: 44 }, { wch: 10 }];
+      cols = [{ wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 28 }, { wch: 44 }, { wch: 32 }, { wch: 10 }];
       var bajas = filasVisiblesBaja();
       if (!bajas.length) {
         alert('No hay filas visibles con los filtros activos para exportar.');
@@ -5037,14 +5074,15 @@
           valorCatCta(m.categoria) || null,
           valorCatCta(m.cuenta_contable) || null,
           m.descripcion || m.tipo || '',
+          observacionesDe(m),
           textoUsuario(m.updated_by, m.created_by)
         ]);
       });
     } else if (state.lista === 'eliminados') {
-      aoa.push(['Fecha', 'Id', 'Importe', 'Descripción', 'Contraparte', 'Categoría', 'Cuenta contable', 'Motivo', 'Eliminado', 'Usuario']);
-      dateCols = [0, 8];
+      aoa.push(['Fecha', 'Id', 'Importe', 'Descripción', 'Observaciones', 'Contraparte', 'Categoría', 'Cuenta contable', 'Motivo', 'Eliminado', 'Usuario']);
+      dateCols = [0, 9];
       numCols = [2];
-      cols = [{ wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 40 }, { wch: 24 }, { wch: 22 }, { wch: 28 }, { wch: 28 }, { wch: 12 }, { wch: 10 }];
+      cols = [{ wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 22 }, { wch: 28 }, { wch: 28 }, { wch: 12 }, { wch: 10 }];
       var elims = filasVisiblesEliminados();
       if (!elims.length) {
         alert('No hay filas visibles con los filtros activos para exportar.');
@@ -5056,6 +5094,7 @@
           idTesoreriaVisible(m),
           excelNum(m.monto),
           m.descripcion || m.tipo || '',
+          observacionesDe(m),
           m.contraparte || '',
           valorCatCta(m.categoria) || null,
           valorCatCta(m.cuenta_contable) || null,
@@ -5068,13 +5107,13 @@
       var origen = state.lista === 'banco' ? 'banco' : 'sistema';
       var esSis = origen === 'sistema';
       aoa.push(esSis
-        ? ['Fecha', 'Tipo', 'Descripción', 'Contraparte', 'Categoría', 'Cuenta contable', 'Importe', 'ID', 'Usuario']
-        : ['Fecha', 'Tipo', 'Descripción', 'Contraparte', 'Importe', 'ID', 'Usuario']);
+        ? ['Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Contraparte', 'Categoría', 'Cuenta contable', 'Importe', 'ID', 'Usuario']
+        : ['Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Contraparte', 'Importe', 'ID', 'Usuario']);
       dateCols = [0];
-      numCols = esSis ? [6] : [4];
+      numCols = esSis ? [7] : [5];
       cols = esSis
-        ? [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 24 }, { wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 28 }, { wch: 10 }]
-        : [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 24 }, { wch: 14 }, { wch: 28 }, { wch: 10 }];
+        ? [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 28 }, { wch: 10 }]
+        : [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 14 }, { wch: 28 }, { wch: 10 }];
       var movs = filasVisiblesSolo(origen);
       if (!movs.length) {
         alert('No hay filas visibles con los filtros activos para exportar.');
@@ -5085,6 +5124,7 @@
           excelDate(m.fecha),
           m.tipo || '',
           m.descripcion || '',
+          observacionesDe(m),
           m.contraparte || ''
         ];
         if (esSis) {

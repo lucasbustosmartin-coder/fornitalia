@@ -694,7 +694,7 @@
       if (m.soloImpuestos && !truthy(t.es_impuesto)) return false;
       if (!q) return true;
       return [
-        formatFecha(t.fecha), t.descripcion, t.categoria, t.cuenta_contable,
+        formatFecha(t.fecha), t.descripcion, t.observaciones, t.categoria, t.cuenta_contable,
         t.origen_id, t.contraparte, formatMonto(t.monto)
       ].join(' ').toLowerCase().indexOf(q) >= 0;
     });
@@ -767,6 +767,7 @@
         '<td>' + esc(formatFecha(t.fecha)) + '</td>' +
         '<td class="imp-col-monto">' + esc(formatMonto(t.monto)) + '</td>' +
         '<td>' + esc(t.descripcion || '—') + '</td>' +
+        '<td>' + esc(t.observaciones || '—') + '</td>' +
         '<td>' + esc(t.categoria || '—') + '</td>' +
         '<td>' + esc(t.cuenta_contable || '—') + '</td>' +
       '</tr>';
@@ -774,7 +775,7 @@
     return '<div class="imp-pick-wrap"><table class="imp-tabla imp-pick-tabla">' +
       '<thead><tr>' +
         '<th class="imp-pick-check"></th>' +
-        '<th>Fecha</th><th class="imp-col-monto">Importe</th><th>Descripción</th><th>Categoría</th><th>Cuenta</th>' +
+        '<th>Fecha</th><th class="imp-col-monto">Importe</th><th>Descripción</th><th>Observaciones</th><th>Categoría</th><th>Cuenta</th>' +
       '</tr></thead><tbody>' + body + '</tbody></table></div>';
   }
 

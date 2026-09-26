@@ -204,11 +204,17 @@
   background: #fff;
 }
 
+.cf-col-obs {
+  max-width: 16rem;
+  white-space: normal;
+  word-break: break-word;
+}
+
 .cf-tabla {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.88rem;
-  min-width: 86rem;
+  min-width: 94rem;
 }
 
 .cf-tabla th,

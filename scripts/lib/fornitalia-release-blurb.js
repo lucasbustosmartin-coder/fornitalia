@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.54',
+    versionLabel: 'v2.55',
     lines: [
-      'En Saldos extractos hay un botón Tesorería saldos para subir el Excel tesoreria_saldos.',
-      'Compara el saldo de cada caja con el mes en curso.',
-      'Si coincide ves un tilde verde; si no, una cruz roja con el monto de la diferencia.'
+      'En las tablas de movimientos hay una columna Observaciones, junto a la descripción.',
+      'Se ve en Todas las transacciones, Conciliación, Cajas y en los detalles del Flujo.',
+      'Si el movimiento tenía nota en el Excel, ya aparece; también se puede editar desde el registro.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
