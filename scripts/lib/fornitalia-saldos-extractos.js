@@ -794,6 +794,44 @@
     return canal === CANAL_CRED ? 'sistema' : 'banco';
   }
 
+  function usaSaldoCorridoExtracto(canal) {
+    return canal === CANAL_GAL || canal === CANAL_GAL_USD;
+  }
+
+  function ultimoSaldoCorridoBanco(canal, hasta) {
+    var best = null;
+    (state.movsMes || []).forEach(function (m) {
+      if (!m || m.canal !== canal) return;
+      if (m.origen !== origenMovsCanalSe(canal)) return;
+      if (esAperturaSe(m)) return;
+      if (m.saldo == null || m.saldo === '') return;
+      var sal = Number(m.saldo);
+      if (!isFinite(sal)) return;
+      var f = String(m.fecha || '').slice(0, 10);
+      if (!f) return;
+      if (hasta && f > String(hasta).slice(0, 10)) return;
+      if (!best) {
+        best = m;
+        return;
+      }
+      var bf = String(best.fecha || '').slice(0, 10);
+      if (f > bf) {
+        best = m;
+        return;
+      }
+      if (f < bf) return;
+      var fe = Number(m.fila_excel) || 0;
+      var bfe = Number(best.fila_excel) || 0;
+      if (fe > bfe) {
+        best = m;
+        return;
+      }
+      if (fe < bfe) return;
+      if (String(m.created_at || '') > String(best.created_at || '')) best = m;
+    });
+    return best;
+  }
+
   function movsMesCanal(canal, desde, hasta) {
     return (state.movsMes || []).filter(function (m) {
       if (!m || m.canal !== canal) return false;
@@ -830,11 +868,20 @@
       if (sig && sig > desde) desde = sig;
     }
     if (desde > hoy) return null;
-    var movs = movsMesCanal(canal, desde, hoy);
-    if (!last && !movs.length) return null;
+    var corrido = usaSaldoCorridoExtracto(canal) ? ultimoSaldoCorridoBanco(canal, hoy) : null;
+    var corridoSaldo = corrido && corrido.saldo != null && corrido.saldo !== '' ? Number(corrido.saldo) : null;
+    if (corridoSaldo != null && !isFinite(corridoSaldo)) corridoSaldo = null;
+    var movs;
+    var neto = 0;
+    if (corridoSaldo != null) {
+      var extraDesde = addDaysYmd(String(corrido.fecha).slice(0, 10), 1);
+      movs = (extraDesde && extraDesde <= hoy) ? movsMesCanal(canal, extraDesde, hoy) : [];
+    } else {
+      movs = movsMesCanal(canal, desde, hoy);
+    }
+    if (!last && !movs.length && corridoSaldo == null) return null;
     var ini = last && last.saldo_final != null ? Number(last.saldo_final) : null;
     if (ini != null && !isFinite(ini)) ini = null;
-    var neto = 0;
     movs.forEach(function (m) {
       neto = round2((neto || 0) + (netoMovimientoSe(m) || 0));
     });
@@ -844,11 +891,14 @@
     if (canal === CANAL_GAL_USD) {
       var iniUsd = last && last.raw && last.raw.saldo_usd != null ? Number(last.raw.saldo_usd) : null;
       if (iniUsd != null && !isFinite(iniUsd)) iniUsd = null;
-      finUsd = round2((iniUsd || 0) + (neto || 0));
+      if (corridoSaldo != null) finUsd = round2(corridoSaldo + (neto || 0));
+      else finUsd = round2((iniUsd || 0) + (neto || 0));
       tc = tasaMepParaFecha(hoy);
       if (tc && tc.tasa > 0) fin = round2(finUsd * tc.tasa);
       else if (ini != null) fin = round2(ini + ((neto || 0) * ((tc && tc.tasa) || 0)));
       else fin = null;
+    } else if (corridoSaldo != null) {
+      fin = round2(corridoSaldo + (neto || 0));
     } else if (ini != null) {
       fin = round2(ini + (neto || 0));
     } else {
@@ -865,13 +915,19 @@
       saldo_inicial: ini != null ? round2(ini) : null,
       saldo_final: fin,
       documento_id: 'mes-en-curso-' + canal,
-      archivo: 'Mes en curso (movimientos banco)',
+      archivo: corridoSaldo != null
+        ? ('Mes en curso (saldo extracto' + (corrido.archivo ? ': ' + corrido.archivo : '') + ')')
+        : 'Mes en curso (movimientos banco)',
       created_by: null,
       updated_by: null,
       raw: {
         vivo: true,
         n_movs: movs.length,
         neto: neto,
+        saldo_corrido: corridoSaldo,
+        fecha_corrido: corrido ? String(corrido.fecha).slice(0, 10) : null,
+        archivo_corrido: corrido && corrido.archivo,
+        fila_excel_corrido: corrido && corrido.fila_excel,
         saldo_usd: finUsd,
         tipo_cambio_mep: tc && tc.tasa,
         tipo_cambio_fecha: tc && tc.fechaTc
@@ -1040,7 +1096,7 @@
     var offset = 0;
     for (;;) {
       var res = await client().from('cb_movimiento')
-        .select('id,canal,origen,fecha,monto,credito,debito,tipo,descripcion,categoria,moneda')
+        .select('id,canal,origen,fecha,monto,credito,debito,saldo,fila_excel,archivo,created_at,tipo,descripcion,categoria,moneda')
         .gte('fecha', desde)
         .lte('fecha', hoy)
         .in('canal', [CANAL_MP, CANAL_GAL, CANAL_GAL_USD, CANAL_CRED])
@@ -1354,7 +1410,7 @@
     }).join('');
     var body =
       '<p class="se-cmp-meta">Archivo al <strong>' + esc(al) + '</strong> · Mes en curso de la app al <strong>' + esc(hoy) + '</strong>.</p>' +
-      '<p class="se-cmp-note">El Excel arma el saldo desde la última apertura; la app usa el mes calendario (último corte + movimientos hasta hoy). En cajas dólar se compara US$.</p>' +
+      '<p class="se-cmp-note">El Excel de tesorería arma el saldo desde la última apertura. En Galicia la app muestra el saldo corrido del extracto (el del banco); en MP y Credicoop, último corte + movimientos del mes. En cajas dólar se compara US$.</p>' +
       '<div class="se-cmp-chips">' +
         '<span class="se-cmp-chip se-cmp-chip-ok">Coinciden ' + cmp.nOk + '</span>' +
         '<span class="se-cmp-chip se-cmp-chip-bad">Diferencias ' + cmp.nBad + '</span>' +
@@ -2509,10 +2565,10 @@
       return 'Cartas de saldo de <strong>Mercado Pago</strong> (PDF <em>MP_Saldos_YYYYMMDD</em>). Cada archivo es el saldo al día (total, disponible, a liberar). La variación es contra la carta anterior. Se guardan sin duplicar ni borrar lo previo. El <strong>mes en curso</strong> (celeste) suma los movimientos del extracto MP desde el último corte hasta hoy.';
     }
     if (state.canal === CANAL_GAL) {
-      return 'Resúmenes de <strong>' + esc(LABEL_GAL) + '</strong> (PDF <em>Extracto_Cuentas_Galicia_…</em>): saldo inicial y de cierre del período. Elegí uno o varios; se leen de a uno y se guardan juntos, sin duplicar ni borrar lo anterior. El <strong>mes en curso</strong> (celeste) toma el último cierre y le suma los movimientos del extracto del mes, hasta hoy.';
+      return 'Resúmenes de <strong>' + esc(LABEL_GAL) + '</strong> (PDF <em>Extracto_Cuentas_Galicia_…</em>): saldo inicial y de cierre del período. Elegí uno o varios; se leen de a uno y se guardan juntos, sin duplicar ni borrar lo anterior. El <strong>mes en curso</strong> (celeste) muestra el saldo corrido de la última fila del extracto Excel (el saldo real del banco), más lo que haya después de esa fecha. No suma de nuevo todos los movimientos: así no se infla por re-subidas ni cheques en proceso. Tesorería no se toca.';
     }
     if (state.canal === CANAL_GAL_USD) {
-      return 'Resúmenes de <strong>' + esc(LABEL_GAL_USD) + '</strong> (PDF <em>Extracto_Cuentas_Galicia_…</em> de Cuenta Corriente Especial en dólares, o Excel <em>Extracto_CCE…</em>). El saldo en USD se pesifica al MEP de la fecha de cierre (o la última cotización anterior) para verlo en pesos. Elegí uno o varios; se guardan juntos, sin duplicar ni borrar lo anterior. El <strong>mes en curso</strong> (celeste) suma los movimientos del extracto del mes y los pesifica al MEP de hoy.';
+      return 'Resúmenes de <strong>' + esc(LABEL_GAL_USD) + '</strong> (PDF <em>Extracto_Cuentas_Galicia_…</em> de Cuenta Corriente Especial en dólares, o Excel <em>Extracto_CCE…</em>). El saldo en USD se pesifica al MEP de la fecha de cierre (o la última cotización anterior) para verlo en pesos. Elegí uno o varios; se guardan juntos, sin duplicar ni borrar lo anterior. El <strong>mes en curso</strong> (celeste) toma el saldo corrido de la última fila del extracto y lo pesifica al MEP de hoy.';
     }
     if (state.canal === CANAL_CRED) {
       return 'Saldo de <strong>' + esc(LABEL_CRED) + '</strong> (caja banco). No hay extractos históricos: el corte se arma con la tesorería de <strong>Conciliación Bancaria</strong> (<em>tesoreria_transferencia_credicoop_…</em>, cierre o histórico Transferencia Credicoop). Apertura de Caja no entra. Si un mes no tiene corte, el consolidado arrastra el anterior. El <strong>mes en curso</strong> (celeste) suma la tesorería del mes hasta hoy.';
@@ -2532,7 +2588,7 @@
     if (state.canal === CANAL_SF_USD) {
       return 'Saldo de <strong>' + esc(LABEL_SF_USD) + '</strong> (caja física / efectivo dólar sin factura, en ARS). No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Dolar (sin factura)</em> o Moneda USD en <strong>Cajas (físicas)</strong>.';
     }
-    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). En bancos, el <strong>mes en curso</strong> (celeste) usa el saldo vivo hasta hoy. El promedio de saldo es cuánto dinero queda en promedio.';
+    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). En Galicia, el <strong>mes en curso</strong> (celeste) es el saldo corrido del extracto (el saldo real del banco). El promedio de saldo es cuánto dinero queda en promedio.';
   }
 
   function renderShell() {

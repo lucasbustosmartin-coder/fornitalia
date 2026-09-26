@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.56",
+  "versionLabel": "v2.57",
   "lines": [
-    "En el Estado Financiero, AJUSTE DE SALDOS (CAJA) aparece debajo de FLUJO OPERATIVO GENERADO.",
-    "El ajuste suma o resta en el Flujo de caja neto del período, según sea ingreso o egreso.",
-    "No modifica el margen ni el EBITDA: solo el neto del período."
+    "En Saldos extractos y el Consolidado, Galicia muestra el saldo que figura en el extracto del banco.",
+    "Ya no se infla por cargas repetidas del mismo Excel ni por cheques que cambiaron de leyenda.",
+    "Tesorería y la conciliación siguen igual: el control es la diferencia entre banco y sistema."
   ]
 }
