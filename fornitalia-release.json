@@ -1,9 +1,8 @@
 {
-  "versionLabel": "v2.62",
+  "versionLabel": "v2.63",
   "lines": [
-    "En Flujo de caja elegís el período: último año, un año o todo el histórico.",
-    "El gráfico G/P mensual y la tabla van con los meses en columnas; abajo, los ratios del negocio.",
-    "El PDF sale en una sola hoja, con el gráfico de margen a margen y los filtros activos remarcados.",
-    "En la columna Total de los ratios no entran los meses proyectados."
+    "En Seguridad podés crear perfiles nuevos además de Admin, Encargado y Visor.",
+    "El perfil nace sin permisos: los activás en la grilla y después lo asignás a cada usuario.",
+    "Un perfil a medida se puede eliminar si nadie lo tiene asignado."
   ]
 }
