@@ -320,6 +320,76 @@
   flex-shrink: 0;
 }
 
+.cb-btn:disabled,
+.cb-btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.cb-col-check {
+  width: 3rem;
+  min-width: 3rem;
+  text-align: center;
+}
+
+.cb-tabla thead th.cb-col-check {
+  z-index: 4;
+  left: 0;
+  text-align: center;
+}
+
+.cb-tabla th.cb-col-check,
+.cb-tabla td.cb-col-check {
+  position: sticky;
+  left: 0;
+}
+
+.cb-tabla tbody td.cb-col-check {
+  z-index: 1;
+  background: #fff;
+  background-clip: padding-box;
+}
+
+.cb-check-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.cb-col-check input {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: #0d7d3d;
+}
+
+.cb-tabla thead th.cb-col-check input {
+  accent-color: #86efac;
+}
+
+.cb-excluir-list {
+  margin: 0 0 0.75rem;
+  padding-left: 1.2rem;
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .cb-col-obs {
   max-width: 16rem;
   white-space: normal;
@@ -855,6 +925,7 @@
   .cb-filtros-flag { width: 100%; justify-content: center; }
   .cb-filtros-modal-grid { grid-template-columns: 1fr; }
   .cb-modal-filtros .modal-footer .cb-btn { min-height: 44px; flex: 1 1 auto; }
+  .cb-check-bar .cb-btn { min-height: 44px; width: 100%; }
 }
 
 .cb-modal.cb-modal-resumen {

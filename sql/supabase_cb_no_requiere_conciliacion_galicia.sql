@@ -1,25 +1,5 @@
--- Extracto (Mercado Pago, Galicia ARS, Galicia USD): marcar un movimiento
--- de Solo banco como "No requiere conciliación". Queda en la base con
--- justificación; no se borra.
-
-ALTER TABLE public.cb_movimiento
-  ADD COLUMN IF NOT EXISTS no_requiere_conciliacion boolean NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS no_requiere_justificacion text,
-  ADD COLUMN IF NOT EXISTS no_requiere_at timestamptz,
-  ADD COLUMN IF NOT EXISTS no_requiere_by uuid;
-
-COMMENT ON COLUMN public.cb_movimiento.no_requiere_conciliacion IS
-  'True si el movimiento del extracto no se concilia (Mercado Pago o Galicia, Solo banco). No se elimina.';
-COMMENT ON COLUMN public.cb_movimiento.no_requiere_justificacion IS
-  'Motivo de no conciliar. Obligatorio al marcar.';
-COMMENT ON COLUMN public.cb_movimiento.no_requiere_at IS
-  'Instante en que se marcó no requiere conciliación.';
-COMMENT ON COLUMN public.cb_movimiento.no_requiere_by IS
-  'Usuario que marcó no requiere conciliación.';
-
-CREATE INDEX IF NOT EXISTS idx_cb_movimiento_no_requiere
-  ON public.cb_movimiento (canal, origen, fecha)
-  WHERE no_requiere_conciliacion;
+-- No requiere conciliación: extracto Mercado Pago, Galicia ARS y Galicia USD.
+-- Una o varias filas de Solo banco; no se borra el movimiento.
 
 CREATE OR REPLACE FUNCTION public.cb_marcar_no_requiere_conciliacion(
   p_id uuid,
@@ -138,3 +118,5 @@ COMMENT ON FUNCTION public.cb_marcar_no_requiere_conciliacion(uuid, text) IS
   'Marca un movimiento del extracto (Mercado Pago, Galicia ARS o Galicia USD) como no conciliable, con justificación. No lo borra. Permiso confirmar_conciliacion_bancaria.';
 COMMENT ON FUNCTION public.cb_deshacer_no_requiere_conciliacion(uuid) IS
   'Quita la marca No requiere conciliación y el movimiento vuelve a Solo banco.';
+COMMENT ON FUNCTION public.cb_marcar_no_requiere_conciliacion_lote(uuid[], text) IS
+  'Marca varios movimientos del extracto (Mercado Pago, Galicia ARS o Galicia USD) como no conciliables, con una justificación. No los borra.';

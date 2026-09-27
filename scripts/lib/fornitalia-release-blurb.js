@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.59',
+    versionLabel: 'v2.60',
     lines: [
-      'Al cargar tesorería histórica, los movimientos Pendiente ahora sí entran. Anulado sigue sin cargarse.',
-      'El cartel de la carga muestra Sugeridos de cada caja (Galicia, Mercado Pago, etc.) aunque el número sea 0.',
-      'Si hay Ids nuevos, se listan en el resultado para poder controlarlo.'
+      'En Solo banco y Solo sistema de Mercado Pago y Galicia podés marcar varios o todos como No requiere conciliación, con una sola justificación.',
+      'En Potenciales duplicados se seleccionan varios grupos o todos y se descartan de una vez.',
+      'La solapa No requiere muestra si el movimiento es del extracto o de tesorería.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

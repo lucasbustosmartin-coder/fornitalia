@@ -71,7 +71,9 @@
     modal: null,
     modalFiltros: null,
     filtrosDraft: null,
-    excluirId: '',
+    bancoSel: {},
+    dupSel: {},
+    excluirIds: [],
     excluirJustif: '',
     manual: {
       bancoIds: [],
@@ -255,6 +257,10 @@
 
   function esCanalGalicia(c) {
     return c === CANAL_GAL || c === CANAL_GAL_USD;
+  }
+
+  function canalPermiteNoRequiere(c) {
+    return c === CANAL_MP || esCanalGalicia(c);
   }
 
   function esCanalCredicoop(c) {
@@ -473,7 +479,7 @@
   }
 
   function bancoRowsNoRequiere() {
-    return bancoRows().filter(esNoRequiereConciliacion);
+    return rowsNoRequiere();
   }
 
   function sistemaRowsTodos() {
@@ -481,7 +487,29 @@
   }
 
   function sistemaRows() {
-    return sistemaRowsTodos().filter(function (m) { return !esPendienteBaja(m); });
+    return sistemaRowsTodos().filter(function (m) {
+      return !esPendienteBaja(m) && !esNoRequiereConciliacion(m);
+    });
+  }
+
+  function rowsNoRequiere() {
+    return bancoRows().filter(esNoRequiereConciliacion).concat(
+      sistemaRowsTodos().filter(function (m) {
+        return esNoRequiereConciliacion(m) && !esPendienteBaja(m);
+      })
+    );
+  }
+
+  function labelOrigenNoReq(m) {
+    return m && m.origen === 'sistema' ? 'Tesorería' : 'Extracto';
+  }
+
+  function labelListaOrigen(m) {
+    return m && m.origen === 'sistema' ? 'Solo sistema' : 'Solo banco';
+  }
+
+  function origenListaSolo() {
+    return state.lista === 'sistema' ? 'sistema' : 'banco';
   }
 
   function sistemaRowsBaja() {
@@ -2890,21 +2918,58 @@
     }
   }
 
-  function abrirExcluirConciliacion(id) {
-    if (!can(PERM_CONFIRMAR)) return;
-    var m = findMov(id);
-    if (!m || m.origen !== 'banco' || m.canal !== CANAL_MP) return;
-    if (esNoRequiereConciliacion(m)) return;
-    state.excluirId = id;
+  function idsBancoSelVisibles() {
+    return filasVisiblesSolo(origenListaSolo()).filter(function (m) {
+      return !!(state.bancoSel && state.bancoSel[m.id]);
+    }).map(function (m) { return m.id; });
+  }
+
+  function htmlDetalleExcluir(ids, esSis) {
+    var lado = esSis ? 'tesorería' : 'extracto';
+    if (ids.length === 1) {
+      var uno = findMov(ids[0]);
+      if (!uno) return '';
+      return '<p><strong>' + esc(formatFecha(uno.fecha) + ' · ' + formatMonto(uno.monto) + ' · ' + (uno.tipo || uno.descripcion || '—')) + '</strong></p>' +
+        '<p class="cb-field-hint">' + esc(uno.descripcion || '') + (uno.id_movimiento_banco || uno.origen_id ? ' · N° ' + esc(uno.id_movimiento_banco || idTesoreriaVisible(uno)) : '') + '</p>';
+    }
+    var max = 8;
+    var lis = ids.slice(0, max).map(function (id) {
+      var m = findMov(id);
+      if (!m) return '';
+      return '<li>' + esc(formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + ' · ' + (m.tipo || m.descripcion || '—')) + '</li>';
+    }).join('');
+    var extra = ids.length > max ? '<li>… y ' + (ids.length - max) + ' más</li>' : '';
+    return '<p><strong>' + ids.length + ' movimientos</strong> de ' + lado + '.</p><ul class="cb-excluir-list">' + lis + extra + '</ul>';
+  }
+
+  function abrirExcluirConciliacion(idOIds) {
+    if (!can(PERM_CONFIRMAR) || !canalPermiteNoRequiere(state.canal)) return;
+    var ids = Array.isArray(idOIds) ? idOIds.slice() : (idOIds ? [idOIds] : []);
+    ids = ids.filter(function (id) {
+      var m = findMov(id);
+      return m && (m.origen === 'banco' || m.origen === 'sistema') &&
+        canalPermiteNoRequiere(m.canal) && !esNoRequiereConciliacion(m) && !esPendienteBaja(m);
+    });
+    if (!ids.length) {
+      alert('Seleccioná al menos un movimiento.');
+      return;
+    }
+    state.excluirIds = ids;
     state.excluirJustif = '';
-    var det = formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + ' · ' + (m.tipo || m.descripcion || '—');
+    var primero = findMov(ids[0]);
+    var esSis = !!(primero && primero.origen === 'sistema');
+    var nom = labelCanalNombre(state.canal);
+    var listaOrigen = esSis ? 'Solo sistema' : 'Solo banco';
+    var lado = esSis ? 'tesorería' : 'extracto';
+    var ph = esSis
+      ? 'Ej.: ajuste interno; movimiento que no está en el extracto.'
+      : 'Ej.: comisión bancaria; movimiento interno que no está en tesorería.';
     var body =
       FornitaliaHelp.row('tpl-cb-noreq-modal', 'Ayuda: No requiere conciliación',
-        '<p>El movimiento sigue en el extracto de Mercado Pago; no se borra. Deja de entrar a Sugeridos, Conciliación manual y Solo banco. Queda en la solapa <strong>No requiere</strong> con esta justificación.</p>') +
-      '<p><strong>' + esc(det) + '</strong></p>' +
-      '<p class="cb-field-hint">' + esc(m.descripcion || '') + (m.id_movimiento_banco ? ' · N° ' + esc(m.id_movimiento_banco) : '') + '</p>' +
+        '<p>' + (ids.length === 1 ? 'El movimiento sigue' : 'Los movimientos siguen') + ' en la ' + lado + ' de ' + esc(nom) + '; no se borran. Dejan de entrar a Sugeridos, Conciliación manual y ' + listaOrigen + '. Quedan en la solapa <strong>No requiere</strong> con esta justificación.</p>') +
+      htmlDetalleExcluir(ids, esSis) +
       '<label class="cb-just-label" for="cb-excluir-just">Justificación</label>' +
-      '<textarea id="cb-excluir-just" class="cb-just-area" maxlength="800" placeholder="Ej.: comisión de Mercado Pago; movimiento interno que no está en tesorería."></textarea>';
+      '<textarea id="cb-excluir-just" class="cb-just-area" maxlength="800" placeholder="' + esc(ph) + '"></textarea>';
     var footer = '<button type="button" class="cb-btn cb-btn-ok" data-cb="no-req-ok"><span class="btn-icon">' + ICO.check + '</span>Marcar no requiere conciliación</button>';
     abrirModal('No requiere conciliación', body, footer);
     var ju = state.modal && state.modal.querySelector('#cb-excluir-just');
@@ -2912,6 +2977,41 @@
       ju.addEventListener('input', function () { state.excluirJustif = ju.value; });
       try { ju.focus(); } catch (e2) { /* ignore */ }
     }
+  }
+
+  async function marcarNoReqLote(ids, just, onProgress) {
+    var CHUNK = 80;
+    var n = 0;
+    var i;
+    var total = ids.length;
+    if (typeof onProgress === 'function') onProgress(0, total);
+    for (i = 0; i < ids.length; i += CHUNK) {
+      var part = ids.slice(i, i + CHUNK);
+      var rpc = await client().rpc('cb_marcar_no_requiere_conciliacion_lote', {
+        p_ids: part,
+        p_justificacion: just
+      });
+      if (rpc.error) {
+        var msg = (rpc.error.message || '') + '';
+        if (rpc.error.code === 'PGRST202' || /could not find/i.test(msg)) {
+          var j;
+          for (j = 0; j < part.length; j++) {
+            var one = await client().rpc('cb_marcar_no_requiere_conciliacion', {
+              p_id: part[j],
+              p_justificacion: just
+            });
+            if (one.error) throw one.error;
+            n += 1;
+            if (typeof onProgress === 'function') onProgress(n, total);
+          }
+          continue;
+        }
+        throw rpc.error;
+      }
+      n += Number(rpc.data) || part.length;
+      if (typeof onProgress === 'function') onProgress(Math.min(n, total), total);
+    }
+    return n;
   }
 
   async function confirmarExcluirConciliacion() {
@@ -2922,17 +3022,38 @@
       alert('Escribí una justificación de al menos 8 caracteres. Queda registrada con el movimiento.');
       return;
     }
+    var ids = (state.excluirIds || []).slice();
+    if (!ids.length) {
+      alert('Seleccioná al menos un movimiento.');
+      return;
+    }
+    var btn = state.modal && state.modal.querySelector('[data-cb="no-req-ok"]');
+    var btnHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+    }
     try {
-      var rpc = await client().rpc('cb_marcar_no_requiere_conciliacion', {
-        p_id: state.excluirId,
-        p_justificacion: just
+      var n = await marcarNoReqLote(ids, just, function (done, total) {
+        if (!btn) return;
+        btn.innerHTML = '<span class="btn-icon">' + ICO.skip + '</span>Marcando ' + done + ' / ' + total + '…';
       });
-      if (rpc.error) throw rpc.error;
       cerrarModal();
+      state.bancoSel = {};
+      state.excluirIds = [];
       state.lista = 'norequiere';
-      state.msg = 'Marcado como No requiere conciliación. Sigue en el extracto; no se eliminó.';
+      var prim = findMov(ids[0]);
+      var ladoOk = prim && prim.origen === 'sistema' ? 'tesorería' : 'extracto';
+      state.msg = n === 1
+        ? 'Marcado como No requiere conciliación. Sigue en ' + ladoOk + '; no se eliminó.'
+        : (n + ' movimientos marcados como No requiere conciliación. Siguen en ' + ladoOk + '; no se eliminaron.');
       await recargarTodo();
     } catch (e) {
+      if (btn) {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        if (btnHtml) btn.innerHTML = btnHtml;
+      }
       alert(errMsg(e));
     }
   }
@@ -2941,12 +3062,13 @@
     if (!can(PERM_CONFIRMAR)) return;
     var m = findMov(id);
     if (!m || !esNoRequiereConciliacion(m)) return;
-    if (!confirm('¿Volver a conciliar este movimiento?\n\n' + formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + '\n\nVuelve a Solo banco y puede entrar a sugerencias.')) return;
+    var listaVuelta = labelListaOrigen(m);
+    if (!confirm('¿Volver a conciliar este movimiento?\n\n' + formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + '\n\nVuelve a ' + listaVuelta + ' y puede entrar a sugerencias.')) return;
     try {
       var rpc = await client().rpc('cb_deshacer_no_requiere_conciliacion', { p_id: id });
       if (rpc.error) throw rpc.error;
-      state.lista = 'banco';
-      state.msg = 'Ya no está marcado. Volvió a Solo banco.';
+      state.lista = m.origen === 'sistema' ? 'sistema' : 'banco';
+      state.msg = 'Ya no está marcado. Volvió a ' + listaVuelta + '.';
       await recargarTodo();
     } catch (e) {
       alert(errMsg(e));
@@ -3166,11 +3288,9 @@
 
   function pasaFiltrosNoRequiere(m) {
     if (!m) return false;
-    var blob = blobMov(m) + ' ' + (m.no_requiere_justificacion || '') + ' no requiere conciliacion';
+    var blob = blobMov(m) + ' ' + (m.no_requiere_justificacion || '') + ' ' + labelOrigenNoReq(m) + ' no requiere conciliacion';
     if (!pasaFiltro(blob)) return false;
-    if (state.mesExtracto && !pasaFiltroMesValor(m.fecha, state.mesExtracto)) return false;
-    if (state.mesSistema || state.categoria || state.cuenta) return false;
-    return true;
+    return pasaFiltrosMov(m, m.origen === 'sistema' ? 'sistema' : 'banco');
   }
 
   function labelMotivoEliminado(motivo) {
@@ -3229,7 +3349,7 @@
       });
     }
     var norequiere = [];
-    if (state.canal === CANAL_MP) {
+    if (canalPermiteNoRequiere(state.canal)) {
       bancoRowsNoRequiere().forEach(function (m) {
         if (pasaFiltrosNoRequiere(m)) norequiere.push(m);
       });
@@ -3684,6 +3804,7 @@
     if (key === 'id') return { v: m.id_movimiento_banco || idTesoreriaVisible(m), t: 'txt' };
     if (key === 'categoria') return { v: valorCatCta(m.categoria), t: 'txt' };
     if (key === 'cuenta_contable') return { v: valorCatCta(m.cuenta_contable), t: 'txt' };
+    if (key === 'origen_noreq') return { v: labelOrigenNoReq(m), t: 'txt' };
     if (key === 'justificacion') return { v: m.no_requiere_justificacion, t: 'txt' };
     if (key === 'marcado') return { v: isoAFechaArgentina(m.no_requiere_at), t: 'fecha' };
     if (key === 'motivo') return { v: labelMotivoEliminado(m.motivo), t: 'txt' };
@@ -3871,16 +3992,22 @@
   }
 
   function renderTablaSolo(origen) {
-    var ids = idsUsadosActivos();
-    var used = origen === 'banco' ? ids.usedB : ids.usedS;
-    var list = (origen === 'banco' ? bancoRowsConciliables() : sistemaRows()).filter(function (m) {
-      return !used[m.id] && pasaFiltrosMov(m, origen);
-    });
-    list = ordenarFilas(list, valSolo);
+    var list = filasVisiblesSolo(origen);
     var esSis = origen === 'sistema';
+    var conSel = canalPermiteNoRequiere(state.canal) && can(PERM_CONFIRMAR);
+    var nSel = 0;
+    if (conSel) {
+      list.forEach(function (m) { if (state.bancoSel && state.bancoSel[m.id]) nSel += 1; });
+    }
     var html = '';
     list.forEach(function (m) {
+      var checked = !!(conSel && state.bancoSel && state.bancoSel[m.id]);
       html += '<tr>' +
+        (conSel
+          ? '<td class="cb-col-check"><label class="cb-check-cell" data-cb="banco-sel" data-id="' + esc(m.id) + '">' +
+              '<input type="checkbox" title="Seleccionar" aria-label="Seleccionar movimiento"' + (checked ? ' checked' : '') + '>' +
+            '</label></td>'
+          : '') +
         '<td>' + formatFecha(m.fecha) + '</td>' +
         '<td>' + esc(m.tipo || '—') + '</td>' +
         '<td>' + esc(m.descripcion || '—') + '</td>' +
@@ -3900,7 +4027,7 @@
           (!esSis && esCanalExtractoBanco(state.canal) && can(PERM_CARGAR)
             ? btnIcon('del-mov-banco', m.id, 'Eliminar movimiento del extracto', ICO.trash, 'cb-btn-danger')
             : '') +
-          (!esSis && state.canal === CANAL_MP && can(PERM_CONFIRMAR)
+          (canalPermiteNoRequiere(state.canal) && can(PERM_CONFIRMAR)
             ? btnIcon('no-req', m.id, 'No requiere conciliación', ICO.skip)
             : '') +
         '</td>' +
@@ -3911,8 +4038,26 @@
         ? 'No hay movimientos sin pareja con el mes o concepto elegidos.'
         : 'No hay movimientos sin pareja en este listado.') + '</p>';
     }
-    return '<div class="cb-tabla-wrap"><table class="cb-tabla">' +
+    var bar = '';
+    if (conSel) {
+      var allSel = list.length > 0 && nSel === list.length;
+      bar = '<div class="cb-check-bar">' +
+        '<label class="cb-check-line" data-cb="banco-sel-all">' +
+          '<input type="checkbox" id="cb-banco-sel-all" title="Seleccionar todos los listados" aria-label="Seleccionar todos los listados"' + (allSel ? ' checked' : '') + '>' +
+          'Seleccionar todos los listados' +
+        '</label>' +
+        '<span class="cb-field-hint">' + list.length + ' visible' + (list.length === 1 ? '' : 's') +
+          (hayFiltrosActivos() ? ' (con filtros)' : '') +
+          (nSel ? ' · ' + nSel + ' seleccionado' + (nSel === 1 ? '' : 's') : '') + '</span>' +
+        '<button type="button" class="cb-btn cb-btn-ghost" data-cb="no-req-sel"' + (nSel ? '' : ' disabled') +
+          ' title="Marcar los seleccionados como No requiere conciliación" aria-label="No requiere conciliación">' +
+          '<span class="btn-icon">' + ICO.skip + '</span>No requiere conciliación' + (nSel ? ' (' + nSel + ')' : '') +
+        '</button>' +
+      '</div>';
+    }
+    return bar + '<div class="cb-tabla-wrap"><table class="cb-tabla">' +
       '<thead><tr>' +
+        (conSel ? '<th class="cb-col-check"><span class="sr-only">Seleccionar</span></th>' : '') +
         thSort('fecha', 'Fecha') +
         thSort('tipo', 'Tipo') +
         thSort('descripcion', 'Descripción') +
@@ -3926,7 +4071,7 @@
         thSort('usuario', 'Usuario') +
         '<th class="cb-col-acc">Acciones</th>' +
       '</tr></thead>' +
-      '<tbody>' + html +       '</tbody></table></div>';
+      '<tbody>' + html + '</tbody></table></div>';
   }
 
   function filasVisiblesBaja() {
@@ -4029,11 +4174,22 @@
 
   function renderTablaDups() {
     var rows = filasVisiblesDups();
+    var conSel = can(PERM_CONFIRMAR);
+    var nSel = 0;
+    if (conSel) {
+      rows.forEach(function (g) { if (state.dupSel && state.dupSel[g.id]) nSel += 1; });
+    }
     var html = '';
     rows.forEach(function (g) {
       var fechas = formatFecha(g.fechaMin) +
         (g.fechaMin !== g.fechaMax ? ' → ' + formatFecha(g.fechaMax) : '');
+      var checked = !!(conSel && state.dupSel && state.dupSel[g.id]);
       html += '<tr>' +
+        (conSel
+          ? '<td class="cb-col-check"><label class="cb-check-cell" data-cb="dup-sel" data-id="' + esc(g.id) + '">' +
+              '<input type="checkbox" title="Seleccionar" aria-label="Seleccionar grupo"' + (checked ? ' checked' : '') + '>' +
+            '</label></td>'
+          : '') +
         '<td class="cb-col-monto">' + htmlMonto(g.monto) + '</td>' +
         '<td><span class="cb-badge cb-badge-warn">' + esc(labelVecesDup(g.veces)) + '</span> · ' + g.veces + '</td>' +
         '<td>' + esc(fechas) + '</td>' +
@@ -4044,7 +4200,7 @@
         '<td>' + esc(idsOrigenGrupo(g.movs) || '—') + '</td>' +
         '<td class="cb-col-acc">' +
           btnIcon('ver-dup', g.id, 'Ver todos los registros del grupo', ICO.eye) +
-          (can(PERM_CONFIRMAR) ? btnIcon('dup-off', g.id, 'Descartar este grupo (no vuelve a listarse)', ICO.x, 'cb-btn-danger') : '') +
+          (conSel ? btnIcon('dup-off', g.id, 'Descartar este grupo (no vuelve a listarse)', ICO.x, 'cb-btn-danger') : '') +
         '</td>' +
       '</tr>';
     });
@@ -4055,10 +4211,29 @@
           ? 'No hay potenciales duplicados de tesorería con los filtros activos.'
           : 'No hay potenciales duplicados de tesorería (mismo importe y hasta ' + DUP_TESORERIA_DIAS + ' días).') + '</p>';
     }
+    var bar = '';
+    if (conSel) {
+      var allSel = rows.length > 0 && nSel === rows.length;
+      bar = '<div class="cb-check-bar">' +
+        '<label class="cb-check-line" data-cb="dup-sel-all">' +
+          '<input type="checkbox" id="cb-dup-sel-all" title="Seleccionar todos los listados" aria-label="Seleccionar todos los listados"' + (allSel ? ' checked' : '') + '>' +
+          'Seleccionar todos los listados' +
+        '</label>' +
+        '<span class="cb-field-hint">' + rows.length + ' visible' + (rows.length === 1 ? '' : 's') +
+          (hayFiltrosActivos() ? ' (con filtros)' : '') +
+          (nSel ? ' · ' + nSel + ' seleccionado' + (nSel === 1 ? '' : 's') : '') + '</span>' +
+        '<button type="button" class="cb-btn cb-btn-danger" data-cb="dup-off-sel"' + (nSel ? '' : ' disabled') +
+          ' title="Descartar los grupos seleccionados" aria-label="Descartar seleccionados">' +
+          '<span class="btn-icon">' + ICO.x + '</span>Descartar seleccionados' + (nSel ? ' (' + nSel + ')' : '') +
+        '</button>' +
+      '</div>';
+    }
     return FornitaliaHelp.row('tpl-cb-dups', 'Ayuda: Potenciales duplicados',
-      '<p>Grupos de tesorería con <strong>importe idéntico</strong> y distancia de fechas de hasta <strong>' + DUP_TESORERIA_DIAS + ' días</strong> (si A está a ≤40 días de B y B de C, el grupo puede tener 3 o más). No incluye Apertura de Caja ni tesorería en A eliminar. El ojito muestra todos los campos de cada registro. Descartar persiste el conjunto de IDs: no vuelve a listarse; un movimiento nuevo al grupo sí lo muestra otra vez. Deshacer está en Duplicados descartados.</p>') +
+      '<p>Grupos de tesorería con <strong>importe idéntico</strong> y distancia de fechas de hasta <strong>' + DUP_TESORERIA_DIAS + ' días</strong> (si A está a ≤40 días de B y B de C, el grupo puede tener 3 o más). No incluye Apertura de Caja ni tesorería en A eliminar. El ojito muestra todos los campos de cada registro. Podés descartar uno, varios o todos los listados: no vuelven a listarse; un movimiento nuevo al grupo sí lo muestra otra vez. Deshacer está en Duplicados descartados.</p>') +
+      bar +
       '<div class="cb-tabla-wrap"><table class="cb-tabla">' +
       '<thead><tr>' +
+        (conSel ? '<th class="cb-col-check"><span class="sr-only">Seleccionar</span></th>' : '') +
         thSort('monto', 'Importe', 'cb-col-monto') +
         thSort('veces', 'Veces') +
         thSort('fecha', 'Fechas') +
@@ -4167,7 +4342,7 @@
 
   function filasVisiblesNoRequiere() {
     return ordenarFilas(
-      bancoRowsNoRequiere().filter(pasaFiltrosNoRequiere),
+      rowsNoRequiere().filter(pasaFiltrosNoRequiere),
       valSolo
     );
   }
@@ -4178,6 +4353,7 @@
     list.forEach(function (m) {
       html += '<tr>' +
         '<td>' + formatFecha(m.fecha) + '</td>' +
+        '<td>' + esc(labelOrigenNoReq(m)) + '</td>' +
         '<td>' + esc(m.tipo || '—') + '</td>' +
         '<td>' + esc(m.descripcion || '—') + '</td>' +
         '<td class="cb-col-obs">' + esc(observacionesDe(m) || '—') + '</td>' +
@@ -4189,7 +4365,7 @@
         '<td class="cb-col-acc">' +
           btnIcon('ver-mov', m.id, 'Ver detalle del movimiento', ICO.eye) +
           (can(PERM_CONFIRMAR)
-            ? btnIcon('no-req-undo', m.id, 'Volver a Solo banco', ICO.undo)
+            ? btnIcon('no-req-undo', m.id, 'Volver a ' + labelListaOrigen(m), ICO.undo)
             : '') +
         '</td>' +
       '</tr>';
@@ -4197,13 +4373,14 @@
     if (!html) {
       return '<p class="cb-empty">' + (hayFiltrosActivos()
         ? 'No hay movimientos con No requiere conciliación para el mes o búsqueda elegidos.'
-        : 'No hay movimientos marcados como No requiere conciliación. Desde Solo banco podés marcar uno con justificación; no se borra del extracto.') + '</p>';
+        : 'No hay movimientos marcados como No requiere conciliación. Desde Solo banco o Solo sistema podés marcar uno, varios o todos con justificación; no se borran.') + '</p>';
     }
     return FornitaliaHelp.row('tpl-cb-norequiere', 'Ayuda: No requiere conciliación',
-      '<p>Movimientos del extracto de Mercado Pago que no se concilian. Siguen en la base (el extracto los trae). La justificación queda registrada. Desde acá se puede deshacer y vuelven a Solo banco.</p>') +
+      '<p>Movimientos del extracto o de tesorería que no se concilian. Siguen en la base. La justificación queda registrada. Desde acá se puede deshacer y vuelven a Solo banco o Solo sistema.</p>') +
       '<div class="cb-tabla-wrap"><table class="cb-tabla">' +
       '<thead><tr>' +
         thSort('fecha', 'Fecha') +
+        thSort('origen_noreq', 'Origen') +
         thSort('tipo', 'Tipo') +
         thSort('descripcion', 'Descripción') +
         thSort('observaciones', 'Observaciones') +
@@ -4249,6 +4426,7 @@
       dlCampo('Fila Excel', m.fila_excel) +
       (esNoRequiereConciliacion(m)
         ? dlCampo('No requiere conciliación', 'Sí') +
+          dlCampo('Origen', labelOrigenNoReq(m)) +
           dlCampo('Justificación', m.no_requiere_justificacion) +
           dlCampo('Marcado', formatFecha(isoAFechaArgentina(m.no_requiere_at)))
         : '') +
@@ -4432,6 +4610,12 @@
     );
   }
 
+  function gruposDupSelVisibles() {
+    return filasVisiblesDups().filter(function (g) {
+      return !!(state.dupSel && state.dupSel[g.id]);
+    });
+  }
+
   async function descartarGrupoDup(groupId) {
     if (!can(PERM_CONFIRMAR)) return;
     var g = findGrupoDupPorId(groupId);
@@ -4450,7 +4634,61 @@
       });
       if (rpc.error) throw rpc.error;
       cerrarModal();
+      state.dupSel = {};
       state.msg = 'Grupo descartado. No vuelve a Potenciales duplicados.';
+      await recargarTodo();
+    } catch (e) {
+      alert(errMsg(e));
+    }
+  }
+
+  async function descartarGruposDupSel() {
+    if (!can(PERM_CONFIRMAR)) return;
+    var groups = gruposDupSelVisibles();
+    if (!groups.length) {
+      alert('Seleccioná al menos un grupo.');
+      return;
+    }
+    if (groups.length === 1) {
+      await descartarGrupoDup(groups[0].id);
+      return;
+    }
+    if (!confirm('¿Descartar los ' + groups.length + ' grupos como potenciales duplicados?\n\n' +
+        'No vuelven a listarse mientras sea el mismo conjunto de movimientos. Si entra otro al grupo, sí se muestra. Podés deshacerlo en Duplicados descartados.')) {
+      return;
+    }
+    var CHUNK = 40;
+    var n = 0;
+    var i;
+    try {
+      for (i = 0; i < groups.length; i += CHUNK) {
+        var part = groups.slice(i, i + CHUNK);
+        var payload = part.map(function (g) { return idsDeGrupoDup(g); });
+        var rpc = await client().rpc('cb_descartar_dup_tesoreria_lote', {
+          p_canal: state.canal,
+          p_grupos: payload
+        });
+        if (rpc.error) {
+          var msg = (rpc.error.message || '') + '';
+          if (rpc.error.code === 'PGRST202' || /could not find/i.test(msg)) {
+            var j;
+            for (j = 0; j < part.length; j++) {
+              var one = await client().rpc('cb_descartar_dup_tesoreria', {
+                p_canal: state.canal,
+                p_ids: idsDeGrupoDup(part[j])
+              });
+              if (one.error) throw one.error;
+              n += 1;
+            }
+            continue;
+          }
+          throw rpc.error;
+        }
+        n += Number(rpc.data) || part.length;
+      }
+      state.dupSel = {};
+      state.lista = 'dups_desc';
+      state.msg = n + ' grupos descartados. No vuelven a Potenciales duplicados.';
       await recargarTodo();
     } catch (e) {
       alert(errMsg(e));
@@ -5097,10 +5335,10 @@
         ]);
       });
     } else if (state.lista === 'norequiere') {
-      aoa.push(['Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Contraparte', 'Importe', 'Justificación', 'Marcado', 'ID', 'Usuario']);
-      dateCols = [0, 7];
-      numCols = [5];
-      cols = [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 14 }, { wch: 40 }, { wch: 12 }, { wch: 22 }, { wch: 10 }];
+      aoa.push(['Fecha', 'Origen', 'Tipo', 'Descripción', 'Observaciones', 'Contraparte', 'Importe', 'Justificación', 'Marcado', 'ID', 'Usuario']);
+      dateCols = [0, 8];
+      numCols = [6];
+      cols = [{ wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 14 }, { wch: 40 }, { wch: 12 }, { wch: 22 }, { wch: 10 }];
       var excl = filasVisiblesNoRequiere();
       if (!excl.length) {
         alert('No hay filas visibles con los filtros activos para exportar.');
@@ -5109,6 +5347,7 @@
       excl.forEach(function (m) {
         aoa.push([
           excelDate(m.fecha),
+          labelOrigenNoReq(m),
           m.tipo || '',
           m.descripcion || '',
           observacionesDe(m),
@@ -5320,7 +5559,8 @@
           '<p>El día a día se carga con el Excel <em>Extracto_CCE…</em>. El PDF <em>Extracto_Cuentas_Galicia_…</em> (cuenta en dólares) solo verifica; no da de alta movimientos. El Excel retira lo que ya no trae. Tesorería se compara aparte.</p>' +
           '<p>Los importes se concilian en <strong>USD</strong> contra tesorería <em>tesoreria_transferencia_galicia_dolar_…</em> (Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (<em>cierre_CIERRE-…</em> o <em>cierre_DOL-…</em> con Caja = Transferencia Galicia Dolar y Moneda USD) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: solo filas Transferencia Galicia Dolar).</p>' +
           '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos. Status Pendiente sí se da de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Si un Id de tesorería abierta ya no viene, pasa a <strong>A eliminar</strong>. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
-          '<p>Al cargar el extracto, el saldo de corte se pesifica al MEP (fecha del último movimiento o cotización anterior) y entra a Saldos extractos. El match es por importe y fecha (máximo 4 días).</p>',
+          '<p>Al cargar el extracto, el saldo de corte se pesifica al MEP (fecha del último movimiento o cotización anterior) y entra a Saldos extractos. El match es por importe y fecha (máximo 4 días).</p>' +
+          '<p>En Solo banco y Solo sistema podés marcar uno, varios o todos los listados como <strong>No requiere conciliación</strong> (con una justificación): no se borran; van a la solapa No requiere.</p>',
         btnBanco: 'Cargar extracto Galicia (USD)',
         btnSistema: 'Cargar tesorería Galicia (USD)',
         kpiBanco: 'Extracto Galicia (USD)'
@@ -5334,6 +5574,7 @@
           '<p>También la tesorería Transferencia Galicia (<em>tesoreria_transferencia_galicia_…</em>: Tipo, Fecha, Crédito, Débito e Id), el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto). El Id evita duplicados y actualiza si cambió algún dato. La columna Caja reparte Mercado Pago / Galicia ARS / Galicia USD; Efectivo y Morba no entran acá.</p>' +
           '<p>Si un Id de tesorería abierta ya no viene en el Excel, pasa a <strong>A eliminar</strong>. Apertura de Caja no se sube. Status Anulado no se sube. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f y a Saldos extractos. Status Pendiente sí se da de alta (o se actualiza si el Id ya existía). Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican.</p>' +
           '<p>La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde.</p>' +
+          '<p>En Solo banco y Solo sistema podés marcar uno, varios o todos los listados como <strong>No requiere conciliación</strong> (con una justificación): no se borran; van a la solapa No requiere.</p>' +
           '<p>También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1), o dos o más movimientos del mismo extracto si el crédito y el débito se compensan y no hay tesorería. El Excel exporta el listado visible con los filtros activos.</p>',
         btnBanco: 'Cargar extracto Galicia',
         btnSistema: 'Cargar tesorería Galicia',
@@ -5345,7 +5586,7 @@
         '<p>Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (<em>tesoreria_mercadopago_…</em>: Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em> o <em>MP_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: se cargan las filas MercadoPago; Galicia por Caja; Efectivo/Morba se omiten).</p>' +
         '<p><strong>El extracto MP es el banco (fuente de verdad)</strong>: lo que no está ahí no está. Tesorería son los movimientos administrativos de la app; las diferencias se ven en Sugeridos, Solo banco y Solo sistema.</p>' +
         '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos. Status Pendiente sí se da de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa <strong>A eliminar</strong> para confirmar la baja. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
-        '<p>Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. En Solo banco podés marcar un movimiento como <strong>No requiere conciliación</strong> (con justificación): no se borra del extracto.</p>' +
+        '<p>Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. En Solo banco y Solo sistema podés marcar uno, varios o todos los listados como <strong>No requiere conciliación</strong> (con una justificación): no se borran.</p>' +
         '<p>La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde.</p>' +
         '<p>También podés conciliar a mano varios extractos con una o más tesorerías, o dos o más movimientos del mismo extracto si el crédito y el débito se compensan. El Excel exporta el listado visible con los filtros activos.</p>',
       btnBanco: 'Cargar extracto Mercado Pago',
@@ -5355,7 +5596,8 @@
   }
 
   function renderCanal() {
-    if (state.canal !== CANAL_MP && (state.lista === 'anulados' || state.lista === 'norequiere')) state.lista = 'sugeridos';
+    if (state.canal !== CANAL_MP && state.lista === 'anulados') state.lista = 'sugeridos';
+    if (!canalPermiteNoRequiere(state.canal) && state.lista === 'norequiere') state.lista = 'sugeridos';
     syncFiltrosConOpciones();
     var k = kpis();
     var lab = labelsCanal();
@@ -5396,8 +5638,10 @@
         htmlResumenCard('Potenciales duplicados', k.dups, k.sumDups, k.dups ? 'cb-resumen-warn' : '', 'dups', 'Ver tesorería con el mismo importe y hasta 40 días') +
         htmlResumenCard('Duplicados descartados', k.dupsDesc, k.sumDupsDesc, '', 'dups_desc', 'Ver grupos que ya no se listan como potenciales duplicados') +
         (state.canal === CANAL_MP
-          ? htmlResumenCard('Anulados', k.anulados, k.sumAnul) +
-            htmlResumenCard('No requiere', k.norequiere, k.sumNorequiere, '', 'norequiere', 'Ver movimientos que no requieren conciliación')
+          ? htmlResumenCard('Anulados', k.anulados, k.sumAnul)
+          : '') +
+        (canalPermiteNoRequiere(state.canal)
+          ? htmlResumenCard('No requiere', k.norequiere, k.sumNorequiere, '', 'norequiere', 'Ver movimientos que no requieren conciliación')
           : '') +
         htmlResumenCard('A eliminar', k.bajas, k.sumBajas, k.bajas ? 'cb-resumen-warn' : '', 'bajas', 'Ver tesorería a eliminar') +
         htmlResumenCard('Tesorería eliminada', k.eliminados, k.sumEliminados, '', 'eliminados', 'Ver tesorería ya borrada') +
@@ -5412,8 +5656,10 @@
         FornitaliaHelp.tabButton(k.bajas ? 'cb-tab-warn' : '', state.lista === 'bajas', 'data-cb="lista" data-lista="bajas"', 'A eliminar' + (k.bajas ? ' (' + k.bajas + ')' : '')) +
         FornitaliaHelp.tabButton('', state.lista === 'eliminados', 'data-cb="lista" data-lista="eliminados"', 'Tesorería eliminada' + (k.eliminados ? ' (' + k.eliminados + ')' : '')) +
         (state.canal === CANAL_MP
-          ? FornitaliaHelp.tabButton('', state.lista === 'anulados', 'data-cb="lista" data-lista="anulados"', 'Mercado Pago Anulados') +
-            FornitaliaHelp.tabButton('', state.lista === 'norequiere', 'data-cb="lista" data-lista="norequiere"', 'No requiere')
+          ? FornitaliaHelp.tabButton('', state.lista === 'anulados', 'data-cb="lista" data-lista="anulados"', 'Mercado Pago Anulados')
+          : '') +
+        (canalPermiteNoRequiere(state.canal)
+          ? FornitaliaHelp.tabButton('', state.lista === 'norequiere', 'data-cb="lista" data-lista="norequiere"', 'No requiere')
           : '') +
       '</div>' +
       listaHtml;
@@ -5448,6 +5694,22 @@
         }
       });
     }
+    var boxAll = el.querySelector('#cb-banco-sel-all');
+    if (boxAll && (state.lista === 'banco' || state.lista === 'sistema')) {
+      var vis = filasVisiblesSolo(origenListaSolo());
+      var n = 0;
+      vis.forEach(function (m) { if (state.bancoSel && state.bancoSel[m.id]) n += 1; });
+      boxAll.checked = vis.length > 0 && n === vis.length;
+      boxAll.indeterminate = n > 0 && n < vis.length;
+    }
+    var boxDupAllSync = el.querySelector('#cb-dup-sel-all');
+    if (boxDupAllSync && state.lista === 'dups') {
+      var visDup = filasVisiblesDups();
+      var nDup = 0;
+      visDup.forEach(function (g) { if (state.dupSel && state.dupSel[g.id]) nDup += 1; });
+      boxDupAllSync.checked = visDup.length > 0 && nDup === visDup.length;
+      boxDupAllSync.indeterminate = nDup > 0 && nDup < visDup.length;
+    }
   }
 
   function onClick(ev) {
@@ -5460,6 +5722,8 @@
     if (a === 'canal') {
       state.canal = t.getAttribute('data-canal') || CANAL_MP;
       state.lista = 'sugeridos';
+      state.bancoSel = {};
+      state.dupSel = {};
       state.mesExtracto = '';
       state.mesSistema = '';
       state.categoria = '';
@@ -5468,7 +5732,16 @@
       return;
     }
     if (a === 'filtros') { abrirModalFiltros('vista'); return; }
-    if (a === 'lista') { state.lista = t.getAttribute('data-lista') || 'sugeridos'; renderShell(); return; }
+    if (a === 'lista') {
+      var nextLista = t.getAttribute('data-lista') || 'sugeridos';
+      if (nextLista !== state.lista) {
+        state.bancoSel = {};
+        state.dupSel = {};
+      }
+      state.lista = nextLista;
+      renderShell();
+      return;
+    }
     if (a === 'sort') { toggleSort(t.getAttribute('data-sort')); renderShell(); return; }
     if (a === 'up-banco') { onUpload('banco'); return; }
     if (a === 'up-sistema') { onUpload('sistema'); return; }
@@ -5481,10 +5754,57 @@
     if (a === 'ver-par-anulado') { abrirDetalleParAnulado(id); return; }
     if (a === 'ver-dup') { abrirDetalleDup(id); return; }
     if (a === 'ver-dup-desc') { abrirDetalleDupDesc(id); return; }
+    if (a === 'dup-sel') {
+      var boxDup = (t.tagName === 'INPUT') ? t : t.querySelector('input[type="checkbox"]');
+      if (!boxDup || !id) return;
+      if (!state.dupSel) state.dupSel = {};
+      if (boxDup.checked) state.dupSel[id] = true;
+      else delete state.dupSel[id];
+      renderShell();
+      return;
+    }
+    if (a === 'dup-sel-all') {
+      var boxDupAll = (t.tagName === 'INPUT') ? t : t.querySelector('input[type="checkbox"]');
+      if (!boxDupAll) return;
+      var visDups = filasVisiblesDups();
+      if (!state.dupSel) state.dupSel = {};
+      visDups.forEach(function (g) {
+        if (boxDupAll.checked) state.dupSel[g.id] = true;
+        else delete state.dupSel[g.id];
+      });
+      renderShell();
+      return;
+    }
+    if (a === 'dup-off-sel') { descartarGruposDupSel(); return; }
     if (a === 'dup-off') { descartarGrupoDup(id); return; }
     if (a === 'dup-undo') { deshacerDupDescartado(id); return; }
     if (a === 'del-mov') { borrarMovimientoSistema(id); return; }
     if (a === 'del-mov-banco') { borrarMovimientoBancoGalicia(id); return; }
+    if (a === 'banco-sel') {
+      var boxSel = (t.tagName === 'INPUT') ? t : t.querySelector('input[type="checkbox"]');
+      if (!boxSel || !id) return;
+      if (!state.bancoSel) state.bancoSel = {};
+      if (boxSel.checked) state.bancoSel[id] = true;
+      else delete state.bancoSel[id];
+      renderShell();
+      return;
+    }
+    if (a === 'banco-sel-all') {
+      var boxAll = (t.tagName === 'INPUT') ? t : t.querySelector('input[type="checkbox"]');
+      if (!boxAll) return;
+      var visBanco = filasVisiblesSolo(origenListaSolo());
+      if (!state.bancoSel) state.bancoSel = {};
+      visBanco.forEach(function (m) {
+        if (boxAll.checked) state.bancoSel[m.id] = true;
+        else delete state.bancoSel[m.id];
+      });
+      renderShell();
+      return;
+    }
+    if (a === 'no-req-sel') {
+      abrirExcluirConciliacion(idsBancoSelVisibles());
+      return;
+    }
     if (a === 'no-req') { abrirExcluirConciliacion(id); return; }
     if (a === 'no-req-undo') { deshacerExcluirConciliacion(id); return; }
     if (a === 'baja-ok') { confirmarBajaTesoreria(id); return; }
