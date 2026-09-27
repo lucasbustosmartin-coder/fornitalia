@@ -822,7 +822,12 @@
   }
 
   function filasBajas() {
-    return movimientosCanal().filter(function (m) { return m.pendiente_baja; });
+    return movimientosCanal().filter(function (m) {
+      if (!m || !m.pendiente_baja) return false;
+      var raw = m.raw || {};
+      var s = String(raw.status || raw.Status || '').trim().toLowerCase();
+      return s === 'pendiente';
+    });
   }
 
   function valorCatCta(v) {
@@ -1952,7 +1957,7 @@
         '<p>Cajas que <strong>no se concilian</strong> con extracto bancario. Solapas <strong>' + esc(LABEL_GF) + '</strong> (efectivo pesos), <strong>' + esc(LABEL_MOR) + '</strong> (Transferencia Morba), <strong>' + esc(LABEL_USD) + '</strong> (efectivo dólar, pesificado al MEP), <strong>' + esc(LABEL_SF) + '</strong> (Caja = Efectivo Pesos (sin factura)) y <strong>' + esc(LABEL_SF_USD) + '</strong> (Caja = Efectivo Dolar (sin factura)).</p>' +
         '<p>Mismos Excel que tesorería/cierre, con Id para no duplicar. El saldo alimenta Saldos extractos.</p>' +
         '<p>Cargá <em>' + esc(archivosHint(state.canal).split(' o ')[0]) + '</em> o <em>' + esc(archivosHint(state.canal).split(' o ')[1] || '') + '</em>. Tesorería abierta trae saldo corrido; el cierre ya cerrado trae Fecha, Tipo, Monto e Id.</p>' +
-        '<p>Apertura de Caja y Status Anulado no se suben. Apertura no entra al corte de Saldos extractos. El histórico carga movimientos pero no pisa el saldo de tesorería o cierre. Status Pendiente sí se da de alta en todas las cajas. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> entran a Efectivo-s/f aunque vengan en un histórico, cierre u otro Excel de tesorería; el saldo alimenta Saldos extractos. Si un Id de tesorería abierta ya no viene, pasa a <strong>A eliminar</strong>.' +
+        '<p>Apertura de Caja y Status Anulado no se suben. Apertura no entra al corte de Saldos extractos. El histórico carga movimientos pero no pisa el saldo de tesorería o cierre. Status Pendiente sí se da de alta en todas las cajas. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> entran a Efectivo-s/f aunque vengan en un histórico, cierre u otro Excel de tesorería; el saldo alimenta Saldos extractos. Solo un Id <strong>Pendiente</strong> (caja abierta) que ya no viene pasa a <strong>A eliminar</strong>; un Confirmado no se elimina.' +
         (esCanalUsd(state.canal) ? ' Los montos del Excel están en <strong>USD</strong> y se pesifican al <strong>MEP</strong> de <em>tipo_de_cambio</em> (fecha del movimiento o última cotización anterior). La grilla muestra ARS, USD original y el TC usado.' : '') + '</p>') +
       (state.loading ? '<p class="loading">Cargando caja…</p>' : '') +
       (state.err ? '<p class="cf-msg-err">' + esc(state.err) + '</p>' : '') +

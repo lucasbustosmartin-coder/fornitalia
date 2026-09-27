@@ -1,5 +1,6 @@
--- Tesorería abierta (tesoreria_*.xlsx con Id): marcar Ids que ya no vienen
--- en el último archivo y confirmar la baja definitiva.
+-- Tesorería abierta: solo Status Pendiente (caja abierta) es susceptible de
+-- baja. Confirmado nunca. Da igual si el Id entró por tesoreria_*.xlsx o por
+-- el histórico: un Pendiente se puede anular en el sistema y desaparece.
 
 ALTER TABLE public.cb_movimiento
   ADD COLUMN IF NOT EXISTS pendiente_baja boolean NOT NULL DEFAULT false;
@@ -17,10 +18,7 @@ AS $$
     AND p_mov.origen_id LIKE 'id|%'
     AND COALESCE(p_mov.raw->>'formato', '') <> 'cierre'
     AND COALESCE(p_mov.archivo, '') NOT ILIKE '%CIERRE%'
-    AND (
-      COALESCE(p_mov.raw->>'formato', '') = 'tesoreria'
-      OR COALESCE(p_mov.archivo, '') ILIKE '%tesoreria_%'
-    );
+    AND lower(btrim(COALESCE(p_mov.raw->>'status', p_mov.raw->>'Status', ''))) = 'pendiente';
 $$;
 
 CREATE OR REPLACE FUNCTION public.cb_marcar_tesoreria_abierta_ausente(
@@ -42,7 +40,7 @@ BEGIN
   IF NOT public.has_permission('cargar_conciliacion_bancaria') THEN
     RAISE EXCEPTION 'Sin permiso para cargar conciliación bancaria.' USING ERRCODE = '42501';
   END IF;
-  IF p_canal IS NULL OR p_canal NOT IN ('mercadopago', 'galicia') THEN
+  IF p_canal IS NULL OR p_canal NOT IN ('mercadopago', 'galicia', 'galicia_usd', 'credicoop') THEN
     RAISE EXCEPTION 'Canal inválido.';
   END IF;
 
@@ -51,6 +49,12 @@ BEGIN
     FROM unnest(COALESCE(p_origen_ids, ARRAY[]::text[])) AS x
     WHERE NULLIF(btrim(x), '') IS NOT NULL
   );
+
+  UPDATE public.cb_movimiento m
+  SET pendiente_baja = false
+  WHERE m.canal = p_canal
+    AND COALESCE(m.pendiente_baja, false)
+    AND lower(btrim(COALESCE(m.raw->>'status', m.raw->>'Status', ''))) IS DISTINCT FROM 'pendiente';
 
   UPDATE public.cb_movimiento m
   SET pendiente_baja = false
@@ -97,7 +101,7 @@ BEGIN
     RAISE EXCEPTION 'Este movimiento no está en la lista de bajas a confirmar.';
   END IF;
   IF NOT public.cb_es_tesoreria_abierta(v_mov) THEN
-    RAISE EXCEPTION 'Solo se confirma la baja de tesorería abierta.';
+    RAISE EXCEPTION 'Solo se confirma la baja de un movimiento Pendiente (caja abierta).';
   END IF;
 
   DELETE FROM public.cb_match m
@@ -116,8 +120,8 @@ GRANT EXECUTE ON FUNCTION public.cb_confirmar_baja_tesoreria(uuid) TO authentica
 REVOKE EXECUTE ON FUNCTION public.cb_confirmar_baja_tesoreria(uuid) FROM PUBLIC;
 
 COMMENT ON COLUMN public.cb_movimiento.pendiente_baja IS
-  'Tesorería abierta cuyo Id no vino en el último tesoreria_*.xlsx; espera confirmación de baja.';
+  'Status Pendiente (caja abierta) cuyo Id no vino en tesorería o histórico; espera confirmación de baja. Confirmado nunca.';
 COMMENT ON FUNCTION public.cb_marcar_tesoreria_abierta_ausente(text, text[]) IS
-  'Marca tesorería abierta del canal cuyo origen_id no está en el archivo subido.';
+  'Marca Pendiente ausente del archivo (tesorería o histórico). Confirmado no se marca.';
 COMMENT ON FUNCTION public.cb_confirmar_baja_tesoreria(uuid) IS
-  'Elimina tesorería abierta marcada a baja (y sus parejas). Permiso cargar_conciliacion_bancaria.';
+  'Elimina un Pendiente marcado a baja (y sus parejas). Permiso cargar_conciliacion_bancaria.';

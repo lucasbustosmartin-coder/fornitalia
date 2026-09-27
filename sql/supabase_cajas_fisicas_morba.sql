@@ -173,6 +173,12 @@ BEGIN
   UPDATE public.cf_movimiento m
   SET pendiente_baja = false
   WHERE m.canal = p_canal
+    AND COALESCE(m.pendiente_baja, false)
+    AND lower(btrim(COALESCE(m.raw->>'status', m.raw->>'Status', ''))) IS DISTINCT FROM 'pendiente';
+
+  UPDATE public.cf_movimiento m
+  SET pendiente_baja = false
+  WHERE m.canal = p_canal
     AND public.cf_es_tesoreria_abierta(m)
     AND m.origen_id = ANY (v_ids);
 

@@ -8,11 +8,10 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.60',
+    versionLabel: 'v2.61',
     lines: [
-      'En Solo banco y Solo sistema de Mercado Pago y Galicia podés marcar varios o todos como No requiere conciliación, con una sola justificación.',
-      'En Potenciales duplicados se seleccionan varios grupos o todos y se descartan de una vez.',
-      'La solapa No requiere muestra si el movimiento es del extracto o de tesorería.'
+      'En A eliminar solo aparecen movimientos Pendiente (caja abierta) que ya no vienen en tesorería o en el histórico. Un Confirmado no se elimina.',
+      'En Flujo de caja, Costo dir., Costo ind. y Costo total se calculan sobre Ingresos.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

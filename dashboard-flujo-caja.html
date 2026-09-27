@@ -10,16 +10,16 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.59"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.61"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.52"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.60">
-  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.60"></script>
+  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.61"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.58">
   <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.58"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.59">
-  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.59"></script>
+  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.61"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.55">
   <script src="scripts/lib/fornitalia-impuestos.js?v=2.55"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.56">
@@ -1115,7 +1115,7 @@
           <p>En <strong>ARS</strong>, movimientos en <strong>USD</strong>: <strong>monto × tipo_cambio</strong> de la fila; si falta, <strong>monto × cotización</strong> de la tabla (MEP/CCL/Oficial); si no hay tasa, <strong>monto_cambio</strong> en BD. Movimientos ya en ARS: se usa <strong>monto</strong> (no <strong>monto_cambio</strong>, que en el extracto puede venir desalineado).</p>
           <p>Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = caja operativa neteada: egresos con <code>ef_subitem</code> de ingreso §1 (Cobranzas, Otros ingresos operativos, etc.) se restan de ambas columnas del mes (devoluciones / ajustes al mismo rubro que el Estado Financiero). <strong>G/P operativo</strong> = Ingresos − Egresos (sin cambio). Fuente: tesorería (conciliación + cajas físicas) unida a la Matriz EF.</p>
           <p><strong>Comisiones / Ventas %</strong> = egresos con <code>ef_subitem</code> <strong>Comisiones por Ventas</strong> ÷ ingresos con <code>ef_subitem</code> <strong>Cobranzas por Ventas (Efectivo neto ingresado)</strong> del mes (subítems canónicos EF; alias cortos se normalizan). Sin <code>ef_subitem</code> la fila no entra al ratio.</p>
-          <p>Columnas <strong>Costo dir.</strong>, <strong>Costo ind.</strong> y <strong>Costo total / Ingreso total</strong> usan la misma fórmula % del Flujo Op. que el Estado Financiero (montos internos sin redondear; solo la visualización de importes es entera).</p>
+          <p>El denominador de <strong>Costo dir. / Ingresos</strong>, <strong>Costo ind. / Ingresos</strong> y <strong>Costo total / Ingreso total</strong> es siempre la columna <strong>Ingresos</strong> del mes. Numeradores: COSTOS DIRECTOS (§2), COSTOS INDIRECTOS (§3) y Egresos de la fila (costo total). Cálculo simple, sin Flujo Operativo Generado.</p>
           <p>El botón <strong>Cargar tesorería histórica</strong> toma el Excel <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto) y lo reparte a todas las cajas de una vez: bancos en Conciliación y cajas físicas según la columna Caja. En Conciliación recálcula los sugeridos de cada caja (Mercado Pago, Galicia, Galicia USD, Credicoop) y el cartel siempre muestra el resultado, aunque sea 0.</p>
         </div>
       </template>
@@ -1140,9 +1140,9 @@
             <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="egresos" data-label="Egresos" title="Ordenar Egresos" aria-label="Ordenar por Egresos">Egresos<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="Egresos operativos del mes, menos devoluciones §1 (egresos imputados al mismo ef_subitem que un ingreso de §1). Alineado al neteo de Ingresos." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
             <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="gp" data-label="G/P operativo" title="Ordenar G/P operativo" aria-label="Ordenar por G/P operativo">G/P operativo<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
             <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="comVentas" data-label="Comisiones / Ventas %" title="Ordenar Comisiones / Ventas %" aria-label="Ordenar por Comisiones / Ventas %">Comisiones / Ventas %<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="Comisiones por Ventas (ef_subitem) ÷ Cobranzas por Ventas (Efectivo neto ingresado) (ef_subitem), por mes. Solo filas con subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
-            <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="costoDir" data-label="Costo dir. / Ingresos" title="Ordenar Costo dir. / Ingresos" aria-label="Ordenar por Costo dir. / Ingresos">Costo dir. / Ingresos<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="Total COSTOS DIRECTOS (Efectivo) (ef_item §2) ÷ total FLUJO OPERATIVO GENERADO (ef_item §1) del mes. Alineado al Estado Financiero. Solo filas con ítem/subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
-            <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="costoInd" data-label="Costo ind. / Ingresos" title="Ordenar Costo ind. / Ingresos" aria-label="Ordenar por Costo ind. / Ingresos">Costo ind. / Ingresos<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="Total COSTOS INDIRECTOS (Estructura) (ef_item §3) ÷ total FLUJO OPERATIVO GENERADO (ef_item §1) del mes. Alineado al Estado Financiero. Solo filas con ítem/subítem EF imputado." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
-            <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="costoTotal" data-label="Costo total / Ingreso total" title="Ordenar Costo total / Ingreso total" aria-label="Ordenar por Costo total / Ingreso total">Costo total / Ingreso total<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="Total egresos operativos del mes ÷ total FLUJO OPERATIVO GENERADO (ef_item §1). Alineado al Estado Financiero (% del Flujo Op.)." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
+            <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="costoDir" data-label="Costo dir. / Ingresos" title="Ordenar Costo dir. / Ingresos" aria-label="Ordenar por Costo dir. / Ingresos">Costo dir. / Ingresos<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="COSTOS DIRECTOS (Efectivo) (§2) ÷ Ingresos del mes (columna Ingresos). Cálculo simple." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
+            <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="costoInd" data-label="Costo ind. / Ingresos" title="Ordenar Costo ind. / Ingresos" aria-label="Ordenar por Costo ind. / Ingresos">Costo ind. / Ingresos<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="COSTOS INDIRECTOS (Estructura) (§3) ÷ Ingresos del mes (columna Ingresos). Cálculo simple." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
+            <th class="dash-th-sort"><div class="dash-th-sort-inner"><button type="button" class="dash-th-sort-btn" data-sort="costoTotal" data-label="Costo total / Ingreso total" title="Ordenar Costo total / Ingreso total" aria-label="Ordenar por Costo total / Ingreso total">Costo total / Ingreso total<span class="dash-sort-ind" aria-hidden="true">↕</span></button><span class="th-help" data-help="Egresos ÷ Ingresos del mes (mismas columnas: costo total sobre ingreso total). Cálculo simple." role="button" tabindex="0" aria-label="Ayuda"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></div></th>
             <th class="alert-icon-cell"></th>
           </tr>
         </thead>
@@ -1491,7 +1491,7 @@
           </div>
           <div class="form-group">
             <label for="edit-costo-directo">Costo directo</label>
-            <select id="edit-costo-directo" title="Bandera matriz (Y/N). Agrupa egresos en modal por categoría; el ratio Costo dir./Ingresos usa ítems EF (§2 COSTOS DIRECTOS).">
+            <select id="edit-costo-directo" title="Bandera matriz (Y/N). Agrupa egresos en modal por categoría; el ratio Costo dir./Ingresos es §2 ÷ Ingresos.">
               <option value="">—</option>
               <option value="Y">Y</option>
               <option value="N">N</option>
@@ -1806,7 +1806,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.60';
+    const APP_VERSION = '2.61';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -2897,30 +2897,27 @@
       return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(pct) + '%';
     }
 
-    /** Ratio egresos ÷ FLUJO OPERATIVO GENERADO (base común dir./ind./total). */
-    function ratioEfVsFlujoOperativo(flujoOperativoGenerado, montoEgreso) {
-      const egr = montoEgreso != null ? montoEgreso : 0;
-      if (egr <= 0) return '–';
-      return formatearPctRatioFlujo(pctDelFlujoOperativo(egr, flujoOperativoGenerado));
+    /** Ratio sobre Ingresos (columna Ingresos): Costo dir., Costo ind. y Costo total. */
+    function ratioSobreIngresos(numerador, ingresos) {
+      const ing = ingresos != null ? Number(ingresos) : 0;
+      if (!(ing > 0)) return '–';
+      const num = numerador != null ? Number(numerador) : 0;
+      return formatearPctRatioFlujo((num / ing) * 100);
     }
 
-    function ratioCostoDirectoVsFlujoOperativo(flujoOperativoGenerado, egrCostoDirecto) {
-      return ratioEfVsFlujoOperativo(flujoOperativoGenerado, egrCostoDirecto);
+    /** Fracción 0–1 para Excel/orden: numerador ÷ Ingresos. */
+    function fraccionSobreIngresos(numerador, ingresos) {
+      const ing = ingresos != null ? Number(ingresos) : 0;
+      if (!(ing > 0)) return null;
+      const num = numerador != null ? Number(numerador) : 0;
+      return num / ing;
     }
 
-    function ratioCostoIndirectoVsFlujoOperativo(flujoOperativoGenerado, egrCostoIndirecto) {
-      return ratioEfVsFlujoOperativo(flujoOperativoGenerado, egrCostoIndirecto);
-    }
-
-    /** Costo total / Ingreso total = total egresos operativos ÷ FLUJO OPERATIVO GENERADO. */
-    function ratioCostoTotalVsFlujoOperativo(flujoOperativoGenerado, egresosOperativos) {
-      return ratioEfVsFlujoOperativo(flujoOperativoGenerado, egresosOperativos);
-    }
-
-    function ratiosCostoDirectoIndirectoVsIngresos(_ingresos, egrDir, egrInd, flujoOperativoGenerado) {
-      const pctDir = ratioCostoDirectoVsFlujoOperativo(flujoOperativoGenerado, egrDir);
-      const pctInd = ratioCostoIndirectoVsFlujoOperativo(flujoOperativoGenerado, egrInd);
-      return { pctDir, pctInd };
+    function ratiosCostoDirectoIndirectoVsIngresos(ingresos, egrDir, egrInd) {
+      return {
+        pctDir: ratioSobreIngresos(egrDir, ingresos),
+        pctInd: ratioSobreIngresos(egrInd, ingresos)
+      };
     }
 
     /** Fracción 0–1 para Excel (Comisiones/Ventas). */
@@ -2928,15 +2925,6 @@
       if (!(ventas > 0)) return null;
       const c = comisionesParaRatio != null ? Number(comisionesParaRatio) : 0;
       return c / ventas;
-    }
-
-    /** Fracción 0–1: egreso ÷ Flujo Operativo Generado (misma base que la tabla). */
-    function fraccionEgresoVsFlujoOperativo(flujoOperativoGenerado, montoEgreso) {
-      const egr = montoEgreso != null ? montoEgreso : 0;
-      if (!(egr > 0)) return null;
-      const pct = pctDelFlujoOperativo(egr, flujoOperativoGenerado);
-      if (pct == null || isNaN(pct)) return null;
-      return pct / 100;
     }
 
     function textoPlanoAlertasFlujo(alertas) {
@@ -3782,14 +3770,13 @@
         const comisionesParaRatio = d.comisionesParaRatio != null ? d.comisionesParaRatio : 0;
         const ventas = d.ventas != null ? d.ventas : 0;
         const comVentasPct = ventas > 0 ? ((comisionesParaRatio / ventas) * 100).toFixed(1) + '%' : '–';
-        const flujoOp = d.flujoOperativoGenerado != null ? d.flujoOperativoGenerado : 0;
+        const ingMes = d.ingresos != null ? d.ingresos : 0;
         const { pctDir: costoDirIngPct, pctInd: costoIndIngPct } = ratiosCostoDirectoIndirectoVsIngresos(
-          d.ingresos != null ? d.ingresos : 0,
+          ingMes,
           d.egresosCostoDirecto,
-          d.egresosCostoIndirecto,
-          flujoOp
+          d.egresosCostoIndirecto
         );
-        const costoTotalIngPct = ratioCostoTotalVsFlujoOperativo(flujoOp, d.egresos);
+        const costoTotalIngPct = ratioSobreIngresos(d.egresos, ingMes);
         const alertas = alertasPorMes[key] || [];
         const alertasJson = alertas.length ? JSON.stringify(alertas).replace(/"/g, '&quot;') : '';
         const iconoAlert = alertas.length ? `<span class="alert-icon" role="button" tabindex="0" data-alertas="${alertasJson}" data-label="${label.replace(/"/g, '&quot;')}" title="Ver alertas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>` : '';
@@ -3800,9 +3787,9 @@
           egresos: d.egresos != null ? Number(d.egresos) : 0,
           gp: Number(balance),
           comVentas: fraccionComisionesSobreVentas(comisionesParaRatio, ventas),
-          costoDir: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresosCostoDirecto),
-          costoInd: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresosCostoIndirecto),
-          costoTotal: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresos),
+          costoDir: fraccionSobreIngresos(d.egresosCostoDirecto, d.ingresos),
+          costoInd: fraccionSobreIngresos(d.egresosCostoIndirecto, d.ingresos),
+          costoTotal: fraccionSobreIngresos(d.egresos, d.ingresos),
           alertas: textoPlanoAlertasFlujo(alertas)
         });
         return {
@@ -3823,9 +3810,9 @@
             egresos: d.egresos != null ? Number(d.egresos) : 0,
             gp: Number(balance),
             comVentas: fraccionComisionesSobreVentas(comisionesParaRatio, ventas),
-            costoDir: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresosCostoDirecto),
-            costoInd: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresosCostoIndirecto),
-            costoTotal: fraccionEgresoVsFlujoOperativo(flujoOp, d.egresos)
+            costoDir: fraccionSobreIngresos(d.egresosCostoDirecto, d.ingresos),
+            costoInd: fraccionSobreIngresos(d.egresosCostoIndirecto, d.ingresos),
+            costoTotal: fraccionSobreIngresos(d.egresos, d.ingresos)
           }
         };
       });
@@ -3866,16 +3853,14 @@
         const proyComisiones = proyeccionDesdeSerie(valoresComisiones, N, agg, mesesAProyectar);
         const valoresEgrDir = ordenados.map(k => { const x = porMes[k]; return x && x.egresosCostoDirecto != null ? x.egresosCostoDirecto : 0; });
         const valoresEgrInd = ordenados.map(k => { const x = porMes[k]; return x && x.egresosCostoIndirecto != null ? x.egresosCostoIndirecto : 0; });
-        const valoresFlujoOp = ordenados.map(k => { const x = porMes[k]; return x && x.flujoOperativoGenerado != null ? x.flujoOperativoGenerado : 0; });
         const proyEgrDir = proyeccionDesdeSerie(valoresEgrDir, N, agg, mesesAProyectar);
         const proyEgrInd = proyeccionDesdeSerie(valoresEgrInd, N, agg, mesesAProyectar);
-        const proyFlujoOp = proyeccionDesdeSerie(valoresFlujoOp, N, agg, mesesAProyectar);
         let keyProy = siguienteMesKey(ordenados[ordenados.length - 1]);
         const proys = [];
         for (let i = 0; i < mesesAProyectar; i++) {
           const comVentasPctI = proyVentas[i] > 0 ? ((proyComisionesParaRatio[i] / proyVentas[i]) * 100).toFixed(1) + '%' : '–';
-          const { pctDir: costoDirIngPctI, pctInd: costoIndIngPctI } = ratiosCostoDirectoIndirectoVsIngresos(proyIng[i], proyEgrDir[i], proyEgrInd[i], proyFlujoOp[i]);
-          const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct: comVentasPctI, costoDirIngPct: costoDirIngPctI, costoIndIngPct: costoIndIngPctI, costoTotalIngPct: ratioCostoTotalVsFlujoOperativo(proyFlujoOp[i], proyEgr[i]) };
+          const { pctDir: costoDirIngPctI, pctInd: costoIndIngPctI } = ratiosCostoDirectoIndirectoVsIngresos(proyIng[i], proyEgrDir[i], proyEgrInd[i]);
+          const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct: comVentasPctI, costoDirIngPct: costoDirIngPctI, costoIndIngPct: costoIndIngPctI, costoTotalIngPct: ratioSobreIngresos(proyEgr[i], proyIng[i]) };
           proys.push(proy);
           const [anioProy, mesProy] = keyProy.split('-').map(Number);
           detalleProyeccionPorMes[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), ing: proy.ing, egr: proy.egr, gp: proy.gp, comVentasPct: proy.comVentasPct, costoDirIngPct: proy.costoDirIngPct, costoIndIngPct: proy.costoIndIngPct, costoTotalIngPct: proy.costoTotalIngPct, ingresoPorCat: { ...proyDetalle[keyProy].ingresoPorCat }, egresoPorCat: { ...proyDetalle[keyProy].egresoPorCat } };
@@ -3886,9 +3871,9 @@
             egresos: Number(proy.egr),
             gp: Number(proy.gp),
             comVentas: fraccionComisionesSobreVentas(proyComisionesParaRatio[i], proyVentas[i]),
-            costoDir: fraccionEgresoVsFlujoOperativo(proyFlujoOp[i], proyEgrDir[i]),
-            costoInd: fraccionEgresoVsFlujoOperativo(proyFlujoOp[i], proyEgrInd[i]),
-            costoTotal: fraccionEgresoVsFlujoOperativo(proyFlujoOp[i], proyEgr[i]),
+            costoDir: fraccionSobreIngresos(proyEgrDir[i], proyIng[i]),
+            costoInd: fraccionSobreIngresos(proyEgrInd[i], proyIng[i]),
+            costoTotal: fraccionSobreIngresos(proyEgr[i], proyIng[i]),
             alertas: ''
           });
           filasProy += `<tr class="fila-proyeccion" data-proy-key="${keyProy}" role="button" tabindex="0" title="Ver detalle de proyección">
@@ -3921,16 +3906,15 @@
         return s + (pm && pm.ventas != null ? pm.ventas : 0);
       }, 0);
       const comVentasPctTotal = totalVentas > 0 ? ((totalComisionesParaRatio / totalVentas) * 100).toFixed(1) + '%' : '–';
-      let sumEgrDir = 0, sumEgrInd = 0, sumFlujoOp = 0;
+      let sumEgrDir = 0, sumEgrInd = 0;
       ordenados.forEach(k => {
         const pm = porMes[k];
         if (!pm) return;
         sumEgrDir += pm.egresosCostoDirecto || 0;
         sumEgrInd += pm.egresosCostoIndirecto || 0;
-        sumFlujoOp += pm.flujoOperativoGenerado || 0;
       });
-      const { pctDir: totCostoDirIng, pctInd: totCostoIndIng } = ratiosCostoDirectoIndirectoVsIngresos(totalIngresos, sumEgrDir, sumEgrInd, sumFlujoOp);
-      const totCostoTotalIng = ratioCostoTotalVsFlujoOperativo(sumFlujoOp, totalEgresos);
+      const { pctDir: totCostoDirIng, pctInd: totCostoIndIng } = ratiosCostoDirectoIndirectoVsIngresos(totalIngresos, sumEgrDir, sumEgrInd);
+      const totCostoTotalIng = ratioSobreIngresos(totalEgresos, totalIngresos);
       const tfoot = document.getElementById('tfoot-flujo');
       if (tfoot) {
         let tfootHtml = ordenados.length === 0 ? '' : `<tr class="fila-total-real">
@@ -3961,9 +3945,9 @@
           egresos: Number(totalEgresos),
           gp: Number(balanceTotal),
           comVentas: fraccionComisionesSobreVentas(totalComisionesParaRatio, totalVentas),
-          costoDir: fraccionEgresoVsFlujoOperativo(sumFlujoOp, sumEgrDir),
-          costoInd: fraccionEgresoVsFlujoOperativo(sumFlujoOp, sumEgrInd),
-          costoTotal: fraccionEgresoVsFlujoOperativo(sumFlujoOp, totalEgresos),
+          costoDir: fraccionSobreIngresos(sumEgrDir, totalIngresos),
+          costoInd: fraccionSobreIngresos(sumEgrInd, totalIngresos),
+          costoTotal: fraccionSobreIngresos(totalEgresos, totalIngresos),
           alertas: ''
         });
       }

@@ -458,6 +458,12 @@
     return !!(m && (m.pendiente_baja === true || m.pendiente_baja === 'true'));
   }
 
+  function esStatusPendienteTesoreria(m) {
+    var raw = (m && m.raw) || {};
+    var s = String(raw.status || raw.Status || '').trim().toLowerCase();
+    return s === 'pendiente';
+  }
+
   function esNoRequiereConciliacion(m) {
     return !!(m && (m.no_requiere_conciliacion === true || m.no_requiere_conciliacion === 'true'));
   }
@@ -513,7 +519,9 @@
   }
 
   function sistemaRowsBaja() {
-    return sistemaRowsTodos().filter(esPendienteBaja);
+    return sistemaRowsTodos().filter(function (m) {
+      return esPendienteBaja(m) && esStatusPendienteTesoreria(m);
+    });
   }
 
   function labelVecesDup(n) {
@@ -2537,7 +2545,7 @@
             var parte = agrup.groups[canalSave];
             if (!parte.length) continue;
             var rec = await guardarTesoreriaEnCanal(canalSave, parte, {
-              marcarBajas: !parsed.formatoCierre && !parsed.formatoHistorico
+              marcarBajas: !parsed.formatoCierre
             });
             clsTot = sumarClasificacion(clsTot, rec.cls);
             nRetiradas += rec.nRetiradas;
@@ -2739,7 +2747,9 @@
         var parte = agrup.groups[canalSave];
         if (!parte.length) continue;
         try {
-          var rec = await guardarTesoreriaEnCanal(canalSave, parte, { marcarBajas: false });
+          var rec = await guardarTesoreriaEnCanal(canalSave, parte, {
+            marcarBajas: !parsed.formatoCierre
+          });
           clsTot = sumarClasificacion(clsTot, rec.cls);
           canalesCargados.push(labelCanalNombre(canalSave) + ' (' + parte.length + ')');
         } catch (eSave) {
@@ -5558,7 +5568,7 @@
         hintHtml:
           '<p>El día a día se carga con el Excel <em>Extracto_CCE…</em>. El PDF <em>Extracto_Cuentas_Galicia_…</em> (cuenta en dólares) solo verifica; no da de alta movimientos. El Excel retira lo que ya no trae. Tesorería se compara aparte.</p>' +
           '<p>Los importes se concilian en <strong>USD</strong> contra tesorería <em>tesoreria_transferencia_galicia_dolar_…</em> (Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (<em>cierre_CIERRE-…</em> o <em>cierre_DOL-…</em> con Caja = Transferencia Galicia Dolar y Moneda USD) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: solo filas Transferencia Galicia Dolar).</p>' +
-          '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos. Status Pendiente sí se da de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Si un Id de tesorería abierta ya no viene, pasa a <strong>A eliminar</strong>. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
+          '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos. Status Pendiente sí se da de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Solo un Id <strong>Pendiente</strong> (caja abierta: tesorería o histórico) que ya no viene pasa a <strong>A eliminar</strong>; un Confirmado no se elimina. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
           '<p>Al cargar el extracto, el saldo de corte se pesifica al MEP (fecha del último movimiento o cotización anterior) y entra a Saldos extractos. El match es por importe y fecha (máximo 4 días).</p>' +
           '<p>En Solo banco y Solo sistema podés marcar uno, varios o todos los listados como <strong>No requiere conciliación</strong> (con una justificación): no se borran; van a la solapa No requiere.</p>',
         btnBanco: 'Cargar extracto Galicia (USD)',
@@ -5572,7 +5582,7 @@
           '<p>Cargá el extracto de Galicia: Excel de cuenta corriente (<em>Extracto_CC…</em>) o el PDF <em>Extracto_Cuentas_Galicia_…</em> en pesos (no duplica lo ya cargado: misma fecha, importe y concepto, aunque cambie el saldo). Si el Excel ya no trae un movimiento temporal (cheque en proceso, carga vieja), se retira del extracto. Tesorería no se toca. El PDF en dólares se abre en la solapa Galicia (USD).</p>' +
           '<p>El día a día se carga con el <strong>Excel Extracto_CC…</strong>. El PDF <em>Extracto_Cuentas_Galicia_…</em> no da de alta movimientos: solo verifica que hay líneas del período (ya en el Excel) que el resumen del banco no incluye. El saldo de un período nuevo = último corte + movimientos del Excel. Tesorería se compara en Sugeridos / Solo banco / Solo sistema. Los cortes ya cargados no se recalculan.</p>' +
           '<p>También la tesorería Transferencia Galicia (<em>tesoreria_transferencia_galicia_…</em>: Tipo, Fecha, Crédito, Débito e Id), el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto). El Id evita duplicados y actualiza si cambió algún dato. La columna Caja reparte Mercado Pago / Galicia ARS / Galicia USD; Efectivo y Morba no entran acá.</p>' +
-          '<p>Si un Id de tesorería abierta ya no viene en el Excel, pasa a <strong>A eliminar</strong>. Apertura de Caja no se sube. Status Anulado no se sube. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f y a Saldos extractos. Status Pendiente sí se da de alta (o se actualiza si el Id ya existía). Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican.</p>' +
+          '<p>Solo un Id <strong>Pendiente</strong> (caja abierta: tesorería o histórico) que ya no viene pasa a <strong>A eliminar</strong>; un Confirmado no se elimina. Apertura de Caja no se sube. Status Anulado no se sube. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f y a Saldos extractos. Status Pendiente sí se da de alta (o se actualiza si el Id ya existía). Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican.</p>' +
           '<p>La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde.</p>' +
           '<p>En Solo banco y Solo sistema podés marcar uno, varios o todos los listados como <strong>No requiere conciliación</strong> (con una justificación): no se borran; van a la solapa No requiere.</p>' +
           '<p>También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1), o dos o más movimientos del mismo extracto si el crédito y el débito se compensan y no hay tesorería. El Excel exporta el listado visible con los filtros activos.</p>',
@@ -5585,7 +5595,7 @@
       hintHtml:
         '<p>Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (<em>tesoreria_mercadopago_…</em>: Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em> o <em>MP_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: se cargan las filas MercadoPago; Galicia por Caja; Efectivo/Morba se omiten).</p>' +
         '<p><strong>El extracto MP es el banco (fuente de verdad)</strong>: lo que no está ahí no está. Tesorería son los movimientos administrativos de la app; las diferencias se ven en Sugeridos, Solo banco y Solo sistema.</p>' +
-        '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos. Status Pendiente sí se da de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Si un Id de tesorería abierta ya no viene en el Excel, pasa a la solapa <strong>A eliminar</strong> para confirmar la baja. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
+        '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos. Status Pendiente sí se da de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Solo un Id <strong>Pendiente</strong> (caja abierta: tesorería o histórico) que ya no viene pasa a la solapa <strong>A eliminar</strong> para confirmar la baja; un Confirmado no se elimina. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
         '<p>Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. En Solo banco y Solo sistema podés marcar uno, varios o todos los listados como <strong>No requiere conciliación</strong> (con una justificación): no se borran.</p>' +
         '<p>La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde.</p>' +
         '<p>También podés conciliar a mano varios extractos con una o más tesorerías, o dos o más movimientos del mismo extracto si el crédito y el débito se compensan. El Excel exporta el listado visible con los filtros activos.</p>',

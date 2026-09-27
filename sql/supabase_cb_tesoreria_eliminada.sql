@@ -153,7 +153,7 @@ BEGIN
     RAISE EXCEPTION 'Este movimiento no está en la lista de bajas a confirmar.';
   END IF;
   IF NOT public.cb_es_tesoreria_abierta(v_mov) THEN
-    RAISE EXCEPTION 'Solo se confirma la baja de tesorería abierta.';
+    RAISE EXCEPTION 'Solo se confirma la baja de un movimiento Pendiente (caja abierta).';
   END IF;
 
   DELETE FROM public.cb_match m

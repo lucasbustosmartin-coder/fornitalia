@@ -251,10 +251,7 @@ AS $$
   SELECT p_mov.origen_id LIKE 'id|%'
     AND COALESCE(p_mov.raw->>'formato', '') <> 'cierre'
     AND COALESCE(p_mov.archivo, '') NOT ILIKE '%cierre%'
-    AND (
-      COALESCE(p_mov.raw->>'formato', '') = 'tesoreria'
-      OR COALESCE(p_mov.archivo, '') ILIKE '%tesoreria_%'
-    );
+    AND lower(btrim(COALESCE(p_mov.raw->>'status', p_mov.raw->>'Status', ''))) = 'pendiente';
 $$;
 
 CREATE OR REPLACE FUNCTION public.cf_marcar_tesoreria_abierta_ausente(
@@ -285,6 +282,12 @@ BEGIN
     FROM unnest(COALESCE(p_origen_ids, ARRAY[]::text[])) AS x
     WHERE NULLIF(btrim(x), '') IS NOT NULL
   );
+
+  UPDATE public.cf_movimiento m
+  SET pendiente_baja = false
+  WHERE m.canal = p_canal
+    AND COALESCE(m.pendiente_baja, false)
+    AND lower(btrim(COALESCE(m.raw->>'status', m.raw->>'Status', ''))) IS DISTINCT FROM 'pendiente';
 
   UPDATE public.cf_movimiento m
   SET pendiente_baja = false
@@ -332,6 +335,9 @@ BEGIN
   END IF;
   IF NOT v_mov.pendiente_baja THEN
     RAISE EXCEPTION 'Este movimiento no está marcado para eliminar.';
+  END IF;
+  IF NOT public.cf_es_tesoreria_abierta(v_mov) THEN
+    RAISE EXCEPTION 'Solo se confirma la baja de un movimiento Pendiente (caja abierta).';
   END IF;
 
   DELETE FROM public.cf_movimiento WHERE id = p_id;
