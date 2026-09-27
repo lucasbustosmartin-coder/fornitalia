@@ -10,16 +10,16 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.58"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.59"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.52"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.58">
-  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.58"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.59">
+  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.59"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.58">
   <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.58"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.55">
-  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.55"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.59">
+  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.59"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.55">
   <script src="scripts/lib/fornitalia-impuestos.js?v=2.55"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.56">
@@ -124,7 +124,7 @@
     }
     .flujo-historico-overlay-card p { margin: 0 0 0.4rem; color: #1e293b; font-size: 1rem; }
     .flujo-historico-overlay-card .hint { color: #64748b; font-size: 0.88rem; margin: 0; }
-    #modal-flujo-historico { max-width: min(96vw, 32rem); width: 100%; }
+    #modal-flujo-historico { max-width: min(96vw, 40rem); width: 100%; }
     #modal-flujo-historico .modal-body { max-height: min(72vh, 36rem); overflow: auto; -webkit-overflow-scrolling: touch; }
     #btn-cargar-historico-flujo { min-height: 2.25rem; }
     @media (max-width: 768px) {
@@ -1116,7 +1116,7 @@
           <p>Columnas <strong>Ingresos</strong> y <strong>Egresos</strong> = caja operativa neteada: egresos con <code>ef_subitem</code> de ingreso §1 (Cobranzas, Otros ingresos operativos, etc.) se restan de ambas columnas del mes (devoluciones / ajustes al mismo rubro que el Estado Financiero). <strong>G/P operativo</strong> = Ingresos − Egresos (sin cambio). Fuente: tesorería (conciliación + cajas físicas) unida a la Matriz EF.</p>
           <p><strong>Comisiones / Ventas %</strong> = egresos con <code>ef_subitem</code> <strong>Comisiones por Ventas</strong> ÷ ingresos con <code>ef_subitem</code> <strong>Cobranzas por Ventas (Efectivo neto ingresado)</strong> del mes (subítems canónicos EF; alias cortos se normalizan). Sin <code>ef_subitem</code> la fila no entra al ratio.</p>
           <p>Columnas <strong>Costo dir.</strong>, <strong>Costo ind.</strong> y <strong>Costo total / Ingreso total</strong> usan la misma fórmula % del Flujo Op. que el Estado Financiero (montos internos sin redondear; solo la visualización de importes es entera).</p>
-          <p>El botón <strong>Cargar tesorería histórica</strong> toma el Excel <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto) y lo reparte a todas las cajas de una vez: bancos en Conciliación y cajas físicas según la columna Caja. En Conciliación recálcula los sugeridos de cada caja, igual que si se cargara solapa por solapa.</p>
+          <p>El botón <strong>Cargar tesorería histórica</strong> toma el Excel <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto) y lo reparte a todas las cajas de una vez: bancos en Conciliación y cajas físicas según la columna Caja. En Conciliación recálcula los sugeridos de cada caja (Mercado Pago, Galicia, Galicia USD, Credicoop) y el cartel siempre muestra el resultado, aunque sea 0.</p>
         </div>
       </template>
       <div class="errores-panel-toolbar">
@@ -1806,7 +1806,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.58';
+    const APP_VERSION = '2.59';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -3520,10 +3520,39 @@
         if (!val) return '';
         return item(label, val, cls, hint);
       }
+      function hintSug(row) {
+        if (row && row.err) return 'Se intentó recalcular: ' + row.err;
+        if (row && row.vacio === 'sin_extracto') return 'Se recalculó. No hay extracto banco para emparejar.';
+        if (row && row.vacio === 'sin_tesoreria') return 'Se recalculó. No hay tesorería para emparejar.';
+        if (row && row.n) return 'Parejas extracto ↔ tesorería propuestas.';
+        return 'Se recalculó. No hubo parejas nuevas.';
+      }
       var canales = [].concat((cbR && cbR.canales) || [], (cfR && cfR.canales) || []);
+      var sugHtml = '';
+      var sugLista = (cbR && cbR.sugeridosPorCanal) || [];
+      if (sugLista.length) {
+        sugLista.forEach(function (row) {
+          sugHtml += item('Sugeridos ' + (row.label || row.canal || ''), row.n || 0, row.n ? 'cb-resumen-ok' : '', hintSug(row));
+        });
+      } else if (hasPerm(PERM_CARGAR_CONCILIACION_BANCARIA)) {
+        sugHtml = item('Sugeridos', n(cbR, 'nSug'), '', 'Se recalculó en cada caja de Conciliación. 0 = no hubo parejas nuevas.');
+      }
+      var idsNuevos = [].concat((cbR && cbR.idsNuevos) || [], (cfR && cfR.idsNuevos) || []);
+      var idsHtml = '';
+      if (idsNuevos.length) {
+        var maxIds = 40;
+        var shownIds = idsNuevos.slice(0, maxIds);
+        var extraIds = idsNuevos.length > maxIds
+          ? ' <span class="cb-id-chip">+' + (idsNuevos.length - maxIds) + '</span>'
+          : '';
+        idsHtml = '<p class="cb-resumen-ids-lab">Ids nuevos (' + idsNuevos.length + ')</p>' +
+          '<p class="cb-resumen-ids">' + shownIds.map(function (id) {
+            return '<span class="cb-id-chip">' + escapeHtmlSeg(String(id)) + '</span>';
+          }).join(' ') + extraIds + '</p>';
+      }
       var omitHtml = itemSi('Apertura de Caja', n(cbR, 'omitidasApertura') + n(cfR, 'omitidasApertura'), '', 'No se cargan ni entran al corte de Saldos extractos.')
         + itemSi('Anulado', n(cbR, 'omitidasAnulado') + n(cfR, 'omitidasAnulado'), '', 'Status Anulado no entra. Si el Id ya existía, se elimina.')
-        + itemSi('Pendiente (nuevos)', n(cbR, 'omitidasPendiente') + n(cfR, 'omitidasPend'), '', 'No se dan de alta en tesorería banco ni en cajas con factura. En Efectivo-s/f sí. Si el Id ya existía, categoría y cuenta se actualizan.')
+        + itemSi('Pendiente (nuevos)', n(cbR, 'omitidasPendiente') + n(cfR, 'omitidasPend'), '', 'Pendiente se da de alta. Esta cuenta solo queda si faltó Id. Anulado no entra.')
         + itemSi('Sin Id', n(cbR, 'omitidasSinId') + n(cfR, 'omitidasSinId'), '', 'La columna Id es obligatoria en este formato.')
         + itemSi('Id duplicado en el archivo', n(cbR, 'omitidasIdDup') + n(cfR, 'omitidasIdDup'), '', 'Se tomó la primera fila de cada Id.');
       var notas = [cbR && cbR.nota, cfR && cfR.nota].filter(Boolean);
@@ -3537,8 +3566,9 @@
           item('Registros nuevos', n(cbR, 'nNuevos') + n(cfR, 'nNuevos'), 'cb-resumen-ok', 'No estaban: se dieron de alta.') +
           item('Registros que cambiaron', n(cbR, 'nCambiaron') + n(cfR, 'nCambiaron'), 'cb-resumen-warn', 'Mismo Id: se actualizaron fecha, monto, categoría, cuenta u otro dato.') +
           item('Sin cambios', n(cbR, 'nIguales') + n(cfR, 'nIguales'), '', 'Mismo Id y mismos datos: no se duplicaron.') +
-          itemSi('Sugerencias reconocidas', n(cbR, 'nSug'), n(cbR, 'nSug') ? 'cb-resumen-ok' : '', 'Parejas extracto ↔ tesorería propuestas al recalcular.') +
+          sugHtml +
         '</dl>' +
+        idsHtml +
         (omitHtml ? '<h3>Se omitieron</h3><dl class="cb-resumen-grid cb-resumen-omit">' + omitHtml + '</dl>' : '') +
         (notas.length ? '<p class="cb-resumen-nota">' + escapeHtmlSeg(notas.join(' ')) + '</p>' : '') +
       '</div>';

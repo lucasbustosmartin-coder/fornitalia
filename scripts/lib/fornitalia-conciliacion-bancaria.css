@@ -928,6 +928,33 @@
   font-size: 0.85rem;
 }
 
+.cb-resumen-ids-lab {
+  margin: 0.85rem 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.cb-resumen-ids {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.cb-id-chip {
+  display: inline-block;
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  min-height: 28px;
+  line-height: 1.4;
+}
+
 @media (max-width: 480px) {
   .cb-resumen { grid-template-columns: 1fr; }
   .cb-filtros { flex-direction: column; align-items: stretch; }

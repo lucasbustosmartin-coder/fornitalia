@@ -8,12 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.58',
+    versionLabel: 'v2.59',
     lines: [
-      'Después del último corte, el saldo de Galicia se arma con los movimientos del Excel del extracto.',
-      'El PDF del banco ya no carga movimientos: solo muestra cuáles del período no están en el resumen.',
-      'Si recargás el Excel de Galicia, salen del extracto los que el archivo ya no trae (cheques en proceso, cargas viejas).',
-      'Los extractos ya cargados no cambian. Tesorería se sigue conciliando aparte.'
+      'Al cargar tesorería histórica, los movimientos Pendiente ahora sí entran. Anulado sigue sin cargarse.',
+      'El cartel de la carga muestra Sugeridos de cada caja (Galicia, Mercado Pago, etc.) aunque el número sea 0.',
+      'Si hay Ids nuevos, se listan en el resultado para poder controlarlo.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
