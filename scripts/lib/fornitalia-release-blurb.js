@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.67',
+    versionLabel: 'v2.68',
     lines: [
-      'En Flujo, Ratios del Negocio ahora muestra Sueldos / Ingresos.',
-      'También Costo Financiero MP / Ventas MP, solo con las ventas de Mercado Pago.',
-      'El PDF de esa pantalla entra en una sola hoja, sin repetir una fila.'
+      'En Flujo, la columna Total suma solo los meses reales: no incluye proyecciones.',
+      'Esa columna queda después de los meses reales; las columnas Proy. van a la derecha.',
+      'Ingresos, Egresos, G/P y ratios usan el mismo criterio.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

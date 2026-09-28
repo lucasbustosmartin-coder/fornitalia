@@ -11,7 +11,7 @@
   <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.67"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.67"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.68"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.52"></script>
@@ -368,6 +368,9 @@
     #tabla-flujo th.th-mes-flujo:hover { background: #333; }
     #tabla-flujo th.th-mes-flujo .th-mes-inner { display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.25rem; }
     #tabla-flujo td.col-proyeccion { background: #e8f4f0; cursor: pointer; }
+    #tabla-flujo th.col-total-real { border-left: 2px solid #94a3b8; }
+    #tabla-flujo td.col-total-real { border-left: 2px solid #94a3b8; font-weight: 600; background: #f8fafc; }
+    #tabla-flujo tfoot td.col-total-real { background: #f5f5f5; }
     #rep-print-root { display: none; }
     @media print {
       @page { size: A4 landscape; margin: 8mm; }
@@ -1316,7 +1319,7 @@
           <p><strong>Sueldos / Ingresos</strong> = egresos de categoría <strong>Sueldos</strong> (sin comisiones de venta imputadas ahí) ÷ columna Ingresos del mes.</p>
           <p><strong>Costo Financiero MP / Ventas MP</strong> = egresos con <code>ef_subitem</code> <strong>Costo Financiero (Mercado Pago)</strong> ÷ cobranzas por ventas de la <strong>caja Mercado Pago</strong> (no las ventas de otras cajas).</p>
           <p>El denominador de <strong>Costo dir. / Ingresos</strong>, <strong>Costo ind. / Ingresos</strong>, <strong>Costo total / Ingreso total</strong> y <strong>Sueldos / Ingresos</strong> es siempre la columna <strong>Ingresos</strong> del mes. Numeradores: COSTOS DIRECTOS (§2), COSTOS INDIRECTOS (§3), Egresos de la fila (costo total) y Sueldos. Cálculo simple, sin Flujo Operativo Generado.</p>
-          <p>La tabla se lee como en Dashboard: <strong>meses en columnas</strong>, filas Ingresos / Egresos / G/P y debajo <strong>Ratios del Negocio</strong> (Comisiones/Ventas, Sueldos/Ingresos, Costo Financiero MP/Ventas MP, Costo dir., Costo ind., Costo total sobre Ingresos). El gráfico <strong>G/P Mensual</strong> y el PDF usan el mismo filtro Período; en el PDF los filtros activos van remarcados en verde.</p>
+          <p>La tabla se lee como en Dashboard: <strong>meses en columnas</strong>, filas Ingresos / Egresos / G/P y debajo <strong>Ratios del Negocio</strong> (Comisiones/Ventas, Sueldos/Ingresos, Costo Financiero MP/Ventas MP, Costo dir., Costo ind., Costo total sobre Ingresos). La columna <strong>Total</strong> va después de los meses reales (no incluye proyectados); las columnas <strong>Proy.</strong> quedan a la derecha. El gráfico <strong>G/P Mensual</strong> y el PDF usan el mismo filtro Período; en el PDF los filtros activos van remarcados en verde.</p>
           <p>El botón <strong>Cargar tesorería histórica</strong> toma el Excel <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto) y lo reparte a todas las cajas de una vez: bancos en Conciliación y cajas físicas según la columna Caja. En Conciliación recálcula los sugeridos de cada caja (Mercado Pago, Galicia, Galicia USD, Credicoop) y el cartel siempre muestra el resultado, aunque sea 0.</p>
         </div>
       </template>
@@ -1768,7 +1771,7 @@
       <div class="modal-body" id="modal-configuracion-body">
         <section class="config-section">
           <h3 class="config-section-title">Proyección (Flujo por mes)</h3>
-          <p class="sin-cotizacion-note" style="margin-top:0;">Parámetros para los meses proyectados debajo del total real. Ingresos y egresos usan el valor típico de la historia.</p>
+          <p class="sin-cotizacion-note" style="margin-top:0;">Parámetros para los meses proyectados a la derecha del total real. Ingresos y egresos usan el valor típico de la historia.</p>
           <div class="form-group">
             <label for="config-proyeccion-cantidad">Meses a proyectar</label>
             <select id="config-proyeccion-cantidad" title="Cantidad de meses futuros a mostrar en la proyección">
@@ -2043,7 +2046,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.67';
+    const APP_VERSION = '2.68';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -4488,10 +4491,6 @@
         }
       }
 
-      const totalIngConProy = totalIngresos + proyIng.reduce((s, v) => s + (v || 0), 0);
-      const totalEgrConProy = totalEgresos + proyEgr.reduce((s, v) => s + (v || 0), 0);
-      const balanceConProy = totalIngConProy - totalEgrConProy;
-
       const iconoIngreso = '<span class="item-con-icono"><span class="item-icon icono-ingresos" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg></span>Ingresos</span>';
       const iconoEgreso = '<span class="item-con-icono"><span class="item-icon icono-egresos" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></span>Egresos</span>';
       const iconoGP = '<span class="item-con-icono"><span class="item-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>G/P</span>';
@@ -4503,29 +4502,38 @@
         const iconoAlert = alertas.length ? `<span class="alert-icon" role="button" tabindex="0" data-alertas="${alertasJson}" data-label="${m.label.replace(/"/g, '&quot;')}" title="Ver alertas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>` : '';
         theadCells.push('<th class="th-mes-flujo" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '" title="Ver detalle de ' + m.label + '"><span class="th-mes-inner">' + m.label + iconoAlert + '</span></th>');
       });
+      theadCells.push('<th class="col-total-real" title="Suma de los meses reales; no incluye proyectados">Total</th>');
       keyProyList.forEach(function (k) {
         const [anioProy, mesProy] = k.split('-').map(Number);
         theadCells.push('<th class="col-proyeccion th-mes-flujo" data-proy-key="' + k + '">Proy. ' + formatoMesAnio(mesProy, anioProy) + '</th>');
       });
-      theadCells.push('<th>Total</th>');
       const theadEl = document.getElementById('thead-flujo');
       if (theadEl) theadEl.innerHTML = '<tr>' + theadCells.join('') + '</tr>';
 
-      let celdasIng = metricasMes.map(m => '<td class="ingresos fila-clickable" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '">' + simbolo + formatearNumero(m.d.ingresos, moneda) + '</td>');
-      let celdasEgr = metricasMes.map(m => '<td class="egresos fila-clickable" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '">' + simbolo + formatearNumero(m.d.egresos, moneda) + '</td>');
-      let celdasGp = metricasMes.map(m => '<td class="balance fila-clickable ' + (m.balance >= 0 ? 'positivo' : 'negativo') + '" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '">' + simbolo + formatearNumero(m.balance, moneda) + '</td>');
+      function celdasConTotalYProy(reales, celdaTotal, proy) {
+        return reales.concat([celdaTotal], proy);
+      }
+      const celdasIngReales = metricasMes.map(m => '<td class="ingresos fila-clickable" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '">' + simbolo + formatearNumero(m.d.ingresos, moneda) + '</td>');
+      const celdasEgrReales = metricasMes.map(m => '<td class="egresos fila-clickable" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '">' + simbolo + formatearNumero(m.d.egresos, moneda) + '</td>');
+      const celdasGpReales = metricasMes.map(m => '<td class="balance fila-clickable ' + (m.balance >= 0 ? 'positivo' : 'negativo') + '" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '">' + simbolo + formatearNumero(m.balance, moneda) + '</td>');
+      const celdasIngProy = [];
+      const celdasEgrProy = [];
+      const celdasGpProy = [];
       proys.forEach(function (proy, i) {
         const k = keyProyList[i];
-        celdasIng.push('<td class="ingresos col-proyeccion" data-proy-key="' + k + '">' + simbolo + formatearNumero(proy.ing, moneda) + '</td>');
-        celdasEgr.push('<td class="egresos col-proyeccion" data-proy-key="' + k + '">' + simbolo + formatearNumero(proy.egr, moneda) + '</td>');
-        celdasGp.push('<td class="balance col-proyeccion ' + (proy.gp >= 0 ? 'positivo' : 'negativo') + '" data-proy-key="' + k + '">' + simbolo + formatearNumero(proy.gp, moneda) + '</td>');
+        celdasIngProy.push('<td class="ingresos col-proyeccion" data-proy-key="' + k + '">' + simbolo + formatearNumero(proy.ing, moneda) + '</td>');
+        celdasEgrProy.push('<td class="egresos col-proyeccion" data-proy-key="' + k + '">' + simbolo + formatearNumero(proy.egr, moneda) + '</td>');
+        celdasGpProy.push('<td class="balance col-proyeccion ' + (proy.gp >= 0 ? 'positivo' : 'negativo') + '" data-proy-key="' + k + '">' + simbolo + formatearNumero(proy.gp, moneda) + '</td>');
       });
+      const celdasIng = celdasConTotalYProy(celdasIngReales, '<td class="ingresos col-total-real">' + simbolo + formatearNumero(totalIngresos, moneda) + '</td>', celdasIngProy);
+      const celdasEgr = celdasConTotalYProy(celdasEgrReales, '<td class="egresos col-total-real">' + simbolo + formatearNumero(totalEgresos, moneda) + '</td>', celdasEgrProy);
+      const celdasGp = celdasConTotalYProy(celdasGpReales, '<td class="balance col-total-real ' + (balanceTotal >= 0 ? 'positivo' : 'negativo') + '">' + simbolo + formatearNumero(balanceTotal, moneda) + '</td>', celdasGpProy);
       const tbodyFlujo = document.getElementById('tbody-flujo');
       if (tbodyFlujo) {
         tbodyFlujo.innerHTML =
-          '<tr class="fila-clickable"><td class="col-item">' + iconoIngreso + '</td>' + celdasIng.join('') + '<td class="ingresos">' + simbolo + formatearNumero(totalIngConProy, moneda) + '</td></tr>' +
-          '<tr class="fila-clickable"><td class="col-item">' + iconoEgreso + '</td>' + celdasEgr.join('') + '<td class="egresos">' + simbolo + formatearNumero(totalEgrConProy, moneda) + '</td></tr>' +
-          '<tr class="fila-clickable"><td class="col-item">' + iconoGP + '</td>' + celdasGp.join('') + '<td class="balance ' + (balanceConProy >= 0 ? 'positivo' : 'negativo') + '">' + simbolo + formatearNumero(balanceConProy, moneda) + '</td></tr>';
+          '<tr class="fila-clickable"><td class="col-item">' + iconoIngreso + '</td>' + celdasIng.join('') + '</tr>' +
+          '<tr class="fila-clickable"><td class="col-item">' + iconoEgreso + '</td>' + celdasEgr.join('') + '</tr>' +
+          '<tr class="fila-clickable"><td class="col-item">' + iconoGP + '</td>' + celdasGp.join('') + '</tr>';
       }
 
       const totalComisionesParaRatio = ordenados.reduce((s, k) => {
@@ -4558,37 +4566,49 @@
       const pctsDir = metricasMes.map(m => pctNumeroRatioFlujo(m.costoDirIngPct));
       const pctsInd = metricasMes.map(m => pctNumeroRatioFlujo(m.costoIndIngPct));
       const pctsTot = metricasMes.map(m => pctNumeroRatioFlujo(m.costoTotalIngPct));
-      let celdasCom = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.comVentasPct, i > 0 ? pctsCom[i - 1] : null, ''));
-      let celdasSue = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.sueldosIngPct, i > 0 ? pctsSue[i - 1] : null, ''));
-      let celdasFinMp = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoFinMpPct, i > 0 ? pctsFinMp[i - 1] : null, ''));
-      let celdasDir = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoDirIngPct, i > 0 ? pctsDir[i - 1] : null, ''));
-      let celdasInd = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoIndIngPct, i > 0 ? pctsInd[i - 1] : null, ''));
-      let celdasTot = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoTotalIngPct, i > 0 ? pctsTot[i - 1] : null, ''));
+      const celdasComReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.comVentasPct, i > 0 ? pctsCom[i - 1] : null, ''));
+      const celdasSueReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.sueldosIngPct, i > 0 ? pctsSue[i - 1] : null, ''));
+      const celdasFinMpReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoFinMpPct, i > 0 ? pctsFinMp[i - 1] : null, ''));
+      const celdasDirReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoDirIngPct, i > 0 ? pctsDir[i - 1] : null, ''));
+      const celdasIndReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoIndIngPct, i > 0 ? pctsInd[i - 1] : null, ''));
+      const celdasTotReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoTotalIngPct, i > 0 ? pctsTot[i - 1] : null, ''));
+      const celdasComProy = [];
+      const celdasSueProy = [];
+      const celdasFinMpProy = [];
+      const celdasDirProy = [];
+      const celdasIndProy = [];
+      const celdasTotProy = [];
       proys.forEach(function (proy, i) {
-        celdasCom.push(celdaRatioFlujoConVar(proy.comVentasPct, i === 0 ? pctsCom[pctsCom.length - 1] : pctNumeroRatioFlujo(proys[i - 1].comVentasPct), 'col-proyeccion'));
-        celdasSue.push(celdaRatioFlujoConVar(proy.sueldosIngPct, i === 0 ? pctsSue[pctsSue.length - 1] : pctNumeroRatioFlujo(proys[i - 1].sueldosIngPct), 'col-proyeccion'));
-        celdasFinMp.push(celdaRatioFlujoConVar(proy.costoFinMpPct, i === 0 ? pctsFinMp[pctsFinMp.length - 1] : pctNumeroRatioFlujo(proys[i - 1].costoFinMpPct), 'col-proyeccion'));
-        celdasDir.push(celdaRatioFlujoConVar(proy.costoDirIngPct, i === 0 ? pctsDir[pctsDir.length - 1] : pctNumeroRatioFlujo(proys[i - 1].costoDirIngPct), 'col-proyeccion'));
-        celdasInd.push(celdaRatioFlujoConVar(proy.costoIndIngPct, i === 0 ? pctsInd[pctsInd.length - 1] : pctNumeroRatioFlujo(proys[i - 1].costoIndIngPct), 'col-proyeccion'));
-        celdasTot.push(celdaRatioFlujoConVar(proy.costoTotalIngPct, i === 0 ? pctsTot[pctsTot.length - 1] : pctNumeroRatioFlujo(proys[i - 1].costoTotalIngPct), 'col-proyeccion'));
+        celdasComProy.push(celdaRatioFlujoConVar(proy.comVentasPct, i === 0 ? pctsCom[pctsCom.length - 1] : pctNumeroRatioFlujo(proys[i - 1].comVentasPct), 'col-proyeccion'));
+        celdasSueProy.push(celdaRatioFlujoConVar(proy.sueldosIngPct, i === 0 ? pctsSue[pctsSue.length - 1] : pctNumeroRatioFlujo(proys[i - 1].sueldosIngPct), 'col-proyeccion'));
+        celdasFinMpProy.push(celdaRatioFlujoConVar(proy.costoFinMpPct, i === 0 ? pctsFinMp[pctsFinMp.length - 1] : pctNumeroRatioFlujo(proys[i - 1].costoFinMpPct), 'col-proyeccion'));
+        celdasDirProy.push(celdaRatioFlujoConVar(proy.costoDirIngPct, i === 0 ? pctsDir[pctsDir.length - 1] : pctNumeroRatioFlujo(proys[i - 1].costoDirIngPct), 'col-proyeccion'));
+        celdasIndProy.push(celdaRatioFlujoConVar(proy.costoIndIngPct, i === 0 ? pctsInd[pctsInd.length - 1] : pctNumeroRatioFlujo(proys[i - 1].costoIndIngPct), 'col-proyeccion'));
+        celdasTotProy.push(celdaRatioFlujoConVar(proy.costoTotalIngPct, i === 0 ? pctsTot[pctsTot.length - 1] : pctNumeroRatioFlujo(proys[i - 1].costoTotalIngPct), 'col-proyeccion'));
       });
+      const celdasCom = celdasConTotalYProy(celdasComReales, celdaRatioFlujoConVar(comVentasPctTotal, null, 'col-total-real'), celdasComProy);
+      const celdasSue = celdasConTotalYProy(celdasSueReales, celdaRatioFlujoConVar(totSueldosIng, null, 'col-total-real'), celdasSueProy);
+      const celdasFinMp = celdasConTotalYProy(celdasFinMpReales, celdaRatioFlujoConVar(totCostoFinMp, null, 'col-total-real'), celdasFinMpProy);
+      const celdasDir = celdasConTotalYProy(celdasDirReales, celdaRatioFlujoConVar(totCostoDirIng, null, 'col-total-real'), celdasDirProy);
+      const celdasInd = celdasConTotalYProy(celdasIndReales, celdaRatioFlujoConVar(totCostoIndIng, null, 'col-total-real'), celdasIndProy);
+      const celdasTot = celdasConTotalYProy(celdasTotReales, celdaRatioFlujoConVar(totCostoTotalIng, null, 'col-total-real'), celdasTotProy);
       const colspanResto = ordenados.length + keyProyList.length + 1;
       const iconoRatiosTitulo = '<span class="ratios-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>';
       const tbodyRatios = document.getElementById('tbody-ratios');
       if (tbodyRatios) {
         tbodyRatios.innerHTML =
           '<tr class="ratios-seccion-titulo"><td class="col-item">' + iconoRatiosTitulo + ' Ratios del Negocio</td><td colspan="' + colspanResto + '"></td></tr>' +
-          '<tr><td class="col-item">Comisiones / Ventas</td>' + celdasCom.join('') + '<td class="valor-ratio">' + comVentasPctTotal + '</td></tr>' +
-          '<tr><td class="col-item">Sueldos / Ingresos</td>' + celdasSue.join('') + '<td class="valor-ratio">' + totSueldosIng + '</td></tr>' +
-          '<tr><td class="col-item" title="Costo Financiero (Mercado Pago) ÷ ventas de la caja Mercado Pago">Costo Financiero MP / Ventas MP</td>' + celdasFinMp.join('') + '<td class="valor-ratio">' + totCostoFinMp + '</td></tr>' +
-          '<tr><td class="col-item">Costo dir. / Ingresos</td>' + celdasDir.join('') + '<td class="valor-ratio">' + totCostoDirIng + '</td></tr>' +
-          '<tr><td class="col-item">Costo ind. / Ingresos</td>' + celdasInd.join('') + '<td class="valor-ratio">' + totCostoIndIng + '</td></tr>' +
-          '<tr><td class="col-item">Costo total / Ingreso total</td>' + celdasTot.join('') + '<td class="valor-ratio">' + totCostoTotalIng + '</td></tr>';
+          '<tr><td class="col-item">Comisiones / Ventas</td>' + celdasCom.join('') + '</tr>' +
+          '<tr><td class="col-item">Sueldos / Ingresos</td>' + celdasSue.join('') + '</tr>' +
+          '<tr><td class="col-item" title="Costo Financiero (Mercado Pago) ÷ ventas de la caja Mercado Pago">Costo Financiero MP / Ventas MP</td>' + celdasFinMp.join('') + '</tr>' +
+          '<tr><td class="col-item">Costo dir. / Ingresos</td>' + celdasDir.join('') + '</tr>' +
+          '<tr><td class="col-item">Costo ind. / Ingresos</td>' + celdasInd.join('') + '</tr>' +
+          '<tr><td class="col-item">Costo total / Ingreso total</td>' + celdasTot.join('') + '</tr>';
       }
 
       const tfoot = document.getElementById('tfoot-flujo');
       if (tfoot) {
-        let tfootHtml = ordenados.length === 0 ? '' : '<tr class="fila-total-real"><td class="col-item">Total G/P</td>' + celdasGp.join('') + '<td class="balance ' + (balanceConProy >= 0 ? 'positivo' : 'negativo') + '">' + simbolo + formatearNumero(balanceConProy, moneda) + '</td></tr>';
+        let tfootHtml = ordenados.length === 0 ? '' : '<tr class="fila-total-real"><td class="col-item">Total G/P</td>' + celdasGp.join('') + '</tr>';
         if (keyProyList.length) {
           const metodoLabel = configProy.metodo === 'promedio_ponderado' ? 'Promedio ponderado' : (configProy.metodo === 'promedio' ? 'Promedio' : (configProy.metodo === 'promedio_recortado' ? 'Promedio recortado (suaviza picos)' : 'Mediana'));
           const disclaimer = 'Proyección: ' + metodoLabel + ' de los últimos ' + configProy.meses + ' meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución).';
