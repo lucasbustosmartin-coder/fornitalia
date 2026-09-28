@@ -136,7 +136,7 @@
 
   function esSubitemRatio(sub) {
     var k = normKey(sub);
-    return k === 'cobranzas por ventas (efectivo neto ingresado)' || k === 'comisiones por ventas';
+    return k === 'cobranzas por ventas (efectivo neto ingresado)' || k === 'comisiones por ventas' || k === 'costo financiero (mercado pago)';
   }
 
   function formVacio() {

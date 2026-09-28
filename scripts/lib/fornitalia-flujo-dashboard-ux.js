@@ -417,28 +417,33 @@
       var dif = actual - anterior;
       return dif > 0.05 ? svgSubio : (dif < -0.05 ? svgBajo : svgIgual);
     }
-    function filaRatio(getNum) {
-      var pctMes = function (k) { return pctRatio(getNum(k), ing(k)); };
+    function filaRatio(getNum, getDen) {
+      var denFn = getDen || ing;
+      var pctMes = function (k) { return pctRatio(getNum(k), denFn(k)); };
       var serie = meses.map(pctMes);
       var anteriorPrimero = pctMes(mesAnteriorKey(meses[0]));
       var vals = serie.map(function (p, i) {
         return '<td class="valor-ratio"><span class="ratio-con-variacion">' + fmtPct(p) + iconoVar(p, i === 0 ? anteriorPrimero : serie[i - 1]) + '</span></td>';
       });
       var num = meses.reduce(function (s, k) { return s + (Number(getNum(k)) || 0); }, 0);
-      vals.push('<td class="valor-ratio">' + fmtPct(pctRatio(num, totIng)) + '</td>');
+      var denTot = meses.reduce(function (s, k) { return s + (Number(denFn(k)) || 0); }, 0);
+      vals.push('<td class="valor-ratio">' + fmtPct(pctRatio(num, denTot)) + '</td>');
       return vals;
     }
 
+    var ventas = function (k) { return Number(dato(k).ventas) || 0; };
+    var ventasMp = function (k) { return Number(dato(k).ventasMp) || 0; };
     var filas = [
       { tipo: 'datos', item: 'Ingresos', vals: filaMontos(ing, 'ingresos', totIng) },
       { tipo: 'datos', item: 'Egresos', vals: filaMontos(egr, 'egresos', totEgr) },
       { tipo: 'datos', item: 'G/P', vals: filaGp },
       { tipo: 'titulo', item: 'Ratios del Negocio' },
-      { tipo: 'datos', item: 'Comisiones / Ventas', vals: filaRatio(function (k) { return Number(dato(k).comisionesParaRatio) || 0; }) },
+      { tipo: 'datos', item: 'Comisiones / Ventas', vals: filaRatio(function (k) { return Number(dato(k).comisionesParaRatio) || 0; }, ventas) },
+      { tipo: 'datos', item: 'Sueldos / Ingresos', vals: filaRatio(function (k) { return Number(dato(k).sueldos) || 0; }) },
+      { tipo: 'datos', item: 'Costo Financiero MP / Ventas MP', vals: filaRatio(function (k) { return Number(dato(k).costoFinancieroMp) || 0; }, ventasMp) },
       { tipo: 'datos', item: 'Costo dir. / Ingresos', vals: filaRatio(function (k) { return Number(dato(k).egresosCostoDirecto) || 0; }) },
       { tipo: 'datos', item: 'Costo ind. / Ingresos', vals: filaRatio(function (k) { return Number(dato(k).egresosCostoIndirecto) || 0; }) },
-      { tipo: 'datos', item: 'Costo total / Ingreso total', vals: filaRatio(egr) },
-      { tipo: 'total', item: 'Total G/P', vals: filaGp }
+      { tipo: 'datos', item: 'Costo total / Ingreso total', vals: filaRatio(egr) }
     ];
     var headItem = 'Item <span class="rep-unidad">(' + unidadMilesReporte(mon) + ')</span>';
     var notas = ['Importes expresados en ' + unidadMilesReporte(mon) + ' (redondeados). Período ' + labelPeriodoActual() + '; la columna Total suma esos meses. No incluye meses proyectados.'];
@@ -521,11 +526,14 @@
   /**
    * Una sola hoja A4 apaisada. El gráfico mantiene su alto; solo se escala
    * el bloque entero si la tabla no entra (sin achicar el gráfico por separado).
+   * zoom (Chrome/Safari) sí reduce el box de impresión; transform no, y deja
+   * un resto que Chrome pinta en página 2 (thead / última fila repetida).
    */
   function ajustarReporteUnaPagina(mount) {
     if (!mount) return;
     var inner = mount.querySelector('.rep-fit-inner') || mount;
     inner.style.transform = '';
+    inner.style.zoom = '';
     inner.style.width = '';
     mount.style.height = '';
     var page = mmPageSizePx();
@@ -534,11 +542,17 @@
     var w = Math.max(inner.scrollWidth, inner.offsetWidth, 1);
     var h = Math.max(inner.scrollHeight, inner.offsetHeight, 1);
     var scale = Math.min(1, availW / w, availH / h);
+    mount.style.maxHeight = Math.floor(availH) + 'px';
+    mount.style.overflow = 'hidden';
     if (scale < 0.999) {
-      inner.style.transformOrigin = 'top left';
-      inner.style.transform = 'scale(' + scale + ')';
-      mount.style.height = Math.ceil(h * scale) + 'px';
-      mount.style.overflow = 'hidden';
+      var useZoom = typeof CSS !== 'undefined' && CSS.supports && CSS.supports('zoom', '0.5');
+      if (useZoom) {
+        inner.style.zoom = String(scale);
+      } else {
+        inner.style.transformOrigin = 'top left';
+        inner.style.transform = 'scale(' + scale + ')';
+        mount.style.height = Math.ceil(h * scale) + 'px';
+      }
     }
   }
 

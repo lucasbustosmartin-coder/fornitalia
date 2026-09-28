@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.66",
+  "versionLabel": "v2.67",
   "lines": [
-    "En Conciliación Bancaria, el buscar entiende la coma como decimal: escribí 15,71 y aparece ese importe exacto.",
-    "También vale 1.234,56. Un débito o crédito del mismo monto entra igual.",
-    "El buscar de conciliación manual funciona igual."
+    "En Flujo, Ratios del Negocio ahora muestra Sueldos / Ingresos.",
+    "También Costo Financiero MP / Ventas MP, solo con las ventas de Mercado Pago.",
+    "El PDF de esa pantalla entra en una sola hoja, sin repetir una fila."
   ]
 }
