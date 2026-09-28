@@ -247,6 +247,100 @@
     return esCanalGalUsd(state.canal) ? ('US$ ' + s) : s;
   }
 
+  function centsMonto(n) {
+    var v = Number(n);
+    if (!isFinite(v)) return null;
+    return Math.round(v * 100);
+  }
+
+  function tokenImporteBusqueda(tok) {
+    var s = String(tok || '').trim().replace(/\s/g, '');
+    if (!s) return '';
+    s = s.replace(/^us\$/i, '').replace(/^\$/, '');
+    if (s.charAt(0) === '(' && s.charAt(s.length - 1) === ')') s = '-' + s.slice(1, -1);
+    return s;
+  }
+
+  /** 15,71 / 1.234,56 (coma decimal) o 15.71 (punto, 1–2 decimales). Enteros sin separador siguen como texto (IDs). */
+  function parseImporteDesdeBusqueda(tok) {
+    var s = tokenImporteBusqueda(tok);
+    if (!s) return null;
+    var neg = false;
+    if (s.charAt(0) === '-') {
+      neg = true;
+      s = s.slice(1);
+    }
+    if (!s || !/\d/.test(s)) return null;
+    var lastComma = s.lastIndexOf(',');
+    var n;
+    if (lastComma >= 0) {
+      var dec = s.slice(lastComma + 1);
+      if (!/^\d{1,2}$/.test(dec)) return null;
+      var intPart = s.slice(0, lastComma).replace(/\./g, '');
+      if (!/^\d+$/.test(intPart)) return null;
+      n = Number(intPart + '.' + dec);
+    } else if (/^\d+\.\d{1,2}$/.test(s)) {
+      n = Number(s);
+    } else {
+      return null;
+    }
+    if (!isFinite(n)) return null;
+    return neg ? -n : n;
+  }
+
+  function montoCoincideBusqueda(monto, qNum) {
+    var a = centsMonto(monto);
+    var b = centsMonto(qNum);
+    if (a == null || b == null) return false;
+    return a === b || Math.abs(a) === Math.abs(b);
+  }
+
+  function montosDeMov(m) {
+    if (!m) return [];
+    var out = [];
+    ['monto', 'credito', 'debito', 'saldo'].forEach(function (k) {
+      if (m[k] == null || m[k] === '') return;
+      var v = Number(m[k]);
+      if (isFinite(v)) out.push(v);
+    });
+    return out;
+  }
+
+  function montosDeLista(arr) {
+    var out = [];
+    (arr || []).forEach(function (m) {
+      montosDeMov(m).forEach(function (n) { out.push(n); });
+    });
+    return out;
+  }
+
+  function pasaFiltroConQ(qRaw, texto, montos) {
+    qRaw = String(qRaw || '').trim();
+    if (!qRaw) return true;
+    var tokens = qRaw.split(/\s+/).filter(Boolean);
+    var t = String(texto || '').toLowerCase();
+    var montosList = montos || [];
+    var i;
+    for (i = 0; i < tokens.length; i++) {
+      var tok = tokens[i];
+      var qNum = parseImporteDesdeBusqueda(tok);
+      if (qNum != null) {
+        var ok = false;
+        var j;
+        for (j = 0; j < montosList.length; j++) {
+          if (montoCoincideBusqueda(montosList[j], qNum)) {
+            ok = true;
+            break;
+          }
+        }
+        if (!ok) return false;
+      } else if (t.indexOf(tok.toLowerCase()) < 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   function normHeader(h) {
     return String(h || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
   }
@@ -602,7 +696,7 @@
   function pasaFiltrosGrupoDup(g) {
     if (!g || !g.movs || !g.movs.length) return false;
     var blob = (g.movs || []).map(blobMov).join(' ') + ' ' + labelVecesDup(g.veces);
-    if (!pasaFiltro(blob)) return false;
+    if (!pasaFiltro(blob, montosDeLista(g.movs).concat(g.monto != null ? [g.monto] : []))) return false;
     return g.movs.some(function (m) { return pasaFiltrosMov(m, 'sistema'); });
   }
 
@@ -695,7 +789,7 @@
     if (!g) return false;
     if (g.movs && g.movs.length) return pasaFiltrosGrupoDup(g);
     var blob = [g.monto, labelVecesDup(g.veces), (g.ids || []).join(' ')].join(' ');
-    return pasaFiltro(blob);
+    return pasaFiltro(blob, g.monto != null ? [g.monto] : []);
   }
 
   function filasVisiblesDupsDesc() {
@@ -3260,7 +3354,7 @@
     var bs = movsMatchLado(match, 'banco');
     var ss = movsMatchLado(match, 'sistema');
     var blob = bs.concat(ss).map(blobMov).join(' ') + ' ' + criterioLabel(match.criterio) + ' ' + (match.justificacion || '');
-    if (!pasaFiltro(blob)) return false;
+    if (!pasaFiltro(blob, montosDeLista(bs.concat(ss)))) return false;
     if (esMatchImpuestos(match)) {
       if (state.mesSistema && !ss.some(function (s) { return pasaFiltroMesValor(s && s.fecha, state.mesSistema); })) return false;
       if (state.categoria && !ss.some(function (s) { return pasaFiltroCategoriaValor(s, state.categoria); })) return false;
@@ -3279,7 +3373,7 @@
   }
 
   function pasaFiltrosMov(m, origen) {
-    if (!pasaFiltro(blobMov(m))) return false;
+    if (!pasaFiltro(blobMov(m), montosDeMov(m))) return false;
     if (origen === 'banco') {
       return pasaFiltroMesValor(m && m.fecha, state.mesExtracto);
     }
@@ -3291,7 +3385,7 @@
   function pasaFiltrosParAnulado(p) {
     if (!p || !p.a || !p.b) return false;
     var blob = blobMov(p.a) + ' ' + blobMov(p.b) + ' ' + (p.opRel || '');
-    if (!pasaFiltro(blob)) return false;
+    if (!pasaFiltro(blob, montosDeLista([p.a, p.b]))) return false;
     if (state.mesExtracto && !pasaFiltroMesValor(p.a.fecha, state.mesExtracto) && !pasaFiltroMesValor(p.b.fecha, state.mesExtracto)) return false;
     if (state.mesSistema || state.categoria || state.cuenta) return false;
     return true;
@@ -3300,7 +3394,7 @@
   function pasaFiltrosNoRequiere(m) {
     if (!m) return false;
     var blob = blobMov(m) + ' ' + (m.no_requiere_justificacion || '') + ' ' + labelOrigenNoReq(m) + ' no requiere conciliacion';
-    if (!pasaFiltro(blob)) return false;
+    if (!pasaFiltro(blob, montosDeMov(m))) return false;
     return pasaFiltrosMov(m, m.origen === 'sistema' ? 'sistema' : 'banco');
   }
 
@@ -3314,7 +3408,7 @@
   function pasaFiltrosEliminado(m) {
     if (!m) return false;
     var blob = blobMov(m) + ' ' + labelMotivoEliminado(m.motivo);
-    if (!pasaFiltro(blob)) return false;
+    if (!pasaFiltro(blob, montosDeMov(m))) return false;
     return pasaFiltroMesValor(m.fecha, state.mesSistema) &&
       pasaFiltroCategoriaValor(m, state.categoria) &&
       pasaFiltroCuentaValor(m, state.cuenta);
@@ -3633,7 +3727,6 @@
     var ids = idsConfirmados();
     var used = origen === 'banco' ? ids.usedB : ids.usedS;
     var q = origen === 'banco' ? (state.manual.qBanco || '') : (state.manual.qSistema || '');
-    q = q.trim().toLowerCase();
     var mesExtracto = state.manual.mesExtracto || '';
     var mesSistema = state.manual.mesSistema || '';
     var categoria = state.manual.categoria || '';
@@ -3650,8 +3743,8 @@
         if (categoria && valorCatCta(m.categoria) !== categoria) return false;
         if (cuenta && valorCatCta(m.cuenta_contable) !== cuenta) return false;
       }
-      if (!q) return true;
-      return blobMov(m).toLowerCase().indexOf(q) >= 0;
+      if (!String(q || '').trim()) return true;
+      return pasaFiltroConQ(q, blobMov(m), montosDeMov(m));
     });
   }
 
@@ -3680,10 +3773,8 @@
     return hit.estado || 'Sin pareja';
   }
 
-  function pasaFiltro(texto) {
-    var q = (state.q || '').trim().toLowerCase();
-    if (!q) return true;
-    return String(texto || '').toLowerCase().indexOf(q) >= 0;
+  function pasaFiltro(texto, montos) {
+    return pasaFiltroConQ(state.q, texto, montos);
   }
 
   function htmlMonto(n) {
@@ -3747,7 +3838,7 @@
 
   function blobMov(m) {
     if (!m) return '';
-    return [m.fecha, m.tipo, m.descripcion, observacionesDe(m), m.contraparte, m.origen_id, m.id_movimiento_banco, m.monto, m.categoria, m.cuenta_contable].join(' ');
+    return [m.fecha, m.tipo, m.descripcion, observacionesDe(m), m.contraparte, m.origen_id, m.id_movimiento_banco, m.monto, formatMonto(m.monto), m.categoria, m.cuenta_contable].join(' ');
   }
 
   function sortActual() {
@@ -5052,14 +5143,14 @@
           '<h3>Extracto bancario <span class="cb-manual-count">(' + nB + ')</span>' +
             (selB ? ' <span class="cb-manual-sel">' + selB + ' elegidos</span>' : '') + '</h3>' +
           '<div class="form-group' + ((state.manual.qBanco || '').trim() ? ' cb-filtro-activo' : '') + '"><label class="cb-just-label" for="cb-manual-qb">Buscar extracto</label>' +
-          '<input type="search" id="cb-manual-qb" value="' + esc(state.manual.qBanco) + '" placeholder="Fecha, importe, concepto, contraparte…"></div>' +
+          '<input type="search" id="cb-manual-qb" value="' + esc(state.manual.qBanco) + '" placeholder="Fecha, importe (15,71), concepto…" title="El importe admite coma decimal y busca el monto exacto."></div>' +
           htmlPickTabla('banco') +
         '</div>' +
         '<div class="cb-manual-col">' +
           '<h3>Tesorería (sistema) <span class="cb-manual-count">(' + nS + ')</span>' +
             (selS ? ' <span class="cb-manual-sel">' + selS + ' elegidos</span>' : '') + '</h3>' +
           '<div class="form-group' + ((state.manual.qSistema || '').trim() ? ' cb-filtro-activo' : '') + '"><label class="cb-just-label" for="cb-manual-qs">Buscar tesorería</label>' +
-          '<input type="search" id="cb-manual-qs" value="' + esc(state.manual.qSistema) + '" placeholder="Fecha, importe, descripción, cliente…"></div>' +
+          '<input type="search" id="cb-manual-qs" value="' + esc(state.manual.qSistema) + '" placeholder="Fecha, importe (15,71), descripción…" title="El importe admite coma decimal y busca el monto exacto."></div>' +
           htmlPickTabla('sistema') +
         '</div>' +
       '</div>' +
@@ -5549,7 +5640,7 @@
     return '<div class="cb-filtros">' +
       htmlBtnFiltros('vista', n) +
       (n ? '<span class="cb-filtros-flag" title="Hay filtros aplicados; el listado y el Excel respetan estos filtros">Filtros activos</span>' : '') +
-      '<div class="form-group cb-filtro-buscar' + (qOn ? ' cb-filtro-activo' : '') + '"><label for="cb-q">Buscar</label><input type="search" id="cb-q" value="' + esc(state.q) + '" placeholder="Fecha, importe, cliente, ID, categoría…" title="Búsqueda amplia sobre el listado visible"></div>' +
+      '<div class="form-group cb-filtro-buscar' + (qOn ? ' cb-filtro-activo' : '') + '"><label for="cb-q">Buscar</label><input type="search" id="cb-q" value="' + esc(state.q) + '" placeholder="Fecha, importe (15,71), cliente, ID…" title="Búsqueda amplia. El importe admite coma decimal (15,71) y busca el monto exacto."></div>' +
     '</div>';
   }
 

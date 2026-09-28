@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.65",
+  "versionLabel": "v2.66",
   "lines": [
-    "En Galicia, un movimiento Imputado ya no desaparece al volver a cargar el extracto.",
-    "Solo se retira si la primera vez no vino imputado (por ejemplo En proceso) y este Excel ya no lo trae.",
-    "Si más adelante llega como Imputado, queda confirmado y no se borra."
+    "En Conciliación Bancaria, el buscar entiende la coma como decimal: escribí 15,71 y aparece ese importe exacto.",
+    "También vale 1.234,56. Un débito o crédito del mismo monto entra igual.",
+    "El buscar de conciliación manual funciona igual."
   ]
 }
