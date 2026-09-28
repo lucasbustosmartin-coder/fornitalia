@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.63',
+    versionLabel: 'v2.64',
     lines: [
-      'En Seguridad podés crear perfiles nuevos además de Admin, Encargado y Visor.',
-      'El perfil nace sin permisos: los activás en la grilla y después lo asignás a cada usuario.',
-      'Un perfil a medida se puede eliminar si nadie lo tiene asignado.'
+      'El primer ítem del menú ya no es Home: se llama Flujo de caja y tiene un icono de dinero.',
+      'Solo lo ves si tu perfil tiene permiso; si no, al entrar vas al primer menú que sí tengas.',
+      'Si olvidaste la clave, en el login está «¿Olvidaste tu contraseña?» para pedir un enlace por mail.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

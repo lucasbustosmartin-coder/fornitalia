@@ -152,6 +152,7 @@
       width: 100%; padding: 0.55rem 0.65rem; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; box-sizing: border-box;
     }
     .fornitalia-login-card .login-error { color: #b91c1c; font-size: 0.875rem; margin: 0.5rem 0 0 0; min-height: 1.25rem; }
+    .fornitalia-login-card .login-ok { color: #0d7d3d; font-size: 0.875rem; margin: 0.5rem 0 0 0; }
     .fornitalia-login-card .login-password-hint { margin: 0.35rem 0 0 0; font-size: 0.8rem; color: #666; line-height: 1.35; }
     .fornitalia-login-card .login-password-hint code { font-size: 0.78rem; background: #f3f4f6; padding: 0.1rem 0.25rem; border-radius: 4px; }
     .fornitalia-login-card .login-actions { display: flex; flex-direction: column; gap: 0.65rem; margin-top: 1rem; }
@@ -1076,7 +1077,7 @@
 </head>
 <body>
   <div id="login-screen" class="fornitalia-login-screen" aria-hidden="true">
-    <div class="fornitalia-login-card">
+    <div id="login-card" class="fornitalia-login-card">
       <h1>Flujo de caja – Fornitalia</h1>
       <p class="sub">Iniciá sesión para acceder según tu rol, o continuá como invitado (solo lectura acotada).</p>
       <form id="login-form">
@@ -1097,9 +1098,53 @@
         </div>
       </form>
       <div class="login-links">
+        <button type="button" class="link-like" id="link-olvido-password">¿Olvidaste tu contraseña?</button>
         <button type="button" class="link-like" id="link-registro">Crear cuenta</button>
         <button type="button" class="link-like" id="link-invitado">Continuar como invitado (visor)</button>
       </div>
+    </div>
+    <div id="forgot-password-card" class="fornitalia-login-card" style="display:none;">
+      <h1>Recuperar contraseña</h1>
+      <p class="sub">Te enviamos un enlace por email para elegir una contraseña nueva. Revisá también spam (sobre todo en Hotmail).</p>
+      <form id="forgot-password-form">
+        <div class="form-group">
+          <label for="forgot-password-email">Email de tu cuenta</label>
+          <input type="email" id="forgot-password-email" name="email" autocomplete="email" required />
+        </div>
+        <p id="forgot-password-error" class="login-error" role="alert"></p>
+        <p id="forgot-password-ok" class="login-ok" role="status" style="display:none;"></p>
+        <div class="login-actions">
+          <button type="submit" class="btn btn-primary" id="btn-forgot-password-enviar" style="width:100%; min-height:2.25rem; border-radius:8px;">
+            <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
+            Enviar enlace
+          </button>
+        </div>
+      </form>
+      <div class="login-links">
+        <button type="button" class="link-like" id="link-forgot-volver-login">Volver a iniciar sesión</button>
+      </div>
+    </div>
+    <div id="recovery-password-card" class="fornitalia-login-card" style="display:none;">
+      <h1>Nueva contraseña</h1>
+      <p class="sub">Elegí una contraseña nueva para tu cuenta.</p>
+      <form id="recovery-password-form">
+        <div class="form-group">
+          <label for="recovery-password-new">Nueva contraseña</label>
+          <input type="password" id="recovery-password-new" autocomplete="new-password" required minlength="8" />
+          <p class="login-password-hint">Mínimo 8 caracteres. Mezclá mayúsculas, minúsculas, números y símbolos.</p>
+        </div>
+        <div class="form-group">
+          <label for="recovery-password-repeat">Repetir contraseña</label>
+          <input type="password" id="recovery-password-repeat" autocomplete="new-password" required minlength="8" />
+        </div>
+        <p id="recovery-password-error" class="login-error" role="alert"></p>
+        <div class="login-actions">
+          <button type="submit" class="btn btn-primary" id="btn-recovery-password-guardar" style="width:100%; min-height:2.25rem; border-radius:8px;">
+            <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+            Guardar e ingresar
+          </button>
+        </div>
+      </form>
     </div>
     <div id="register-card" class="fornitalia-login-card" style="display:none;">
       <h1>Registro</h1>
@@ -1135,10 +1180,10 @@
       <span class="icon-collapse btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></span>
     </button>
     <nav class="sidebar-nav">
-      <a href="#" class="menu-item" id="menu-home" title="Home" aria-label="Home">
-        <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg></span>
-        <span class="menu-label">Home</span>
-      </a>
+      <button type="button" class="menu-item" id="menu-home" title="Flujo de caja" aria-label="Flujo de caja" style="display:none;">
+        <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M16 8.5H10.5a2.5 2.5 0 000 5h3a2.5 2.5 0 010 5H8"/></svg></span>
+        <span class="menu-label">Flujo de caja</span>
+      </button>
       <button type="button" class="menu-item" id="menu-gestion-proyectos" title="Gestión de Proyectos" aria-label="Gestión de Proyectos" style="display:none;">
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>
         <span class="menu-label">Gestión de Proyectos</span>
@@ -1191,10 +1236,10 @@
     <div class="sidebar-version" id="sidebar-version" aria-label="Versión"></div>
   </aside>
   <main id="main-content" class="main-content">
-  <div id="view-dashboard">
+  <div id="view-dashboard" style="display:none;">
   <div class="dashboard-header-row">
     <h1 class="vista-titulo">
-      <span class="vista-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg></span>
+      <span class="vista-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M16 8.5H10.5a2.5 2.5 0 000 5h3a2.5 2.5 0 010 5H8"/></svg></span>
       Flujo de caja
     </h1>
     <button type="button" class="th-help th-help--inline" data-help-template="template-dashboard-intro" aria-label="Ayuda: flujo de caja" title="Ayuda">
@@ -1994,7 +2039,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.63';
+    const APP_VERSION = '2.64';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -2052,6 +2097,7 @@
     /** true si respondió get_my_permissions (SQL de seguridad desplegado). Si false, modo compatibilidad = acceso completo al dashboard. */
     let fornitaliaSecurityRpcOk = false;
     let fornitaliaDashboardInited = false;
+    let fornitaliaAuthBootstrapDone = false;
     let currentUserId = '';
     let currentUserEmail = '';
     let currentUserNombre = '';
@@ -2289,20 +2335,77 @@
       }
     }
 
-    function showLoginScreen() {
-      const el = document.getElementById('login-screen');
-      const shell = document.getElementById('fornitalia-app-shell');
+    function fornitaliaAuthRedirectToRecuperacion() {
+      var origin = window.location.origin;
+      var path = window.location.pathname && window.location.pathname !== '' ? window.location.pathname : '/';
+      return origin + path + (window.location.search || '');
+    }
+
+    function fornitaliaAuthUrlIndicaPasswordRecovery() {
+      try {
+        var raw = String(window.location.hash || '') + ' ' + String(window.location.search || '');
+        var dec = decodeURIComponent(raw);
+        return /\btype=recovery\b/i.test(dec) || /\btype=recovery\b/i.test(raw);
+      } catch (e) {
+        return /type=recovery|type%3Drecovery/i.test(String(window.location.hash || '') + String(window.location.search || ''));
+      }
+    }
+
+    function ocultarPantallasAuthAuxiliares() {
+      var forgot = document.getElementById('forgot-password-card');
+      var recovery = document.getElementById('recovery-password-card');
+      var registerCard = document.getElementById('register-card');
+      if (forgot) forgot.style.display = 'none';
+      if (recovery) recovery.style.display = 'none';
+      if (registerCard) registerCard.style.display = 'none';
+    }
+
+    function mostrarLoginScreenVisible() {
+      var el = document.getElementById('login-screen');
+      var shell = document.getElementById('fornitalia-app-shell');
       if (el) {
         el.classList.add('fornitalia-login-visible');
         el.setAttribute('aria-hidden', 'false');
       }
       if (shell) shell.classList.remove('fornitalia-app-visible');
-      const reg = document.getElementById('register-card');
-      const card = el && el.querySelector('.fornitalia-login-card:not(#register-card)');
-      if (reg && card) {
-        reg.style.display = 'none';
-        card.style.display = 'block';
-      }
+    }
+
+    function showForgotPasswordScreen() {
+      mostrarLoginScreenVisible();
+      ocultarPantallasAuthAuxiliares();
+      var loginCard = document.getElementById('login-card');
+      var forgot = document.getElementById('forgot-password-card');
+      if (loginCard) loginCard.style.display = 'none';
+      if (forgot) forgot.style.display = 'block';
+      var err = document.getElementById('forgot-password-error');
+      var ok = document.getElementById('forgot-password-ok');
+      if (err) err.textContent = '';
+      if (ok) { ok.textContent = ''; ok.style.display = 'none'; }
+      var em = ((document.getElementById('login-email') || {}).value || '').trim();
+      var fe = document.getElementById('forgot-password-email');
+      if (fe && em) fe.value = em;
+    }
+
+    function showRecoveryPasswordScreen() {
+      mostrarLoginScreenVisible();
+      ocultarPantallasAuthAuxiliares();
+      var loginCard = document.getElementById('login-card');
+      var recovery = document.getElementById('recovery-password-card');
+      if (loginCard) loginCard.style.display = 'none';
+      if (recovery) recovery.style.display = 'block';
+      var err = document.getElementById('recovery-password-error');
+      if (err) err.textContent = '';
+      var n1 = document.getElementById('recovery-password-new');
+      var n2 = document.getElementById('recovery-password-repeat');
+      if (n1) n1.value = '';
+      if (n2) n2.value = '';
+    }
+
+    function showLoginScreen() {
+      mostrarLoginScreenVisible();
+      ocultarPantallasAuthAuxiliares();
+      var loginCard = document.getElementById('login-card');
+      if (loginCard) loginCard.style.display = 'block';
     }
 
     function hideLoginScreen() {
@@ -2358,6 +2461,7 @@
         const n = document.getElementById(id);
         if (n) n.style.display = visible ? '' : 'none';
       };
+      setVis('menu-home', puedeVerMenuFlujoCaja());
       setVis('menu-reportes', rep);
       setVis('menu-novedades', nov);
       setVis('menu-configuracion', cfg);
@@ -2410,77 +2514,10 @@
       }
       syncFiltrosFlujoUi();
 
-      const vSeg = document.getElementById('view-seguridad');
-      if (vSeg && vSeg.style.display === 'block' && !sec) {
-        vSeg.style.display = 'none';
-        const vd = document.getElementById('view-dashboard');
-        if (vd) vd.style.display = 'block';
-        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
-        document.getElementById('menu-home')?.classList.add('menu-item-active');
-      }
-      const vRep = document.getElementById('view-reportes');
-      if (vRep && vRep.style.display === 'block' && !rep) {
-        vRep.style.display = 'none';
-        const vd = document.getElementById('view-dashboard');
-        if (vd) vd.style.display = 'block';
-        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
-        document.getElementById('menu-home')?.classList.add('menu-item-active');
-      }
-      const vNov = document.getElementById('view-novedades');
-      if (vNov && vNov.style.display === 'block' && !nov) {
-        vNov.style.display = 'none';
-        const vd = document.getElementById('view-dashboard');
-        if (vd) vd.style.display = 'block';
-        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
-        document.getElementById('menu-home')?.classList.add('menu-item-active');
-      }
-      const vGp = document.getElementById('view-gestion-proyectos');
-      if (vGp && vGp.style.display === 'block' && !gp) {
-        vGp.style.display = 'none';
-        const vd = document.getElementById('view-dashboard');
-        if (vd) vd.style.display = 'block';
-        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
-        document.getElementById('menu-home')?.classList.add('menu-item-active');
-      }
-      const vCb = document.getElementById('view-conciliacion-bancaria');
-      if (vCb && vCb.style.display === 'block' && !cb) {
-        vCb.style.display = 'none';
-        const vd = document.getElementById('view-dashboard');
-        if (vd) vd.style.display = 'block';
-        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
-        document.getElementById('menu-home')?.classList.add('menu-item-active');
-      }
-      const vSe = document.getElementById('view-saldos-extractos');
-      if (vSe && vSe.style.display === 'block' && !se) {
-        vSe.style.display = 'none';
-        const vd = document.getElementById('view-dashboard');
-        if (vd) vd.style.display = 'block';
-        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
-        document.getElementById('menu-home')?.classList.add('menu-item-active');
-      }
-      const vCf = document.getElementById('view-cajas-fisicas');
-      if (vCf && vCf.style.display === 'block' && !cf) {
-        vCf.style.display = 'none';
-        const vd = document.getElementById('view-dashboard');
-        if (vd) vd.style.display = 'block';
-        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
-        document.getElementById('menu-home')?.classList.add('menu-item-active');
-      }
-      const vImp = document.getElementById('view-impuestos');
-      if (vImp && vImp.style.display === 'block' && !imp) {
-        vImp.style.display = 'none';
-        const vd = document.getElementById('view-dashboard');
-        if (vd) vd.style.display = 'block';
-        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
-        document.getElementById('menu-home')?.classList.add('menu-item-active');
-      }
-      const vMef = document.getElementById('view-matriz-ef');
-      if (vMef && vMef.style.display === 'block' && !mef) {
-        vMef.style.display = 'none';
-        const vd = document.getElementById('view-dashboard');
-        if (vd) vd.style.display = 'block';
-        document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
-        document.getElementById('menu-home')?.classList.add('menu-item-active');
+      const actual = vistaPrincipalActiva();
+      if (!actual || !vistaPrincipalPermitida(actual)) {
+        if (fornitaliaDashboardInited) mostrarPrimeraVistaLateralPermitida({ skipRefresh: true });
+        else mostrarVistaPrincipal('', { skipRefresh: true });
       }
     }
 
@@ -2488,7 +2525,81 @@
       return hasPerm(PERM_VER_REPORTES) || puedeExportarBaseHistorica();
     }
 
-    function mostrarVistaPrincipal(idVista) {
+    function puedeVerMenuFlujoCaja() {
+      return hasPerm(PANEL_PERMISO.flujo);
+    }
+
+    function menusLateralesConVista() {
+      return [
+        { vista: 'dashboard', menuId: 'menu-home', ok: () => puedeVerMenuFlujoCaja() },
+        { vista: 'gestion-proyectos', menuId: 'menu-gestion-proyectos', ok: () => hasPerm(PERM_VER_GESTION_PROYECTOS) },
+        { vista: 'conciliacion-bancaria', menuId: 'menu-conciliacion-bancaria', ok: () => hasPerm(PERM_VER_CONCILIACION_BANCARIA) },
+        { vista: 'cajas-fisicas', menuId: 'menu-cajas-fisicas', ok: () => hasPerm(PERM_VER_CAJAS_FISICAS) },
+        { vista: 'saldos-extractos', menuId: 'menu-saldos-extractos', ok: () => hasPerm(PERM_VER_SALDOS_EXTRACTOS) },
+        { vista: 'impuestos', menuId: 'menu-impuestos', ok: () => hasPerm(PERM_VER_IMPUESTOS) },
+        { vista: 'matriz-ef', menuId: 'menu-matriz-ef', ok: () => hasPerm(PERM_VER_MATRIZ_EF) },
+        { vista: 'reportes', menuId: 'menu-reportes', ok: () => hasPerm(PERM_VER_REPORTES) || puedeExportarBaseHistorica() },
+        { vista: 'novedades', menuId: 'menu-novedades', ok: () => hasPerm(PERM_VER_NOVEDADES) },
+        { vista: 'seguridad', menuId: 'menu-seguridad', ok: () => puedeAssignRoles() },
+      ];
+    }
+
+    function primerMenuLateralPermitido() {
+      return menusLateralesConVista().find((it) => it.ok()) || null;
+    }
+
+    function vistaPrincipalPermitida(vista) {
+      const it = menusLateralesConVista().find((m) => m.vista === vista);
+      return !!(it && it.ok());
+    }
+
+    function vistaPrincipalActiva() {
+      const pares = [
+        ['view-dashboard', 'dashboard'],
+        ['view-gestion-proyectos', 'gestion-proyectos'],
+        ['view-conciliacion-bancaria', 'conciliacion-bancaria'],
+        ['view-cajas-fisicas', 'cajas-fisicas'],
+        ['view-saldos-extractos', 'saldos-extractos'],
+        ['view-impuestos', 'impuestos'],
+        ['view-matriz-ef', 'matriz-ef'],
+        ['view-reportes', 'reportes'],
+        ['view-novedades', 'novedades'],
+        ['view-seguridad', 'seguridad'],
+      ];
+      for (let i = 0; i < pares.length; i++) {
+        const el = document.getElementById(pares[i][0]);
+        if (el && el.style.display !== 'none') return pares[i][1];
+      }
+      return null;
+    }
+
+    function activarMenuLateral(menuId) {
+      document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+      if (menuId) document.getElementById(menuId)?.classList.add('menu-item-active');
+    }
+
+    function mostrarPrimeraVistaLateralPermitida(opts) {
+      const first = primerMenuLateralPermitido();
+      if (!first) {
+        mostrarVistaPrincipal('', opts);
+        activarMenuLateral(null);
+        return first;
+      }
+      mostrarVistaPrincipal(first.vista, opts);
+      activarMenuLateral(first.menuId);
+      if (first.vista === 'gestion-proyectos' && window.FornitaliaGestionProyectos) window.FornitaliaGestionProyectos.show();
+      else if (first.vista === 'conciliacion-bancaria' && window.FornitaliaConciliacionBancaria) window.FornitaliaConciliacionBancaria.show();
+      else if (first.vista === 'cajas-fisicas' && window.FornitaliaCajasFisicas) window.FornitaliaCajasFisicas.show();
+      else if (first.vista === 'saldos-extractos' && window.FornitaliaSaldosExtractos) window.FornitaliaSaldosExtractos.show();
+      else if (first.vista === 'impuestos' && window.FornitaliaImpuestos) window.FornitaliaImpuestos.show();
+      else if (first.vista === 'matriz-ef' && window.FornitaliaMatrizEf) window.FornitaliaMatrizEf.show();
+      else if (first.vista === 'seguridad') loadSeguridadForfitalia();
+      else if (first.vista === 'reportes') actualizarReportesMatrizStats();
+      return first;
+    }
+
+    function mostrarVistaPrincipal(idVista, opts) {
+      const skipRefresh = opts && opts.skipRefresh;
       const vd = document.getElementById('view-dashboard');
       const vn = document.getElementById('view-novedades');
       const vr = document.getElementById('view-reportes');
@@ -2509,7 +2620,7 @@
       if (vse) vse.style.display = idVista === 'saldos-extractos' ? 'block' : 'none';
       if (vimp) vimp.style.display = idVista === 'impuestos' ? 'block' : 'none';
       if (vmef) vmef.style.display = idVista === 'matriz-ef' ? 'block' : 'none';
-      if (idVista === 'dashboard') void refrescarDashboardFlujo();
+      if (idVista === 'dashboard' && !skipRefresh) void refrescarDashboardFlujo();
     }
 
     function actualizarReportesMatrizStats() {
@@ -2657,7 +2768,6 @@
         id: 'solapas',
         titulo: 'Solapas del dashboard',
         operar: [
-          'ver_solapa_flujo',
           'ver_solapa_todas_transacciones',
           'ver_solapa_evolucion',
           'ver_solapa_estado_financiero',
@@ -2666,7 +2776,7 @@
       {
         id: 'menus',
         titulo: 'Menús laterales',
-        operar: ['ver_novedades', 'ver_configuracion', 'ver_reportes', 'ver_gestion_proyectos', 'ver_conciliacion_bancaria', 'ver_cajas_fisicas', 'ver_saldos_extractos', 'ver_impuestos', 'ver_matriz_ef'],
+        operar: ['ver_solapa_flujo', 'ver_novedades', 'ver_configuracion', 'ver_reportes', 'ver_gestion_proyectos', 'ver_conciliacion_bancaria', 'ver_cajas_fisicas', 'ver_saldos_extractos', 'ver_impuestos', 'ver_matriz_ef'],
       },
       {
         id: 'gestion-proyectos',
@@ -2801,6 +2911,7 @@
         const allPerms = rPerms.data || [];
         const permMap = {};
         allPerms.forEach((p) => { permMap[p.permission] = p.description || p.permission; });
+        if (permMap.ver_solapa_flujo) permMap.ver_solapa_flujo = 'Ver Flujo de caja (menú lateral y solapa)';
         const rolePermList = rRolePerms.data || [];
         const rolePermSet = new Set(rolePermList.map((r) => r.role + '|' + r.permission));
         const userCountByRole = {};
@@ -2940,7 +3051,7 @@
         return 'La contraseña no cumple la longitud mínima que exige el proyecto en Supabase. ' + m;
       }
       if (/already registered|already been registered|User already exists/i.test(m)) {
-        return 'Ese email ya está registrado. Probá iniciar sesión o recuperar contraseña desde Supabase.';
+        return 'Ese email ya está registrado. Probá iniciar sesión o «¿Olvidaste tu contraseña?».';
       }
       return m;
     }
@@ -2953,12 +3064,20 @@
       const linkReg = document.getElementById('link-registro');
       const linkLogin = document.getElementById('link-login');
       const linkInv = document.getElementById('link-invitado');
-      const loginCard = document.querySelector('#login-screen .fornitalia-login-card:not(#register-card)');
+      const loginCard = document.getElementById('login-card');
       const registerCard = document.getElementById('register-card');
+      const forgotForm = document.getElementById('forgot-password-form');
+      const forgotErr = document.getElementById('forgot-password-error');
+      const forgotOk = document.getElementById('forgot-password-ok');
+      const recoveryForm = document.getElementById('recovery-password-form');
+      const recoveryErr = document.getElementById('recovery-password-error');
+      const linkOlvido = document.getElementById('link-olvido-password');
+      const linkForgotVolver = document.getElementById('link-forgot-volver-login');
 
       if (linkReg && registerCard && loginCard) {
         linkReg.addEventListener('click', (e) => {
           e.preventDefault();
+          ocultarPantallasAuthAuxiliares();
           loginCard.style.display = 'none';
           registerCard.style.display = 'block';
           if (loginError) loginError.textContent = '';
@@ -2968,10 +3087,82 @@
       if (linkLogin && registerCard && loginCard) {
         linkLogin.addEventListener('click', (e) => {
           e.preventDefault();
-          registerCard.style.display = 'none';
-          loginCard.style.display = 'block';
+          showLoginScreen();
           if (loginError) loginError.textContent = '';
           if (registerError) registerError.textContent = '';
+        });
+      }
+      if (linkOlvido) {
+        linkOlvido.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (loginError) loginError.textContent = '';
+          showForgotPasswordScreen();
+        });
+      }
+      if (linkForgotVolver) {
+        linkForgotVolver.addEventListener('click', (e) => {
+          e.preventDefault();
+          showLoginScreen();
+        });
+      }
+      if (forgotForm) {
+        forgotForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          if (forgotErr) forgotErr.textContent = '';
+          if (forgotOk) { forgotOk.textContent = ''; forgotOk.style.display = 'none'; }
+          var email = ((document.getElementById('forgot-password-email') || {}).value || '').trim();
+          if (!email) {
+            if (forgotErr) forgotErr.textContent = 'Ingresá tu email.';
+            return;
+          }
+          client.auth.resetPasswordForEmail(email, { redirectTo: fornitaliaAuthRedirectToRecuperacion() }).then(function (res) {
+            if (res.error) {
+              if (forgotErr) forgotErr.textContent = mensajeErrorAuthSupabase(res.error.message) || 'No se pudo enviar el email.';
+              return;
+            }
+            if (forgotOk) {
+              forgotOk.textContent = 'Si existe una cuenta con ese email, recibirás un enlace para elegir una contraseña nueva. Revisá también spam.';
+              forgotOk.style.display = 'block';
+            }
+          }).catch(function (err) {
+            if (forgotErr) forgotErr.textContent = mensajeErrorAuthSupabase(err && err.message);
+          });
+        });
+      }
+      if (recoveryForm) {
+        recoveryForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          if (recoveryErr) recoveryErr.textContent = '';
+          var p1 = (document.getElementById('recovery-password-new') || {}).value || '';
+          var p2 = (document.getElementById('recovery-password-repeat') || {}).value || '';
+          if (p1.length < 8) {
+            if (recoveryErr) recoveryErr.textContent = 'La contraseña debe tener al menos 8 caracteres.';
+            return;
+          }
+          if (p1 !== p2) {
+            if (recoveryErr) recoveryErr.textContent = 'Las contraseñas no coinciden.';
+            return;
+          }
+          client.auth.updateUser({ password: p1 }).then(function (res) {
+            if (res.error) {
+              if (recoveryErr) recoveryErr.textContent = mensajeErrorAuthSupabase(res.error.message) || 'No se pudo actualizar la contraseña.';
+              return null;
+            }
+            try {
+              history.replaceState(null, '', window.location.pathname + (window.location.search || ''));
+            } catch (eHist) { /* ignore */ }
+            return client.auth.getSession();
+          }).then(function (sessRes) {
+            if (!sessRes) return;
+            var sess = sessRes.data && sessRes.data.session;
+            if (!sess) {
+              if (recoveryErr) recoveryErr.textContent = 'Contraseña actualizada. Iniciá sesión de nuevo.';
+              showLoginScreen();
+              return;
+            }
+            fornitaliaAuthBootstrapDone = true;
+            finalizeSessionAndStartDashboard(sess);
+          });
         });
       }
 
@@ -3052,12 +3243,49 @@
 
     async function bootstrapFornitalia() {
       setupAuthForms();
-      const { data: { session } } = await client.auth.getSession();
-      if (session && session.user) {
-        await finalizeSessionAndStartDashboard(session);
-      } else {
+      client.auth.onAuthStateChange(function (event, session) {
+        if (event === 'SIGNED_OUT' && !session) {
+          showLoginScreen();
+          return;
+        }
+        var recoveryEvent = session && (
+          event === 'PASSWORD_RECOVERY' ||
+          (event === 'INITIAL_SESSION' && fornitaliaAuthUrlIndicaPasswordRecovery())
+        );
+        if (recoveryEvent) {
+          if (fornitaliaAuthBootstrapDone) return;
+          fornitaliaAuthBootstrapDone = true;
+          showRecoveryPasswordScreen();
+        }
+      });
+      var sess1 = await client.auth.getSession();
+      var session = sess1 && sess1.data ? sess1.data.session : null;
+      if (fornitaliaAuthBootstrapDone) return;
+      if (!session || !session.user) {
+        fornitaliaAuthBootstrapDone = true;
         showLoginScreen();
+        return;
       }
+      if (fornitaliaAuthUrlIndicaPasswordRecovery()) {
+        fornitaliaAuthBootstrapDone = true;
+        showRecoveryPasswordScreen();
+        return;
+      }
+      await new Promise(function (r) { setTimeout(r, 0); });
+      if (fornitaliaAuthBootstrapDone) return;
+      var sess2 = await client.auth.getSession();
+      var s2 = sess2 && sess2.data ? sess2.data.session : null;
+      if (fornitaliaAuthBootstrapDone) return;
+      fornitaliaAuthBootstrapDone = true;
+      if (!s2 || !s2.user) {
+        showLoginScreen();
+        return;
+      }
+      if (fornitaliaAuthUrlIndicaPasswordRecovery()) {
+        showRecoveryPasswordScreen();
+        return;
+      }
+      await finalizeSessionAndStartDashboard(s2);
     }
 
     /** Sincroniza config desde Supabase (por usuario) al cargar. Si no hay usuario o falla, se usa localStorage. */
@@ -7540,7 +7768,6 @@
           });
           sidebarToggle.setAttribute('aria-label', sidebar.classList.contains('expanded') ? 'Contraer menú' : 'Expandir menú');
         }
-        document.getElementById('menu-home')?.classList.add('menu-item-active');
         if (window.FornitaliaUsuario) {
           try { await window.FornitaliaUsuario.cargar(client); } catch (e) { /* no cortar el init */ }
         }
@@ -7611,9 +7838,9 @@
         }
         document.getElementById('menu-home')?.addEventListener('click', (e) => {
           e.preventDefault();
+          if (!puedeVerMenuFlujoCaja()) return;
           mostrarVistaPrincipal('dashboard');
-          document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
-          document.getElementById('menu-home')?.classList.add('menu-item-active');
+          activarMenuLateral('menu-home');
         });
         document.getElementById('menu-gestion-proyectos')?.addEventListener('click', (e) => {
           e.preventDefault();
@@ -7691,6 +7918,8 @@
           e.preventDefault();
           abrirModalMiPerfil();
         });
+
+        mostrarPrimeraVistaLateralPermitida({ skipRefresh: true });
 
         await syncConfigFromSupabase();
         await cargarDatos();

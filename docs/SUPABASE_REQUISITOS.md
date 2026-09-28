@@ -106,3 +106,16 @@ El script de migración puede ejecutar el mismo SQL si le indicas que cree la ta
 6. Ejecutar el script de migración desde la raíz del proyecto (por ejemplo: `python scripts/migrate_caja_to_supabase.py`).
 
 Cuando tengas la URL y la clave en el `.env`, podrás ejecutar la migración y cargar todas las filas de los 6 Excel en la tabla **transacciones**.
+
+---
+
+## Auth: recuperar contraseña
+
+La app usa **«¿Olvidaste tu contraseña?»** (`resetPasswordForEmail`). El enlace del mail vuelve a la misma URL desde la que se pidió.
+
+En Supabase: **Authentication → URL configuration**:
+
+1. **Site URL:** `https://fornitalia.vercel.app`
+2. **Redirect URLs:** incluí producción (`https://fornitalia.vercel.app`, `https://fornitalia.vercel.app/**`) y, si hace falta, localhost del `npm run dev`.
+
+Si falta la URL, el mail no redirige bien. Hotmail: el usuario debe revisar spam.
