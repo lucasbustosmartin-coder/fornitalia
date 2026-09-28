@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.64",
+  "versionLabel": "v2.65",
   "lines": [
-    "El primer ítem del menú ya no es Home: se llama Flujo de caja y tiene un icono de dinero.",
-    "Solo lo ves si tu perfil tiene permiso; si no, al entrar vas al primer menú que sí tengas.",
-    "Si olvidaste la clave, en el login está «¿Olvidaste tu contraseña?» para pedir un enlace por mail."
+    "En Galicia, un movimiento Imputado ya no desaparece al volver a cargar el extracto.",
+    "Solo se retira si la primera vez no vino imputado (por ejemplo En proceso) y este Excel ya no lo trae.",
+    "Si más adelante llega como Imputado, queda confirmado y no se borra."
   ]
 }

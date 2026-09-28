@@ -1071,6 +1071,7 @@
         monto: Math.round(monto * 100) / 100,
         moneda: esArchivoExtractoGaliciaUsd(archivo) ? 'USD' : 'ARS',
         categoria: tipoMov || grupo || null,
+        estado_banco: tipoMov || null,
         cuenta_contable: null,
         credito: cred != null && cred !== 0 ? cred : null,
         debito: deb != null && deb !== 0 ? Math.abs(deb) : null,
@@ -2359,7 +2360,7 @@
         itemSi('Ya coincidían (sin Id)', r.nYaContenido, '', 'Misma fecha, monto, descripción, categoría y cliente.') +
         htmlItemsSugeridosPorCanal(r) +
         itemSi('A eliminar', r.nBajas, 'cb-resumen-warn', 'Tesorería abierta cuyo Id no vino en este archivo.') +
-        itemSi('Extracto temporal retirado', r.nBancoAusentes, 'cb-resumen-warn', 'Movimientos banco de una carga previa (cheque en proceso, PDF viejo) que este Excel ya no trae. Tesorería no se toca.') +
+        itemSi('Extracto temporal retirado', r.nBancoAusentes, 'cb-resumen-warn', 'Solo se retiran movimientos que no estaban Imputados (p. ej. En proceso) y que este Excel ya no trae. Un Imputado no se borra. Tesorería no se toca.') +
         itemSi('Tesorerías viejas sin Id retiradas', r.nRetiradas, '', 'Se reemplazaron por el mismo movimiento con Id.') +
         itemSi('Efectivo-s/f', r.nCajaSf, 'cb-resumen-ok', 'Caja Efectivo Pesos/Dolar (sin factura): se cargaron en Cajas físicas y Saldos extractos.') +
       '</dl>' +
@@ -5566,7 +5567,7 @@
     if (esCanalGalUsd(state.canal)) {
       return {
         hintHtml:
-          '<p>El día a día se carga con el Excel <em>Extracto_CCE…</em>. El PDF <em>Extracto_Cuentas_Galicia_…</em> (cuenta en dólares) solo verifica; no da de alta movimientos. El Excel retira lo que ya no trae. Tesorería se compara aparte.</p>' +
+          '<p>El día a día se carga con el Excel <em>Extracto_CCE…</em>. El PDF <em>Extracto_Cuentas_Galicia_…</em> (cuenta en dólares) solo verifica; no da de alta movimientos. Si un movimiento no estaba Imputado (p. ej. En proceso) y el Excel ya no lo trae, se retira; si ya estaba Imputado, se queda. Tesorería se compara aparte.</p>' +
           '<p>Los importes se concilian en <strong>USD</strong> contra tesorería <em>tesoreria_transferencia_galicia_dolar_…</em> (Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (<em>cierre_CIERRE-…</em> o <em>cierre_DOL-…</em> con Caja = Transferencia Galicia Dolar y Moneda USD) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: solo filas Transferencia Galicia Dolar).</p>' +
           '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos. Status Pendiente sí se da de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Solo un Id <strong>Pendiente</strong> (caja abierta: tesorería o histórico) que ya no viene pasa a <strong>A eliminar</strong>; un Confirmado no se elimina. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
           '<p>Al cargar el extracto, el saldo de corte se pesifica al MEP (fecha del último movimiento o cotización anterior) y entra a Saldos extractos. El match es por importe y fecha (máximo 4 días).</p>' +
@@ -5579,7 +5580,7 @@
     if (state.canal === CANAL_GAL) {
       return {
         hintHtml:
-          '<p>Cargá el extracto de Galicia: Excel de cuenta corriente (<em>Extracto_CC…</em>) o el PDF <em>Extracto_Cuentas_Galicia_…</em> en pesos (no duplica lo ya cargado: misma fecha, importe y concepto, aunque cambie el saldo). Si el Excel ya no trae un movimiento temporal (cheque en proceso, carga vieja), se retira del extracto. Tesorería no se toca. El PDF en dólares se abre en la solapa Galicia (USD).</p>' +
+          '<p>Cargá el extracto de Galicia: Excel de cuenta corriente (<em>Extracto_CC…</em>) o el PDF <em>Extracto_Cuentas_Galicia_…</em> en pesos (no duplica lo ya cargado: misma fecha, importe y concepto, aunque cambie el saldo). Un movimiento Imputado no se borra en cargas siguientes. Solo se retira si al entrar no estaba Imputado (p. ej. En proceso / cheque en proceso) y este Excel ya no lo trae; si después viene Imputado, se confirma. Tesorería no se toca. El PDF en dólares se abre en la solapa Galicia (USD).</p>' +
           '<p>El día a día se carga con el <strong>Excel Extracto_CC…</strong>. El PDF <em>Extracto_Cuentas_Galicia_…</em> no da de alta movimientos: solo verifica que hay líneas del período (ya en el Excel) que el resumen del banco no incluye. El saldo de un período nuevo = último corte + movimientos del Excel. Tesorería se compara en Sugeridos / Solo banco / Solo sistema. Los cortes ya cargados no se recalculan.</p>' +
           '<p>También la tesorería Transferencia Galicia (<em>tesoreria_transferencia_galicia_…</em>: Tipo, Fecha, Crédito, Débito e Id), el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto). El Id evita duplicados y actualiza si cambió algún dato. La columna Caja reparte Mercado Pago / Galicia ARS / Galicia USD; Efectivo y Morba no entran acá.</p>' +
           '<p>Solo un Id <strong>Pendiente</strong> (caja abierta: tesorería o histórico) que ya no viene pasa a <strong>A eliminar</strong>; un Confirmado no se elimina. Apertura de Caja no se sube. Status Anulado no se sube. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f y a Saldos extractos. Status Pendiente sí se da de alta (o se actualiza si el Id ya existía). Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican.</p>' +
