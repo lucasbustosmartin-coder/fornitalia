@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.68",
+  "versionLabel": "v2.69",
   "lines": [
-    "En Flujo, la columna Total suma solo los meses reales: no incluye proyecciones.",
-    "Esa columna queda después de los meses reales; las columnas Proy. van a la derecha.",
-    "Ingresos, Egresos, G/P y ratios usan el mismo criterio."
+    "En Conciliación Bancaria, buscar 1000 (o 1.000) encuentra el importe.",
+    "La solapa Todos junta extracto y tesorería y muestra en qué listado está cada movimiento.",
+    "Cargar el extracto de Galicia tarda menos."
   ]
 }

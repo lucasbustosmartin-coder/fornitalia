@@ -206,9 +206,40 @@
 
 .cb-tabs .tab-icon {
   display: inline-flex;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
+
+.cb-donde-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.cb-donde {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 650;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.cb-donde-sug { background: #fef3c7; color: #92400e; }
+.cb-donde-conf { background: #d1fae5; color: #065f46; }
+.cb-donde-banco { background: #dbeafe; color: #1e3a8a; }
+.cb-donde-sis { background: #ede9fe; color: #5b21b6; }
+.cb-donde-noreq { background: #e2e8f0; color: #334155; }
+.cb-donde-anul { background: #ffe4e6; color: #9f1239; }
+.cb-donde-baja { background: #ffedd5; color: #9a3412; }
 
 .cb-tabs .tab-icon svg {
   width: 100%;
