@@ -49,6 +49,8 @@
     mesSistema: '',
     categoria: '',
     cuenta: '',
+    importeExacto: '',
+    idExacto: '',
     sort: {
       sugeridos: { key: 'fecha_banco', dir: 'desc' },
       confirmados: { key: 'fecha_banco', dir: 'desc' },
@@ -85,6 +87,8 @@
       mesSistema: '',
       categoria: '',
       cuenta: '',
+      importeExacto: '',
+      idExacto: '',
       justif: '',
       sortBanco: { key: 'fecha', dir: 'desc' },
       sortSistema: { key: 'fecha', dir: 'desc' }
@@ -293,15 +297,6 @@
     return neg ? -n : n;
   }
 
-  /** 15,71 o 15.71: solo importe. 1000 / 1.000: importe o texto (IDs). */
-  function tokenEsImporteSoloMonto(tok) {
-    var s = tokenImporteBusqueda(tok);
-    if (!s) return false;
-    if (s.charAt(0) === '-') s = s.slice(1);
-    if (s.indexOf(',') >= 0) return true;
-    return /^\d+\.\d{1,2}$/.test(s);
-  }
-
   function montoCoincideBusqueda(monto, qNum) {
     var a = centsMonto(monto);
     var b = centsMonto(qNum);
@@ -312,7 +307,7 @@
   function montosDeMov(m) {
     if (!m) return [];
     var out = [];
-    ['monto', 'credito', 'debito', 'saldo'].forEach(function (k) {
+    ['monto', 'credito', 'debito'].forEach(function (k) {
       if (m[k] == null || m[k] === '') return;
       var v = Number(m[k]);
       if (isFinite(v)) out.push(v);
@@ -328,31 +323,75 @@
     return out;
   }
 
-  function pasaFiltroConQ(qRaw, texto, montos) {
+  function pasaFiltroConQ(qRaw, texto) {
     qRaw = String(qRaw || '').trim();
     if (!qRaw) return true;
     var tokens = qRaw.split(/\s+/).filter(Boolean);
     var t = String(texto || '').toLowerCase();
-    var montosList = montos || [];
     var i;
     for (i = 0; i < tokens.length; i++) {
-      var tok = tokens[i];
-      var qNum = parseImporteDesdeBusqueda(tok);
-      if (qNum != null) {
-        var ok = false;
-        var j;
-        for (j = 0; j < montosList.length; j++) {
-          if (montoCoincideBusqueda(montosList[j], qNum)) {
-            ok = true;
-            break;
-          }
-        }
-        if (!ok && tokenEsImporteSoloMonto(tok)) return false;
-        if (!ok && t.indexOf(tok.toLowerCase()) < 0) return false;
-      } else if (t.indexOf(tok.toLowerCase()) < 0) {
-        return false;
-      }
+      if (t.indexOf(tokens[i].toLowerCase()) < 0) return false;
     }
+    return true;
+  }
+
+  function blobBusqueda(m) {
+    if (!m) return '';
+    return [m.fecha, m.tipo, m.descripcion, observacionesDe(m), m.contraparte, m.categoria, m.cuenta_contable].join(' ');
+  }
+
+  function idsVisiblesMov(m) {
+    var out = [];
+    function add(v) {
+      var s = String(v == null ? '' : v).trim().toLowerCase();
+      if (!s || s === '—' || s === '-') return;
+      if (out.indexOf(s) < 0) out.push(s);
+    }
+    if (!m) return out;
+    add(m.id);
+    add(m.id_movimiento_banco);
+    add(idTesoreriaVisible(m));
+    add(m.origen_id);
+    return out;
+  }
+
+  function pasaFiltroImporteExacto(montos, src) {
+    var raw = String((src || state).importeExacto || '').trim();
+    if (!raw) return true;
+    var qNum = parseImporteDesdeBusqueda(raw);
+    if (qNum == null) return false;
+    var list = montos || [];
+    var j;
+    for (j = 0; j < list.length; j++) {
+      if (montoCoincideBusqueda(list[j], qNum)) return true;
+    }
+    return false;
+  }
+
+  function pasaFiltroIdExacto(m, src) {
+    var raw = String((src || state).idExacto || '').trim().toLowerCase();
+    if (!raw) return true;
+    var ids = idsVisiblesMov(m);
+    var i;
+    for (i = 0; i < ids.length; i++) {
+      if (ids[i] === raw) return true;
+    }
+    return false;
+  }
+
+  function pasaFiltrosExactos(m, src) {
+    src = src || state;
+    return pasaFiltroImporteExacto(montosDeMov(m), src) && pasaFiltroIdExacto(m, src);
+  }
+
+  function pasaFiltrosExactosLista(movs, src) {
+    src = src || state;
+    var rawImp = String(src.importeExacto || '').trim();
+    var rawId = String(src.idExacto || '').trim();
+    if (!rawImp && !rawId) return true;
+    var list = movs || [];
+    if (rawImp && !pasaFiltroImporteExacto(montosDeLista(list), src)) return false;
+    if (rawId && !list.some(function (m) { return pasaFiltroIdExacto(m, src); })) return false;
     return true;
   }
 
@@ -772,8 +811,9 @@
 
   function pasaFiltrosGrupoDup(g) {
     if (!g || !g.movs || !g.movs.length) return false;
-    var blob = (g.movs || []).map(blobMov).join(' ') + ' ' + labelVecesDup(g.veces);
-    if (!pasaFiltro(blob, montosDeLista(g.movs).concat(g.monto != null ? [g.monto] : []))) return false;
+    var blob = (g.movs || []).map(blobBusqueda).join(' ') + ' ' + labelVecesDup(g.veces);
+    if (!pasaFiltro(blob)) return false;
+    if (!pasaFiltrosExactosLista(g.movs)) return false;
     return g.movs.some(function (m) { return pasaFiltrosMov(m, 'sistema'); });
   }
 
@@ -865,8 +905,15 @@
   function pasaFiltrosGrupoDupDesc(g) {
     if (!g) return false;
     if (g.movs && g.movs.length) return pasaFiltrosGrupoDup(g);
-    var blob = [g.monto, labelVecesDup(g.veces), (g.ids || []).join(' ')].join(' ');
-    return pasaFiltro(blob, g.monto != null ? [g.monto] : []);
+    var blob = labelVecesDup(g.veces) || '';
+    if (!pasaFiltro(blob)) return false;
+    if (String(state.importeExacto || '').trim() && !pasaFiltroImporteExacto(g.monto != null ? [g.monto] : [])) return false;
+    if (String(state.idExacto || '').trim()) {
+      var want = String(state.idExacto).trim().toLowerCase();
+      var hit = (g.ids || []).some(function (x) { return String(x || '').trim().toLowerCase() === want; });
+      if (!hit) return false;
+    }
+    return true;
   }
 
   function filasVisiblesDupsDesc() {
@@ -3417,6 +3464,8 @@
     if (s.mesSistema) n++;
     if (s.categoria) n++;
     if (s.cuenta) n++;
+    if (String(s.importeExacto || '').trim()) n++;
+    if (String(s.idExacto || '').trim()) n++;
     return n;
   }
 
@@ -3446,8 +3495,10 @@
   function pasaFiltrosMatch(match) {
     var bs = movsMatchLado(match, 'banco');
     var ss = movsMatchLado(match, 'sistema');
-    var blob = bs.concat(ss).map(blobMov).join(' ') + ' ' + criterioLabel(match.criterio) + ' ' + (match.justificacion || '');
-    if (!pasaFiltro(blob, montosDeLista(bs.concat(ss)))) return false;
+    var todos = bs.concat(ss);
+    var blob = todos.map(blobBusqueda).join(' ') + ' ' + criterioLabel(match.criterio) + ' ' + (match.justificacion || '');
+    if (!pasaFiltro(blob)) return false;
+    if (!pasaFiltrosExactosLista(todos)) return false;
     if (esMatchImpuestos(match)) {
       if (state.mesSistema && !ss.some(function (s) { return pasaFiltroMesValor(s && s.fecha, state.mesSistema); })) return false;
       if (state.categoria && !ss.some(function (s) { return pasaFiltroCategoriaValor(s, state.categoria); })) return false;
@@ -3466,7 +3517,8 @@
   }
 
   function pasaFiltrosMov(m, origen) {
-    if (!pasaFiltro(blobMov(m), montosDeMov(m))) return false;
+    if (!pasaFiltro(blobBusqueda(m))) return false;
+    if (!pasaFiltrosExactos(m)) return false;
     if (origen === 'banco') {
       return pasaFiltroMesValor(m && m.fecha, state.mesExtracto);
     }
@@ -3477,8 +3529,9 @@
 
   function pasaFiltrosParAnulado(p) {
     if (!p || !p.a || !p.b) return false;
-    var blob = blobMov(p.a) + ' ' + blobMov(p.b) + ' ' + (p.opRel || '');
-    if (!pasaFiltro(blob, montosDeLista([p.a, p.b]))) return false;
+    var blob = blobBusqueda(p.a) + ' ' + blobBusqueda(p.b) + ' ' + (p.opRel || '');
+    if (!pasaFiltro(blob)) return false;
+    if (!pasaFiltrosExactosLista([p.a, p.b])) return false;
     if (state.mesExtracto && !pasaFiltroMesValor(p.a.fecha, state.mesExtracto) && !pasaFiltroMesValor(p.b.fecha, state.mesExtracto)) return false;
     if (state.mesSistema || state.categoria || state.cuenta) return false;
     return true;
@@ -3486,9 +3539,14 @@
 
   function pasaFiltrosNoRequiere(m) {
     if (!m) return false;
-    var blob = blobMov(m) + ' ' + (m.no_requiere_justificacion || '') + ' ' + labelOrigenNoReq(m) + ' no requiere conciliacion';
-    if (!pasaFiltro(blob, montosDeMov(m))) return false;
-    return pasaFiltrosMov(m, m.origen === 'sistema' ? 'sistema' : 'banco');
+    var blob = blobBusqueda(m) + ' ' + (m.no_requiere_justificacion || '') + ' ' + labelOrigenNoReq(m) + ' no requiere conciliacion';
+    if (!pasaFiltro(blob)) return false;
+    if (!pasaFiltrosExactos(m)) return false;
+    return pasaFiltroMesValor(m && m.fecha, m.origen === 'sistema' ? state.mesSistema : state.mesExtracto) &&
+      (m.origen !== 'sistema' || (
+        pasaFiltroCategoriaValor(m, state.categoria) &&
+        pasaFiltroCuentaValor(m, state.cuenta)
+      ));
   }
 
   function labelMotivoEliminado(motivo) {
@@ -3500,8 +3558,9 @@
 
   function pasaFiltrosEliminado(m) {
     if (!m) return false;
-    var blob = blobMov(m) + ' ' + labelMotivoEliminado(m.motivo);
-    if (!pasaFiltro(blob, montosDeMov(m))) return false;
+    var blob = blobBusqueda(m) + ' ' + labelMotivoEliminado(m.motivo);
+    if (!pasaFiltro(blob)) return false;
+    if (!pasaFiltrosExactos(m)) return false;
     return pasaFiltroMesValor(m.fecha, state.mesSistema) &&
       pasaFiltroCategoriaValor(m, state.categoria) &&
       pasaFiltroCuentaValor(m, state.cuenta);
@@ -3839,8 +3898,9 @@
         if (categoria && valorCatCta(m.categoria) !== categoria) return false;
         if (cuenta && valorCatCta(m.cuenta_contable) !== cuenta) return false;
       }
+      if (!pasaFiltrosExactos(m, state.manual)) return false;
       if (!String(q || '').trim()) return true;
-      return pasaFiltroConQ(q, blobMov(m), montosDeMov(m));
+      return pasaFiltroConQ(q, blobBusqueda(m));
     });
   }
 
@@ -4316,7 +4376,7 @@
           : 'No hay movimientos en este canal.') + '</p>';
     }
     return FornitaliaHelp.row('tpl-cb-todos', 'Ayuda: Todos',
-      '<p>Extracto y tesorería juntos. <strong>Dónde</strong> es la solapa (clic para ir). El buscar cubre importes (1000 o 1.000,00) y texto, en todas las transacciones del canal.</p>') +
+      '<p>Extracto y tesorería juntos. <strong>Dónde</strong> es la solapa (clic para ir). El buscar es texto libre (concepto, cliente, observaciones). Importe e ID exactos van en Filtros.</p>') +
       '<div class="cb-tabla-wrap"><table class="cb-tabla">' +
       '<thead><tr>' +
         thSort('fecha', 'Fecha') +
@@ -5067,8 +5127,10 @@
     var mesSisOn = !!d.mesSistema;
     var catOn = !!d.categoria;
     var ctaOn = !!d.cuenta;
+    var impOn = !!(d.importeExacto || '').trim();
+    var idOn = !!(d.idExacto || '').trim();
     return FornitaliaHelp.row('tpl-cb-filtros', 'Ayuda: Filtros',
-      '<p>Filtrá por mes del extracto, mes de tesorería, categoría y cuenta contable. El buscar de la pantalla sigue libre y no se restringe acá.</p>') +
+      '<p>Filtrá por mes, categoría, cuenta, <strong>importe exacto</strong> e <strong>ID exacto</strong>. El buscar de la pantalla queda libre para concepto, cliente y observaciones.</p>') +
       '<div class="cb-filtros-modal-grid">' +
         '<div class="form-group' + (mesExtOn ? ' cb-filtro-activo' : '') + '"><label for="cb-filtro-mes-extracto">Mes de extracto</label>' +
           '<select id="cb-filtro-mes-extracto" title="Filtrar por mes del extracto bancario">' + mesExtOpts + '</select></div>' +
@@ -5078,6 +5140,11 @@
           '<select id="cb-filtro-categoria" title="Filtrar por categoría de tesorería">' + catOpts + '</select></div>' +
         '<div class="form-group' + (ctaOn ? ' cb-filtro-activo' : '') + '"><label for="cb-filtro-cuenta">Cuenta contable</label>' +
           '<select id="cb-filtro-cuenta" title="Filtrar por cuenta contable de tesorería">' + ctaOpts + '</select></div>' +
+        '<div class="form-group' + (impOn ? ' cb-filtro-activo' : '') + '"><label for="cb-filtro-importe">Importe exacto</label>' +
+          '<input type="text" id="cb-filtro-importe" inputmode="decimal" autocomplete="off" value="' + esc(d.importeExacto || '') + '" placeholder="1000 o 1.000,00" title="Solo movimientos con este importe (débito o crédito, con o sin signo)"></div>' +
+        '<div class="form-group' + (idOn ? ' cb-filtro-activo' : '') + '"><label for="cb-filtro-id">ID exacto</label>' +
+          '<input type="text" id="cb-filtro-id" autocomplete="off" value="' + esc(d.idExacto || '') + '" placeholder="10000608" title="Coincide con el ID de tesorería o del extracto, entero">' +
+        '</div>' +
       '</div>';
   }
 
@@ -5101,6 +5168,36 @@
     bindSel('#cb-filtro-mes-sistema', 'mesSistema', true);
     bindSel('#cb-filtro-categoria', 'categoria', true);
     bindSel('#cb-filtro-cuenta', 'cuenta', false);
+    function bindTxt(id, campo) {
+      var el = bd.querySelector(id);
+      if (!el) return;
+      el.addEventListener('input', function () {
+        state.filtrosDraft[campo] = el.value || '';
+        var grp = el.closest && el.closest('.form-group');
+        if (grp) {
+          if (String(el.value || '').trim()) grp.classList.add('cb-filtro-activo');
+          else grp.classList.remove('cb-filtro-activo');
+        }
+      });
+    }
+    bindTxt('#cb-filtro-importe', 'importeExacto');
+    bindTxt('#cb-filtro-id', 'idExacto');
+  }
+
+  function snapFiltrosDraftDesdeDom() {
+    var bd = state.modalFiltros;
+    var d = state.filtrosDraft;
+    if (!bd || !d) return;
+    function read(sel, campo) {
+      var el = bd.querySelector(sel);
+      if (el) d[campo] = el.value || '';
+    }
+    read('#cb-filtro-mes-extracto', 'mesExtracto');
+    read('#cb-filtro-mes-sistema', 'mesSistema');
+    read('#cb-filtro-categoria', 'categoria');
+    read('#cb-filtro-cuenta', 'cuenta');
+    read('#cb-filtro-importe', 'importeExacto');
+    read('#cb-filtro-id', 'idExacto');
   }
 
   function refreshModalFiltros() {
@@ -5125,6 +5222,8 @@
       state.filtrosDraft.mesSistema = '';
       state.filtrosDraft.categoria = '';
       state.filtrosDraft.cuenta = '';
+      state.filtrosDraft.importeExacto = '';
+      state.filtrosDraft.idExacto = '';
       refreshModalFiltros();
       return;
     }
@@ -5135,6 +5234,7 @@
   }
 
   function aplicarFiltrosModal() {
+    snapFiltrosDraftDesdeDom();
     var d = state.filtrosDraft;
     if (!d) { cerrarModalFiltros(); return; }
     syncCamposFiltro(d);
@@ -5144,6 +5244,8 @@
     dest.mesSistema = d.mesSistema || '';
     dest.categoria = d.categoria || '';
     dest.cuenta = d.cuenta || '';
+    dest.importeExacto = String(d.importeExacto || '').trim();
+    dest.idExacto = String(d.idExacto || '').trim();
     cerrarModalFiltros();
     if (target === 'manual') refreshManualModal();
     else renderShell();
@@ -5158,7 +5260,9 @@
       mesExtracto: src.mesExtracto || '',
       mesSistema: src.mesSistema || '',
       categoria: src.categoria || '',
-      cuenta: src.cuenta || ''
+      cuenta: src.cuenta || '',
+      importeExacto: src.importeExacto || '',
+      idExacto: src.idExacto || ''
     };
     var bd = document.createElement('div');
     bd.className = 'cb-modal-backdrop cb-modal-filtros-backdrop';
@@ -5296,21 +5400,21 @@
     return FornitaliaHelp.row('tpl-cb-manual', 'Ayuda: Conciliación manual',
       '<p>Podés conciliar varios extractos con una o más tesorerías, o cruzar dos movimientos del mismo extracto cuando no hay contrapartida en el sistema (crédito recibido por error y débito de la devolución).</p>' +
       '<p>La diferencia es la suma del extracto menos la suma de tesorería (o la suma neta si no hay tesorería). La justificación, los importes y quién confirmó quedan guardados.</p>' +
-      '<p>Los filtros (mes extracto/sistema, categoría y cuenta) son los mismos de la vista; si ya los tenías aplicados, arrancan acá. El buscar por lado sigue amplio. En extracto se ve la contraparte; en tesorería, la descripción.</p>') +
+      '<p>Los filtros (mes extracto/sistema, categoría, cuenta, importe exacto e ID exacto) son los mismos de la vista; si ya los tenías aplicados, arrancan acá. El buscar por lado sigue amplio (concepto, cliente, observaciones). En extracto se ve la contraparte; en tesorería, la descripción.</p>') +
       htmlFiltrosManual() +
       '<div class="cb-manual-cols">' +
         '<div class="cb-manual-col">' +
           '<h3>Extracto bancario <span class="cb-manual-count">(' + nB + ')</span>' +
             (selB ? ' <span class="cb-manual-sel">' + selB + ' elegidos</span>' : '') + '</h3>' +
           '<div class="form-group' + ((state.manual.qBanco || '').trim() ? ' cb-filtro-activo' : '') + '"><label class="cb-just-label" for="cb-manual-qb">Buscar extracto</label>' +
-          '<input type="search" id="cb-manual-qb" value="' + esc(state.manual.qBanco) + '" placeholder="Fecha, importe (15,71), concepto…" title="El importe admite coma decimal y busca el monto exacto."></div>' +
+          '<input type="search" id="cb-manual-qb" value="' + esc(state.manual.qBanco) + '" placeholder="Concepto, cliente, observaciones…" title="Texto libre sobre el extracto. Importe e ID exactos van en Filtros."></div>' +
           htmlPickTabla('banco') +
         '</div>' +
         '<div class="cb-manual-col">' +
           '<h3>Tesorería (sistema) <span class="cb-manual-count">(' + nS + ')</span>' +
             (selS ? ' <span class="cb-manual-sel">' + selS + ' elegidos</span>' : '') + '</h3>' +
           '<div class="form-group' + ((state.manual.qSistema || '').trim() ? ' cb-filtro-activo' : '') + '"><label class="cb-just-label" for="cb-manual-qs">Buscar tesorería</label>' +
-          '<input type="search" id="cb-manual-qs" value="' + esc(state.manual.qSistema) + '" placeholder="Fecha, importe (15,71), descripción…" title="El importe admite coma decimal y busca el monto exacto."></div>' +
+          '<input type="search" id="cb-manual-qs" value="' + esc(state.manual.qSistema) + '" placeholder="Concepto, cliente, observaciones…" title="Texto libre sobre tesorería. Importe e ID exactos van en Filtros."></div>' +
           htmlPickTabla('sistema') +
         '</div>' +
       '</div>' +
@@ -5384,6 +5488,8 @@
       mesSistema: state.mesSistema || '',
       categoria: state.categoria || '',
       cuenta: state.cuenta || '',
+      importeExacto: state.importeExacto || '',
+      idExacto: state.idExacto || '',
       justif: '',
       sortBanco: { key: 'fecha', dir: 'desc' },
       sortSistema: { key: 'fecha', dir: 'desc' }
@@ -5487,8 +5593,9 @@
     var maps = mapaListasMovimiento();
     var list = bancoRowsTodos().concat(sistemaRowsTodos()).filter(function (m) {
       var donde = labelDondeMov(m, maps);
-      var blob = blobMov(m) + ' ' + donde + ' ' + labelOrigenNoReq(m);
-      if (!pasaFiltro(blob, montosDeMov(m))) return false;
+      var blob = blobBusqueda(m) + ' ' + donde + ' ' + labelOrigenNoReq(m);
+      if (!pasaFiltro(blob)) return false;
+      if (!pasaFiltrosExactos(m)) return false;
       if (m.origen === 'banco') return pasaFiltroMesValor(m.fecha, state.mesExtracto);
       return pasaFiltroMesValor(m.fecha, state.mesSistema) &&
         pasaFiltroCategoriaValor(m, state.categoria) &&
@@ -5538,7 +5645,7 @@
       alert('No está disponible la librería Excel.');
       return;
     }
-    var headerRow = 9;
+    var headerRow = 11;
     var aoa = [
       ['Conciliación Bancaria — ' + canalLabel()],
       ['Listado', listaLabel()],
@@ -5546,6 +5653,8 @@
       ['Filtro mes sistema', state.mesSistema ? formatMesLabel(state.mesSistema) : 'Todos'],
       ['Filtro categoría', state.categoria || 'Todas'],
       ['Filtro cuenta contable', state.cuenta || 'Todas'],
+      ['Filtro importe exacto', (state.importeExacto || '').trim() || '—'],
+      ['Filtro ID exacto', (state.idExacto || '').trim() || '—'],
       ['Buscar', (state.q || '').trim() || '—'],
       ['Exportado', formatFecha(fechaHoyYmd())],
       []
@@ -5845,7 +5954,7 @@
     return '<div class="cb-filtros">' +
       htmlBtnFiltros('vista', n) +
       (n ? '<span class="cb-filtros-flag" title="Hay filtros aplicados; el listado y el Excel respetan estos filtros">Filtros activos</span>' : '') +
-      '<div class="form-group cb-filtro-buscar' + (qOn ? ' cb-filtro-activo' : '') + '"><label for="cb-q">Buscar</label><input type="search" id="cb-q" value="' + esc(state.q) + '" placeholder="Fecha, 1000, 15,71, cliente, ID…" title="Búsqueda amplia. Un entero (1000) o coma decimal (15,71) busca el importe exacto; también texto e IDs. En Todos cubre todas las solapas."></div>' +
+      '<div class="form-group cb-filtro-buscar' + (qOn ? ' cb-filtro-activo' : '') + '"><label for="cb-q">Buscar</label><input type="search" id="cb-q" value="' + esc(state.q) + '" placeholder="Concepto, cliente, observaciones…" title="Texto libre: fecha, tipo, concepto, cliente, observaciones, categoría y cuenta. Importe e ID exactos van en Filtros."></div>' +
     '</div>';
   }
 
@@ -5980,7 +6089,7 @@
     if (!el) return;
     el.innerHTML =
       FornitaliaHelp.header(ICO.bank, 'Conciliación Bancaria', 'tpl-cb-intro', 'Ayuda: Conciliación Bancaria',
-        '<p>Confrontá el extracto de cada medio con lo cargado en tesorería. Mercado Pago, Galicia (ARS), Galicia (USD) y Credicoop (botón negro) usan el mismo flujo: extracto del banco + tesorería del sistema. La solapa Todos junta extracto y tesorería y muestra en qué listado está cada movimiento. Tesorería eliminada guarda lo que se borra de Solo sistema o se confirma en A eliminar.</p>') +
+        '<p>Confrontá el extracto de cada medio con lo cargado en tesorería. Mercado Pago, Galicia (ARS), Galicia (USD) y Credicoop (botón negro) usan el mismo flujo: extracto del banco + tesorería del sistema. La solapa Todos junta extracto y tesorería y muestra en qué listado está cada movimiento. En Filtros podés acotar por importe exacto o ID exacto; el buscar queda libre para concepto, cliente y observaciones. Tesorería eliminada guarda lo que se borra de Solo sistema o se confirma en A eliminar.</p>') +
       (state.loading ? '<p class="loading">Cargando conciliación…</p>' : '') +
       (state.err ? '<p class="cb-msg-err">' + esc(state.err) + '</p>' : '') +
       '<div class="cb-tabs">' +
@@ -6038,6 +6147,8 @@
       state.mesSistema = '';
       state.categoria = '';
       state.cuenta = '';
+      state.importeExacto = '';
+      state.idExacto = '';
       recargarTodo();
       return;
     }

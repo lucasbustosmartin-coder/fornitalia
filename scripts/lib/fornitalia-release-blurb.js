@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.69',
+    versionLabel: 'v2.70',
     lines: [
-      'En Conciliación Bancaria, buscar 1000 (o 1.000) encuentra el importe.',
-      'La solapa Todos junta extracto y tesorería y muestra en qué listado está cada movimiento.',
-      'Cargar el extracto de Galicia tarda menos.'
+      'En Conciliación Bancaria, Filtros ahora permite acotar por importe exacto (1000 o 1.000,00) y por ID exacto.',
+      'El buscar queda libre para concepto, cliente y observaciones: un 1000 ya no trae IDs que contienen esos dígitos.',
+      'La solapa Todos sigue mostrando en qué listado está cada movimiento (Sugeridos, Confirmados, Solo banco, etc.).'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
