@@ -1217,6 +1217,9 @@
         });
       }
       n += await rpcLotes('cf_guardar_movimientos', canalSave, parte);
+      if (!formatoCierre) {
+        await marcarTesoreriaAbiertaAusente(canalSave, parte);
+      }
       var snap = snapshotSaldo(parte, archivo, formatoCierre, canalSave);
       if (snap) {
         var sRes = await client().rpc('cf_guardar_saldo_caja', { p_filas: [snap] });
@@ -1280,6 +1283,9 @@
           idsNuevos: [].concat(clsTot.idsNuevos || [], clsParte.idsNuevos || [])
         };
         await rpcLotes('cf_guardar_movimientos', canalSave, parte);
+        if (!parsed.formatoCierre) {
+          await marcarTesoreriaAbiertaAusente(canalSave, parte);
+        }
         if (esCanalSinFactura(canalSave)) {
           var snap = snapshotSaldo(parte, file.name, parsed.formatoCierre, canalSave);
           if (snap) {
@@ -1331,6 +1337,33 @@
       total += Number(res.data || 0);
     }
     return total;
+  }
+
+  function rangoFechasFilas(filas) {
+    var desde = '';
+    var hasta = '';
+    (filas || []).forEach(function (f) {
+      var d = String((f && f.fecha) || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+      if (!desde || d < desde) desde = d;
+      if (!hasta || d > hasta) hasta = d;
+    });
+    if (!desde || !hasta) return null;
+    return { desde: desde, hasta: hasta };
+  }
+
+  async function marcarTesoreriaAbiertaAusente(canal, filas) {
+    var ids = (filas || []).map(function (f) { return f && f.origen_id; }).filter(Boolean);
+    var rango = rangoFechasFilas(filas);
+    if (!ids.length || !rango) return 0;
+    var baja = await client().rpc('cf_marcar_tesoreria_abierta_ausente', {
+      p_canal: canal,
+      p_origen_ids: ids,
+      p_fecha_desde: rango.desde,
+      p_fecha_hasta: rango.hasta
+    });
+    if (baja.error) throw baja.error;
+    return Number(baja.data || 0);
   }
 
   function txtEqCarga(a, b) {
@@ -1419,7 +1452,7 @@
         item('Registros que cambiaron', r.nCambiaron, 'cf-resumen-warn', 'Mismo Id: se actualizaron fecha, monto, categoría, cuenta u otro dato.') +
         item('Sin cambios', r.nIguales, '', 'Mismo Id y mismos datos: no se duplicaron.') +
         itemSi('Efectivo-s/f', r.nCajaSf, 'cf-resumen-ok', 'Caja Efectivo … (sin factura): se cargaron en Efectivo-s/f y en Saldos extractos.') +
-        itemSi('A eliminar', r.nBajas, 'cf-resumen-warn', 'Tesorería abierta cuyo Id no vino en este archivo.') +
+        itemSi('A eliminar', r.nBajas, 'cf-resumen-warn', 'Pendiente cuya fecha entra en el rango del archivo y cuyo Id no vino.') +
       '</dl>' +
       (function () {
         var list = (r.idsNuevos || []).filter(Boolean);
@@ -1549,12 +1582,7 @@
         if (parsed.filas.length) {
           await rpcLotes('cf_guardar_movimientos', state.canal, parsed.filas);
           if (!parsed.formatoCierre && !parsed.mixtoCaja) {
-            var ids = parsed.filas.map(function (f) { return f.origen_id; });
-            var baja = await client().rpc('cf_marcar_tesoreria_abierta_ausente', {
-              p_canal: state.canal,
-              p_origen_ids: ids
-            });
-            if (baja.error) throw baja.error;
+            await marcarTesoreriaAbiertaAusente(state.canal, parsed.filas);
           }
           if (!parsed.formatoHistorico || esCanalSinFactura(state.canal)) {
             snap = snapshotSaldo(
@@ -1957,7 +1985,7 @@
         '<p>Cajas que <strong>no se concilian</strong> con extracto bancario. Solapas <strong>' + esc(LABEL_GF) + '</strong> (efectivo pesos), <strong>' + esc(LABEL_MOR) + '</strong> (Transferencia Morba), <strong>' + esc(LABEL_USD) + '</strong> (efectivo dólar, pesificado al MEP), <strong>' + esc(LABEL_SF) + '</strong> (Caja = Efectivo Pesos (sin factura)) y <strong>' + esc(LABEL_SF_USD) + '</strong> (Caja = Efectivo Dolar (sin factura)).</p>' +
         '<p>Mismos Excel que tesorería/cierre, con Id para no duplicar. El saldo alimenta Saldos extractos.</p>' +
         '<p>Cargá <em>' + esc(archivosHint(state.canal).split(' o ')[0]) + '</em> o <em>' + esc(archivosHint(state.canal).split(' o ')[1] || '') + '</em>. Tesorería abierta trae saldo corrido; el cierre ya cerrado trae Fecha, Tipo, Monto e Id.</p>' +
-        '<p>Apertura de Caja y Status Anulado no se suben. Apertura no entra al corte de Saldos extractos. El histórico carga movimientos pero no pisa el saldo de tesorería o cierre. Status Pendiente sí se da de alta en todas las cajas. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> entran a Efectivo-s/f aunque vengan en un histórico, cierre u otro Excel de tesorería; el saldo alimenta Saldos extractos. Solo un Id <strong>Pendiente</strong> (caja abierta) que ya no viene pasa a <strong>A eliminar</strong>; un Confirmado no se elimina.' +
+        '<p>Apertura de Caja y Status Anulado no se suben. Apertura no entra al corte de Saldos extractos. El histórico carga movimientos pero no pisa el saldo de tesorería o cierre. Status Pendiente sí se da de alta en todas las cajas. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> entran a Efectivo-s/f aunque vengan en un histórico, cierre u otro Excel de tesorería; el saldo alimenta Saldos extractos. Solo un Id <strong>Pendiente</strong> cuya fecha cae dentro del rango del archivo (histórico o tesorería) y que no viene ahí pasa a <strong>A eliminar</strong>. Si el Excel no cubre esa fecha, no se marca. Un Confirmado no se elimina.' +
         (esCanalUsd(state.canal) ? ' Los montos del Excel están en <strong>USD</strong> y se pesifican al <strong>MEP</strong> de <em>tipo_de_cambio</em> (fecha del movimiento o última cotización anterior). La grilla muestra ARS, USD original y el TC usado.' : '') + '</p>') +
       (state.loading ? '<p class="loading">Cargando caja…</p>' : '') +
       (state.err ? '<p class="cf-msg-err">' + esc(state.err) + '</p>' : '') +

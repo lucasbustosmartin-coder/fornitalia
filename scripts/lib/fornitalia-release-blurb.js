@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.71',
+    versionLabel: 'v2.72',
     lines: [
-      'Al abrir Conciliación Bancaria, Sugeridos se vuelve a armar aunque la lista esté vacía.',
-      'El mismo día también propone parejas si el importe entra en la tolerancia (centavos en montos chicos, un poco más en montos grandes).',
-      'Las confirmaciones y los avisos (por ejemplo, confirmar sugerencias) aparecen en un cuadro de la app, con Aceptar y Cancelar.'
+      'En Conciliación y en Cajas, un Pendiente pasa a A eliminar solo si su fecha está dentro del Excel que cargaste y el Id no viene.',
+      'Si el archivo no cubre ese día, no se marca: un histórico filtrado no se toma como baja.',
+      'Un movimiento Confirmado no va a A eliminar.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
