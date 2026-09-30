@@ -8,23 +8,24 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.67"></script>
+  <script src="scripts/lib/fornitalia-mensajes.js?v=2.71"></script>
+  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.71"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.70"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.71"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
-  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.52"></script>
+  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.71"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.70">
-  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.70"></script>
+  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.71"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.58">
-  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.58"></script>
+  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.71"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.59">
-  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.61"></script>
+  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.71"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.55">
-  <script src="scripts/lib/fornitalia-impuestos.js?v=2.55"></script>
+  <script src="scripts/lib/fornitalia-impuestos.js?v=2.71"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.56">
-  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.67"></script>
+  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.71"></script>
   <style>
     .lyp-user {
       font-weight: 600;
@@ -2046,7 +2047,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.70';
+    const APP_VERSION = '2.71';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -2653,19 +2654,19 @@
 
     function exportarMatrizRelacionesExcel() {
       if (securityModuleActive() && !puedeExportarReportes()) {
-        alert('No tenés permiso para exportar reportes.');
+        FornitaliaMensajes.avisar('No tenés permiso para exportar reportes.');
         return;
       }
       if (!window.XLSX) {
-        alert('No está disponible la librería Excel.');
+        FornitaliaMensajes.avisar('No está disponible la librería Excel.');
         return;
       }
       if (!window.FornitaliaMatrizRelaciones) {
-        alert('No se cargó el módulo de matriz de relaciones. Recargá la página.');
+        FornitaliaMensajes.avisar('No se cargó el módulo de matriz de relaciones. Recargá la página.');
         return;
       }
       if (!cacheTransacciones.length) {
-        alert('No hay transacciones cargadas. Esperá a que termine la carga del dashboard.');
+        FornitaliaMensajes.avisar('No hay transacciones cargadas. Esperá a que termine la carga del dashboard.');
         return;
       }
       const MR = window.FornitaliaMatrizRelaciones;
@@ -2724,11 +2725,11 @@
       var label = ((document.getElementById('seguridad-nuevo-rol-label') || {}).value || '').trim();
       var role = ((document.getElementById('seguridad-nuevo-rol-key') || {}).value || '').trim().toLowerCase();
       if (!label || label.length > 120) {
-        alert('Completá el nombre visible (1–120 caracteres).');
+        FornitaliaMensajes.avisar('Completá el nombre visible (1–120 caracteres).');
         return;
       }
       if (!/^[a-z][a-z0-9_]{2,63}$/.test(role)) {
-        alert('Código interno inválido: 3–64 caracteres, minúsculas, números y guión bajo; debe empezar con letra.');
+        FornitaliaMensajes.avisar('Código interno inválido: 3–64 caracteres, minúsculas, números y guión bajo; debe empezar con letra.');
         return;
       }
       client.from('app_role').insert({ role: role, label: label }).select('role').then(function (r) {
@@ -2736,11 +2737,11 @@
           var msg = r.error.message || 'No se pudo crear.';
           var hint = (r.error.code === '23505' || /unique|duplicate/i.test(String(msg))) ? ' ¿El código ya existe?' : '';
           if (/policy|row-level|RLS|permission denied/i.test(String(msg))) hint = ' ' + MSG_APP_ROLE_GESTION;
-          alert('No se pudo crear el perfil: ' + msg + hint);
+          FornitaliaMensajes.avisar('No se pudo crear el perfil: ' + msg + hint);
           return;
         }
         if (!r.data || r.data.length === 0) {
-          alert('No se creó el perfil (0 filas). ' + MSG_APP_ROLE_GESTION);
+          FornitaliaMensajes.avisar('No se creó el perfil (0 filas). ' + MSG_APP_ROLE_GESTION);
           return;
         }
         cerrarModalSeguridadNuevoPerfil();
@@ -2901,7 +2902,7 @@
               ]).then((results) => {
                 const err = (results[0] && results[0].error) || (results[1] && results[1].error);
                 if (err) {
-                  alert('Error: ' + (err.message || 'No se pudo guardar.'));
+                  FornitaliaMensajes.avisar('Error: ' + (err.message || 'No se pudo guardar.'));
                   return;
                 }
                 if (uid === currentUserId) {
@@ -2978,19 +2979,19 @@
             });
           });
           permisosGrid.querySelectorAll('.btn-seguridad-eliminar-perfil').forEach((btn) => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', async (e) => {
               e.preventDefault();
               e.stopPropagation();
               const rk = btn.getAttribute('data-role');
               if (!rk) return;
-              if (!window.confirm('Se eliminará el perfil y sus permisos. No debe haber usuarios con este perfil. ¿Continuar?')) return;
+              if (!await FornitaliaMensajes.confirmar('Se eliminará el perfil y sus permisos. No debe haber usuarios con este perfil. ¿Continuar?')) return;
               client.from('app_role').delete().eq('role', rk).select('role').then((res) => {
                 if (res.error) {
-                  alert('Error: ' + (res.error.message || 'No se pudo eliminar.') + ' ' + MSG_APP_ROLE_GESTION);
+                  FornitaliaMensajes.avisar('Error: ' + (res.error.message || 'No se pudo eliminar.') + ' ' + MSG_APP_ROLE_GESTION);
                   return;
                 }
                 if (!res.data || res.data.length === 0) {
-                  alert('No se eliminó el perfil (0 filas). ' + MSG_APP_ROLE_GESTION);
+                  FornitaliaMensajes.avisar('No se eliminó el perfil (0 filas). ' + MSG_APP_ROLE_GESTION);
                   return;
                 }
                 loadSeguridadForfitalia();
@@ -3006,12 +3007,12 @@
               if (enable) {
                 client.from('app_role_permission').insert({ role, permission }).select('role, permission').then((res) => {
                   if (res.error) {
-                    alert('Error: ' + (res.error.message || 'No se pudo guardar.'));
+                    FornitaliaMensajes.avisar('Error: ' + (res.error.message || 'No se pudo guardar.'));
                     this.checked = false;
                     return;
                   }
                   if (!res.data || res.data.length === 0) {
-                    alert('No se guardó el permiso (0 filas). ' + MSG_APP_ROLE_PERM_MIGRACION);
+                    FornitaliaMensajes.avisar('No se guardó el permiso (0 filas). ' + MSG_APP_ROLE_PERM_MIGRACION);
                     this.checked = false;
                     return;
                   }
@@ -3020,12 +3021,12 @@
               } else {
                 client.from('app_role_permission').delete().eq('role', role).eq('permission', permission).select('role, permission').then((res) => {
                   if (res.error) {
-                    alert('Error: ' + (res.error.message || 'No se pudo guardar.'));
+                    FornitaliaMensajes.avisar('Error: ' + (res.error.message || 'No se pudo guardar.'));
                     this.checked = true;
                     return;
                   }
                   if (!res.data || res.data.length === 0) {
-                    alert('No se eliminó el permiso (0 filas). ' + MSG_APP_ROLE_PERM_MIGRACION);
+                    FornitaliaMensajes.avisar('No se eliminó el permiso (0 filas). ' + MSG_APP_ROLE_PERM_MIGRACION);
                     this.checked = true;
                     return;
                   }
@@ -4174,7 +4175,7 @@
 
     async function cargarHistoricoDesdeFlujo(file) {
       if (!esNombreTesoreriaHistoricoFlujo(file && file.name)) {
-        alert('Esperaba el Excel histórico (movimientos-historico_…: Id, Fecha, Tipo, Caja, Monto).');
+        FornitaliaMensajes.avisar('Esperaba el Excel histórico (movimientos-historico_…: Id, Fecha, Tipo, Caja, Monto).');
         return;
       }
       setFlujoHistoricoOverlay(true);
@@ -4201,7 +4202,7 @@
         recalcular();
         abrirModalFlujoHistorico(htmlResumenHistoricoFlujo(cbR, cfR));
       } catch (e) {
-        alert((e && e.message) ? e.message : String(e || 'No se pudo cargar el histórico.'));
+        FornitaliaMensajes.avisar((e && e.message) ? e.message : String(e || 'No se pudo cargar el histórico.'));
       } finally {
         setFlujoHistoricoOverlay(false);
       }
@@ -6344,7 +6345,7 @@
 
     function exportarEstadoFinancieroExcel() {
       if (!window.XLSX || !cacheEfEstructura.length) {
-        alert('No hay estructura EF para exportar.');
+        FornitaliaMensajes.avisar('No hay estructura EF para exportar.');
         return;
       }
       const periodo = (document.getElementById('ef-periodo') && document.getElementById('ef-periodo').value) || 'mensual';
@@ -6429,12 +6430,12 @@
 
     function exportarFlujoPorMesExcel() {
       if (!window.XLSX) {
-        alert('No se pudo cargar la librería de Excel.');
+        FornitaliaMensajes.avisar('No se pudo cargar la librería de Excel.');
         return;
       }
       const snap = cacheFlujoExcel;
       if (!snap || !snap.filas || !snap.filas.some((f) => f.kind === 'real' || f.kind === 'proy')) {
-        alert('No hay datos en Flujo por mes para exportar.');
+        FornitaliaMensajes.avisar('No hay datos en Flujo por mes para exportar.');
         return;
       }
       const monedaExport = snap.moneda === 'USD' ? 'USD' : 'ARS';
@@ -6541,7 +6542,7 @@
 
     function exportarEvolucionExcel() {
       if (!window.XLSX || !evolucionFilasOrdenadas.length) {
-        alert('No hay datos en Evolución para exportar.');
+        FornitaliaMensajes.avisar('No hay datos en Evolución para exportar.');
         return;
       }
       const agrupar = (document.getElementById('evolucion-agrupar') && document.getElementById('evolucion-agrupar').value) || 'categoria';
@@ -6590,11 +6591,11 @@
 
     function exportarAExcel() {
       if (securityModuleActive() && !puedeExportarBaseHistorica()) {
-        alert('No tenés permiso para exportar la base histórica.');
+        FornitaliaMensajes.avisar('No tenés permiso para exportar la base histórica.');
         return;
       }
       if (!window.XLSX || !cacheTransacciones.length) {
-        if (!cacheTransacciones.length) alert('No hay transacciones cargadas para exportar.');
+        if (!cacheTransacciones.length) FornitaliaMensajes.avisar('No hay transacciones cargadas para exportar.');
         return;
       }
       const tipoDolar = document.getElementById('tipoDolar') && document.getElementById('tipoDolar').value ? document.getElementById('tipoDolar').value : 'mep';
@@ -7729,13 +7730,13 @@
         }
 
         if (partes.length === 0) {
-          alert(
+          FornitaliaMensajes.avisar(
             'No hay cambios respecto al registro actual: no se ejecutó ninguna actualización en la tabla transacciones de Supabase. Si estabas corrigiendo un error de inconsistencia, modificá categoría, cuenta contable, descripción o Cat desc para alinear el texto con la categoría/cuenta; luego volvé a guardar.'
           );
           return;
         }
         if (!record.id) {
-          alert('Este registro no tiene id de Supabase; no se puede actualizar. Recargá la página o revisá la carga de datos.');
+          FornitaliaMensajes.avisar('Este registro no tiene id de Supabase; no se puede actualizar. Recargá la página o revisá la carga de datos.');
           return;
         }
         payload.editado = true;
@@ -7796,11 +7797,11 @@
           error = resTx.error;
         }
         if (error) {
-          alert('Error al guardar: ' + (error.message || 'Unknown'));
+          FornitaliaMensajes.avisar('Error al guardar: ' + (error.message || 'Unknown'));
           return;
         }
         if (!updatedRows || !updatedRows.length) {
-          alert(
+          FornitaliaMensajes.avisar(
             'No se actualizó ninguna fila en Supabase (0 filas). Revisá permisos RLS/UPDATE en la tabla transacciones, que el id sea el UUID correcto y que el registro no esté excluido por otra regla.'
           );
           return;
@@ -7808,7 +7809,7 @@
         try {
           await cargarDatos();
         } catch (e) {
-          alert(
+          FornitaliaMensajes.avisar(
             'Los cambios se guardaron en Supabase, pero falló la recarga de datos: ' +
               (e && e.message ? e.message : String(e)) +
               '\nProbá recargar la página (F5).'
@@ -8380,7 +8381,7 @@
           const syncRes = await syncConfigToSupabase();
           if (syncRes && syncRes.ok === false) {
             const msg = (syncRes.error && syncRes.error.message) ? syncRes.error.message : 'No se pudo guardar la configuración en el servidor.';
-            alert('La configuración quedó en este navegador, pero no se guardó en la base: ' + msg + '\n\nSi el mensaje menciona meses_excluidos, ejecutá en Supabase sql/supabase_config_dashboard_meses_excluidos.sql.');
+            FornitaliaMensajes.avisar('La configuración quedó en este navegador, pero no se guardó en la base: ' + msg + '\n\nSi el mensaje menciona meses_excluidos, ejecutá en Supabase sql/supabase_config_dashboard_meses_excluidos.sql.');
           }
           recalcular();
         });

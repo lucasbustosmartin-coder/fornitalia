@@ -2013,8 +2013,11 @@
 
     pasar('mismo_dia', { exact: true });
     pasar('cerca', { exact: true });
+    pasar('mismo_dia', { requireConcepto: true });
     pasar('cerca', { requireConcepto: true });
+    pasar('mismo_dia', { requireUnique: true });
     pasar('cerca', { requireUnique: true });
+    pasar('mismo_dia', {});
     pasar('cerca', {});
 
     return out;
@@ -2415,14 +2418,6 @@
     return idsMatchLado(m, 'banco').some(function (id) { return !!an[id]; });
   }
 
-  function matchSugeridoFueraDeVentana(m) {
-    if (!m || m.estado !== 'sugerido' || esMatchImpuestos(m)) return false;
-    var bs = movsMatchLado(m, 'banco');
-    var ss = movsMatchLado(m, 'sistema');
-    if (!bs.length || !ss.length) return false;
-    return Math.abs(daysBetween(bs[0].fecha, ss[0].fecha)) > MAX_DIAS_SUGERENCIA;
-  }
-
   async function recargarTodo() {
     state.loading = true;
     renderShell();
@@ -2431,16 +2426,12 @@
       await cargarDatos();
       state.err = '';
       if (can(PERM_CARGAR) || can(PERM_CONFIRMAR)) {
-        var haySugAnul = state.canal === CANAL_MP && (state.matches || []).some(matchSugeridoEsAnulado);
-        var haySugLejos = (state.matches || []).some(matchSugeridoFueraDeVentana);
-        if (haySugAnul || haySugLejos) {
-          try {
-            await regenerarSugerencias();
-            await cargarDatos();
-            state.err = '';
-          } catch (e2) {
-            state.err = 'No se pudieron recálcular las sugerencias: ' + errMsg(e2);
-          }
+        try {
+          await regenerarSugerencias();
+          await cargarDatos();
+          state.err = '';
+        } catch (e2) {
+          state.err = 'No se pudieron recalcular las sugerencias: ' + errMsg(e2);
         }
       }
     } catch (e) {
@@ -3089,8 +3080,8 @@
       var matchUndo = null;
       (state.matches || []).forEach(function (x) { if (x.id === id) matchUndo = x; });
       if (esMatchImpuestos(matchUndo)) {
-        if (!confirm('¿Deshacer esta conciliación de Impuestos?\n\nEl tesorería vuelve a Solo sistema y las percepciones quedan no conciliadas.')) return;
-      } else if (!confirm('¿Deshacer esta conciliación confirmada? La pareja vuelve a Sugeridos.')) return;
+        if (!await FornitaliaMensajes.confirmar('¿Deshacer esta conciliación de Impuestos?\n\nEl tesorería vuelve a Solo sistema y las percepciones quedan no conciliadas.')) return;
+      } else if (!await FornitaliaMensajes.confirmar('¿Deshacer esta conciliación confirmada? La pareja vuelve a Sugeridos.')) return;
     }
     try {
       var rpc = await client().rpc('cb_set_match_estado', { p_match_id: id, p_estado: estado });
@@ -3109,7 +3100,7 @@
       }
       await recargarTodo();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
@@ -3127,7 +3118,7 @@
         : 'No había sugerencias para confirmar.';
       await recargarTodo();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
@@ -3136,14 +3127,14 @@
     var m = findMov(id);
     if (!m || m.origen !== 'sistema') return;
     var det = (formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + ' · ' + (m.descripcion || m.tipo || '')).trim();
-    if (!confirm('¿Eliminar este movimiento de tesorería?\n\n' + det + '\n\nQueda en Tesorería eliminada. Si lo necesitás de nuevo, volvé a cargar el Excel.')) return;
+    if (!await FornitaliaMensajes.confirmar('¿Eliminar este movimiento de tesorería?\n\n' + det + '\n\nQueda en Tesorería eliminada. Si lo necesitás de nuevo, volvé a cargar el Excel.')) return;
     try {
       var rpc = await client().rpc('cb_borrar_movimiento_sistema', { p_id: id });
       if (rpc.error) throw rpc.error;
       state.msg = 'Movimiento de tesorería eliminado. Quedó en Tesorería eliminada.';
       await recargarTodo();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
@@ -3152,14 +3143,14 @@
     var m = findMov(id);
     if (!m || m.origen !== 'banco' || !esCanalExtractoBanco(m.canal)) return;
     var det = (formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + ' · ' + (m.descripcion || m.tipo || '')).trim();
-    if (!confirm('¿Eliminar este movimiento del extracto Galicia?\n\n' + det + '\n\nNo se puede deshacer. Si lo necesitás, volvé a cargar el Excel o el PDF del banco.')) return;
+    if (!await FornitaliaMensajes.confirmar('¿Eliminar este movimiento del extracto Galicia?\n\n' + det + '\n\nNo se puede deshacer. Si lo necesitás, volvé a cargar el Excel o el PDF del banco.')) return;
     try {
       var rpc = await client().rpc('cb_borrar_movimiento_banco_galicia', { p_id: id });
       if (rpc.error) throw rpc.error;
       state.msg = 'Movimiento del extracto Galicia eliminado.';
       await recargarTodo();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
@@ -3196,7 +3187,7 @@
         canalPermiteNoRequiere(m.canal) && !esNoRequiereConciliacion(m) && !esPendienteBaja(m);
     });
     if (!ids.length) {
-      alert('Seleccioná al menos un movimiento.');
+      FornitaliaMensajes.avisar('Seleccioná al menos un movimiento.');
       return;
     }
     state.excluirIds = ids;
@@ -3264,12 +3255,12 @@
     var ju = state.modal && state.modal.querySelector('#cb-excluir-just');
     var just = (ju ? ju.value : state.excluirJustif || '').trim();
     if (just.length < 8) {
-      alert('Escribí una justificación de al menos 8 caracteres. Queda registrada con el movimiento.');
+      FornitaliaMensajes.avisar('Escribí una justificación de al menos 8 caracteres. Queda registrada con el movimiento.');
       return;
     }
     var ids = (state.excluirIds || []).slice();
     if (!ids.length) {
-      alert('Seleccioná al menos un movimiento.');
+      FornitaliaMensajes.avisar('Seleccioná al menos un movimiento.');
       return;
     }
     var btn = state.modal && state.modal.querySelector('[data-cb="no-req-ok"]');
@@ -3299,7 +3290,7 @@
         btn.removeAttribute('aria-busy');
         if (btnHtml) btn.innerHTML = btnHtml;
       }
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
@@ -3308,7 +3299,7 @@
     var m = findMov(id);
     if (!m || !esNoRequiereConciliacion(m)) return;
     var listaVuelta = labelListaOrigen(m);
-    if (!confirm('¿Volver a conciliar este movimiento?\n\n' + formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + '\n\nVuelve a ' + listaVuelta + ' y puede entrar a sugerencias.')) return;
+    if (!await FornitaliaMensajes.confirmar('¿Volver a conciliar este movimiento?\n\n' + formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + '\n\nVuelve a ' + listaVuelta + ' y puede entrar a sugerencias.')) return;
     try {
       var rpc = await client().rpc('cb_deshacer_no_requiere_conciliacion', { p_id: id });
       if (rpc.error) throw rpc.error;
@@ -3316,7 +3307,7 @@
       state.msg = 'Ya no está marcado. Volvió a ' + listaVuelta + '.';
       await recargarTodo();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
@@ -3345,14 +3336,14 @@
     var m = findMov(id);
     if (!m || !esPendienteBaja(m)) return;
     var extra = matchActivoDe(id) ? '\n\nEstá conciliado: se elimina también la pareja.' : '';
-    if (!confirm('¿Eliminar definitivamente este movimiento de tesorería?\n\n' + textoBajaTesoreria(m) + extra + '\n\nQueda en Tesorería eliminada.')) return;
+    if (!await FornitaliaMensajes.confirmar('¿Eliminar definitivamente este movimiento de tesorería?\n\n' + textoBajaTesoreria(m) + extra + '\n\nQueda en Tesorería eliminada.')) return;
     try {
       var rpc = await client().rpc('cb_confirmar_baja_tesoreria', { p_id: id });
       if (rpc.error) throw rpc.error;
       state.msg = 'Tesorería eliminada (Id ' + idTesoreriaVisible(m) + '). Quedó en Tesorería eliminada.';
       await recargarTodo();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
@@ -3360,7 +3351,7 @@
     if (!can(PERM_CARGAR)) return;
     var list = filasVisiblesBaja();
     if (!list.length) return;
-    if (!confirm('¿Eliminar definitivamente los ' + list.length + ' movimientos visibles en A eliminar?\n\nTambién se borran las conciliaciones asociadas. Quedan en Tesorería eliminada.')) return;
+    if (!await FornitaliaMensajes.confirmar('¿Eliminar definitivamente los ' + list.length + ' movimientos visibles en A eliminar?\n\nTambién se borran las conciliaciones asociadas. Quedan en Tesorería eliminada.')) return;
     try {
       var i;
       for (i = 0; i < list.length; i++) {
@@ -3370,7 +3361,7 @@
       state.msg = 'Se eliminaron ' + list.length + ' movimientos de tesorería abierta. Quedaron en Tesorería eliminada.';
       await recargarTodo();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
       await recargarTodo();
     }
   }
@@ -4944,7 +4935,7 @@
     if (!g) return;
     var ids = idsDeGrupoDup(g);
     if (ids.length < 2) return;
-    if (!confirm('¿Descartar este grupo como potencial duplicado?\n\n' +
+    if (!await FornitaliaMensajes.confirmar('¿Descartar este grupo como potencial duplicado?\n\n' +
         labelVecesDup(g.veces) + ' · ' + formatMonto(g.monto) +
         '\n\nNo vuelve a listarse mientras sea el mismo conjunto de movimientos. Si entra otro al grupo, sí se muestra. Podés deshacerlo en Duplicados descartados.')) {
       return;
@@ -4960,7 +4951,7 @@
       state.msg = 'Grupo descartado. No vuelve a Potenciales duplicados.';
       await recargarTodo();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
@@ -4968,14 +4959,14 @@
     if (!can(PERM_CONFIRMAR)) return;
     var groups = gruposDupSelVisibles();
     if (!groups.length) {
-      alert('Seleccioná al menos un grupo.');
+      FornitaliaMensajes.avisar('Seleccioná al menos un grupo.');
       return;
     }
     if (groups.length === 1) {
       await descartarGrupoDup(groups[0].id);
       return;
     }
-    if (!confirm('¿Descartar los ' + groups.length + ' grupos como potenciales duplicados?\n\n' +
+    if (!await FornitaliaMensajes.confirmar('¿Descartar los ' + groups.length + ' grupos como potenciales duplicados?\n\n' +
         'No vuelven a listarse mientras sea el mismo conjunto de movimientos. Si entra otro al grupo, sí se muestra. Podés deshacerlo en Duplicados descartados.')) {
       return;
     }
@@ -5013,13 +5004,13 @@
       state.msg = n + ' grupos descartados. No vuelven a Potenciales duplicados.';
       await recargarTodo();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
   async function deshacerDupDescartado(id) {
     if (!can(PERM_CONFIRMAR)) return;
-    if (!confirm('¿Volver a listar este grupo en Potenciales duplicados?')) return;
+    if (!await FornitaliaMensajes.confirmar('¿Volver a listar este grupo en Potenciales duplicados?')) return;
     try {
       var rpc = await client().rpc('cb_deshacer_dup_tesoreria', { p_id: id });
       if (rpc.error) throw rpc.error;
@@ -5028,7 +5019,7 @@
       state.msg = 'El grupo volvió a Potenciales duplicados.';
       await recargarTodo();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
@@ -5506,15 +5497,15 @@
     var sistemaIds = idsSelManual('sistema');
     var just = (state.manual.justif || '').trim();
     if (!bancoIds.length) {
-      alert('Elegí al menos un movimiento del extracto.');
+      FornitaliaMensajes.avisar('Elegí al menos un movimiento del extracto.');
       return;
     }
     if (!sistemaIds.length && bancoIds.length < 2) {
-      alert('Sin tesorería, elegí al menos dos movimientos del extracto (crédito y débito). O elegí también tesorería.');
+      FornitaliaMensajes.avisar('Sin tesorería, elegí al menos dos movimientos del extracto (crédito y débito). O elegí también tesorería.');
       return;
     }
     if (just.length < 8) {
-      alert('Escribí una justificación de al menos 8 caracteres. Queda registrada junto con la diferencia.');
+      FornitaliaMensajes.avisar('Escribí una justificación de al menos 8 caracteres. Queda registrada junto con la diferencia.');
       return;
     }
     try {
@@ -5532,7 +5523,7 @@
         : 'Conciliación manual confirmada: crédito y débito del extracto, sin tesorería.';
       await recargarTodo();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
@@ -5642,7 +5633,7 @@
 
   function exportarExcel() {
     if (!global.XLSX) {
-      alert('No está disponible la librería Excel.');
+      FornitaliaMensajes.avisar('No está disponible la librería Excel.');
       return;
     }
     var headerRow = 11;
@@ -5671,7 +5662,7 @@
       var estado = state.lista === 'confirmados' ? 'confirmado' : 'sugerido';
       var matches = filasVisiblesMatch(estado);
       if (!matches.length) {
-        alert('No hay filas visibles con los filtros activos para exportar.');
+        FornitaliaMensajes.avisar('No hay filas visibles con los filtros activos para exportar.');
         return;
       }
       matches.forEach(function (m) {
@@ -5707,7 +5698,7 @@
       cols = [{ wch: 12 }, { wch: 40 }, { wch: 14 }, { wch: 14 }, { wch: 40 }, { wch: 16 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 10 }];
       var pares = filasVisiblesAnulados();
       if (!pares.length) {
-        alert('No hay filas visibles con los filtros activos para exportar.');
+        FornitaliaMensajes.avisar('No hay filas visibles con los filtros activos para exportar.');
         return;
       }
       pares.forEach(function (p) {
@@ -5731,7 +5722,7 @@
       cols = [{ wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 14 }, { wch: 40 }, { wch: 12 }, { wch: 22 }, { wch: 10 }];
       var excl = filasVisiblesNoRequiere();
       if (!excl.length) {
-        alert('No hay filas visibles con los filtros activos para exportar.');
+        FornitaliaMensajes.avisar('No hay filas visibles con los filtros activos para exportar.');
         return;
       }
       excl.forEach(function (m) {
@@ -5756,7 +5747,7 @@
       cols = [{ wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 22 }, { wch: 14 }];
       var dups = filasVisiblesDups();
       if (!dups.length) {
-        alert('No hay filas visibles con los filtros activos para exportar.');
+        FornitaliaMensajes.avisar('No hay filas visibles con los filtros activos para exportar.');
         return;
       }
       dups.forEach(function (g, gi) {
@@ -5785,7 +5776,7 @@
       cols = [{ wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
       var dupsOff = filasVisiblesDupsDesc();
       if (!dupsOff.length) {
-        alert('No hay filas visibles con los filtros activos para exportar.');
+        FornitaliaMensajes.avisar('No hay filas visibles con los filtros activos para exportar.');
         return;
       }
       dupsOff.forEach(function (g, gi) {
@@ -5837,7 +5828,7 @@
       cols = [{ wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 28 }, { wch: 44 }, { wch: 32 }, { wch: 10 }];
       var bajas = filasVisiblesBaja();
       if (!bajas.length) {
-        alert('No hay filas visibles con los filtros activos para exportar.');
+        FornitaliaMensajes.avisar('No hay filas visibles con los filtros activos para exportar.');
         return;
       }
       bajas.forEach(function (m) {
@@ -5859,7 +5850,7 @@
       cols = [{ wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 22 }, { wch: 28 }, { wch: 28 }, { wch: 12 }, { wch: 10 }];
       var elims = filasVisiblesEliminados();
       if (!elims.length) {
-        alert('No hay filas visibles con los filtros activos para exportar.');
+        FornitaliaMensajes.avisar('No hay filas visibles con los filtros activos para exportar.');
         return;
       }
       elims.forEach(function (m) {
@@ -5884,7 +5875,7 @@
       cols = [{ wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 22 }, { wch: 28 }, { wch: 14 }, { wch: 28 }, { wch: 10 }];
       var todosXls = filasVisiblesTodos();
       if (!todosXls.length) {
-        alert('No hay filas visibles con los filtros activos para exportar.');
+        FornitaliaMensajes.avisar('No hay filas visibles con los filtros activos para exportar.');
         return;
       }
       todosXls.forEach(function (m) {
@@ -5916,7 +5907,7 @@
         : [{ wch: 12 }, { wch: 22 }, { wch: 40 }, { wch: 32 }, { wch: 24 }, { wch: 14 }, { wch: 28 }, { wch: 10 }];
       var movs = filasVisiblesSolo(origen);
       if (!movs.length) {
-        alert('No hay filas visibles con los filtros activos para exportar.');
+        FornitaliaMensajes.avisar('No hay filas visibles con los filtros activos para exportar.');
         return;
       }
       movs.forEach(function (m) {
@@ -6131,7 +6122,7 @@
     }
   }
 
-  function onClick(ev) {
+  async function onClick(ev) {
     var t = ev.target.closest && ev.target.closest('[data-cb]');
     if (!t) return;
     var rootEl = root();
@@ -6236,7 +6227,7 @@
       if (!box.checked) return;
       var vis = filasVisiblesMatch('sugerido');
       if (!vis.length) { box.checked = false; return; }
-      if (!confirm('¿Confirmar las ' + vis.length + ' sugerencias listadas?\n\nPasan a Confirmados. Si hay filtros, solo se confirman las visibles.')) {
+      if (!await FornitaliaMensajes.confirmar('¿Confirmar las ' + vis.length + ' sugerencias listadas?\n\nPasan a Confirmados. Si hay filtros, solo se confirman las visibles.')) {
         box.checked = false;
         return;
       }

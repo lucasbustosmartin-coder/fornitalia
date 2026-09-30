@@ -958,7 +958,7 @@
     if (!can(PERM_CARGAR)) return;
     var list = filasNoConciliadas();
     if (!list.length) {
-      alert('No hay percepciones no conciliadas para conciliar (con los filtros de mes/extracto actuales).');
+      FornitaliaMensajes.avisar('No hay percepciones no conciliadas para conciliar (con los filtros de mes/extracto actuales).');
       return;
     }
     cerrarModalFiltros();
@@ -1009,7 +1009,7 @@
       }
     } catch (e) {
       if (state.manual) state.manual.loadingTes = false;
-      alert('No se pudo cargar tesorería Mercado Pago: ' + errMsg(e));
+      FornitaliaMensajes.avisar('No se pudo cargar tesorería Mercado Pago: ' + errMsg(e));
     }
   }
 
@@ -1021,15 +1021,15 @@
     var tesId = state.manual.tesoreriaId;
     var just = String(state.manual.justif || '').trim();
     if (!ids.length) {
-      alert('Elegí al menos una percepción no conciliada.');
+      FornitaliaMensajes.avisar('Elegí al menos una percepción no conciliada.');
       return;
     }
     if (!tesId) {
-      alert('Elegí un movimiento de tesorería Mercado Pago.');
+      FornitaliaMensajes.avisar('Elegí un movimiento de tesorería Mercado Pago.');
       return;
     }
     if (just.length < 8) {
-      alert('Escribí una justificación de al menos 8 caracteres.');
+      FornitaliaMensajes.avisar('Escribí una justificación de al menos 8 caracteres.');
       return;
     }
     try {
@@ -1049,7 +1049,7 @@
       state.err = '';
       renderShell();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
@@ -1210,7 +1210,7 @@
   async function onUpload() {
     if (!can(PERM_CARGAR)) return;
     if (!global.XLSX) {
-      alert('No está disponible la librería Excel.');
+      FornitaliaMensajes.avisar('No está disponible la librería Excel.');
       return;
     }
     pedirArchivos(async function (files) {
@@ -1267,7 +1267,7 @@
 
   function exportarExcel() {
     if (!global.XLSX) {
-      alert('No está disponible la librería Excel.');
+      FornitaliaMensajes.avisar('No está disponible la librería Excel.');
       return;
     }
     var list = filasVisibles();

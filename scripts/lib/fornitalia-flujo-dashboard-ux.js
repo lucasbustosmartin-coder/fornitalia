@@ -560,11 +560,11 @@
     opts = opts || {};
     var panelFlujo = document.getElementById('panel-flujo');
     if (!panelFlujo || !panelFlujo.classList.contains('activo')) {
-      alert('Abrí la solapa Flujo por mes para armar el reporte.');
+      FornitaliaMensajes.avisar('Abrí la solapa Flujo por mes para armar el reporte.');
       return;
     }
     if (!flujoParaReporte) {
-      alert('Todavía no hay datos cargados para armar el reporte.');
+      FornitaliaMensajes.avisar('Todavía no hay datos cargados para armar el reporte.');
       return;
     }
     asegurarLimpiezaReportePdf();

@@ -1507,7 +1507,7 @@
   async function onUpload() {
     if (!can(PERM_CARGAR)) return;
     if (!global.XLSX) {
-      alert('No está disponible la librería Excel.');
+      FornitaliaMensajes.avisar('No está disponible la librería Excel.');
       return;
     }
     pedirArchivo(async function (file) {
@@ -1622,37 +1622,37 @@
 
   async function onBorrar(id) {
     if (!can(PERM_CARGAR) || !id) return;
-    if (!window.confirm('¿Eliminar este movimiento de caja?')) return;
+    if (!await FornitaliaMensajes.confirmar('¿Eliminar este movimiento de caja?')) return;
     try {
       var res = await client().rpc('cf_borrar_movimiento', { p_id: id });
       if (res.error) throw res.error;
       await recargarTodo();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
   async function onBaja(id) {
     if (!can(PERM_CARGAR) || !id) return;
-    if (!window.confirm('¿Confirmar la baja definitiva de este movimiento de tesorería abierta?')) return;
+    if (!await FornitaliaMensajes.confirmar('¿Confirmar la baja definitiva de este movimiento de tesorería abierta?')) return;
     try {
       var res = await client().rpc('cf_confirmar_baja', { p_id: id });
       if (res.error) throw res.error;
       await recargarTodo();
     } catch (e) {
-      alert(errMsg(e));
+      FornitaliaMensajes.avisar(errMsg(e));
     }
   }
 
   function exportarExcel() {
     if (!can(PERM_EXPORTAR) && !can(PERM_VER)) return;
     if (!global.XLSX) {
-      alert('No está disponible la librería Excel.');
+      FornitaliaMensajes.avisar('No está disponible la librería Excel.');
       return;
     }
     var list = filasVisibles();
     if (!list.length) {
-      alert('No hay filas visibles con los filtros activos para exportar.');
+      FornitaliaMensajes.avisar('No hay filas visibles con los filtros activos para exportar.');
       return;
     }
     var usd = esCanalUsd(state.canal);

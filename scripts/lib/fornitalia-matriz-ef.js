@@ -996,7 +996,7 @@
       return;
     }
     var label = (row.codigo ? row.codigo + ' — ' : '') + (row.ef_subitem || row.ef_item || '');
-    if (!global.confirm('Se va a borrar el renglón «' + label + '». El Estado Financiero dejará de dibujarlo. ¿Continuar?')) return;
+    if (!await FornitaliaMensajes.confirmar('Se va a borrar el renglón «' + label + '». El Estado Financiero dejará de dibujarlo. ¿Continuar?')) return;
     state.loading = true;
     state.err = '';
     renderShell();
@@ -1020,12 +1020,12 @@
 
   function exportarExcel() {
     if (!global.XLSX) {
-      alert('No se pudo cargar la librería de Excel.');
+      FornitaliaMensajes.avisar('No se pudo cargar la librería de Excel.');
       return;
     }
     var list = filasVisibles();
     if (!list.length) {
-      alert('No hay filas para exportar.');
+      FornitaliaMensajes.avisar('No hay filas para exportar.');
       return;
     }
     var aoa = [['Matriz EF — categoría / cuenta / tipo → Estado Financiero']];
@@ -1052,12 +1052,12 @@
 
   function exportarEstExcel() {
     if (!global.XLSX) {
-      alert('No se pudo cargar la librería de Excel.');
+      FornitaliaMensajes.avisar('No se pudo cargar la librería de Excel.');
       return;
     }
     var list = estFilasVisibles();
     if (!list.length) {
-      alert('No hay filas para exportar.');
+      FornitaliaMensajes.avisar('No hay filas para exportar.');
       return;
     }
     var aoa = [['Estructura del Estado Financiero']];

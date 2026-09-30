@@ -2183,7 +2183,7 @@
   function exportarExcel() {
     if (!can(PERM_EXPORTAR) && !can(PERM_VER)) return;
     if (!global.XLSX) {
-      alert('No está disponible la librería Excel.');
+      FornitaliaMensajes.avisar('No está disponible la librería Excel.');
       return;
     }
     var headerRow = 6;
@@ -2203,7 +2203,7 @@
     if (state.canal === CANAL_CONS) {
       var meses = filasConsolidado();
       if (!meses.length) {
-        alert('No hay saldos visibles con el período elegido.');
+        FornitaliaMensajes.avisar('No hay saldos visibles con el período elegido.');
         return;
       }
       aoa = [['Saldos extractos — Posición consolidada']].concat(meta);
@@ -2232,7 +2232,7 @@
     } else if (state.canal === CANAL_MP) {
       var rowsMp = conAnterior(filasCanalConVivo(CANAL_MP));
       if (!rowsMp.length) {
-        alert('No hay saldos visibles con el período elegido.');
+        FornitaliaMensajes.avisar('No hay saldos visibles con el período elegido.');
         return;
       }
       aoa = [['Saldos extractos — Mercado Pago']].concat(meta);
@@ -2258,7 +2258,7 @@
     } else if (state.canal === CANAL_GAL) {
       var rowsG = conAnterior(filasCanalConVivo(CANAL_GAL));
       if (!rowsG.length) {
-        alert('No hay saldos visibles con el período elegido.');
+        FornitaliaMensajes.avisar('No hay saldos visibles con el período elegido.');
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_GAL]].concat(meta);
@@ -2290,7 +2290,7 @@
     } else if (state.canal === CANAL_GAL_USD) {
       var rowsGUsd = conAnterior(filasCanalConVivo(CANAL_GAL_USD));
       if (!rowsGUsd.length) {
-        alert('No hay saldos visibles con el período elegido.');
+        FornitaliaMensajes.avisar('No hay saldos visibles con el período elegido.');
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_GAL_USD + ' (ARS, MEP)']].concat(meta);
@@ -2319,7 +2319,7 @@
     } else if (state.canal === CANAL_CRED) {
       var rowsCredX = conAnterior(filasCanalConVivo(CANAL_CRED));
       if (!rowsCredX.length) {
-        alert('No hay saldos visibles con el período elegido.');
+        FornitaliaMensajes.avisar('No hay saldos visibles con el período elegido.');
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_CRED + ' (desde tesorería)']].concat(meta);
@@ -2344,7 +2344,7 @@
     } else if (state.canal === CANAL_GF) {
       var rowsGf = conAnterior(filasCanal(CANAL_GF));
       if (!rowsGf.length) {
-        alert('No hay saldos visibles con el período elegido.');
+        FornitaliaMensajes.avisar('No hay saldos visibles con el período elegido.');
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_GF]].concat(meta);
@@ -2369,7 +2369,7 @@
     } else if (state.canal === CANAL_MOR) {
       var rowsMor = conAnterior(filasCanal(CANAL_MOR));
       if (!rowsMor.length) {
-        alert('No hay saldos visibles con el período elegido.');
+        FornitaliaMensajes.avisar('No hay saldos visibles con el período elegido.');
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_MOR]].concat(meta);
@@ -2394,7 +2394,7 @@
     } else if (state.canal === CANAL_USD) {
       var rowsUsd = conAnterior(filasCanal(CANAL_USD));
       if (!rowsUsd.length) {
-        alert('No hay saldos visibles con el período elegido.');
+        FornitaliaMensajes.avisar('No hay saldos visibles con el período elegido.');
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_USD + ' (ARS, MEP)']].concat(meta);
@@ -2419,7 +2419,7 @@
     } else if (state.canal === CANAL_SF) {
       var rowsSf = conAnterior(filasCanal(CANAL_SF));
       if (!rowsSf.length) {
-        alert('No hay saldos visibles con el período elegido.');
+        FornitaliaMensajes.avisar('No hay saldos visibles con el período elegido.');
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_SF]].concat(meta);
@@ -2444,7 +2444,7 @@
     } else if (state.canal === CANAL_SF_USD) {
       var rowsSfUsd = conAnterior(filasCanal(CANAL_SF_USD));
       if (!rowsSfUsd.length) {
-        alert('No hay saldos visibles con el período elegido.');
+        FornitaliaMensajes.avisar('No hay saldos visibles con el período elegido.');
         return;
       }
       aoa = [['Saldos extractos — ' + LABEL_SF_USD + ' (ARS, MEP)']].concat(meta);
@@ -2549,7 +2549,7 @@
     var canvas = el.querySelector('#se-chart');
     var tabla = el.querySelector('.se-tabla-wrap');
     if (!cards && !tabla) {
-      alert('No hay saldos para armar el reporte.');
+      FornitaliaMensajes.avisar('No hay saldos para armar el reporte.');
       return;
     }
     asegurarLimpiezaPrint();

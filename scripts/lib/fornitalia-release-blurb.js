@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.70',
+    versionLabel: 'v2.71',
     lines: [
-      'En Conciliación Bancaria, Filtros ahora permite acotar por importe exacto (1000 o 1.000,00) y por ID exacto.',
-      'El buscar queda libre para concepto, cliente y observaciones: un 1000 ya no trae IDs que contienen esos dígitos.',
-      'La solapa Todos sigue mostrando en qué listado está cada movimiento (Sugeridos, Confirmados, Solo banco, etc.).'
+      'Al abrir Conciliación Bancaria, Sugeridos se vuelve a armar aunque la lista esté vacía.',
+      'El mismo día también propone parejas si el importe entra en la tolerancia (centavos en montos chicos, un poco más en montos grandes).',
+      'Las confirmaciones y los avisos (por ejemplo, confirmar sugerencias) aparecen en un cuadro de la app, con Aceptar y Cancelar.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

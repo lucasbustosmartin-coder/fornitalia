@@ -13,6 +13,7 @@ alwaysApply: true
 - **Estructura del repo:** `sql/`, `scripts/`, `docs/`. Ver regla **estructura-proyecto**. Bitácora y despliegue: regla **bitacora-tareas**.
 - **Novedades al recargar:** en cada “ok desplegar”, el **agente** (no el usuario) actualiza `scripts/lib/fornitalia-release-blurb.js` (`versionLabel` + `lines` 2–4 visibles) y regenera `fornitalia-release.json`. El modal **«Nueva versión»** aparece al iniciar sesión si esa versión aún no se confirmó. Ver **bitacora-tareas**.
 - **Main vs publicado (no omitir):** antes de editar, `git fetch origin` y alinear `main` local con `origin/main` / Vercel. Ver regla **sync-main-publicado**.
+- **Mensajes:** no usar `confirm()` ni `alert()` del navegador. Confirmaciones con `FornitaliaMensajes.confirmar(mensaje)` y avisos con `FornitaliaMensajes.avisar(mensaje)` (`scripts/lib/fornitalia-mensajes.js`). El cuadro es de la app (título, texto y botones con icono).
 
 ## Fechas de negocio (regla estricta — no omitir)
 

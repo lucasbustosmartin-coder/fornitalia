@@ -753,7 +753,7 @@
 
   async function abrirArchivoStorage(path) {
     if (!path) {
-      alert('No hay archivo para abrir.');
+      FornitaliaMensajes.avisar('No hay archivo para abrir.');
       return;
     }
     try {
@@ -762,7 +762,7 @@
       if (!res.data || !res.data.signedUrl) throw new Error('No se pudo generar el enlace.');
       window.open(res.data.signedUrl, '_blank', 'noopener');
     } catch (e) {
-      alert('No se pudo abrir el archivo: ' + errMsg(e));
+      FornitaliaMensajes.avisar('No se pudo abrir el archivo: ' + errMsg(e));
     }
   }
 
@@ -1404,7 +1404,7 @@
       await cargarProyectos();
       await cargarPlan();
     } catch (e) {
-      alert('No se pudo cargar Gestión de Proyectos: ' + errMsg(e));
+      FornitaliaMensajes.avisar('No se pudo cargar Gestión de Proyectos: ' + errMsg(e));
     } finally {
       state.loading = false;
       renderShell();
@@ -1620,7 +1620,7 @@
         if (!payload.nombre) return 'El nombre es obligatorio.';
         var preview = Object.assign({}, row || {}, { fecha_fin: ff, estado: estado, id: proyIdGuardada });
         var alertaH = alertaDeadlineHorasProyecto(preview, leidas.filas);
-        if (alertaH && !window.confirm(alertaH + '\n\n¿Guardar igual? Podés ajustar las horas o el deadline del proyecto.')) {
+        if (alertaH && !await FornitaliaMensajes.confirmar(alertaH + '\n\n¿Guardar igual? Podés ajustar las horas o el deadline del proyecto.')) {
           return 'Revisá el deadline del proyecto o las horas.';
         }
         if (proyIdGuardada) {
@@ -1691,7 +1691,7 @@
         }
         var alertaH = alertaDeadlineHorasEntregable(preview, leidas.filas);
         if (alertaH) nDl++;
-        if (nDl && !window.confirm((alertaH ? alertaH + ' ' : '') + (nDl ? 'Hay ' + nDl + ' alerta(s) de deadline. ' : '') + '¿Guardar igual? Podés ajustar el entregable, las horas o las tareas.')) {
+        if (nDl && !await FornitaliaMensajes.confirmar((alertaH ? alertaH + ' ' : '') + (nDl ? 'Hay ' + nDl + ' alerta(s) de deadline. ' : '') + '¿Guardar igual? Podés ajustar el entregable, las horas o las tareas.')) {
           return 'Revisá el deadline del entregable o las horas.';
         }
         if (entIdGuardada) {
@@ -1752,7 +1752,7 @@
           entregable_id: eid,
           id: tareaIdGuardada
         }, ent, leidas.filas);
-        if (alerta && !window.confirm(alerta + '\n\n¿Guardar igual?')) {
+        if (alerta && !await FornitaliaMensajes.confirmar(alerta + '\n\n¿Guardar igual?')) {
           return 'Revisá las fechas o las horas antes de guardar.';
         }
         if (tareaIdGuardada) {
@@ -1799,7 +1799,7 @@
   }
 
   async function eliminar(tabla, id, msg) {
-    if (!confirm(msg)) return;
+    if (!await FornitaliaMensajes.confirmar(msg)) return;
     var paths = [];
     if (tabla === 'gp_proyecto') {
       paths = listaArchivosProyecto().map(function (a) { return a.path; });
@@ -1814,7 +1814,7 @@
     try { await borrarStoragePaths(paths); } catch (eSt) { /* se borra igual el registro */ }
     var res = await client().from(tabla).delete().eq('id', id);
     if (res.error) {
-      alert('No se pudo eliminar: ' + errMsg(res.error));
+      FornitaliaMensajes.avisar('No se pudo eliminar: ' + errMsg(res.error));
       return;
     }
     if (tabla === 'gp_proyecto' && state.selectedId === id) {
@@ -1834,7 +1834,7 @@
     }
     var res = await client().from(tabla).update(patch).eq('id', id);
     if (res.error) {
-      alert('No se pudo actualizar el estado: ' + errMsg(res.error));
+      FornitaliaMensajes.avisar('No se pudo actualizar el estado: ' + errMsg(res.error));
       return;
     }
     await recargarTodo();
@@ -1873,7 +1873,7 @@
       }));
       for (var r = 0; r < results.length; r++) {
         if (results[r] && results[r].error) {
-          alert('No se pudo guardar el orden: ' + errMsg(results[r].error));
+          FornitaliaMensajes.avisar('No se pudo guardar el orden: ' + errMsg(results[r].error));
           break;
         }
       }
@@ -2482,7 +2482,7 @@
 
   function exportarExcel() {
     if (!global.XLSX) {
-      alert('No está disponible la librería Excel.');
+      FornitaliaMensajes.avisar('No está disponible la librería Excel.');
       return;
     }
     var p = proyectoSel();
@@ -2582,7 +2582,7 @@
     renderShell();
     var node = document.getElementById('gp-onepager');
     if (!node) {
-      alert('No se pudo armar el one-page.');
+      FornitaliaMensajes.avisar('No se pudo armar el one-page.');
       return;
     }
     asegurarLimpiezaPrint();
