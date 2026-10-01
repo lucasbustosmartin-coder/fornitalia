@@ -41,6 +41,7 @@
   var state = {
     mounted: false,
     loading: false,
+    loadingMsg: '',
     canal: CANAL_GF,
     lista: 'movimientos',
     movimientos: [],
@@ -826,7 +827,7 @@
       if (!m || !m.pendiente_baja) return false;
       var raw = m.raw || {};
       var s = String(raw.status || raw.Status || '').trim().toLowerCase();
-      return s === 'pendiente';
+      return s === 'pendiente' || s === '';
     });
   }
 
@@ -1092,9 +1093,38 @@
     state.movimientos = hidratarObservaciones(all);
   }
 
-  async function recargarTodo() {
+  function marcarCargando(msg) {
     state.loading = true;
+    state.loadingMsg = msg || 'Cargando…';
     renderShell();
+  }
+
+  function soltarCarga() {
+    state.loading = false;
+    state.loadingMsg = '';
+  }
+
+  function htmlCargando() {
+    if (!state.loading) return '';
+    var txt = state.loadingMsg || 'Cargando…';
+    return '<div class="cf-busy" role="status" aria-live="polite" aria-busy="true">' +
+      '<div class="cf-busy-card">' +
+      '<span class="cf-busy-spin" aria-hidden="true"></span>' +
+      '<p>' + esc(txt) + '</p>' +
+      '<p class="cf-busy-hint">Esperá a que termine este proceso.</p>' +
+      '</div></div>';
+  }
+
+  function htmlTabLista(lista, label, n, warnSiHay) {
+    var num = Number(n) || 0;
+    var badge = '<span class="cf-tab-count' + (num ? '' : ' vacio') + '">' + num + '</span>';
+    var cls = (warnSiHay && num) ? 'cf-tab-warn' : '';
+    return FornitaliaHelp.tabButton(cls, state.lista === lista,
+      'data-cf="lista" data-lista="' + lista + '"', esc(label) + badge);
+  }
+
+  async function recargarTodo() {
+    marcarCargando('Cargando caja…');
     try {
       await cargarUsuarios();
       await cargarDatos();
@@ -1102,7 +1132,7 @@
     } catch (e) {
       state.err = 'No se pudo cargar Cajas (físicas): ' + errMsg(e);
     } finally {
-      state.loading = false;
+      soltarCarga();
       renderShell();
     }
   }
@@ -1544,11 +1574,10 @@
       return;
     }
     pedirArchivo(async function (file) {
-      state.loading = true;
+      marcarCargando('Procesando el archivo…');
       state.err = '';
       state.msg = '';
       state.resumenCarga = null;
-      renderShell();
       try {
         var wb = await leerExcelFile(file);
         var parsed = parseCajaExcel(wb, file.name);
@@ -1638,7 +1667,7 @@
       } catch (e) {
         state.err = errMsg(e);
       } finally {
-        state.loading = false;
+        soltarCarga();
         renderShell();
         if (state.resumenCarga) {
           abrirModalResumenCarga(state.resumenCarga);
@@ -1985,9 +2014,9 @@
         '<p>Cajas que <strong>no se concilian</strong> con extracto bancario. Solapas <strong>' + esc(LABEL_GF) + '</strong> (efectivo pesos), <strong>' + esc(LABEL_MOR) + '</strong> (Transferencia Morba), <strong>' + esc(LABEL_USD) + '</strong> (efectivo dólar, pesificado al MEP), <strong>' + esc(LABEL_SF) + '</strong> (Caja = Efectivo Pesos (sin factura)) y <strong>' + esc(LABEL_SF_USD) + '</strong> (Caja = Efectivo Dolar (sin factura)).</p>' +
         '<p>Mismos Excel que tesorería/cierre, con Id para no duplicar. El saldo alimenta Saldos extractos.</p>' +
         '<p>Cargá <em>' + esc(archivosHint(state.canal).split(' o ')[0]) + '</em> o <em>' + esc(archivosHint(state.canal).split(' o ')[1] || '') + '</em>. Tesorería abierta trae saldo corrido; el cierre ya cerrado trae Fecha, Tipo, Monto e Id.</p>' +
-        '<p>Apertura de Caja y Status Anulado no se suben. Apertura no entra al corte de Saldos extractos. El histórico carga movimientos pero no pisa el saldo de tesorería o cierre. Status Pendiente sí se da de alta en todas las cajas. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> entran a Efectivo-s/f aunque vengan en un histórico, cierre u otro Excel de tesorería; el saldo alimenta Saldos extractos. Solo un Id <strong>Pendiente</strong> cuya fecha cae dentro del rango del archivo (histórico o tesorería) y que no viene ahí pasa a <strong>A eliminar</strong>. Si el Excel no cubre esa fecha, no se marca. Un Confirmado no se elimina.' +
+        '<p>Apertura de Caja y Status Anulado no se suben. Apertura no entra al corte de Saldos extractos. El histórico carga movimientos pero no pisa el saldo de tesorería o cierre. Status Pendiente sí se da de alta en todas las cajas. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> entran a Efectivo-s/f aunque vengan en un histórico, cierre u otro Excel de tesorería; el saldo alimenta Saldos extractos. Solo un Id <strong>Pendiente o sin Status</strong> cuya fecha cae dentro del rango del archivo (histórico o tesorería) y que no viene ahí pasa a <strong>A eliminar</strong>. Si el Excel no cubre esa fecha, no se marca. Un Confirmado no se elimina.' +
         (esCanalUsd(state.canal) ? ' Los montos del Excel están en <strong>USD</strong> y se pesifican al <strong>MEP</strong> de <em>tipo_de_cambio</em> (fecha del movimiento o última cotización anterior). La grilla muestra ARS, USD original y el TC usado.' : '') + '</p>') +
-      (state.loading ? '<p class="loading">Cargando caja…</p>' : '') +
+      htmlCargando() +
       (state.err ? '<p class="cf-msg-err">' + esc(state.err) + '</p>' : '') +
       (state.msg ? '<p class="cf-msg-ok">' + esc(state.msg) + '</p>' : '') +
       '<div class="cf-tabs">' +
@@ -2010,8 +2039,8 @@
         '<div class="cf-resumen-card' + (k.bajas ? ' cf-resumen-warn' : '') + '" data-cf="lista" data-lista="bajas" role="button" tabindex="0"><p class="lab">A eliminar</p><p class="val">' + k.bajas + '</p></div>' +
       '</div>' +
       '<div class="cf-tabs">' +
-        FornitaliaHelp.tabButton('', state.lista === 'movimientos', 'data-cf="lista" data-lista="movimientos"', 'Movimientos') +
-        FornitaliaHelp.tabButton(k.bajas ? 'cf-tab-warn' : '', state.lista === 'bajas', 'data-cf="lista" data-lista="bajas"', 'A eliminar' + (k.bajas ? ' (' + k.bajas + ')' : '')) +
+        htmlTabLista('movimientos', 'Movimientos', k.n) +
+        htmlTabLista('bajas', 'A eliminar', k.bajas, true) +
       '</div>' +
       renderTabla();
 
@@ -2036,8 +2065,16 @@
     var el = root();
     if (el && !el.contains(t)) return;
     var a = t.getAttribute('data-cf');
+    if (state.loading) return;
     if (a === 'up') { onUpload(); return; }
-    if (a === 'xlsx') { exportarExcel(); return; }
+    if (a === 'xlsx') {
+      marcarCargando('Armando el Excel…');
+      setTimeout(function () {
+        try { exportarExcel(); }
+        finally { soltarCarga(); renderShell(); }
+      }, 40);
+      return;
+    }
     if (a === 'filtros') { abrirModalFiltros(); return; }
     if (a === 'sort') { toggleSort(t.getAttribute('data-sort')); renderShell(); return; }
     if (a === 'lista') {

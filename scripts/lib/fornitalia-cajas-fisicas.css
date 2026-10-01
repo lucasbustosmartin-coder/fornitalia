@@ -105,6 +105,7 @@
 .cf-tabs button {
   display: inline-flex;
   align-items: center;
+  gap: 0.4rem;
   min-height: 44px;
   padding: 0.4rem 0.85rem;
   border-radius: 8px;
@@ -132,6 +133,77 @@
   border-color: #b45309;
   color: #fff;
 }
+
+.cf-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.cf-tab-count.vacio {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.cf-tabs button.activo .cf-tab-count {
+  background: #fff;
+  color: #0f172a;
+}
+
+.cf-tabs button.activo .cf-tab-count.vacio {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.cf-tabs button.cf-tab-warn .cf-tab-count {
+  background: #92400e;
+  color: #fff;
+}
+
+.cf-busy {
+  position: fixed;
+  inset: 0;
+  z-index: 28000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.cf-busy-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.25rem 1.4rem;
+  max-width: 22rem;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.2);
+}
+
+.cf-busy-card p { margin: 0.75rem 0 0; color: #1e293b; font-size: 1rem; font-weight: 650; }
+.cf-busy-hint { color: #64748b !important; font-size: 0.88rem !important; font-weight: 400 !important; }
+
+.cf-busy-spin {
+  display: inline-block;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 3px solid #e2e8f0;
+  border-top-color: #0f172a;
+  border-radius: 50%;
+  animation: cf-busy-spin 0.7s linear infinite;
+}
+
+@keyframes cf-busy-spin { to { transform: rotate(360deg); } }
 
 .cf-filtros {
   display: flex;

@@ -8,24 +8,24 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-  <script src="scripts/lib/fornitalia-mensajes.js?v=2.72"></script>
-  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.72"></script>
+  <script src="scripts/lib/fornitalia-mensajes.js?v=2.73"></script>
+  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.73"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.72"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.73"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
-  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.72"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.70">
-  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.72"></script>
+  <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.73"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.73">
+  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.73"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.58">
-  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.72"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.59">
-  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.72"></script>
+  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.73"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.73">
+  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.73"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.55">
-  <script src="scripts/lib/fornitalia-impuestos.js?v=2.72"></script>
+  <script src="scripts/lib/fornitalia-impuestos.js?v=2.73"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.56">
-  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.72"></script>
+  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.73"></script>
   <style>
     .lyp-user {
       font-weight: 600;
@@ -116,9 +116,21 @@
       .fornitalia-release-logo { width: 68px; height: 68px; border-radius: 16px; }
     }
     .flujo-historico-overlay {
-      position: fixed; inset: 0; z-index: 250; background: rgba(15, 23, 42, 0.45);
+      position: fixed; inset: 0; z-index: 28000; background: rgba(15, 23, 42, 0.45);
       display: flex; align-items: center; justify-content: center; padding: 1rem;
     }
+    .flujo-historico-overlay-card::before {
+      content: '';
+      display: block;
+      width: 1.6rem;
+      height: 1.6rem;
+      margin: 0 auto 0.75rem;
+      border: 3px solid #e2e8f0;
+      border-top-color: #0f172a;
+      border-radius: 50%;
+      animation: cb-busy-spin 0.7s linear infinite;
+    }
+    @keyframes cb-busy-spin { to { transform: rotate(360deg); } }
     .flujo-historico-overlay.oculto { display: none; }
     .flujo-historico-overlay-card {
       background: #fff; border-radius: 12px; padding: 1.25rem 1.4rem; max-width: 26rem; width: 100%;
@@ -2047,7 +2059,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.72';
+    const APP_VERSION = '2.73';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';

@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.72",
+  "versionLabel": "v2.73",
   "lines": [
-    "En Conciliación y en Cajas, un Pendiente pasa a A eliminar solo si su fecha está dentro del Excel que cargaste y el Id no viene.",
-    "Si el archivo no cubre ese día, no se marca: un histórico filtrado no se toma como baja.",
-    "Un movimiento Confirmado no va a A eliminar."
+    "En Conciliación y en Cajas, cada solapa muestra cuántos registros tiene, también cuando está en cero.",
+    "Mientras cargás un archivo, recalculás o confirmás, queda un cartel hasta que ese proceso termina.",
+    "A eliminar también toma un movimiento sin Status, si su fecha está en el Excel y el Id no viene. Un Confirmado no entra."
   ]
 }

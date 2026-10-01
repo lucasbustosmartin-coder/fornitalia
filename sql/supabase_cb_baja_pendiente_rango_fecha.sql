@@ -1,4 +1,4 @@
--- A eliminar: solo Status Pendiente cuya fecha cae dentro del rango del archivo
+-- A eliminar: Status Pendiente o vacío cuya fecha cae dentro del rango del archivo
 -- cargado (histórico o tesorería) y cuyo Id no viene en ese archivo.
 -- Si el Excel no cubre la fecha, no se marca: un filtro del usuario no implica baja.
 -- Confirmado nunca. El cierre no entra en esta lógica.
@@ -45,7 +45,7 @@ BEGIN
   SET pendiente_baja = false
   WHERE m.canal = p_canal
     AND COALESCE(m.pendiente_baja, false)
-    AND lower(btrim(COALESCE(m.raw->>'status', m.raw->>'Status', ''))) IS DISTINCT FROM 'pendiente';
+    AND lower(btrim(COALESCE(m.raw->>'status', m.raw->>'Status', ''))) NOT IN ('pendiente', '');
 
   UPDATE public.cb_movimiento m
   SET pendiente_baja = false
@@ -112,7 +112,7 @@ BEGIN
   SET pendiente_baja = false
   WHERE m.canal = p_canal
     AND COALESCE(m.pendiente_baja, false)
-    AND lower(btrim(COALESCE(m.raw->>'status', m.raw->>'Status', ''))) IS DISTINCT FROM 'pendiente';
+    AND lower(btrim(COALESCE(m.raw->>'status', m.raw->>'Status', ''))) NOT IN ('pendiente', '');
 
   UPDATE public.cf_movimiento m
   SET pendiente_baja = false
@@ -141,6 +141,6 @@ GRANT EXECUTE ON FUNCTION public.cf_marcar_tesoreria_abierta_ausente(text, text[
 REVOKE EXECUTE ON FUNCTION public.cf_marcar_tesoreria_abierta_ausente(text, text[], date, date) FROM PUBLIC;
 
 COMMENT ON FUNCTION public.cb_marcar_tesoreria_abierta_ausente(text, text[], date, date) IS
-  'Marca Pendiente ausente solo si su fecha cae en el rango del archivo. Confirmado no se marca.';
+  'Marca Pendiente o Status vacío ausente solo si su fecha cae en el rango del archivo. Confirmado no se marca.';
 COMMENT ON FUNCTION public.cf_marcar_tesoreria_abierta_ausente(text, text[], date, date) IS
-  'Marca Pendiente de caja ausente solo si su fecha cae en el rango del archivo. Confirmado no se marca.';
+  'Marca Pendiente o Status vacío de caja ausente solo si su fecha cae en el rango del archivo. Confirmado no se marca.';

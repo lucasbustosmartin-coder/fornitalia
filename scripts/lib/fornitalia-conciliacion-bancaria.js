@@ -42,6 +42,7 @@
   var state = {
     mounted: false,
     loading: false,
+    loadingMsg: '',
     canal: CANAL_MP,
     lista: 'sugeridos',
     q: '',
@@ -609,7 +610,7 @@
   function esStatusPendienteTesoreria(m) {
     var raw = (m && m.raw) || {};
     var s = String(raw.status || raw.Status || '').trim().toLowerCase();
-    return s === 'pendiente';
+    return s === 'pendiente' || s === '';
   }
 
   function esNoRequiereConciliacion(m) {
@@ -2434,16 +2435,28 @@
     return idsMatchLado(m, 'banco').some(function (id) { return !!an[id]; });
   }
 
-  async function recargarTodo() {
+  function marcarCargando(msg) {
     state.loading = true;
+    state.loadingMsg = msg || 'Cargando…';
     renderShell();
+  }
+
+  function soltarCarga() {
+    state.loading = false;
+    state.loadingMsg = '';
+  }
+
+  async function recargarTodo() {
+    marcarCargando('Cargando conciliación…');
     try {
       await cargarUsuarios();
       await cargarDatos();
       state.err = '';
       if (can(PERM_CARGAR) || can(PERM_CONFIRMAR)) {
         try {
+          marcarCargando('Recalculando sugerencias…');
           await regenerarSugerencias();
+          marcarCargando('Actualizando listados…');
           await cargarDatos();
           state.err = '';
         } catch (e2) {
@@ -2453,7 +2466,7 @@
     } catch (e) {
       state.err = 'No se pudo cargar Conciliación Bancaria: ' + errMsg(e);
     } finally {
-      state.loading = false;
+      soltarCarga();
       renderShell();
     }
   }
@@ -2684,10 +2697,9 @@
     var acceptGal = '.xlsx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     var acceptXlsx = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     pedirArchivo(esCanalExtractoBanco(state.canal) ? acceptGal : acceptXlsx, async function (file) {
-      state.loading = true;
+      marcarCargando('Procesando el archivo…');
       state.err = '';
       state.msg = '';
-      renderShell();
       try {
         var parsed;
         var canalAntes = state.canal;
@@ -2940,7 +2952,7 @@
       } catch (e) {
         state.err = errMsg(e);
       } finally {
-        state.loading = false;
+        soltarCarga();
         renderShell();
         if (state.resumenCarga) {
           abrirModalResumenCarga(state.resumenCarga);
@@ -3074,18 +3086,18 @@
 
   async function onRecalc() {
     if (!can(PERM_CARGAR) && !can(PERM_CONFIRMAR)) return;
-    state.loading = true;
-    renderShell();
+    marcarCargando('Recalculando sugerencias…');
     try {
       await cargarDatos();
       var n = await regenerarSugerencias();
+      marcarCargando('Actualizando listados…');
       await cargarDatos();
       state.err = '';
       state.msg = 'Sugerencias recalculadas: ' + n + ' pareja(s).';
     } catch (e) {
       state.err = errMsg(e);
     } finally {
-      state.loading = false;
+      soltarCarga();
       renderShell();
     }
   }
@@ -3100,6 +3112,7 @@
       } else if (!await FornitaliaMensajes.confirmar('¿Deshacer esta conciliación confirmada? La pareja vuelve a Sugeridos.')) return;
     }
     try {
+      marcarCargando(estado === 'confirmado' ? 'Confirmando…' : (estado === 'rechazado' ? 'Descartando sugerencia…' : 'Deshaciendo conciliación…'));
       var rpc = await client().rpc('cb_set_match_estado', { p_match_id: id, p_estado: estado });
       if (rpc.error) throw rpc.error;
       cerrarModal();
@@ -3116,6 +3129,8 @@
       }
       await recargarTodo();
     } catch (e) {
+      soltarCarga();
+      renderShell();
       FornitaliaMensajes.avisar(errMsg(e));
     }
   }
@@ -3125,6 +3140,7 @@
     var list = rows || filasVisiblesMatch('sugerido');
     if (!list.length) return;
     try {
+      marcarCargando('Confirmando sugerencias…');
       var ids = list.map(function (m) { return m.id; }).filter(Boolean);
       var rpc = await client().rpc('cb_confirmar_sugeridos', { p_canal: state.canal, p_ids: ids });
       if (rpc.error) throw rpc.error;
@@ -3134,6 +3150,8 @@
         : 'No había sugerencias para confirmar.';
       await recargarTodo();
     } catch (e) {
+      soltarCarga();
+      renderShell();
       FornitaliaMensajes.avisar(errMsg(e));
     }
   }
@@ -3145,11 +3163,14 @@
     var det = (formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + ' · ' + (m.descripcion || m.tipo || '')).trim();
     if (!await FornitaliaMensajes.confirmar('¿Eliminar este movimiento de tesorería?\n\n' + det + '\n\nQueda en Tesorería eliminada. Si lo necesitás de nuevo, volvé a cargar el Excel.')) return;
     try {
+      marcarCargando('Eliminando movimiento…');
       var rpc = await client().rpc('cb_borrar_movimiento_sistema', { p_id: id });
       if (rpc.error) throw rpc.error;
       state.msg = 'Movimiento de tesorería eliminado. Quedó en Tesorería eliminada.';
       await recargarTodo();
     } catch (e) {
+      soltarCarga();
+      renderShell();
       FornitaliaMensajes.avisar(errMsg(e));
     }
   }
@@ -3161,11 +3182,14 @@
     var det = (formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + ' · ' + (m.descripcion || m.tipo || '')).trim();
     if (!await FornitaliaMensajes.confirmar('¿Eliminar este movimiento del extracto Galicia?\n\n' + det + '\n\nNo se puede deshacer. Si lo necesitás, volvé a cargar el Excel o el PDF del banco.')) return;
     try {
+      marcarCargando('Eliminando movimiento del extracto…');
       var rpc = await client().rpc('cb_borrar_movimiento_banco_galicia', { p_id: id });
       if (rpc.error) throw rpc.error;
       state.msg = 'Movimiento del extracto Galicia eliminado.';
       await recargarTodo();
     } catch (e) {
+      soltarCarga();
+      renderShell();
       FornitaliaMensajes.avisar(errMsg(e));
     }
   }
@@ -3286,6 +3310,7 @@
       btn.setAttribute('aria-busy', 'true');
     }
     try {
+      marcarCargando('Marcando No requiere…');
       var n = await marcarNoReqLote(ids, just, function (done, total) {
         if (!btn) return;
         btn.innerHTML = '<span class="btn-icon">' + ICO.skip + '</span>Marcando ' + done + ' / ' + total + '…';
@@ -3301,6 +3326,8 @@
         : (n + ' movimientos marcados como No requiere conciliación. Siguen en ' + ladoOk + '; no se eliminaron.');
       await recargarTodo();
     } catch (e) {
+      soltarCarga();
+      renderShell();
       if (btn) {
         btn.disabled = false;
         btn.removeAttribute('aria-busy');
@@ -3317,12 +3344,15 @@
     var listaVuelta = labelListaOrigen(m);
     if (!await FornitaliaMensajes.confirmar('¿Volver a conciliar este movimiento?\n\n' + formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + '\n\nVuelve a ' + listaVuelta + ' y puede entrar a sugerencias.')) return;
     try {
+      marcarCargando('Volviendo el movimiento a conciliar…');
       var rpc = await client().rpc('cb_deshacer_no_requiere_conciliacion', { p_id: id });
       if (rpc.error) throw rpc.error;
       state.lista = m.origen === 'sistema' ? 'sistema' : 'banco';
       state.msg = 'Ya no está marcado. Volvió a ' + listaVuelta + '.';
       await recargarTodo();
     } catch (e) {
+      soltarCarga();
+      renderShell();
       FornitaliaMensajes.avisar(errMsg(e));
     }
   }
@@ -3354,11 +3384,14 @@
     var extra = matchActivoDe(id) ? '\n\nEstá conciliado: se elimina también la pareja.' : '';
     if (!await FornitaliaMensajes.confirmar('¿Eliminar definitivamente este movimiento de tesorería?\n\n' + textoBajaTesoreria(m) + extra + '\n\nQueda en Tesorería eliminada.')) return;
     try {
+      marcarCargando('Eliminando movimiento…');
       var rpc = await client().rpc('cb_confirmar_baja_tesoreria', { p_id: id });
       if (rpc.error) throw rpc.error;
       state.msg = 'Tesorería eliminada (Id ' + idTesoreriaVisible(m) + '). Quedó en Tesorería eliminada.';
       await recargarTodo();
     } catch (e) {
+      soltarCarga();
+      renderShell();
       FornitaliaMensajes.avisar(errMsg(e));
     }
   }
@@ -3369,6 +3402,7 @@
     if (!list.length) return;
     if (!await FornitaliaMensajes.confirmar('¿Eliminar definitivamente los ' + list.length + ' movimientos visibles en A eliminar?\n\nTambién se borran las conciliaciones asociadas. Quedan en Tesorería eliminada.')) return;
     try {
+      marcarCargando('Eliminando movimientos…');
       var i;
       for (i = 0; i < list.length; i++) {
         var rpc = await client().rpc('cb_confirmar_baja_tesoreria', { p_id: list[i].id });
@@ -4957,6 +4991,7 @@
       return;
     }
     try {
+      marcarCargando('Descartando duplicado…');
       var rpc = await client().rpc('cb_descartar_dup_tesoreria', {
         p_canal: state.canal,
         p_ids: ids
@@ -4967,6 +5002,8 @@
       state.msg = 'Grupo descartado. No vuelve a Potenciales duplicados.';
       await recargarTodo();
     } catch (e) {
+      soltarCarga();
+      renderShell();
       FornitaliaMensajes.avisar(errMsg(e));
     }
   }
@@ -4990,6 +5027,7 @@
     var n = 0;
     var i;
     try {
+      marcarCargando('Descartando duplicados…');
       for (i = 0; i < groups.length; i += CHUNK) {
         var part = groups.slice(i, i + CHUNK);
         var payload = part.map(function (g) { return idsDeGrupoDup(g); });
@@ -5020,6 +5058,8 @@
       state.msg = n + ' grupos descartados. No vuelven a Potenciales duplicados.';
       await recargarTodo();
     } catch (e) {
+      soltarCarga();
+      renderShell();
       FornitaliaMensajes.avisar(errMsg(e));
     }
   }
@@ -5028,6 +5068,7 @@
     if (!can(PERM_CONFIRMAR)) return;
     if (!await FornitaliaMensajes.confirmar('¿Volver a listar este grupo en Potenciales duplicados?')) return;
     try {
+      marcarCargando('Volviendo el grupo a Potenciales duplicados…');
       var rpc = await client().rpc('cb_deshacer_dup_tesoreria', { p_id: id });
       if (rpc.error) throw rpc.error;
       cerrarModal();
@@ -5035,6 +5076,8 @@
       state.msg = 'El grupo volvió a Potenciales duplicados.';
       await recargarTodo();
     } catch (e) {
+      soltarCarga();
+      renderShell();
       FornitaliaMensajes.avisar(errMsg(e));
     }
   }
@@ -5525,6 +5568,7 @@
       return;
     }
     try {
+      marcarCargando('Guardando conciliación manual…');
       var rpc = await client().rpc('cb_confirmar_manual_grupo', {
         p_canal: state.canal,
         p_banco_ids: bancoIds,
@@ -5539,6 +5583,8 @@
         : 'Conciliación manual confirmada: crédito y débito del extracto, sin tesorería.';
       await recargarTodo();
     } catch (e) {
+      soltarCarga();
+      renderShell();
       FornitaliaMensajes.avisar(errMsg(e));
     }
   }
@@ -5981,7 +6027,7 @@
         hintHtml:
           '<p>El día a día se carga con el Excel <em>Extracto_CCE…</em>. El PDF <em>Extracto_Cuentas_Galicia_…</em> (cuenta en dólares) solo verifica; no da de alta movimientos. Si un movimiento no estaba Imputado (p. ej. En proceso) y el Excel ya no lo trae, se retira; si ya estaba Imputado, se queda. Tesorería se compara aparte.</p>' +
           '<p>Los importes se concilian en <strong>USD</strong> contra tesorería <em>tesoreria_transferencia_galicia_dolar_…</em> (Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (<em>cierre_CIERRE-…</em> o <em>cierre_DOL-…</em> con Caja = Transferencia Galicia Dolar y Moneda USD) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: solo filas Transferencia Galicia Dolar).</p>' +
-          '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos. Status Pendiente sí se da de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Solo un Id <strong>Pendiente</strong> cuya fecha cae dentro del rango del archivo (histórico o tesorería) y que no viene ahí pasa a <strong>A eliminar</strong>. Si el Excel no cubre esa fecha, no se marca. Un Confirmado no se elimina. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
+          '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos. Status Pendiente sí se da de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Solo un Id <strong>Pendiente o sin Status</strong> cuya fecha cae dentro del rango del archivo (histórico o tesorería) y que no viene ahí pasa a <strong>A eliminar</strong>. Si el Excel no cubre esa fecha, no se marca. Un Confirmado no se elimina. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
           '<p>Al cargar el extracto, el saldo de corte se pesifica al MEP (fecha del último movimiento o cotización anterior) y entra a Saldos extractos. El match es por importe y fecha (máximo 4 días).</p>' +
           '<p>En Solo banco y Solo sistema podés marcar uno, varios o todos los listados como <strong>No requiere conciliación</strong> (con una justificación): no se borran; van a la solapa No requiere.</p>',
         btnBanco: 'Cargar extracto Galicia (USD)',
@@ -5995,7 +6041,7 @@
           '<p>Cargá el extracto de Galicia: Excel de cuenta corriente (<em>Extracto_CC…</em>) o el PDF <em>Extracto_Cuentas_Galicia_…</em> en pesos (no duplica lo ya cargado: misma fecha, importe y concepto, aunque cambie el saldo). Un movimiento Imputado no se borra en cargas siguientes. Solo se retira si al entrar no estaba Imputado (p. ej. En proceso / cheque en proceso) y este Excel ya no lo trae; si después viene Imputado, se confirma. Tesorería no se toca. El PDF en dólares se abre en la solapa Galicia (USD).</p>' +
           '<p>El día a día se carga con el <strong>Excel Extracto_CC…</strong>. El PDF <em>Extracto_Cuentas_Galicia_…</em> no da de alta movimientos: solo verifica que hay líneas del período (ya en el Excel) que el resumen del banco no incluye. El saldo de un período nuevo = último corte + movimientos del Excel. Tesorería se compara en Sugeridos / Solo banco / Solo sistema. Los cortes ya cargados no se recalculan.</p>' +
           '<p>También la tesorería Transferencia Galicia (<em>tesoreria_transferencia_galicia_…</em>: Tipo, Fecha, Crédito, Débito e Id), el Excel de cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto). El Id evita duplicados y actualiza si cambió algún dato. La columna Caja reparte Mercado Pago / Galicia ARS / Galicia USD; Efectivo y Morba no entran acá.</p>' +
-          '<p>Solo un Id <strong>Pendiente</strong> cuya fecha cae dentro del rango del archivo (histórico o tesorería) y que no viene ahí pasa a <strong>A eliminar</strong>. Si el Excel no cubre esa fecha, no se marca. Un Confirmado no se elimina. Apertura de Caja no se sube. Status Anulado no se sube. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f y a Saldos extractos. Status Pendiente sí se da de alta (o se actualiza si el Id ya existía). Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican.</p>' +
+          '<p>Solo un Id <strong>Pendiente o sin Status</strong> cuya fecha cae dentro del rango del archivo (histórico o tesorería) y que no viene ahí pasa a <strong>A eliminar</strong>. Si el Excel no cubre esa fecha, no se marca. Un Confirmado no se elimina. Apertura de Caja no se sube. Status Anulado no se sube. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f y a Saldos extractos. Status Pendiente sí se da de alta (o se actualiza si el Id ya existía). Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos. Si el banco exporta de nuevo los mismos movimientos con otro saldo, no se duplican.</p>' +
           '<p>La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde.</p>' +
           '<p>En Solo banco y Solo sistema podés marcar uno, varios o todos los listados como <strong>No requiere conciliación</strong> (con una justificación): no se borran; van a la solapa No requiere.</p>' +
           '<p>También podés conciliar a mano varios extractos con una o más tesorerías (con justificación, aunque la diferencia sea mayor a $1), o dos o más movimientos del mismo extracto si el crédito y el débito se compensan y no hay tesorería. El Excel exporta el listado visible con los filtros activos.</p>',
@@ -6008,7 +6054,7 @@
       hintHtml:
         '<p>Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (<em>tesoreria_mercadopago_…</em>: Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em> o <em>MP_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: se cargan las filas MercadoPago; Galicia por Caja; Efectivo/Morba se omiten).</p>' +
         '<p><strong>El extracto MP es el banco (fuente de verdad)</strong>: lo que no está ahí no está. Tesorería son los movimientos administrativos de la app; las diferencias se ven en Sugeridos, Solo banco y Solo sistema.</p>' +
-        '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos. Status Pendiente sí se da de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Solo un Id <strong>Pendiente</strong> cuya fecha cae dentro del rango del archivo (histórico o tesorería) y que no viene ahí pasa a la solapa <strong>A eliminar</strong> para confirmar la baja. Si el Excel no cubre esa fecha, no se marca. Un Confirmado no se elimina. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
+        '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos. Status Pendiente sí se da de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Solo un Id <strong>Pendiente o sin Status</strong> cuya fecha cae dentro del rango del archivo (histórico o tesorería) y que no viene ahí pasa a la solapa <strong>A eliminar</strong> para confirmar la baja. Si el Excel no cubre esa fecha, no se marca. Un Confirmado no se elimina. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
         '<p>Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. En Solo banco y Solo sistema podés marcar uno, varios o todos los listados como <strong>No requiere conciliación</strong> (con una justificación): no se borran.</p>' +
         '<p>La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde.</p>' +
         '<p>También podés conciliar a mano varios extractos con una o más tesorerías, o dos o más movimientos del mismo extracto si el crédito y el débito se compensan. El Excel exporta el listado visible con los filtros activos.</p>',
@@ -6016,6 +6062,25 @@
       btnSistema: 'Cargar tesorería Mercado Pago',
       kpiBanco: 'Extracto MP'
     };
+  }
+
+  function htmlTabLista(lista, label, n, warnSiHay) {
+    var num = Number(n) || 0;
+    var badge = '<span class="cb-tab-count' + (num ? '' : ' vacio') + '">' + num + '</span>';
+    var cls = (warnSiHay && num) ? 'cb-tab-warn' : '';
+    return FornitaliaHelp.tabButton(cls, state.lista === lista,
+      'data-cb="lista" data-lista="' + lista + '"', esc(label) + badge);
+  }
+
+  function htmlCargando() {
+    if (!state.loading) return '';
+    var txt = state.loadingMsg || 'Cargando…';
+    return '<div class="cb-busy" role="status" aria-live="polite" aria-busy="true">' +
+      '<div class="cb-busy-card">' +
+      '<span class="cb-busy-spin" aria-hidden="true"></span>' +
+      '<p>' + esc(txt) + '</p>' +
+      '<p class="cb-busy-hint">Esperá a que termine este proceso.</p>' +
+      '</div></div>';
   }
 
   function renderCanal() {
@@ -6072,21 +6137,17 @@
         htmlResumenCard('Tesorería eliminada', k.eliminados, k.sumEliminados, '', 'eliminados', 'Ver tesorería ya borrada') +
       '</div>' +
       '<div class="cb-tabs">' +
-        FornitaliaHelp.tabButton('', state.lista === 'todos', 'data-cb="lista" data-lista="todos"', 'Todos') +
-        FornitaliaHelp.tabButton('', state.lista === 'sugeridos', 'data-cb="lista" data-lista="sugeridos"', 'Sugeridos') +
-        FornitaliaHelp.tabButton('', state.lista === 'confirmados', 'data-cb="lista" data-lista="confirmados"', 'Confirmados') +
-        FornitaliaHelp.tabButton('', state.lista === 'banco', 'data-cb="lista" data-lista="banco"', 'Solo banco') +
-        FornitaliaHelp.tabButton('', state.lista === 'sistema', 'data-cb="lista" data-lista="sistema"', 'Solo sistema') +
-        FornitaliaHelp.tabButton(k.dups ? 'cb-tab-warn' : '', state.lista === 'dups', 'data-cb="lista" data-lista="dups"', 'Potenciales duplicados' + (k.dups ? ' (' + k.dups + ')' : '')) +
-        FornitaliaHelp.tabButton('', state.lista === 'dups_desc', 'data-cb="lista" data-lista="dups_desc"', 'Duplicados descartados' + (k.dupsDesc ? ' (' + k.dupsDesc + ')' : '')) +
-        FornitaliaHelp.tabButton(k.bajas ? 'cb-tab-warn' : '', state.lista === 'bajas', 'data-cb="lista" data-lista="bajas"', 'A eliminar' + (k.bajas ? ' (' + k.bajas + ')' : '')) +
-        FornitaliaHelp.tabButton('', state.lista === 'eliminados', 'data-cb="lista" data-lista="eliminados"', 'Tesorería eliminada' + (k.eliminados ? ' (' + k.eliminados + ')' : '')) +
-        (state.canal === CANAL_MP
-          ? FornitaliaHelp.tabButton('', state.lista === 'anulados', 'data-cb="lista" data-lista="anulados"', 'Mercado Pago Anulados')
-          : '') +
-        (canalPermiteNoRequiere(state.canal)
-          ? FornitaliaHelp.tabButton('', state.lista === 'norequiere', 'data-cb="lista" data-lista="norequiere"', 'No requiere')
-          : '') +
+        htmlTabLista('todos', 'Todos', k.todos) +
+        htmlTabLista('sugeridos', 'Sugeridos', k.sugeridos) +
+        htmlTabLista('confirmados', 'Confirmados', k.confirmados) +
+        htmlTabLista('banco', 'Solo banco', k.soloB) +
+        htmlTabLista('sistema', 'Solo sistema', k.soloS) +
+        htmlTabLista('dups', 'Potenciales duplicados', k.dups, true) +
+        htmlTabLista('dups_desc', 'Duplicados descartados', k.dupsDesc) +
+        htmlTabLista('bajas', 'A eliminar', k.bajas, true) +
+        htmlTabLista('eliminados', 'Tesorería eliminada', k.eliminados) +
+        (state.canal === CANAL_MP ? htmlTabLista('anulados', 'Mercado Pago Anulados', k.anulados) : '') +
+        (canalPermiteNoRequiere(state.canal) ? htmlTabLista('norequiere', 'No requiere', k.norequiere) : '') +
       '</div>' +
       listaHtml;
   }
@@ -6097,7 +6158,7 @@
     el.innerHTML =
       FornitaliaHelp.header(ICO.bank, 'Conciliación Bancaria', 'tpl-cb-intro', 'Ayuda: Conciliación Bancaria',
         '<p>Confrontá el extracto de cada medio con lo cargado en tesorería. Mercado Pago, Galicia (ARS), Galicia (USD) y Credicoop (botón negro) usan el mismo flujo: extracto del banco + tesorería del sistema. La solapa Todos junta extracto y tesorería y muestra en qué listado está cada movimiento. En Filtros podés acotar por importe exacto o ID exacto; el buscar queda libre para concepto, cliente y observaciones. Tesorería eliminada guarda lo que se borra de Solo sistema o se confirma en A eliminar.</p>') +
-      (state.loading ? '<p class="loading">Cargando conciliación…</p>' : '') +
+      htmlCargando() +
       (state.err ? '<p class="cb-msg-err">' + esc(state.err) + '</p>' : '') +
       '<div class="cb-tabs">' +
         FornitaliaHelp.tabButton('cb-tab-mp', state.canal === CANAL_MP, 'data-cb="canal" data-canal="' + CANAL_MP + '"', 'Mercado Pago') +
@@ -6145,6 +6206,7 @@
     if (rootEl && !rootEl.contains(t) && !(state.modal && state.modal.contains(t)) && !(state.modalFiltros && state.modalFiltros.contains(t))) return;
     var a = t.getAttribute('data-cb');
     var id = t.getAttribute('data-id');
+    if (state.loading) return;
     if (a === 'canal') {
       state.canal = t.getAttribute('data-canal') || CANAL_MP;
       state.lista = 'sugeridos';
@@ -6175,7 +6237,14 @@
     if (a === 'up-sistema') { onUpload('sistema'); return; }
     if (a === 'recalc') { onRecalc(); return; }
     if (a === 'manual') { abrirManual(); return; }
-    if (a === 'xlsx') { exportarExcel(); return; }
+    if (a === 'xlsx') {
+      marcarCargando('Armando el Excel…');
+      setTimeout(function () {
+        try { exportarExcel(); }
+        finally { soltarCarga(); renderShell(); }
+      }, 40);
+      return;
+    }
     if (a === 'ver') { abrirDetalleMatch(id); return; }
     if (a === 'ver-mov') { abrirDetalleMov(id); return; }
     if (a === 'ver-elim') { abrirDetalleEliminado(id); return; }
