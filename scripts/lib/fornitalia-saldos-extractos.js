@@ -1,7 +1,7 @@
 /**
  * Saldos de extractos – Fornitalia
  * Galicia ARS (resumen PDF), Galicia USD (PDF Extracto_Cuentas_Galicia_… o Excel Extracto_CCE, pesificado al MEP),
- * Mercado Pago (resumen de cuenta de fin de mes; verifica, no da de alta), Credicoop (corte desde tesorería; no hay extractos históricos)
+ * Mercado Pago (carta de saldo: saldo total, con el dinero a liberar), Credicoop (corte desde tesorería; no hay extractos históricos)
  * y cajas físicas Efectivo-f (ARS) / Morba-s/f (ARS) / Efectivo-f (USD) / Efectivo-s/f (ARS) / Efectivo-s/f (USD).
  * window.FornitaliaSaldosExtractos.init({ client, hasPerm, getRoot })
  */
@@ -434,6 +434,21 @@
     var m = String(archivo || '').match(/MP_Saldos_(\d{4})(\d{2})(\d{2})/i);
     if (!m) return '';
     return m[1] + '-' + m[2] + '-' + m[3];
+  }
+
+  function fechaPeriodoCartaMp(ymd) {
+    var p = String(ymd || '').slice(0, 10).split('-');
+    if (p.length !== 3) return String(ymd || '').slice(0, 10);
+    var y = Number(p[0]);
+    var m = Number(p[1]);
+    var d = Number(p[2]);
+    if (!y || !m || !d) return String(ymd || '').slice(0, 10);
+    var ultimo = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    if (d !== ultimo) return y + '-' + pad2(m) + '-' + pad2(d);
+    var ny = y;
+    var nm = m + 1;
+    if (nm > 12) { nm = 1; ny += 1; }
+    return ny + '-' + pad2(nm) + '-01';
   }
 
   function matchPeriodoSaldosGalicia(raw, flat) {
@@ -1211,6 +1226,7 @@
     var cust = raw.match(/CUST_ID:\s*(\d+)/i) || flat.match(/CUST_ID:\s*(\d+)/i);
     var cuit = raw.match(/(\d{11})\s*CUIT/i) || flat.match(/CUIT:\s*(\d{11})/i);
     var nro = cust ? cust[1] : '';
+    var fechaPeriodo = fechaPeriodoCartaMp(fecha);
     return {
       error: null,
       fila: {
@@ -1219,13 +1235,16 @@
         nro_cuenta: nro,
         cbu: '',
         tipo_cuenta: 'Cuenta de pago Mercado Pago',
-        fecha_desde: fecha,
-        fecha_hasta: fecha,
+        fecha_desde: fechaPeriodo,
+        fecha_hasta: fechaPeriodo,
         saldo_inicial: null,
         saldo_final: total,
         documento_id: nro || (cuit ? cuit[1] : ''),
         archivo: nombre,
         raw: {
+          fuente: 'carta_saldo',
+          fecha_carta: fecha,
+          fecha_saldo: fecha,
           saldo_total: total,
           saldo_disponible: disp,
           saldo_a_liberar: liberar,
@@ -1264,9 +1283,9 @@
     var mp = parseMpCartaSaldo(text, nombre);
     var gal = parseGaliciaResumenTexto(text, nombre);
     if (canalEsperado === CANAL_MP) {
-      if (!resumenMp.error) return resumenMp;
-      if (!mp.error) {
-        return { error: nombre + ': es una carta de saldo. El control de fin de mes usa el resumen de cuenta (RESUMEN DE CUENTA EN PESOS). La carta no carga movimientos ni reemplaza ese control.' };
+      if (!mp.error) return mp;
+      if (!resumenMp.error) {
+        return { error: nombre + ': es un resumen de cuenta. El corte de Mercado Pago es la carta de saldo (saldo total, incluye el saldo a liberar). El resumen solo trae el disponible.' };
       }
       if (!gal.error) {
         return { error: nombre + ': es un resumen de Galicia. Cargalo en la solapa ' + (gal.esUsd ? LABEL_GAL_USD : LABEL_GAL) + '.' };
@@ -1333,9 +1352,13 @@
     return true;
   }
 
+  function esResumenCuentaMp(r) {
+    return !!(r && r.canal === CANAL_MP && r.raw && r.raw.fuente === 'resumen_cuenta');
+  }
+
   function filasCanal(canal) {
     return (state.rows || []).filter(function (r) {
-      return r.canal === canal && pasaFiltroMes(r.fecha_hasta);
+      return r.canal === canal && !esResumenCuentaMp(r) && pasaFiltroMes(r.fecha_hasta);
     }).slice().sort(function (a, b) {
       return String(b.fecha_hasta).localeCompare(String(a.fecha_hasta));
     });
@@ -1348,6 +1371,7 @@
       if (c) return c;
       return String(a.nro_cuenta || '').localeCompare(String(b.nro_cuenta || ''));
     }).forEach(function (r) {
+      if (esResumenCuentaMp(r)) return;
       var k = String(r.canal) + '|' + String(r.nro_cuenta || '');
       r._prev = last[k] || null;
       last[k] = r;
@@ -1388,7 +1412,7 @@
   function ultimoSaldoHasta(canal, ymInclusive) {
     var best = null;
     (state.rows || []).forEach(function (r) {
-      if (r.canal !== canal || r._vivo) return;
+      if (r.canal !== canal || r._vivo || esResumenCuentaMp(r)) return;
       var ym = mesYYYYMM(r.fecha_hasta);
       if (!ym || ym > ymInclusive) return;
       if (!best || String(r.fecha_hasta) > String(best.fecha_hasta)) best = r;
@@ -1428,10 +1452,29 @@
     return isFinite(n) ? round2(n) : 0;
   }
 
+  function anclaSaldoCorte(last) {
+    if (!last) return '';
+    var raw = last.raw || {};
+    var a = raw.fecha_saldo ? String(raw.fecha_saldo).slice(0, 10) : '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(a)) return a;
+    return String(last.fecha_hasta || '').slice(0, 10);
+  }
+
+  function ultimoCorteHasta(canal, ymdInclusive) {
+    var best = null;
+    (state.rows || []).forEach(function (r) {
+      if (!r || r._vivo || r.canal !== canal || esResumenCuentaMp(r)) return;
+      var f = String(r.fecha_hasta || '').slice(0, 10);
+      if (!f || f > String(ymdInclusive)) return;
+      if (!best || f > String(best.fecha_hasta).slice(0, 10)) best = r;
+    });
+    return best;
+  }
+
   function ultimoCorteAntesDe(canal, ymdExclusive) {
     var best = null;
     (state.rows || []).forEach(function (r) {
-      if (!r || r._vivo || r.canal !== canal) return;
+      if (!r || r._vivo || r.canal !== canal || esResumenCuentaMp(r)) return;
       var f = String(r.fecha_hasta || '').slice(0, 10);
       if (!f || f >= String(ymdExclusive)) return;
       if (!best || f > String(best.fecha_hasta).slice(0, 10)) best = r;
@@ -1509,11 +1552,12 @@
     var hoy = hoyYmd();
     var primer = primerDiaMesYmd(hoy);
     if (!hoy || !primer) return null;
-    var last = ultimoCorteAntesDe(canal, hoy);
-    if (last && String(last.fecha_hasta).slice(0, 10) >= hoy) return null;
+    var last = ultimoCorteHasta(canal, hoy);
+    var ancla = anclaSaldoCorte(last);
+    if (ancla && ancla >= hoy) return null;
     var desde = primer;
     if (last) {
-      var sig = addDaysYmd(String(last.fecha_hasta).slice(0, 10), 1);
+      var sig = addDaysYmd(ancla || String(last.fecha_hasta).slice(0, 10), 1);
       if (sig && sig > desde) desde = sig;
     }
     if (desde > hoy) return null;
@@ -1594,6 +1638,7 @@
   function mesesConsolidado() {
     var set = {};
     (state.rows || []).forEach(function (r) {
+      if (esResumenCuentaMp(r)) return;
       var ym = mesYYYYMM(r.fecha_hasta);
       if (ym && pasaFiltroMes(r.fecha_hasta)) set[ym] = true;
     });
@@ -2059,7 +2104,7 @@
     }).join('');
     var body =
       '<p class="se-cmp-meta">Archivo al <strong>' + esc(al) + '</strong> · Mes en curso de la app al <strong>' + esc(hoy) + '</strong>.</p>' +
-      '<p class="se-cmp-note">El Excel de tesorería arma el saldo desde la última apertura. En Galicia la app muestra el saldo corrido del extracto (el del banco); en MP y Credicoop, último corte + movimientos del mes. En cajas dólar se compara US$.</p>' +
+      '<p class="se-cmp-note">El Excel de tesorería arma el saldo desde la última apertura. En Galicia la app muestra el saldo corrido del extracto (el del banco). En Mercado Pago, el mes en curso es el saldo total de la última carta más los movimientos del extracto. En Credicoop, último corte + movimientos del mes. En cajas dólar se compara US$.</p>' +
       '<div class="se-cmp-chips">' +
         '<span class="se-cmp-chip se-cmp-chip-ok">Coinciden ' + cmp.nOk + '</span>' +
         '<span class="se-cmp-chip se-cmp-chip-bad">Diferencias ' + cmp.nBad + '</span>' +
@@ -2256,7 +2301,9 @@
           : (listos.nHist
             ? ' Ninguno nuevo: ' + listos.nHist + ' ya estaban (no se recalculan).'
             : ' Ninguno nuevo: los ' + ok.length + ' ya estaban (no se duplican).');
-        extraDup += ' No se borró ningún resumen anterior.';
+        extraDup += canalEsperado === CANAL_MP
+          ? ' No se borró ninguna carta anterior.'
+          : ' No se borró ningún resumen anterior.';
         if (listos.verifs && listos.verifs.length) {
           extraDup += ' ' + listos.verifs.map(function (v) {
             return v && v.esResumenMp ? textoVerifMp(v) : textoVerifBanco(v);
@@ -2264,7 +2311,8 @@
         }
         if (fallos.length) extraDup += ' No reconocí ' + fallos.length + ' archivo(s).';
         var lab = canalEsperado === CANAL_MP ? 'Mercado Pago' : 'Galicia';
-        state.msg = lab + ': ' + ok.length + ' resumen(es) leído(s).' + extraDup;
+        var que = canalEsperado === CANAL_MP ? 'carta(s) de saldo' : 'resumen(es)';
+        state.msg = lab + ': ' + ok.length + ' ' + que + ' leído(s).' + extraDup;
         if (fallos.length) state.err = fallos.slice(0, 4).join(' · ');
       } catch (e) {
         state.err = errMsg(e);
@@ -3069,7 +3117,7 @@
     if (!list.length) {
       return '<p class="se-empty">' + ((state.rows || []).some(function (r) { return r.canal === CANAL_MP; })
         ? 'No hay saldos de Mercado Pago en el período elegido.'
-        : 'Todavía no hay saldos de Mercado Pago. El control de fin de mes es el PDF resumen de cuenta.') + '</p>';
+        : 'Todavía no hay saldos de Mercado Pago. Cargá la carta de saldo (saldo total).') + '</p>';
     }
     var html = '';
     list.forEach(function (r) {
@@ -3260,7 +3308,7 @@
 
   function hintCanal() {
     if (state.canal === CANAL_MP) {
-      return 'El día a día de <strong>Mercado Pago</strong> entra por el Excel del extracto (Conciliación). El PDF <em>resumen de cuenta</em> es el control de fin de mes: no da de alta movimientos. Verifica que cada operación del resumen esté en la app y que el saldo final cierre con el saldo inicial más esos movimientos. La serie de cartas se vació: cada mes entra con este resumen. El <strong>mes en curso</strong> (celeste) suma los movimientos banco desde el último corte hasta hoy.';
+      return 'El corte de <strong>Mercado Pago</strong> es la carta de saldo (saldo total: disponible + a liberar). El resumen de cuenta no se usa: solo trae el disponible y deja afuera el saldo a liberar. El día a día entra por el Excel del extracto. El <strong>mes en curso</strong> (celeste) parte del saldo total de la última carta y le suma los movimientos banco desde el día siguiente hasta hoy.';
     }
     if (state.canal === CANAL_GAL) {
       return 'Después del último corte, el saldo lo calculan los <strong>movimientos del Excel</strong> (Extracto_CC…), no el PDF. El PDF <em>Extracto_Cuentas_Galicia_…</em> solo verifica: muestra movimientos del período que el banco no metió en el resumen. Tesorería no entra en este saldo. Los cortes ya cargados no se recalculan. El <strong>mes en curso</strong> (celeste) es el saldo corrido de la última fila del Excel CC.';
@@ -3286,7 +3334,7 @@
     if (state.canal === CANAL_SF_USD) {
       return 'Saldo de <strong>' + esc(LABEL_SF_USD) + '</strong> (caja física / efectivo dólar sin factura, en ARS). No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Dolar (sin factura)</em> o Moneda USD en <strong>Cajas (físicas)</strong>.';
     }
-    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). En Galicia, el <strong>mes en curso</strong> (celeste) es el saldo corrido del extracto (el saldo real del banco). El promedio de saldo es cuánto dinero queda en promedio.';
+    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). En Mercado Pago el mes en curso parte del saldo total de la última carta. En Galicia, el <strong>mes en curso</strong> (celeste) es el saldo corrido del extracto (el saldo real del banco). El promedio de saldo es cuánto dinero queda en promedio.';
   }
 
   function renderShell() {
@@ -3355,7 +3403,7 @@
     var btnCmp = '<button type="button" class="se-btn se-btn-navy" data-se="up-teso-saldos" title="Comparar tesoreria_saldos con el mes en curso" aria-label="Cargar tesorería saldos"><span class="btn-icon">' + ICO.upload + '</span>Tesorería saldos</button>';
     var btnUp = '';
     if (canCargar && state.canal === CANAL_MP) {
-      btnUp = '<button type="button" class="se-btn se-btn-mp" data-se="up-mp" title="Leer el resumen de cuenta y verificar el mes" aria-label="Cargar resumen Mercado Pago"><span class="btn-icon">' + ICO.upload + '</span>Cargar resumen Mercado Pago</button>';
+      btnUp = '<button type="button" class="se-btn se-btn-mp" data-se="up-mp" title="Leer la carta de saldo (saldo total)" aria-label="Cargar carta de saldo Mercado Pago"><span class="btn-icon">' + ICO.upload + '</span>Cargar carta de saldo</button>';
     } else if (canCargar && state.canal === CANAL_GAL) {
       btnUp = '<button type="button" class="se-btn se-btn-gal" data-se="up-gal"><span class="btn-icon">' + ICO.upload + '</span>Cargar resúmenes Galicia</button>';
     } else if (canCargar && state.canal === CANAL_GAL_USD) {
@@ -3364,7 +3412,7 @@
 
     el.innerHTML =
       FornitaliaHelp.header(ICO.chart, 'Saldos extractos', 'tpl-se-help', 'Ayuda: Saldos extractos',
-        '<p>Serie de <strong>saldos de cierre del banco</strong>. Después del último corte, mandan los movimientos cargados por el <strong>Excel</strong> del extracto (CC / CCE / MP). El PDF del banco solo verifica que hay movimientos del período que no están en su saldo. Tesorería se compara en Conciliación. Los extractos ya cargados no se recalculan. La fila <strong>Mes en curso</strong> (celeste) sigue el Excel hasta hoy.</p>' +
+        '<p>Serie de <strong>saldos de cierre del banco</strong>. En Mercado Pago el corte es la <strong>carta de saldo</strong> (saldo total, con el dinero a liberar) y el mes en curso suma los movimientos del extracto desde el día siguiente. En Galicia, después del último corte mandan los movimientos del Excel; el PDF solo verifica. Tesorería se compara en Conciliación. Los extractos ya cargados no se recalculan. La fila <strong>Mes en curso</strong> (celeste) llega hasta hoy.</p>' +
         '<p><strong>Tesorería saldos</strong> sube tesoreria_saldos_YYYY-MM-DD.xlsx y compara el saldo de cada caja con el mes en curso: tilde verde si coincide, cruz roja con la diferencia si no.</p>' +
         '<p>El botón de solapa con la etiqueta <strong>Activo</strong> es la vista que estás viendo. El <strong>PDF</strong> arma un reporte gráfico de esa misma vista (cards, gráfico y tabla) e indica el botón activo.</p>' +
         '<p>' + hintCanal() + '</p>') +

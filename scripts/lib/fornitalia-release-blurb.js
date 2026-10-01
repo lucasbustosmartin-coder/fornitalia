@@ -8,11 +8,12 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.76',
+    versionLabel: 'v2.77',
     lines: [
-      'En Flujo de caja el mes en curso se ve en celeste.',
-      'Ese mes no entra en el Total ni en los promedios, así un mes incompleto no distorsiona el negocio.',
-      'En el gráfico, la barra celeste muestra el G/P en millones y no mueve la variación ni la tendencia.'
+      'En Saldos de Extracto, Mercado Pago vuelve a la carta de saldo.',
+      'El corte es el saldo total, con el dinero a liberar.',
+      'La última carta queda al 01/10/2026, como el resto de la serie.',
+      'El mes en curso parte de ese saldo y suma los movimientos del extracto.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
