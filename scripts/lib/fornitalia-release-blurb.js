@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.73',
+    versionLabel: 'v2.74',
     lines: [
-      'En Conciliación y en Cajas, cada solapa muestra cuántos registros tiene, también cuando está en cero.',
-      'Mientras cargás un archivo, recalculás o confirmás, queda un cartel hasta que ese proceso termina.',
-      'A eliminar también toma un movimiento sin Status, si su fecha está en el Excel y el Id no viene. Un Confirmado no entra.'
+      'En Saldos extractos, Mercado Pago se carga con el resumen de cuenta del mes.',
+      'Ese resumen no agrega movimientos: controla que cada operación ya esté cargada y que el saldo de fin de mes cierre.',
+      'La serie de cartas quedó vacía para volver a cargarla mes por mes con ese resumen.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

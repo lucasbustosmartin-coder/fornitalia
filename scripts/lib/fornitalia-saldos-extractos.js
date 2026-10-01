@@ -1,7 +1,7 @@
 /**
  * Saldos de extractos – Fornitalia
  * Galicia ARS (resumen PDF), Galicia USD (PDF Extracto_Cuentas_Galicia_… o Excel Extracto_CCE, pesificado al MEP),
- * Mercado Pago (Carta de saldo MP_Saldos_…), Credicoop (corte desde tesorería; no hay extractos históricos)
+ * Mercado Pago (resumen de cuenta de fin de mes; verifica, no da de alta), Credicoop (corte desde tesorería; no hay extractos históricos)
  * y cajas físicas Efectivo-f (ARS) / Morba-s/f (ARS) / Efectivo-f (USD) / Efectivo-s/f (ARS) / Efectivo-s/f (USD).
  * window.FornitaliaSaldosExtractos.init({ client, hasPerm, getRoot })
  */
@@ -681,7 +681,7 @@
     var offset = 0;
     for (;;) {
       var res = await client().from('cb_movimiento')
-        .select('id,canal,origen,fecha,monto,credito,debito,saldo,fila_excel,archivo,created_at,tipo,descripcion,pendiente_baja,raw')
+        .select('id,canal,origen,origen_id,fecha,monto,credito,debito,saldo,fila_excel,archivo,created_at,tipo,descripcion,pendiente_baja,id_operacion_relacionada,raw')
         .eq('canal', canal)
         .eq('origen', 'banco')
         .gte('fecha', desde)
@@ -817,6 +817,10 @@
         }
         if (fila._verificacion) verifs.push(fila._verificacion);
       }
+      if (fila.canal === CANAL_MP && ((items[i] && items[i].filasExtracto) || []).length) {
+        fila = await completarCorteMpResumen(fila, items[i].filasExtracto);
+        if (fila._verificacion) verifs.push(fila._verificacion);
+      }
       filas.push(fila);
     }
     return { filas: filas, nHist: nHist, verifs: verifs };
@@ -884,6 +888,306 @@
     });
   }
 
+  function dmyGuionToIso(s) {
+    var m = String(s || '').match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (!m) return '';
+    return m[3] + '-' + m[2] + '-' + m[1];
+  }
+
+  function centsSe(n) {
+    var v = Number(n);
+    if (!isFinite(v)) return null;
+    return Math.round(v * 100);
+  }
+
+  function aplanarResumenMp(raw) {
+    var t = String(raw || '');
+    t = t.replace(/Fecha de generaci[oó]n:\s*\d{2}-\d{2}-\d{4}/gi, ' ');
+    return t.replace(/\s+/g, ' ').trim();
+  }
+
+  function periodoResumenMp(flat) {
+    var m = String(flat || '').match(/Del\s+(\d{1,2})\s+al\s+(\d{1,2})\s+de\s+([a-záéíóúü]+)\s+de\s+(\d{4})/i);
+    if (!m) return null;
+    var mesNom = m[3].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    var mes = MESES_ES[mesNom];
+    if (!mes) return null;
+    return {
+      desde: m[4] + '-' + pad2(mes) + '-' + pad2(m[1]),
+      hasta: m[4] + '-' + pad2(mes) + '-' + pad2(m[2])
+    };
+  }
+
+  function lineasResumenMp(flat, desde, hasta) {
+    var re = /(\d{2}-\d{2}-\d{4})\s+(.*?)\s+(\d{6,})\s+\$\s*(-?[\d.]+,\d{2})\s+\$\s*(-?[\d.]+,\d{2})/g;
+    var out = [];
+    var m;
+    while ((m = re.exec(flat))) {
+      var fecha = dmyGuionToIso(m[1]);
+      if (!fecha) continue;
+      if (desde && fecha < desde) continue;
+      if (hasta && fecha > hasta) continue;
+      var monto = parseMontoAR(m[4]);
+      if (monto == null) continue;
+      out.push({
+        fecha: fecha,
+        descripcion: String(m[2] || '').replace(/\s+/g, ' ').trim(),
+        id_operacion: m[3],
+        monto: monto,
+        saldo: parseMontoAR(m[5])
+      });
+    }
+    return out;
+  }
+
+  function parseMpResumenCuenta(text, archivo) {
+    var nombre = archivo || '';
+    var raw = String(text || '');
+    var flat = aplanarResumenMp(raw);
+    if (!/resumen de cuenta/i.test(flat) || !/saldo inicial/i.test(flat)) {
+      return { error: 'No reconocí un resumen de cuenta de Mercado Pago (RESUMEN DE CUENTA EN PESOS). Archivo: ' + nombre };
+    }
+    var periodo = periodoResumenMp(flat);
+    var saldoInicial = parseMontoAR((flat.match(/Saldo inicial:\s*\$?\s*(-?[\d.]+,\d{2})/i) || [])[1]);
+    var entradas = parseMontoAR((flat.match(/Entradas:\s*\$?\s*(-?[\d.]+,\d{2})/i) || [])[1]);
+    var salidas = parseMontoAR((flat.match(/Salidas:\s*\$?\s*(-?[\d.]+,\d{2})/i) || [])[1]);
+    var saldoFinal = parseMontoAR((flat.match(/Saldo final:\s*\$?\s*(-?[\d.]+,\d{2})/i) || [])[1]);
+    if (!periodo || saldoInicial == null || saldoFinal == null) {
+      return { error: 'El resumen de Mercado Pago no tiene período o saldo inicial/final. Archivo: ' + nombre };
+    }
+    var lineas = lineasResumenMp(flat, periodo.desde, periodo.hasta);
+    if (!lineas.length) {
+      return { error: 'El resumen de Mercado Pago no tiene movimientos en el período. Archivo: ' + nombre };
+    }
+    var cvu = (flat.match(/CVU:\s*(\d+)/i) || [])[1] || '';
+    var netoLineas = 0;
+    lineas.forEach(function (lin) { netoLineas = round2(netoLineas + lin.monto); });
+    return {
+      error: null,
+      filasExtracto: lineas,
+      fila: {
+        canal: CANAL_MP,
+        moneda: 'ARS',
+        nro_cuenta: '',
+        cbu: cvu,
+        tipo_cuenta: 'Cuenta de pago Mercado Pago',
+        fecha_desde: periodo.desde,
+        fecha_hasta: periodo.hasta,
+        saldo_inicial: saldoInicial,
+        saldo_final: saldoFinal,
+        documento_id: cvu,
+        archivo: nombre,
+        raw: {
+          fuente: 'resumen_cuenta',
+          saldo_extracto: saldoFinal,
+          entradas: entradas,
+          salidas: salidas,
+          neto_lineas: netoLineas,
+          n_lineas: lineas.length,
+          cvu: cvu
+        }
+      }
+    };
+  }
+
+  function nroCuentaMpConocido() {
+    var i;
+    var rows = state.rows || [];
+    for (i = 0; i < rows.length; i++) {
+      if (rows[i] && rows[i].canal === CANAL_MP && !rows[i]._vivo && rows[i].nro_cuenta) {
+        return String(rows[i].nro_cuenta);
+      }
+    }
+    return '';
+  }
+
+  async function fetchMovsMpPorOperacion(ids) {
+    var unicos = [];
+    var visto = {};
+    (ids || []).forEach(function (id) {
+      var k = String(id || '').trim();
+      if (!k || visto[k]) return;
+      visto[k] = true;
+      unicos.push(k);
+    });
+    var all = [];
+    var i;
+    var off;
+    for (i = 0; i < unicos.length; i += 80) {
+      var slice = unicos.slice(i, i + 80);
+      off = 0;
+      for (;;) {
+        var res = await client().from('cb_movimiento')
+          .select('id,canal,origen,origen_id,fecha,monto,credito,debito,archivo,descripcion,pendiente_baja,id_operacion_relacionada,raw')
+          .eq('canal', CANAL_MP)
+          .eq('origen', 'banco')
+          .in('id_operacion_relacionada', slice)
+          .range(off, off + SUPABASE_PAGE - 1);
+        if (res.error) return all;
+        var chunk = res.data || [];
+        all = all.concat(chunk);
+        if (chunk.length < SUPABASE_PAGE) break;
+        off += SUPABASE_PAGE;
+      }
+    }
+    return all;
+  }
+
+  function acumularPorOperacionMp(movs) {
+    var por = {};
+    (movs || []).forEach(function (m) {
+      if (!esMovimientoExcelBanco(m)) return;
+      var id = String(m.id_operacion_relacionada || '').trim();
+      if (!id) return;
+      var c = centsSe(netoMovimientoSe(m));
+      if (c == null) return;
+      if (!por[id]) por[id] = { cents: 0, n: 0 };
+      por[id].cents += c;
+      por[id].n += 1;
+    });
+    return por;
+  }
+
+  function verificarLineasMp(lineas, movsPorOp, movsPeriodo) {
+    var lineasPorOp = {};
+    (lineas || []).forEach(function (lin) {
+      var id = String(lin.id_operacion || '').trim();
+      var c = centsSe(lin.monto);
+      if (!id || c == null) return;
+      if (!lineasPorOp[id]) lineasPorOp[id] = { cents: 0, n: 0 };
+      lineasPorOp[id].cents += c;
+      lineasPorOp[id].n += 1;
+    });
+    var appPorOp = acumularPorOperacionMp(movsPorOp);
+    var ok = 0;
+    var faltan = [];
+    var dif = [];
+    var explicadoCents = 0;
+    Object.keys(lineasPorOp).forEach(function (id) {
+      var L = lineasPorOp[id];
+      var A = appPorOp[id];
+      if (!A || !A.n) {
+        faltan.push({ id: id, monto: round2(L.cents / 100) });
+        return;
+      }
+      explicadoCents += A.cents;
+      if (A.cents === L.cents) {
+        ok += L.n;
+        return;
+      }
+      dif.push({
+        id: id,
+        resumen: round2(L.cents / 100),
+        app: round2(A.cents / 100)
+      });
+    });
+    var sobran = [];
+    var netoSobran = 0;
+    (movsPeriodo || []).forEach(function (m) {
+      if (!esMovimientoExcelBanco(m)) return;
+      var id = String(m.id_operacion_relacionada || '').trim();
+      if (id && lineasPorOp[id]) return;
+      sobran.push(m);
+      netoSobran = round2(netoSobran + (netoMovimientoSe(m) || 0));
+    });
+    return {
+      ok: ok,
+      faltan: faltan,
+      dif: dif,
+      sobran: sobran,
+      netoSobran: netoSobran,
+      netoExplicado: round2(explicadoCents / 100)
+    };
+  }
+
+  async function completarCorteMpResumen(fila, lineas) {
+    if (!fila) return fila;
+    var nro = nroCuentaMpConocido();
+    if (nro && !fila.nro_cuenta) fila.nro_cuenta = nro;
+    var desde = String(fila.fecha_desde || '').slice(0, 10);
+    var hasta = String(fila.fecha_hasta || '').slice(0, 10);
+    var movsPeriodo = await fetchMovsBancoPeriodo(CANAL_MP, desde, hasta);
+    var ids = (lineas || []).map(function (lin) { return lin.id_operacion; });
+    var movsPorOp = await fetchMovsMpPorOperacion(ids);
+    var ver = verificarLineasMp(lineas, movsPorOp, movsPeriodo);
+    var netoApp = 0;
+    var nApp = 0;
+    (movsPeriodo || []).forEach(function (m) {
+      if (!esMovimientoExcelBanco(m)) return;
+      nApp += 1;
+      netoApp = round2(netoApp + (netoMovimientoSe(m) || 0));
+    });
+    var saldoInicial = Number(fila.saldo_inicial);
+    var saldoFinal = Number(fila.saldo_final);
+    var netoLineas = fila.raw && fila.raw.neto_lineas != null ? Number(fila.raw.neto_lineas) : null;
+    var saldoArmadoPdf = isFinite(saldoInicial) && netoLineas != null ? round2(saldoInicial + netoLineas) : null;
+    var saldoArmadoApp = isFinite(saldoInicial) && ver.netoExplicado != null
+      ? round2(saldoInicial + ver.netoExplicado) : null;
+    var raw = Object.assign({}, fila.raw || {});
+    raw.fuente = 'resumen_cuenta';
+    raw.regla_movimientos = true;
+    raw.calculo = 'resumen_verifica_movimientos';
+    raw.n_lineas_ok = ver.ok;
+    raw.n_ops_faltan = ver.faltan.length;
+    raw.n_ops_dif = ver.dif.length;
+    raw.n_movs_periodo = nApp;
+    raw.neto_periodo = netoApp;
+    raw.n_fuera_de_corte = ver.sobran.length;
+    raw.neto_fuera_de_corte = ver.netoSobran;
+    raw.saldo_armado_app = saldoArmadoApp;
+    fila.raw = raw;
+    fila._verificacion = {
+      esResumenMp: true,
+      desde: desde,
+      hasta: hasta,
+      saldoFinal: isFinite(saldoFinal) ? round2(saldoFinal) : null,
+      saldoArmadoPdf: saldoArmadoPdf,
+      cierraResumen: saldoArmadoPdf != null && isFinite(saldoFinal) && Math.abs(saldoArmadoPdf - saldoFinal) < 0.02,
+      nLineas: (lineas || []).length,
+      ok: ver.ok,
+      faltan: ver.faltan,
+      dif: ver.dif,
+      nSobran: ver.sobran.length,
+      netoSobran: ver.netoSobran,
+      netoApp: netoApp,
+      netoExplicado: ver.netoExplicado,
+      netoLineas: netoLineas,
+      diffNeto: netoLineas != null && ver.netoExplicado != null ? round2(netoLineas - ver.netoExplicado) : null,
+      diffSaldo: saldoArmadoApp != null && isFinite(saldoFinal) ? round2(saldoFinal - saldoArmadoApp) : null
+    };
+    return fila;
+  }
+
+  function textoVerifMp(v) {
+    if (!v) return '';
+    var partes = [];
+    partes.push('Período ' + formatFecha(v.desde) + ' a ' + formatFecha(v.hasta));
+    if (v.saldoFinal != null) partes.push('saldo final del resumen $ ' + formatMonto(v.saldoFinal));
+    if (v.cierraResumen) partes.push('el resumen cierra con sus líneas');
+    else if (v.saldoArmadoPdf != null) partes.push('el resumen no cierra: saldo inicial + líneas $ ' + formatMonto(v.saldoArmadoPdf));
+    if (v.nLineas) partes.push((v.ok || 0) + ' de ' + v.nLineas + ' líneas del resumen están en la app');
+    if (v.faltan && v.faltan.length) {
+      var ejF = v.faltan.slice(0, 3).map(function (f) {
+        return f.id + ' $ ' + formatMonto(f.monto);
+      }).join(', ');
+      partes.push(v.faltan.length + ' operaciones del resumen no están en la app' + (ejF ? ' (' + ejF + ')' : ''));
+    }
+    if (v.dif && v.dif.length) {
+      var ejD = v.dif.slice(0, 2).map(function (d) {
+        return d.id + ' resumen $ ' + formatMonto(d.resumen) + ' / app $ ' + formatMonto(d.app);
+      }).join('; ');
+      partes.push(v.dif.length + ' operaciones no cierran el importe' + (ejD ? ' (' + ejD + ')' : ''));
+    }
+    if (v.diffSaldo != null && Math.abs(v.diffSaldo) >= 0.02) {
+      partes.push('con lo cargado en la app el saldo de fin de mes daría $ ' + formatMonto(
+        v.saldoFinal != null ? round2(v.saldoFinal - v.diffSaldo) : null
+      ) + ' (diferencia $ ' + formatMonto(v.diffSaldo) + ')');
+    } else if (v.diffSaldo != null) {
+      partes.push('el saldo de fin de mes cierra con los movimientos de la app');
+    }
+    return partes.join('. ') + '.';
+  }
+
   function parseMpCartaSaldo(text, archivo) {
     var nombre = archivo || '';
     var raw = String(text || '');
@@ -934,26 +1238,40 @@
     };
   }
 
-  async function pdfTextoPagina1(file) {
+  async function pdfTextoPaginas(file, todas) {
     var pdfjs = await ensurePdfJs();
     var buf = await file.arrayBuffer();
     var pdf = await pdfjs.getDocument({ data: new Uint8Array(buf) }).promise;
-    var page = await pdf.getPage(1);
-    var content = await page.getTextContent();
-    return content.items.map(function (it) { return it.str; }).join('\n');
+    var hasta = todas ? pdf.numPages : 1;
+    var parts = [];
+    var i;
+    for (i = 1; i <= hasta; i++) {
+      var page = await pdf.getPage(i);
+      var content = await page.getTextContent();
+      parts.push(content.items.map(function (it) { return it.str; }).join('\n'));
+    }
+    return parts.join('\n');
+  }
+
+  async function pdfTextoPagina1(file) {
+    return pdfTextoPaginas(file, false);
   }
 
   async function parseArchivo(file, canalEsperado) {
     var nombre = file && file.name ? file.name : 'archivo.pdf';
-    var text = await pdfTextoPagina1(file);
+    var text = await pdfTextoPaginas(file, canalEsperado === CANAL_MP);
+    var resumenMp = canalEsperado === CANAL_MP ? parseMpResumenCuenta(text, nombre) : { error: 'no' };
     var mp = parseMpCartaSaldo(text, nombre);
     var gal = parseGaliciaResumenTexto(text, nombre);
     if (canalEsperado === CANAL_MP) {
-      if (!mp.error) return mp;
+      if (!resumenMp.error) return resumenMp;
+      if (!mp.error) {
+        return { error: nombre + ': es una carta de saldo. El control de fin de mes usa el resumen de cuenta (RESUMEN DE CUENTA EN PESOS). La carta no carga movimientos ni reemplaza ese control.' };
+      }
       if (!gal.error) {
         return { error: nombre + ': es un resumen de Galicia. Cargalo en la solapa ' + (gal.esUsd ? LABEL_GAL_USD : LABEL_GAL) + '.' };
       }
-      return mp;
+      return resumenMp;
     }
     if (canalEsperado === CANAL_GAL) {
       if (!gal.error && gal.esUsd) {
@@ -1939,7 +2257,11 @@
             ? ' Ninguno nuevo: ' + listos.nHist + ' ya estaban (no se recalculan).'
             : ' Ninguno nuevo: los ' + ok.length + ' ya estaban (no se duplican).');
         extraDup += ' No se borró ningún resumen anterior.';
-        if (listos.verifs && listos.verifs[0]) extraDup += ' ' + textoVerifBanco(listos.verifs[0]);
+        if (listos.verifs && listos.verifs.length) {
+          extraDup += ' ' + listos.verifs.map(function (v) {
+            return v && v.esResumenMp ? textoVerifMp(v) : textoVerifBanco(v);
+          }).filter(Boolean).join(' ');
+        }
         if (fallos.length) extraDup += ' No reconocí ' + fallos.length + ' archivo(s).';
         var lab = canalEsperado === CANAL_MP ? 'Mercado Pago' : 'Galicia';
         state.msg = lab + ': ' + ok.length + ' resumen(es) leído(s).' + extraDup;
@@ -2746,13 +3068,16 @@
     var list = conAnterior(rows);
     if (!list.length) {
       return '<p class="se-empty">' + ((state.rows || []).some(function (r) { return r.canal === CANAL_MP; })
-        ? 'No hay cartas de saldo de Mercado Pago en el período elegido.'
-        : 'Todavía no hay saldos de Mercado Pago. Cargá uno o varios PDF MP_Saldos_…') + '</p>';
+        ? 'No hay saldos de Mercado Pago en el período elegido.'
+        : 'Todavía no hay saldos de Mercado Pago. El control de fin de mes es el PDF resumen de cuenta.') + '</p>';
     }
     var html = '';
     list.forEach(function (r) {
+      var alMp = (r.raw && r.raw.fuente === 'resumen_cuenta' && r.fecha_desde)
+        ? formatFecha(r.fecha_desde) + ' – ' + htmlFechaCierre(r)
+        : htmlFechaCierre(r);
       html += '<tr' + (r._vivo ? ' class="se-fila-vivo"' : '') + '>' +
-        '<td>' + htmlFechaCierre(r) + '</td>' +
+        '<td>' + alMp + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(r.saldo_final) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(extraSaldo(r, 'saldo_disponible')) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(extraSaldo(r, 'saldo_a_liberar')) + '</td>' +
@@ -2935,7 +3260,7 @@
 
   function hintCanal() {
     if (state.canal === CANAL_MP) {
-      return 'Cartas de saldo de <strong>Mercado Pago</strong> (PDF <em>MP_Saldos_YYYYMMDD</em>). El banco es la fuente de verdad: lo que no está en el extracto MP no está. Tesorería son los movimientos administrativos de la app; las diferencias se ven en Conciliación. Cada carta verifica el saldo al día. El <strong>mes en curso</strong> (celeste) suma los movimientos banco del extracto MP desde el último corte hasta hoy.';
+      return 'El día a día de <strong>Mercado Pago</strong> entra por el Excel del extracto (Conciliación). El PDF <em>resumen de cuenta</em> es el control de fin de mes: no da de alta movimientos. Verifica que cada operación del resumen esté en la app y que el saldo final cierre con el saldo inicial más esos movimientos. La serie de cartas se vació: cada mes entra con este resumen. El <strong>mes en curso</strong> (celeste) suma los movimientos banco desde el último corte hasta hoy.';
     }
     if (state.canal === CANAL_GAL) {
       return 'Después del último corte, el saldo lo calculan los <strong>movimientos del Excel</strong> (Extracto_CC…), no el PDF. El PDF <em>Extracto_Cuentas_Galicia_…</em> solo verifica: muestra movimientos del período que el banco no metió en el resumen. Tesorería no entra en este saldo. Los cortes ya cargados no se recalculan. El <strong>mes en curso</strong> (celeste) es el saldo corrido de la última fila del Excel CC.';
@@ -3030,7 +3355,7 @@
     var btnCmp = '<button type="button" class="se-btn se-btn-navy" data-se="up-teso-saldos" title="Comparar tesoreria_saldos con el mes en curso" aria-label="Cargar tesorería saldos"><span class="btn-icon">' + ICO.upload + '</span>Tesorería saldos</button>';
     var btnUp = '';
     if (canCargar && state.canal === CANAL_MP) {
-      btnUp = '<button type="button" class="se-btn se-btn-mp" data-se="up-mp"><span class="btn-icon">' + ICO.upload + '</span>Cargar cartas Mercado Pago</button>';
+      btnUp = '<button type="button" class="se-btn se-btn-mp" data-se="up-mp" title="Leer el resumen de cuenta y verificar el mes" aria-label="Cargar resumen Mercado Pago"><span class="btn-icon">' + ICO.upload + '</span>Cargar resumen Mercado Pago</button>';
     } else if (canCargar && state.canal === CANAL_GAL) {
       btnUp = '<button type="button" class="se-btn se-btn-gal" data-se="up-gal"><span class="btn-icon">' + ICO.upload + '</span>Cargar resúmenes Galicia</button>';
     } else if (canCargar && state.canal === CANAL_GAL_USD) {
@@ -3071,7 +3396,7 @@
       (hayChart ? '<div class="se-chart-wrap"><canvas id="se-chart" aria-label="Gráfico de saldos"></canvas></div>' : '') +
       tabla;
 
-    if (state.canal === CANAL_MP && hayChart) pintarChartCanal(rowsMp, 'Serie de saldos Mercado Pago (carta de saldo)', 'Saldo total (ARS)');
+    if (state.canal === CANAL_MP && hayChart) pintarChartCanal(rowsMp, 'Serie de saldos Mercado Pago', 'Saldo (ARS)');
     else if (state.canal === CANAL_GAL && hayChart) pintarChartCanal(rowsGal, 'Serie de saldos ' + LABEL_GAL, 'Saldo de cierre (ARS)');
     else if (state.canal === CANAL_GAL_USD && hayChart) pintarChartCanal(rowsGalUsd, 'Serie de saldos ' + LABEL_GAL_USD + ' (ARS al MEP)', 'Saldo de caja (ARS)');
     else if (state.canal === CANAL_CRED && hayChart) pintarChartCanal(rowsCred, 'Serie de saldos ' + LABEL_CRED + ' (desde tesorería)', 'Saldo de caja (ARS)');
@@ -3143,6 +3468,7 @@
     guardarCorteCredicoop: guardarCorteCredicoop,
     guardarCorteDesdePdfGalicia: guardarCorteDesdePdfGalicia,
     guardarCorteGaliciaDesdeExtracto: guardarCorteGaliciaDesdeExtracto,
-    textoVerifBanco: textoVerifBanco
+    textoVerifBanco: textoVerifBanco,
+    parseMpResumenCuenta: parseMpResumenCuenta
   };
 })(typeof window !== 'undefined' ? window : this);
