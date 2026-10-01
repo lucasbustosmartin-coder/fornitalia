@@ -440,6 +440,7 @@
       { tipo: 'titulo', item: 'Ratios del Negocio' },
       { tipo: 'datos', item: 'Comisiones / Ventas', vals: filaRatio(function (k) { return Number(dato(k).comisionesParaRatio) || 0; }, ventas) },
       { tipo: 'datos', item: 'Sueldos / Ingresos', vals: filaRatio(function (k) { return Number(dato(k).sueldos) || 0; }) },
+      { tipo: 'datos', item: 'Sueldos + Cargas Sociales / Cobranzas', vals: filaRatio(function (k) { return Number(dato(k).sueldosCargas) || 0; }, ventas) },
       { tipo: 'datos', item: 'Costo Financiero MP / Ventas MP', vals: filaRatio(function (k) { return Number(dato(k).costoFinancieroMp) || 0; }, ventasMp) },
       { tipo: 'datos', item: 'Costo dir. / Ingresos', vals: filaRatio(function (k) { return Number(dato(k).egresosCostoDirecto) || 0; }) },
       { tipo: 'datos', item: 'Costo ind. / Ingresos', vals: filaRatio(function (k) { return Number(dato(k).egresosCostoIndirecto) || 0; }) },

@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.74",
+  "versionLabel": "v2.75",
   "lines": [
-    "En Saldos extractos, Mercado Pago se carga con el resumen de cuenta del mes.",
-    "Ese resumen no agrega movimientos: controla que cada operación ya esté cargada y que el saldo de fin de mes cierre.",
-    "La serie de cartas quedó vacía para volver a cargarla mes por mes con ese resumen."
+    "En Flujo de caja hay un ratio nuevo: Sueldos + Cargas Sociales / Cobranzas.",
+    "Suma los sueldos netos y las cargas sociales, y los compara con lo cobrado por ventas.",
+    "El mismo porcentaje se ve en el PDF y en el Excel."
   ]
 }
