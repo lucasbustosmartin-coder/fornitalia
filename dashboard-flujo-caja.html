@@ -9,10 +9,10 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="scripts/lib/fornitalia-mensajes.js?v=2.75"></script>
-  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.75"></script>
+  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.76"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.75"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.76"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
@@ -379,6 +379,9 @@
     #tabla-flujo td.col-item .item-icon.icono-egresos { color: #b91c1c; }
     #tabla-flujo th.th-mes-flujo { cursor: pointer; }
     #tabla-flujo th.th-mes-flujo:hover { background: #333; }
+    #panel-flujo #tabla-flujo thead th.col-mes-curso { background: #0369a1; color: #fff; }
+    #panel-flujo #tabla-flujo th.th-mes-flujo.col-mes-curso:hover { background: #075985; }
+    #panel-flujo #tabla-flujo td.col-mes-curso { background: #e0f2fe; }
     #tabla-flujo th.th-mes-flujo .th-mes-inner { display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.25rem; }
     #tabla-flujo td.col-proyeccion { background: #e8f4f0; cursor: pointer; }
     #tabla-flujo th.col-total-real { border-left: 2px solid #94a3b8; }
@@ -432,6 +435,8 @@
       #rep-print-root .rep-tabla th, #rep-print-root .rep-tabla td { padding: 0.14rem 0.28rem; border-bottom: 1px solid #e5e7eb; text-align: right; white-space: nowrap; }
       #rep-print-root .rep-tabla th:first-child, #rep-print-root .rep-tabla td:first-child { width: 1%; text-align: left; padding-right: 0.55rem; }
       #rep-print-root .rep-tabla thead th { background: #1a1a1a; color: #fff; font-weight: 600; }
+      #rep-print-root .rep-tabla thead th.rep-mes-curso { background: #0369a1; }
+      #rep-print-root .rep-tabla td.rep-mes-curso { background: #e0f2fe; }
       #rep-print-root .rep-tabla tr.rep-fila-total td { font-weight: 700; border-top: 2px solid #333; background: #f5f5f5; }
       #rep-print-root .rep-tabla tr.rep-fila-titulo td { font-weight: 700; background: #f8fafc; }
       #rep-print-root .rep-tabla .ratio-var-icon { display: inline-flex; width: 8px; height: 8px; vertical-align: middle; }
@@ -1333,7 +1338,7 @@
           <p><strong>Sueldos + Cargas Sociales / Cobranzas</strong> = egresos con <code>ef_subitem</code> <strong>Sueldos (Neto / Bolsillo)</strong> más <strong>Cargas Sociales</strong> ÷ ingresos con <code>ef_subitem</code> <strong>Cobranzas por Ventas (Efectivo neto ingresado)</strong>.</p>
           <p><strong>Costo Financiero MP / Ventas MP</strong> = egresos con <code>ef_subitem</code> <strong>Costo Financiero (Mercado Pago)</strong> ÷ cobranzas por ventas de la <strong>caja Mercado Pago</strong> (no las ventas de otras cajas).</p>
           <p>El denominador de <strong>Costo dir. / Ingresos</strong>, <strong>Costo ind. / Ingresos</strong>, <strong>Costo total / Ingreso total</strong> y <strong>Sueldos / Ingresos</strong> es siempre la columna <strong>Ingresos</strong> del mes. Numeradores: COSTOS DIRECTOS (§2), COSTOS INDIRECTOS (§3), Egresos de la fila (costo total) y Sueldos. Cálculo simple, sin Flujo Operativo Generado.</p>
-          <p>La tabla se lee como en Dashboard: <strong>meses en columnas</strong>, filas Ingresos / Egresos / G/P y debajo <strong>Ratios del Negocio</strong> (Comisiones/Ventas, Sueldos/Ingresos, Sueldos + Cargas Sociales/Cobranzas, Costo Financiero MP/Ventas MP, Costo dir., Costo ind., Costo total sobre Ingresos). La columna <strong>Total</strong> va después de los meses reales (no incluye proyectados); las columnas <strong>Proy.</strong> quedan a la derecha. El gráfico <strong>G/P Mensual</strong> y el PDF usan el mismo filtro Período; en el PDF los filtros activos van remarcados en verde.</p>
+          <p>La tabla se lee como en Dashboard: <strong>meses en columnas</strong>, filas Ingresos / Egresos / G/P y debajo <strong>Ratios del Negocio</strong> (Comisiones/Ventas, Sueldos/Ingresos, Sueldos + Cargas Sociales/Cobranzas, Costo Financiero MP/Ventas MP, Costo dir., Costo ind., Costo total sobre Ingresos). El <strong>mes en curso</strong> va en celeste: se ve, pero no entra en el <strong>Total</strong> (tarjetas, ratios, PDF y Excel) ni en las variaciones y la tendencia del gráfico, para no mezclar un mes incompleto con los cerrados. Las columnas <strong>Proy.</strong> quedan a la derecha y tampoco entran al Total. El gráfico <strong>G/P Mensual</strong> y el PDF usan el mismo filtro Período; en el PDF los filtros activos van remarcados en verde.</p>
           <p>El botón <strong>Cargar tesorería histórica</strong> toma el Excel <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto) y lo reparte a todas las cajas de una vez: bancos en Conciliación y cajas físicas según la columna Caja. En Conciliación recálcula los sugeridos de cada caja (Mercado Pago, Galicia, Galicia USD, Credicoop) y el cartel siempre muestra el resultado, aunque sea 0.</p>
         </div>
       </template>
@@ -1354,11 +1359,11 @@
           <span class="grafico-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg></span>
           G/P Mensual
         </div>
-        <p id="grafico-gp-periodo" style="margin:0 0 0.5rem 0; font-size:0.9rem; color:#666;">Período: último año. Sobre cada barra: variación vs mes anterior (% y monto).</p>
+        <p id="grafico-gp-periodo" style="margin:0 0 0.5rem 0; font-size:0.9rem; color:#666;">Período: último año. Sobre cada barra cerrada: variación vs mes anterior. La barra celeste muestra el G/P del mes en curso, en millones, y no entra en la variación ni en la tendencia.</p>
         <div class="gp-resumen" id="grafico-gp-resumen" aria-live="polite"></div>
         <div class="chart-container"><canvas id="chart-gp-mensual"></canvas></div>
       </div>
-      <p class="dashboard-nota-compact">Hacé clic en un mes (encabezado o importe) para ver el detalle por categoría.</p>
+      <p class="dashboard-nota-compact">Hacé clic en un mes (encabezado o importe) para ver el detalle por categoría. El mes en curso va en celeste: se ve, pero no entra en el Total ni en la tendencia del gráfico.</p>
       <div class="flujo-table-wrap tabla-scroll-anclada">
       <table id="tabla-flujo">
         <thead id="thead-flujo"></thead>
@@ -2060,7 +2065,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.75';
+    const APP_VERSION = '2.76';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -4322,10 +4327,14 @@
       const rangoPeriodo = ux ? ux.getRangoPeriodo() : { valor: 'todo', desde: null, hasta: null };
       let ordenados = ux ? ux.getMesesPeriodo(ordenadosAll) : ordenadosAll.slice();
       if (!ordenados.length) ordenados = ordenadosAll.slice();
+      const keyMesCurso = ux ? ux.keyMesEnCurso() : '';
+      function esMesCursoFlujo(key) { return !!keyMesCurso && String(key) === keyMesCurso; }
+      const ordenadosCerrados = ordenados.filter(function (k) { return !esMesCursoFlujo(k); });
+      const ordenadosBaseProy = ordenadosAll.filter(function (k) { return !esMesCursoFlujo(k); });
 
       totalIngresos = 0;
       totalEgresos = 0;
-      ordenados.forEach(function (key) {
+      ordenadosCerrados.forEach(function (key) {
         const d = porMes[key];
         if (!d) return;
         totalIngresos += d.ingresos || 0;
@@ -4380,9 +4389,9 @@
       flujoMoneda = moneda;
       flujoSimbolo = simbolo;
       document.getElementById('resumen').innerHTML = `
-        <div class="card" title="Ingresos operativos netos (devoluciones §1 neteadas de Ingresos y Egresos)"><div style="color:#555;">Ingresos totales</div><div class="valor ingresos">${simbolo}${formatearNumero(totalIngresos, moneda)}</div></div>
-        <div class="card" title="Egresos operativos netos (sin devoluciones §1, que se netean en Ingresos)"><div style="color:#555;">Egresos totales</div><div class="valor egresos">${simbolo}${formatearNumero(totalEgresos, moneda)}</div></div>
-        <div class="card" title="Ingresos − egresos operativos"><div style="color:#555;">G/P operativo</div><div class="valor balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</div></div>
+        <div class="card" title="Ingresos operativos netos de los meses cerrados. El mes en curso no entra."><div style="color:#555;">Ingresos totales</div><div class="valor ingresos">${simbolo}${formatearNumero(totalIngresos, moneda)}</div></div>
+        <div class="card" title="Egresos operativos netos de los meses cerrados. El mes en curso no entra."><div style="color:#555;">Egresos totales</div><div class="valor egresos">${simbolo}${formatearNumero(totalEgresos, moneda)}</div></div>
+        <div class="card" title="Ingresos − egresos de los meses cerrados. El mes en curso no entra."><div style="color:#555;">G/P operativo</div><div class="valor balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</div></div>
       `;
       document.getElementById('resumen').style.display = 'flex';
 
@@ -4412,8 +4421,8 @@
         const costoTotalIngPct = ratioSobreIngresos(d.egresos, ingMes);
         const alertas = alertasPorMes[key] || [];
         filasFlujoExcel.push({
-          kind: 'real',
-          mes: label,
+          kind: esMesCursoFlujo(key) ? 'mes_curso' : 'real',
+          mes: esMesCursoFlujo(key) ? (label + ' (en curso)') : label,
           ingresos: d.ingresos != null ? Number(d.ingresos) : 0,
           egresos: d.egresos != null ? Number(d.egresos) : 0,
           gp: Number(balance),
@@ -4429,7 +4438,7 @@
         return { key, d, label, balance, comVentasPct, sueldosIngPct, sueldosCargasPct, costoFinMpPct, costoDirIngPct, costoIndIngPct, costoTotalIngPct, alertas };
       });
 
-      const mostrarProyeccion = ordenados.length > 0 && N > 0 && mesesAProyectar > 0 && (!ux || ux.keyEnRangoPeriodo(ux.keyMesEnCurso(), rangoPeriodo));
+      const mostrarProyeccion = ordenadosBaseProy.length > 0 && N > 0 && mesesAProyectar > 0 && (!ux || ux.keyEnRangoPeriodo(ux.keyMesEnCurso(), rangoPeriodo));
       const filasProyExcel = [];
       detalleProyeccionPorMes = {};
       let proyIng = [];
@@ -4446,7 +4455,7 @@
       let proys = [];
       if (mostrarProyeccion) {
         const categoriasProy = new Set();
-        ordenadosAll.forEach(k => {
+        ordenadosBaseProy.forEach(k => {
           Object.keys(porMesCatIng[k] || {}).forEach(c => categoriasProy.add(c));
           Object.keys(porMesCatEgr[k] || {}).forEach(c => categoriasProy.add(c));
         });
@@ -4459,8 +4468,8 @@
         const proyDetalle = {};
         keyProyList.forEach(k => { proyDetalle[k] = { ingresoPorCat: {}, egresoPorCat: {} }; });
         categoriasList.forEach(cat => {
-          const valoresIng = ordenadosAll.map(k => (porMesCatIng[k] && porMesCatIng[k][cat]) ? porMesCatIng[k][cat] : 0);
-          const valoresEgr = ordenadosAll.map(k => (porMesCatEgr[k] && porMesCatEgr[k][cat]) ? porMesCatEgr[k][cat] : 0);
+          const valoresIng = ordenadosBaseProy.map(k => (porMesCatIng[k] && porMesCatIng[k][cat]) ? porMesCatIng[k][cat] : 0);
+          const valoresEgr = ordenadosBaseProy.map(k => (porMesCatEgr[k] && porMesCatEgr[k][cat]) ? porMesCatEgr[k][cat] : 0);
           const pIng = proyeccionDesdeSerie(valoresIng, N, agg, mesesAProyectar);
           const pEgr = proyeccionDesdeSerie(valoresEgr, N, agg, mesesAProyectar);
           for (let j = 0; j < mesesAProyectar; j++) {
@@ -4469,20 +4478,20 @@
             proyIng[j] += pIng[j]; proyEgr[j] += pEgr[j];
           }
         });
-        const valoresVentas = ordenadosAll.map(k => { const x = porMes[k]; return x && x.ventas != null ? x.ventas : 0; });
-        const valoresComisionesParaRatio = ordenadosAll.map(k => { const x = porMes[k]; return x && x.comisionesParaRatio != null ? x.comisionesParaRatio : 0; });
+        const valoresVentas = ordenadosBaseProy.map(k => { const x = porMes[k]; return x && x.ventas != null ? x.ventas : 0; });
+        const valoresComisionesParaRatio = ordenadosBaseProy.map(k => { const x = porMes[k]; return x && x.comisionesParaRatio != null ? x.comisionesParaRatio : 0; });
         proyVentas = proyeccionDesdeSerie(valoresVentas, N, agg, mesesAProyectar);
         proyComisionesParaRatio = proyeccionDesdeSerie(valoresComisionesParaRatio, N, agg, mesesAProyectar);
-        const valoresSueldos = ordenadosAll.map(k => { const x = porMes[k]; return x && x.sueldos != null ? x.sueldos : 0; });
-        const valoresSueldosCargas = ordenadosAll.map(k => { const x = porMes[k]; return x && x.sueldosCargas != null ? x.sueldosCargas : 0; });
-        const valoresCostoFinMp = ordenadosAll.map(k => { const x = porMes[k]; return x && x.costoFinancieroMp != null ? x.costoFinancieroMp : 0; });
-        const valoresVentasMp = ordenadosAll.map(k => { const x = porMes[k]; return x && x.ventasMp != null ? x.ventasMp : 0; });
+        const valoresSueldos = ordenadosBaseProy.map(k => { const x = porMes[k]; return x && x.sueldos != null ? x.sueldos : 0; });
+        const valoresSueldosCargas = ordenadosBaseProy.map(k => { const x = porMes[k]; return x && x.sueldosCargas != null ? x.sueldosCargas : 0; });
+        const valoresCostoFinMp = ordenadosBaseProy.map(k => { const x = porMes[k]; return x && x.costoFinancieroMp != null ? x.costoFinancieroMp : 0; });
+        const valoresVentasMp = ordenadosBaseProy.map(k => { const x = porMes[k]; return x && x.ventasMp != null ? x.ventasMp : 0; });
         proySueldos = proyeccionDesdeSerie(valoresSueldos, N, agg, mesesAProyectar);
         proySueldosCargas = proyeccionDesdeSerie(valoresSueldosCargas, N, agg, mesesAProyectar);
         proyCostoFinMp = proyeccionDesdeSerie(valoresCostoFinMp, N, agg, mesesAProyectar);
         proyVentasMp = proyeccionDesdeSerie(valoresVentasMp, N, agg, mesesAProyectar);
-        const valoresEgrDir = ordenadosAll.map(k => { const x = porMes[k]; return x && x.egresosCostoDirecto != null ? x.egresosCostoDirecto : 0; });
-        const valoresEgrInd = ordenadosAll.map(k => { const x = porMes[k]; return x && x.egresosCostoIndirecto != null ? x.egresosCostoIndirecto : 0; });
+        const valoresEgrDir = ordenadosBaseProy.map(k => { const x = porMes[k]; return x && x.egresosCostoDirecto != null ? x.egresosCostoDirecto : 0; });
+        const valoresEgrInd = ordenadosBaseProy.map(k => { const x = porMes[k]; return x && x.egresosCostoIndirecto != null ? x.egresosCostoIndirecto : 0; });
         proyEgrDir = proyeccionDesdeSerie(valoresEgrDir, N, agg, mesesAProyectar);
         proyEgrInd = proyeccionDesdeSerie(valoresEgrInd, N, agg, mesesAProyectar);
         for (let i = 0; i < mesesAProyectar; i++) {
@@ -4523,9 +4532,11 @@
         const alertas = m.alertas || [];
         const alertasJson = alertas.length ? JSON.stringify(alertas).replace(/"/g, '&quot;') : '';
         const iconoAlert = alertas.length ? `<span class="alert-icon" role="button" tabindex="0" data-alertas="${alertasJson}" data-label="${m.label.replace(/"/g, '&quot;')}" title="Ver alertas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>` : '';
-        theadCells.push('<th class="th-mes-flujo" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '" title="Ver detalle de ' + m.label + '"><span class="th-mes-inner">' + m.label + iconoAlert + '</span></th>');
+        const curso = esMesCursoFlujo(m.key);
+        const tituloMes = curso ? 'Mes en curso: se ve, pero no entra en el Total. Clic para el detalle de ' + m.label : 'Ver detalle de ' + m.label;
+        theadCells.push('<th class="th-mes-flujo' + (curso ? ' col-mes-curso' : '') + '" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '" title="' + tituloMes + '"><span class="th-mes-inner">' + m.label + iconoAlert + '</span></th>');
       });
-      theadCells.push('<th class="col-total-real" title="Suma de los meses reales; no incluye proyectados">Total</th>');
+      theadCells.push('<th class="col-total-real" title="Suma de los meses cerrados. No incluye el mes en curso ni los proyectados.">Total</th>');
       keyProyList.forEach(function (k) {
         const [anioProy, mesProy] = k.split('-').map(Number);
         theadCells.push('<th class="col-proyeccion th-mes-flujo" data-proy-key="' + k + '">Proy. ' + formatoMesAnio(mesProy, anioProy) + '</th>');
@@ -4536,9 +4547,9 @@
       function celdasConTotalYProy(reales, celdaTotal, proy) {
         return reales.concat([celdaTotal], proy);
       }
-      const celdasIngReales = metricasMes.map(m => '<td class="ingresos fila-clickable" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '">' + simbolo + formatearNumero(m.d.ingresos, moneda) + '</td>');
-      const celdasEgrReales = metricasMes.map(m => '<td class="egresos fila-clickable" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '">' + simbolo + formatearNumero(m.d.egresos, moneda) + '</td>');
-      const celdasGpReales = metricasMes.map(m => '<td class="balance fila-clickable ' + (m.balance >= 0 ? 'positivo' : 'negativo') + '" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '">' + simbolo + formatearNumero(m.balance, moneda) + '</td>');
+      const celdasIngReales = metricasMes.map(m => '<td class="ingresos fila-clickable' + (esMesCursoFlujo(m.key) ? ' col-mes-curso' : '') + '" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '">' + simbolo + formatearNumero(m.d.ingresos, moneda) + '</td>');
+      const celdasEgrReales = metricasMes.map(m => '<td class="egresos fila-clickable' + (esMesCursoFlujo(m.key) ? ' col-mes-curso' : '') + '" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '">' + simbolo + formatearNumero(m.d.egresos, moneda) + '</td>');
+      const celdasGpReales = metricasMes.map(m => '<td class="balance fila-clickable ' + (m.balance >= 0 ? 'positivo' : 'negativo') + (esMesCursoFlujo(m.key) ? ' col-mes-curso' : '') + '" data-anio="' + m.d.anio + '" data-mes="' + m.d.mes + '">' + simbolo + formatearNumero(m.balance, moneda) + '</td>');
       const celdasIngProy = [];
       const celdasEgrProy = [];
       const celdasGpProy = [];
@@ -4559,17 +4570,17 @@
           '<tr class="fila-clickable"><td class="col-item">' + iconoGP + '</td>' + celdasGp.join('') + '</tr>';
       }
 
-      const totalComisionesParaRatio = ordenados.reduce((s, k) => {
+      const totalComisionesParaRatio = ordenadosCerrados.reduce((s, k) => {
         const pm = porMes[k];
         return s + (pm && pm.comisionesParaRatio != null ? pm.comisionesParaRatio : 0);
       }, 0);
-      const totalVentas = ordenados.reduce((s, k) => {
+      const totalVentas = ordenadosCerrados.reduce((s, k) => {
         const pm = porMes[k];
         return s + (pm && pm.ventas != null ? pm.ventas : 0);
       }, 0);
       const comVentasPctTotal = totalVentas > 0 ? ((totalComisionesParaRatio / totalVentas) * 100).toFixed(1) + '%' : '–';
       let sumEgrDir = 0, sumEgrInd = 0, sumSueldos = 0, sumSueldosCargas = 0, sumCostoFinMp = 0, sumVentasMp = 0;
-      ordenados.forEach(k => {
+      ordenadosCerrados.forEach(k => {
         const pm = porMes[k];
         if (!pm) return;
         sumEgrDir += pm.egresosCostoDirecto || 0;
@@ -4592,13 +4603,27 @@
       const pctsDir = metricasMes.map(m => pctNumeroRatioFlujo(m.costoDirIngPct));
       const pctsInd = metricasMes.map(m => pctNumeroRatioFlujo(m.costoIndIngPct));
       const pctsTot = metricasMes.map(m => pctNumeroRatioFlujo(m.costoTotalIngPct));
-      const celdasComReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.comVentasPct, i > 0 ? pctsCom[i - 1] : null, ''));
-      const celdasSueReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.sueldosIngPct, i > 0 ? pctsSue[i - 1] : null, ''));
-      const celdasSueCargasReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.sueldosCargasPct, i > 0 ? pctsSueCargas[i - 1] : null, ''));
-      const celdasFinMpReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoFinMpPct, i > 0 ? pctsFinMp[i - 1] : null, ''));
-      const celdasDirReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoDirIngPct, i > 0 ? pctsDir[i - 1] : null, ''));
-      const celdasIndReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoIndIngPct, i > 0 ? pctsInd[i - 1] : null, ''));
-      const celdasTotReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoTotalIngPct, i > 0 ? pctsTot[i - 1] : null, ''));
+      function pctAnteriorCerrado(pcts, i) {
+        if (esMesCursoFlujo(metricasMes[i].key)) return null;
+        for (let j = i - 1; j >= 0; j--) {
+          if (!esMesCursoFlujo(metricasMes[j].key)) return pcts[j];
+        }
+        return null;
+      }
+      function pctUltimoCerrado(pcts) {
+        for (let j = pcts.length - 1; j >= 0; j--) {
+          if (!esMesCursoFlujo(metricasMes[j].key)) return pcts[j];
+        }
+        return null;
+      }
+      function claseMesRatio(m) { return esMesCursoFlujo(m.key) ? 'col-mes-curso' : ''; }
+      const celdasComReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.comVentasPct, pctAnteriorCerrado(pctsCom, i), claseMesRatio(m)));
+      const celdasSueReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.sueldosIngPct, pctAnteriorCerrado(pctsSue, i), claseMesRatio(m)));
+      const celdasSueCargasReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.sueldosCargasPct, pctAnteriorCerrado(pctsSueCargas, i), claseMesRatio(m)));
+      const celdasFinMpReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoFinMpPct, pctAnteriorCerrado(pctsFinMp, i), claseMesRatio(m)));
+      const celdasDirReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoDirIngPct, pctAnteriorCerrado(pctsDir, i), claseMesRatio(m)));
+      const celdasIndReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoIndIngPct, pctAnteriorCerrado(pctsInd, i), claseMesRatio(m)));
+      const celdasTotReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoTotalIngPct, pctAnteriorCerrado(pctsTot, i), claseMesRatio(m)));
       const celdasComProy = [];
       const celdasSueProy = [];
       const celdasSueCargasProy = [];
@@ -4607,13 +4632,13 @@
       const celdasIndProy = [];
       const celdasTotProy = [];
       proys.forEach(function (proy, i) {
-        celdasComProy.push(celdaRatioFlujoConVar(proy.comVentasPct, i === 0 ? pctsCom[pctsCom.length - 1] : pctNumeroRatioFlujo(proys[i - 1].comVentasPct), 'col-proyeccion'));
-        celdasSueProy.push(celdaRatioFlujoConVar(proy.sueldosIngPct, i === 0 ? pctsSue[pctsSue.length - 1] : pctNumeroRatioFlujo(proys[i - 1].sueldosIngPct), 'col-proyeccion'));
-        celdasSueCargasProy.push(celdaRatioFlujoConVar(proy.sueldosCargasPct, i === 0 ? pctsSueCargas[pctsSueCargas.length - 1] : pctNumeroRatioFlujo(proys[i - 1].sueldosCargasPct), 'col-proyeccion'));
-        celdasFinMpProy.push(celdaRatioFlujoConVar(proy.costoFinMpPct, i === 0 ? pctsFinMp[pctsFinMp.length - 1] : pctNumeroRatioFlujo(proys[i - 1].costoFinMpPct), 'col-proyeccion'));
-        celdasDirProy.push(celdaRatioFlujoConVar(proy.costoDirIngPct, i === 0 ? pctsDir[pctsDir.length - 1] : pctNumeroRatioFlujo(proys[i - 1].costoDirIngPct), 'col-proyeccion'));
-        celdasIndProy.push(celdaRatioFlujoConVar(proy.costoIndIngPct, i === 0 ? pctsInd[pctsInd.length - 1] : pctNumeroRatioFlujo(proys[i - 1].costoIndIngPct), 'col-proyeccion'));
-        celdasTotProy.push(celdaRatioFlujoConVar(proy.costoTotalIngPct, i === 0 ? pctsTot[pctsTot.length - 1] : pctNumeroRatioFlujo(proys[i - 1].costoTotalIngPct), 'col-proyeccion'));
+        celdasComProy.push(celdaRatioFlujoConVar(proy.comVentasPct, i === 0 ? pctUltimoCerrado(pctsCom) : pctNumeroRatioFlujo(proys[i - 1].comVentasPct), 'col-proyeccion'));
+        celdasSueProy.push(celdaRatioFlujoConVar(proy.sueldosIngPct, i === 0 ? pctUltimoCerrado(pctsSue) : pctNumeroRatioFlujo(proys[i - 1].sueldosIngPct), 'col-proyeccion'));
+        celdasSueCargasProy.push(celdaRatioFlujoConVar(proy.sueldosCargasPct, i === 0 ? pctUltimoCerrado(pctsSueCargas) : pctNumeroRatioFlujo(proys[i - 1].sueldosCargasPct), 'col-proyeccion'));
+        celdasFinMpProy.push(celdaRatioFlujoConVar(proy.costoFinMpPct, i === 0 ? pctUltimoCerrado(pctsFinMp) : pctNumeroRatioFlujo(proys[i - 1].costoFinMpPct), 'col-proyeccion'));
+        celdasDirProy.push(celdaRatioFlujoConVar(proy.costoDirIngPct, i === 0 ? pctUltimoCerrado(pctsDir) : pctNumeroRatioFlujo(proys[i - 1].costoDirIngPct), 'col-proyeccion'));
+        celdasIndProy.push(celdaRatioFlujoConVar(proy.costoIndIngPct, i === 0 ? pctUltimoCerrado(pctsInd) : pctNumeroRatioFlujo(proys[i - 1].costoIndIngPct), 'col-proyeccion'));
+        celdasTotProy.push(celdaRatioFlujoConVar(proy.costoTotalIngPct, i === 0 ? pctUltimoCerrado(pctsTot) : pctNumeroRatioFlujo(proys[i - 1].costoTotalIngPct), 'col-proyeccion'));
       });
       const celdasCom = celdasConTotalYProy(celdasComReales, celdaRatioFlujoConVar(comVentasPctTotal, null, 'col-total-real'), celdasComProy);
       const celdasSue = celdasConTotalYProy(celdasSueReales, celdaRatioFlujoConVar(totSueldosIng, null, 'col-total-real'), celdasSueProy);
@@ -4642,7 +4667,7 @@
         let tfootHtml = ordenados.length === 0 ? '' : '<tr class="fila-total-real"><td class="col-item">Total G/P</td>' + celdasGp.join('') + '</tr>';
         if (keyProyList.length) {
           const metodoLabel = configProy.metodo === 'promedio_ponderado' ? 'Promedio ponderado' : (configProy.metodo === 'promedio' ? 'Promedio' : (configProy.metodo === 'promedio_recortado' ? 'Promedio recortado (suaviza picos)' : 'Mediana'));
-          const disclaimer = 'Proyección: ' + metodoLabel + ' de los últimos ' + configProy.meses + ' meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución).';
+          const disclaimer = 'Proyección: ' + metodoLabel + ' de los últimos ' + configProy.meses + ' meses cerrados por categoría (el mes en curso no entra; ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución).';
           tfootHtml += '<tr class="disclaimer-proyeccion"><td colspan="' + (1 + ordenados.length + keyProyList.length + 1) + '">' + disclaimer + '</td></tr>';
         }
         tfoot.innerHTML = tfootHtml;
@@ -4674,7 +4699,7 @@
         filasProyExcel.forEach((r) => filasFlujoExcel.push(r));
         filasFlujoExcel.push({
           kind: 'disclaimer',
-          mes: 'Proyección: ' + metodoLabelExcel + ' de los últimos ' + configProy.meses + ' meses por categoría (ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución).'
+          mes: 'Proyección: ' + metodoLabelExcel + ' de los últimos ' + configProy.meses + ' meses cerrados por categoría (el mes en curso no entra; ingresos y egresos proyectados por categoría, luego se suman; misma lógica que Evolución).'
         });
       }
       cacheFlujoExcel = { moneda: moneda, filas: filasFlujoExcel };
@@ -6485,7 +6510,7 @@
         'Alertas'
       ];
       const periodoLabel = (flujoUx() && flujoUx().labelPeriodoActual()) ? flujoUx().labelPeriodoActual() : 'Período actual';
-      const titulo = 'Exportado: Flujo por mes. Período: ' + periodoLabel + '. Moneda de Ingresos, Egresos y G/P: ' + monedaExport + '. Importes numéricos; % como fracción.';
+      const titulo = 'Exportado: Flujo por mes. Período: ' + periodoLabel + '. Moneda de Ingresos, Egresos y G/P: ' + monedaExport + '. Importes numéricos; % como fracción. El mes en curso (celeste) no entra en el Total.';
       const rows = [[titulo], header];
       const rowMeta = [{ kind: 'titulo' }, { kind: 'header' }];
       snap.filas.forEach((f) => {
@@ -6537,7 +6562,7 @@
           });
           continue;
         }
-        const fillRgb = meta.kind === 'total' ? 'DCE4EE' : (meta.kind === 'proy' ? 'FAFAFA' : null);
+        const fillRgb = meta.kind === 'total' ? 'DCE4EE' : (meta.kind === 'mes_curso' ? 'E0F2FE' : (meta.kind === 'proy' ? 'FAFAFA' : null));
         const font = meta.kind === 'total' ? { bold: true } : (meta.kind === 'proy' ? { italic: true } : {});
         for (let c = 0; c < colCount; c++) {
           const cell = efExcelGetOrCreateCell(ws, r, c);

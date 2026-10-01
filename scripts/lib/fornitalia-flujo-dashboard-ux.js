@@ -131,6 +131,14 @@
     if (sel) sel.classList.toggle('filtro-activo', sel.value !== 'todo');
   }
 
+  function gpEnMillones(v) {
+    var n = Number(v);
+    if (!isFinite(n)) return '';
+    if (n === 0) return '0';
+    var s = (Math.abs(n) / 1e6).toLocaleString('es-AR', { maximumFractionDigits: 1 });
+    return (n < 0 ? '−' : '+') + s + ' M';
+  }
+
   function abreviarMonto(v, moneda) {
     var a = Math.abs(v);
     var s;
@@ -164,14 +172,35 @@
     return { puntos: valores.map(function (_, x) { return ordenada + pendiente * x; }), pendiente: pendiente };
   }
 
+  /** Regresión solo sobre meses cerrados. El mes en curso queda en null para no inclinar la recta. */
+  function tendenciaSinMesCurso(valores, meses, keyCurso) {
+    var pares = [];
+    meses.forEach(function (k, i) {
+      if (k !== keyCurso) pares.push({ x: i, y: valores[i] });
+    });
+    var n = pares.length;
+    if (n < 2) {
+      return {
+        puntos: meses.map(function (k, i) { return k === keyCurso ? null : valores[i]; }),
+        pendiente: 0
+      };
+    }
+    var sx = 0, sy = 0, sxy = 0, sxx = 0;
+    pares.forEach(function (p) { sx += p.x; sy += p.y; sxy += p.x * p.y; sxx += p.x * p.x; });
+    var den = n * sxx - sx * sx;
+    var pendiente = den !== 0 ? (n * sxy - sx * sy) / den : 0;
+    var ordenada = (sy - pendiente * sx) / n;
+    return {
+      puntos: meses.map(function (k, i) { return k === keyCurso ? null : (ordenada + pendiente * i); }),
+      pendiente: pendiente
+    };
+  }
+
   var pluginEtiquetasVarGP = {
     id: 'etiquetasVarGP',
     afterDatasetsDraw: function (chart, args, opts) {
-      var vars = opts && opts.variaciones;
-      if (!vars || chart.width < 560) return;
       var meta = chart.getDatasetMeta(0);
       if (!meta || meta.hidden || !meta.data.length) return;
-      if (chart.chartArea && chart.chartArea.width / meta.data.length < 46) return;
       var ctx = chart.ctx;
       ctx.save();
       ctx.textAlign = 'center';
@@ -179,11 +208,28 @@
       ctx.lineWidth = 3;
       ctx.strokeStyle = 'rgba(255,255,255,0.95)';
       function texto(t, x, y, peso) {
-        ctx.font = peso + ' 10px system-ui, -apple-system, sans-serif';
+        ctx.font = peso + ' 11px system-ui, -apple-system, sans-serif';
         ctx.strokeText(t, x, y);
         ctx.fillText(t, x, y);
       }
+      var iCurso = opts && opts.mesCursoIndex;
+      if (iCurso != null && iCurso >= 0 && meta.data[iCurso]) {
+        var gpCurso = Number(chart.data.datasets[0].data[iCurso]);
+        if (isFinite(gpCurso)) {
+          var barCurso = meta.data[iCurso];
+          var arribaCurso = gpCurso >= 0;
+          ctx.fillStyle = gpCurso > 0 ? '#0d7d3d' : (gpCurso < 0 ? '#b91c1c' : '#64748b');
+          ctx.textBaseline = arribaCurso ? 'bottom' : 'top';
+          texto(gpEnMillones(gpCurso), barCurso.x, arribaCurso ? barCurso.y - 6 : barCurso.y + 6, '700');
+        }
+      }
+      var vars = opts && opts.variaciones;
+      if (!vars || chart.width < 560 || (chart.chartArea && chart.chartArea.width / meta.data.length < 46)) {
+        ctx.restore();
+        return;
+      }
       meta.data.forEach(function (bar, i) {
+        if (i === iCurso) return;
         var v = vars[i];
         if (!v || v.monto == null) return;
         var valor = chart.data.datasets[0].data[i];
@@ -201,7 +247,7 @@
   function actualizarGraficoGP(porMes, moneda, simbolo, porMesAll) {
     var meses12 = getMesesPeriodo(Object.keys(porMesAll || porMes || {}));
     var subEl = document.getElementById('grafico-gp-periodo');
-    if (subEl) subEl.textContent = 'Período: ' + labelPeriodoActual() + '. Sobre cada barra: variación vs mes anterior (% y monto).';
+    if (subEl) subEl.textContent = 'Período: ' + labelPeriodoActual() + '. Sobre cada barra cerrada: variación vs mes anterior. La barra celeste muestra el G/P del mes en curso, en millones, y no entra en la variación ni en la tendencia.';
     var wrapVacio = document.getElementById('grafico-gp-wrap');
     if (!meses12.length || typeof Chart === 'undefined') {
       if (chartGP) { chartGP.destroy(); chartGP = null; }
@@ -215,14 +261,23 @@
       return d ? (Number(d.ingresos) || 0) - (Number(d.egresos) || 0) : 0;
     };
     var valores = meses12.map(gpDeKey);
+    var keyCurso = keyMesEnCurso();
     var keyPrevPrimero = mesAnteriorKey(meses12[0]);
     var fuenteAnterior = porMesAll || porMes;
-    var dPrev = fuenteAnterior[keyPrevPrimero];
+    var dPrev = keyPrevPrimero !== keyCurso ? fuenteAnterior[keyPrevPrimero] : null;
     var anteriorPrimero = dPrev ? (Number(dPrev.ingresos) || 0) - (Number(dPrev.egresos) || 0) : null;
+    function gpCerradoAntes(i) {
+      for (var j = i - 1; j >= 0; j--) {
+        if (meses12[j] !== keyCurso) return valores[j];
+      }
+      return anteriorPrimero;
+    }
     var variaciones = valores.map(function (v, i) {
-      return variacionMensual(v, i === 0 ? anteriorPrimero : valores[i - 1]);
+      if (meses12[i] === keyCurso) return { monto: null, pct: null };
+      var anterior = i === 0 ? anteriorPrimero : gpCerradoAntes(i);
+      return variacionMensual(v, anterior);
     });
-    var tendencia = tendenciaLineal(valores);
+    var tendencia = tendenciaSinMesCurso(valores, meses12, keyCurso);
     var fmtFull = function (n) {
       return Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: moneda === 'USD' ? 2 : 0 });
     };
@@ -233,31 +288,41 @@
       return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     };
 
+    var idxCerradoUlt = -1;
+    var idxCerradoPrev = -1;
+    for (var ic = meses12.length - 1; ic >= 0; ic--) {
+      if (meses12[ic] === keyCurso) continue;
+      if (idxCerradoUlt < 0) idxCerradoUlt = ic;
+      else { idxCerradoPrev = ic; break; }
+    }
     var resumenEl = document.getElementById('grafico-gp-resumen');
     if (resumenEl) {
-      var ult = variaciones[variaciones.length - 1];
+      var ult = idxCerradoUlt >= 0 ? variaciones[idxCerradoUlt] : null;
       var htmlRes = '';
-      if (ult && ult.monto != null && labels.length > 1) {
+      if (ult && ult.monto != null && idxCerradoUlt >= 0) {
         var claseUlt = ult.monto > 0 ? 'positivo' : (ult.monto < 0 ? 'negativo' : '');
-        htmlRes += '<span class="gp-resumen-item"><span class="gp-resumen-label">' + esc(labels[labels.length - 1]) + ' vs ' + esc(labels[labels.length - 2]) + ':</span> <strong class="' + claseUlt + '">' + fmtSigno(ult.monto) + ' (' + formatearPct(ult.pct) + ')</strong></span>';
+        var textoPrev = idxCerradoPrev >= 0 ? labels[idxCerradoPrev] : 'mes anterior';
+        htmlRes += '<span class="gp-resumen-item"><span class="gp-resumen-label">' + esc(labels[idxCerradoUlt]) + ' vs ' + esc(textoPrev) + ':</span> <strong class="' + claseUlt + '">' + fmtSigno(ult.monto) + ' (' + formatearPct(ult.pct) + ')</strong></span>';
       }
       var claseTend = tendencia.pendiente > 0 ? 'positivo' : (tendencia.pendiente < 0 ? 'negativo' : '');
       htmlRes += '<span class="gp-resumen-item"><span class="gp-resumen-label">Tendencia:</span> <strong class="' + claseTend + '">' + fmtSigno(tendencia.pendiente) + ' por mes</strong></span>';
       resumenEl.innerHTML = htmlRes;
     }
-    var ultVar = variaciones[variaciones.length - 1];
+    var ultVar = idxCerradoUlt >= 0 ? variaciones[idxCerradoUlt] : null;
     gpResumenReporte = {
-      labelUlt: labels[labels.length - 1],
-      labelPrev: labels.length > 1 ? labels[labels.length - 2] : null,
+      labelUlt: idxCerradoUlt >= 0 ? labels[idxCerradoUlt] : null,
+      labelPrev: idxCerradoPrev >= 0 ? labels[idxCerradoPrev] : null,
       ultMonto: ultVar ? ultVar.monto : null,
       ultPct: ultVar ? ultVar.pct : null,
       pendiente: tendencia.pendiente
     };
-    var colores = valores.map(function (v) {
+    var colores = valores.map(function (v, i) {
+      if (meses12[i] === keyCurso) return 'rgba(2, 132, 199, 0.8)';
       if (v === 0) return 'rgba(100, 116, 139, 0.6)';
       return v > 0 ? 'rgba(13, 125, 61, 0.85)' : 'rgba(185, 28, 28, 0.85)';
     });
-    var bordes = valores.map(function (v) {
+    var bordes = valores.map(function (v, i) {
+      if (meses12[i] === keyCurso) return '#0284c7';
       if (v === 0) return 'rgba(100, 116, 139, 0.8)';
       return v > 0 ? '#0d7d3d' : '#b91c1c';
     });
@@ -300,9 +365,9 @@
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
-        layout: { padding: { top: 8 } },
+        layout: { padding: { top: 18, right: 28 } },
         plugins: {
-          etiquetasVarGP: { variaciones: variaciones, moneda: moneda },
+          etiquetasVarGP: { variaciones: variaciones, moneda: moneda, mesCursoIndex: meses12.indexOf(keyCurso) },
           legend: {
             display: true,
             position: 'top',
@@ -312,10 +377,14 @@
               boxHeight: 10,
               font: { size: 11 },
               generateLabels: function (chart) {
-                return [
+                var items = [
                   { text: 'G/P', fillStyle: 'rgba(13, 125, 61, 0.85)', strokeStyle: '#0d7d3d', lineWidth: 1, datasetIndex: 0, hidden: !chart.isDatasetVisible(0) },
                   { text: 'Tendencia', fillStyle: 'rgba(0,0,0,0)', strokeStyle: '#1e40af', lineWidth: 2, lineDash: [6, 4], datasetIndex: 1, hidden: !chart.isDatasetVisible(1) }
                 ];
+                if (meses12.indexOf(keyCurso) >= 0) {
+                  items.splice(1, 0, { text: 'Mes en curso', fillStyle: 'rgba(2, 132, 199, 0.8)', strokeStyle: '#0284c7', lineWidth: 1, datasetIndex: 0, hidden: !chart.isDatasetVisible(0) });
+                }
+                return items;
               }
             }
           },
@@ -323,12 +392,17 @@
             callbacks: {
               label: function (ctx) {
                 var v = ctx.raw;
-                if (ctx.datasetIndex === 1) return 'Tendencia: ' + simbolo + fmtFull(v);
+                if (ctx.datasetIndex === 1) {
+                  if (v == null) return 'Tendencia: no incluye el mes en curso';
+                  return 'Tendencia: ' + simbolo + fmtFull(v);
+                }
                 var lineas = [];
+                if (meses12[ctx.dataIndex] === keyCurso) lineas.push('Mes en curso');
                 if (v === 0) lineas.push('G/P: ' + simbolo + '0 (ingresos = egresos)');
                 else lineas.push((v > 0 ? 'G/P: ' : 'Pérdida: ') + simbolo + fmtFull(v));
                 var va = variaciones[ctx.dataIndex];
-                if (va && va.monto != null) lineas.push('Var. vs mes anterior: ' + fmtSigno(va.monto) + ' (' + formatearPct(va.pct) + ')');
+                if (meses12[ctx.dataIndex] === keyCurso) lineas.push('No entra en la variación ni en la tendencia');
+                else if (va && va.monto != null) lineas.push('Var. vs mes anterior: ' + fmtSigno(va.monto) + ' (' + formatearPct(va.pct) + ')');
                 else lineas.push('Var. vs mes anterior: sin dato');
                 return lineas;
               }
@@ -394,19 +468,24 @@
     var ing = function (k) { return Number(dato(k).ingresos) || 0; };
     var egr = function (k) { return Number(dato(k).egresos) || 0; };
 
-    var headCols = meses.map(function (k) { return '<th>' + formatoPeriodoFromKey(k) + '</th>'; }).concat(['<th>Total</th>']);
-    var totIng = meses.reduce(function (s, k) { return s + ing(k); }, 0);
-    var totEgr = meses.reduce(function (s, k) { return s + egr(k); }, 0);
+    var keyCurso = keyMesEnCurso();
+    var mesesCerrados = meses.filter(function (k) { return k !== keyCurso; });
+    function clsCurso(k, base) { return base + (k === keyCurso ? ' rep-mes-curso' : ''); }
+    var headCols = meses.map(function (k) {
+      return '<th class="' + (k === keyCurso ? 'rep-mes-curso' : '') + '">' + formatoPeriodoFromKey(k) + (k === keyCurso ? ' · en curso' : '') + '</th>';
+    }).concat(['<th>Total</th>']);
+    var totIng = mesesCerrados.reduce(function (s, k) { return s + ing(k); }, 0);
+    var totEgr = mesesCerrados.reduce(function (s, k) { return s + egr(k); }, 0);
     var totGp = totIng - totEgr;
     var claseGp = function (v) { return 'balance ' + (v >= 0 ? 'positivo' : 'negativo'); };
 
     function filaMontos(getMes, clase, total) {
-      return meses.map(function (k) { return '<td class="' + clase + '">' + fmt(getMes(k)) + '</td>'; })
+      return meses.map(function (k) { return '<td class="' + clsCurso(k, clase) + '">' + fmt(getMes(k)) + '</td>'; })
         .concat(['<td class="' + clase + '">' + fmt(total) + '</td>']);
     }
     var filaGp = meses.map(function (k) {
       var v = ing(k) - egr(k);
-      return '<td class="' + claseGp(v) + '">' + fmt(v) + '</td>';
+      return '<td class="' + clsCurso(k, claseGp(v)) + '">' + fmt(v) + '</td>';
     }).concat(['<td class="' + claseGp(totGp) + '">' + fmt(totGp) + '</td>']);
 
     var svgSubio = '<span class="ratio-var-icon ratio-var-subio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></span>';
@@ -421,12 +500,20 @@
       var denFn = getDen || ing;
       var pctMes = function (k) { return pctRatio(getNum(k), denFn(k)); };
       var serie = meses.map(pctMes);
-      var anteriorPrimero = pctMes(mesAnteriorKey(meses[0]));
+      var prevKey = mesAnteriorKey(meses[0]);
+      var anteriorPrimero = prevKey === keyCurso ? null : pctMes(prevKey);
+      function anteriorCerrado(i) {
+        if (meses[i] === keyCurso) return null;
+        for (var j = i - 1; j >= 0; j--) {
+          if (meses[j] !== keyCurso) return serie[j];
+        }
+        return anteriorPrimero;
+      }
       var vals = serie.map(function (p, i) {
-        return '<td class="valor-ratio"><span class="ratio-con-variacion">' + fmtPct(p) + iconoVar(p, i === 0 ? anteriorPrimero : serie[i - 1]) + '</span></td>';
+        return '<td class="' + clsCurso(meses[i], 'valor-ratio') + '"><span class="ratio-con-variacion">' + fmtPct(p) + iconoVar(p, anteriorCerrado(i)) + '</span></td>';
       });
-      var num = meses.reduce(function (s, k) { return s + (Number(getNum(k)) || 0); }, 0);
-      var denTot = meses.reduce(function (s, k) { return s + (Number(denFn(k)) || 0); }, 0);
+      var num = mesesCerrados.reduce(function (s, k) { return s + (Number(getNum(k)) || 0); }, 0);
+      var denTot = mesesCerrados.reduce(function (s, k) { return s + (Number(denFn(k)) || 0); }, 0);
       vals.push('<td class="valor-ratio">' + fmtPct(pctRatio(num, denTot)) + '</td>');
       return vals;
     }
@@ -447,7 +534,7 @@
       { tipo: 'datos', item: 'Costo total / Ingreso total', vals: filaRatio(egr) }
     ];
     var headItem = 'Item <span class="rep-unidad">(' + unidadMilesReporte(mon) + ')</span>';
-    var notas = ['Importes expresados en ' + unidadMilesReporte(mon) + ' (redondeados). Período ' + labelPeriodoActual() + '; la columna Total suma esos meses. No incluye meses proyectados.'];
+    var notas = ['Importes expresados en ' + unidadMilesReporte(mon) + ' (redondeados). Período ' + labelPeriodoActual() + '. La columna Total suma los meses cerrados: el mes en curso (celeste) no entra, ni los proyectados.'];
     var n = headCols.length;
     var bloques = Math.max(1, Math.ceil(n / maxCols));
     var porBloque = Math.ceil(n / bloques);
