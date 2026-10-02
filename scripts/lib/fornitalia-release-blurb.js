@@ -8,12 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.78',
+    versionLabel: 'v2.79',
     lines: [
-      'En las cajas de banco y en las cajas físicas se ve ID Venta e ID Compra.',
-      'También aparecen en Flujo de caja, en Todas las transacciones.',
-      'En Filtros se puede buscar por esos números.',
-      'El Excel de esos listados los incluye.'
+      'En Efectivo y en Morba, el saldo se rearma con los movimientos que siguen en la caja.',
+      'Lo eliminado no entra en el saldo ni en la comparación de Tesorería saldos.',
+      'Morba vuelve al cierre que cierra con esos movimientos.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

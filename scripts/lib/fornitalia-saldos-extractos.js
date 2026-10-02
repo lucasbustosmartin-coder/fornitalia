@@ -59,6 +59,7 @@
     msg: '',
     err: '',
     movsMes: [],
+    movsCaja: [],
     chart: null,
     tcLoaded: false,
     tcMap: {},
@@ -1528,6 +1529,7 @@
     return (state.movsMes || []).filter(function (m) {
       if (!m || m.canal !== canal) return false;
       if (m.origen !== origenMovsCanalSe(canal)) return false;
+      if (m.pendiente_baja === true || m.pendiente_baja === 'true') return false;
       if (esAperturaSe(m)) return false;
       var f = String(m.fecha || '').slice(0, 10);
       if (!f) return false;
@@ -1652,6 +1654,111 @@
     return Object.keys(set).sort();
   }
 
+  function canalesSaldoPorMovimientos() {
+    return [CANAL_GF, CANAL_MOR, CANAL_USD];
+  }
+
+  function cortesCanalOrdenados(canal) {
+    return (state.rows || []).filter(function (r) {
+      return r && !r._vivo && r.canal === canal && !esResumenCuentaMp(r) && String(r.fecha_hasta || '').slice(0, 10);
+    }).slice().sort(function (a, b) {
+      return String(a.fecha_hasta).localeCompare(String(b.fecha_hasta));
+    });
+  }
+
+  function montoUsdMovCaja(m) {
+    var u = m && m.monto_usd != null && m.monto_usd !== '' ? Number(m.monto_usd) : NaN;
+    if (!isFinite(u) && m && m.raw && m.raw.monto_usd != null) u = Number(m.raw.monto_usd);
+    if (!isFinite(u)) return null;
+    var signo = Number(m.monto);
+    if (isFinite(signo) && signo < 0) return -Math.abs(u);
+    return u;
+  }
+
+  function netoMovsCaja(canal, desdeExcl, hastaIncl) {
+    var neto = 0;
+    var netoUsd = 0;
+    var hayUsd = false;
+    (state.movsCaja || []).forEach(function (m) {
+      if (!m || m.canal !== canal) return;
+      if (m.pendiente_baja === true || m.pendiente_baja === 'true') return;
+      if (esAperturaSe(m)) return;
+      var f = String(m.fecha || '').slice(0, 10);
+      if (!f) return;
+      if (desdeExcl && f <= desdeExcl) return;
+      if (hastaIncl && f > hastaIncl) return;
+      neto = round2((neto || 0) + (netoMovimientoSe(m) || 0));
+      var usd = montoUsdMovCaja(m);
+      if (usd != null) {
+        hayUsd = true;
+        netoUsd = round2(netoUsd + usd);
+      }
+    });
+    return { neto: round2(neto || 0), netoUsd: hayUsd ? round2(netoUsd) : null };
+  }
+
+  function anclaSaldoCaja(canal) {
+    var cortes = cortesCanalOrdenados(canal);
+    if (!cortes.length) return null;
+    var accepted = cortes[cortes.length - 1];
+    var i;
+    for (i = cortes.length - 2; i >= 0; i--) {
+      var older = cortes[i];
+      var delta = netoMovsCaja(canal, String(older.fecha_hasta).slice(0, 10), String(accepted.fecha_hasta).slice(0, 10));
+      var base = Number(older.saldo_final);
+      var esperado = isFinite(base) ? round2(base + delta.neto) : null;
+      var fin = Number(accepted.saldo_final);
+      if (esperado != null && isFinite(fin) && Math.abs(fin - esperado) < 0.02) break;
+      accepted = older;
+    }
+    return accepted;
+  }
+
+  function saldoVigenteCaja(canal, hastaYmd) {
+    if (canalesSaldoPorMovimientos().indexOf(canal) < 0) return null;
+    if (!state.movsCaja) return null;
+    var ancla = anclaSaldoCaja(canal);
+    if (!ancla) return null;
+    var baseF = String(ancla.fecha_hasta).slice(0, 10);
+    var hasta = String(hastaYmd || baseF).slice(0, 10);
+    if (hasta < baseF) hasta = baseF;
+    var extra = netoMovsCaja(canal, baseF, hasta);
+    var base = Number(ancla.saldo_final);
+    if (!isFinite(base)) return null;
+    var usdBase = ancla.raw && ancla.raw.saldo_usd != null ? Number(ancla.raw.saldo_usd) : null;
+    return {
+      saldo: round2(base + extra.neto),
+      saldoUsd: usdBase != null ? round2(usdBase + (extra.netoUsd || 0)) : null
+    };
+  }
+
+  function aplicarSaldosSinEliminados() {
+    if (!state.movsCaja) return;
+    canalesSaldoPorMovimientos().forEach(function (canal) {
+      var cortes = cortesCanalOrdenados(canal);
+      if (cortes.length < 2) return;
+      var accepted = cortes[cortes.length - 1];
+      var i;
+      for (i = cortes.length - 2; i >= 0; i--) {
+        var older = cortes[i];
+        var delta = netoMovsCaja(canal, String(older.fecha_hasta).slice(0, 10), String(accepted.fecha_hasta).slice(0, 10));
+        var base = Number(older.saldo_final);
+        var esperado = isFinite(base) ? round2(base + delta.neto) : null;
+        var fin = Number(accepted.saldo_final);
+        if (esperado != null && isFinite(fin) && Math.abs(fin - esperado) < 0.02) break;
+        if (esperado != null) {
+          accepted.saldo_final = esperado;
+          accepted.saldo_inicial = round2(base);
+          accepted.raw = Object.assign({}, accepted.raw || {}, { saldo_reconstruido: true });
+          if (older.raw && older.raw.saldo_usd != null && delta.netoUsd != null) {
+            accepted.raw.saldo_usd = round2(Number(older.raw.saldo_usd) + delta.netoUsd);
+          }
+        }
+        accepted = older;
+      }
+    });
+  }
+
   function saldoCanalMes(canal, ym) {
     var ymHoy = mesYYYYMM(hoyYmd());
     if (ym === ymHoy) {
@@ -1659,6 +1766,8 @@
       if (vivo && vivo.saldo_final != null && isFinite(Number(vivo.saldo_final))) {
         return Number(vivo.saldo_final);
       }
+      var vig = saldoVigenteCaja(canal, hoyYmd());
+      if (vig && vig.saldo != null) return vig.saldo;
     }
     var r = ultimoSaldoHasta(canal, ym);
     if (!r) return null;
@@ -1675,6 +1784,8 @@
         var uVivo = usdFinalDeFilaSe(vivo);
         if (uVivo != null) return uVivo;
       }
+      var vigUsd = saldoVigenteCaja(canal, hoyYmd());
+      if (vigUsd && vigUsd.saldoUsd != null) return vigUsd.saldoUsd;
     }
     var r = ultimoSaldoHasta(canal, ym);
     return r ? usdFinalDeFilaSe(r) : null;
@@ -1790,7 +1901,8 @@
     var offset = 0;
     for (;;) {
       var res = await client().from('cb_movimiento')
-        .select('id,canal,origen,fecha,monto,credito,debito,saldo,fila_excel,archivo,created_at,tipo,descripcion,categoria,moneda')
+        .select('id,canal,origen,fecha,monto,credito,debito,saldo,fila_excel,archivo,created_at,tipo,descripcion,categoria,moneda,pendiente_baja')
+        .eq('pendiente_baja', false)
         .gte('fecha', desde)
         .lte('fecha', hoy)
         .in('canal', [CANAL_MP, CANAL_GAL, CANAL_GAL_USD, CANAL_CRED])
@@ -1808,6 +1920,30 @@
     state.movsMes = all;
   }
 
+  async function cargarMovimientosCaja() {
+    state.movsCaja = [];
+    if (!client()) return;
+    var all = [];
+    var offset = 0;
+    for (;;) {
+      var res = await client().from('cf_movimiento')
+        .select('canal,fecha,monto,credito,debito,monto_usd,tipo,descripcion,categoria,pendiente_baja')
+        .in('canal', canalesSaldoPorMovimientos())
+        .eq('pendiente_baja', false)
+        .order('fecha', { ascending: true })
+        .range(offset, offset + SUPABASE_PAGE - 1);
+      if (res.error) {
+        state.movsCaja = null;
+        return;
+      }
+      var chunk = res.data || [];
+      all = all.concat(chunk);
+      if (chunk.length < SUPABASE_PAGE) break;
+      offset += SUPABASE_PAGE;
+    }
+    state.movsCaja = all;
+  }
+
   async function recargar() {
     state.loading = true;
     renderShell();
@@ -1815,6 +1951,8 @@
       await cargarUsuarios();
       await cargarDatos();
       await cargarMovimientosMes();
+      await cargarMovimientosCaja();
+      aplicarSaldosSinEliminados();
       var hayUsd = (state.rows || []).some(function (r) {
         return r.canal === CANAL_GAL_USD || r.canal === CANAL_USD || r.canal === CANAL_SF_USD;
       }) || (state.movsMes || []).some(function (m) { return m.canal === CANAL_GAL_USD; });
@@ -2104,7 +2242,7 @@
     }).join('');
     var body =
       '<p class="se-cmp-meta">Archivo al <strong>' + esc(al) + '</strong> · Mes en curso de la app al <strong>' + esc(hoy) + '</strong>.</p>' +
-      '<p class="se-cmp-note">El Excel de tesorería arma el saldo desde la última apertura. En Galicia la app muestra el saldo corrido del extracto (el del banco). En Mercado Pago, el mes en curso es el saldo total de la última carta más los movimientos del extracto. En Credicoop, último corte + movimientos del mes. En cajas dólar se compara US$.</p>' +
+      '<p class="se-cmp-note">El Excel de tesorería arma el saldo desde la última apertura. En Galicia la app muestra el saldo corrido del extracto (el del banco). En Mercado Pago, el mes en curso es el saldo total de la última carta más los movimientos del extracto. En Credicoop, último corte + movimientos del mes. En Efectivo y Morba, un corte que no cierra con los movimientos que siguen en la caja se rearma: lo eliminado no entra al saldo. En cajas dólar se compara US$.</p>' +
       '<div class="se-cmp-chips">' +
         '<span class="se-cmp-chip se-cmp-chip-ok">Coinciden ' + cmp.nOk + '</span>' +
         '<span class="se-cmp-chip se-cmp-chip-bad">Diferencias ' + cmp.nBad + '</span>' +
