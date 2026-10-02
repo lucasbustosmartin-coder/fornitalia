@@ -53,6 +53,8 @@
     tipo: '',
     categoria: '',
     cuenta: '',
+    idVenta: '',
+    idCompra: '',
     sort: {
       movimientos: { key: 'fecha', dir: 'desc' },
       bajas: { key: 'fecha', dir: 'desc' }
@@ -206,6 +208,13 @@
     return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000);
   }
 
+  function excelIdRel(m, campo) {
+    var t = idRelacionDe(m, campo);
+    if (!t) return null;
+    if (/^\d+$/.test(t)) return Number(t);
+    return t;
+  }
+
   function excelNum(n) {
     if (n == null || n === '') return null;
     var v = Number(n);
@@ -238,6 +247,46 @@
       if (idx != null && row[idx] != null && row[idx] !== '') return row[idx];
     }
     return '';
+  }
+
+  var NOMBRES_ID_VENTA = ['ID Venta', 'Id Venta', 'Id_venta', 'ID_Venta'];
+  var NOMBRES_ID_COMPRA = ['ID Compra', 'Id Compra', 'Id_compra', 'ID_Compra'];
+
+  function mapaTieneHeader(map, names) {
+    var i;
+    for (i = 0; i < names.length; i++) {
+      if (map[normHeader(names[i])] != null) return true;
+    }
+    return false;
+  }
+
+  function leerIdRelacion(row, map, names, tiene) {
+    if (!tiene) return undefined;
+    var v = String(cell(row, map, names) || '').trim();
+    return v || null;
+  }
+
+  function aplicarIdsRelacion(fila, idVenta, idCompra) {
+    if (!fila) return fila;
+    if (!fila.raw || typeof fila.raw !== 'object') fila.raw = {};
+    if (idVenta !== undefined) {
+      fila.id_venta = idVenta;
+      fila.raw.id_venta = idVenta;
+    }
+    if (idCompra !== undefined) {
+      fila.id_compra = idCompra;
+      fila.raw.id_compra = idCompra;
+    }
+    return fila;
+  }
+
+  function idRelacionDe(m, campo) {
+    if (!m) return '';
+    var top = m[campo];
+    if (top != null && String(top).trim()) return String(top).trim();
+    var raw = m.raw && typeof m.raw === 'object' ? m.raw : {};
+    var v = raw[campo];
+    return v == null ? '' : String(v).trim();
   }
 
   function esAperturaDeCajaTexto(tipo, desc) {
@@ -566,6 +615,8 @@
     var saldoApertura = null;
     var fechaApertura = '';
     var aperturas = [];
+    var tieneIdVenta = mapaTieneHeader(map, NOMBRES_ID_VENTA);
+    var tieneIdCompra = mapaTieneHeader(map, NOMBRES_ID_COMPRA);
     for (r = 1; r < det.rows.length; r++) {
       var row = det.rows[r] || [];
       var tipo = String(cell(row, map, ['Tipo']) || '').trim();
@@ -603,6 +654,8 @@
       var usuario = String(cell(row, map, ['Usuario']) || '').trim();
       var status = String(cell(row, map, ['Status', 'Estado']) || '').trim();
       var tcFila = parseMonto(cell(row, map, ['Tipo de Cambio', 'Tipo_Cambio', 'TC', 'Tipo Cambio']));
+      var idVenta = leerIdRelacion(row, map, NOMBRES_ID_VENTA, tieneIdVenta);
+      var idCompra = leerIdRelacion(row, map, NOMBRES_ID_COMPRA, tieneIdCompra);
       if (esAperturaDeCajaTexto(tipo, desc)) {
         omitidasApertura += 1;
         continue;
@@ -663,6 +716,7 @@
           id: idCierre, formato: esCierre ? 'cierre' : 'tesoreria'
         }
       };
+      aplicarIdsRelacion(filaObj, idVenta, idCompra);
       if (canalSfFila && !todosLosCanales && canalSfFila !== state.canal) filasSf.push(filaObj);
       else filas.push(filaObj);
     }
@@ -920,6 +974,8 @@
     if (s.tipo) n++;
     if (s.categoria) n++;
     if (s.cuenta) n++;
+    if (String(s.idVenta || '').trim()) n++;
+    if (String(s.idCompra || '').trim()) n++;
     return n;
   }
 
@@ -943,7 +999,8 @@
     if (!q) return true;
     var blob = normHeader([
       m.fecha, m.tipo, m.descripcion, observacionesDe(m), m.contraparte, m.categoria, m.cuenta_contable,
-      m.origen_id, m.monto, m.credito, m.debito, m.saldo, m.monto_usd, m.tipo_cambio_mep
+      m.origen_id, idRelacionDe(m, 'id_venta'), idRelacionDe(m, 'id_compra'),
+      m.monto, m.credito, m.debito, m.saldo, m.monto_usd, m.tipo_cambio_mep
     ].join(' '));
     return blob.indexOf(q) >= 0;
   }
@@ -954,6 +1011,10 @@
     if (state.tipo && String(m.tipo || '').trim() !== state.tipo) return false;
     if (state.categoria && valorCatCta(m.categoria) !== state.categoria) return false;
     if (state.cuenta && valorCatCta(m.cuenta_contable) !== state.cuenta) return false;
+    var venta = String(state.idVenta || '').trim().toLowerCase();
+    var compra = String(state.idCompra || '').trim().toLowerCase();
+    if (venta && idRelacionDe(m, 'id_venta').toLowerCase() !== venta) return false;
+    if (compra && idRelacionDe(m, 'id_compra').toLowerCase() !== compra) return false;
     return true;
   }
 
@@ -998,6 +1059,8 @@
     if (key === 'monto_usd') return { v: m.monto_usd, t: 'num' };
     if (key === 'tipo_cambio_mep') return { v: m.tipo_cambio_mep, t: 'num' };
     if (key === 'id') return { v: idVisible(m), t: 'txt' };
+    if (key === 'id_venta') return { v: idRelacionDe(m, 'id_venta'), t: 'txt' };
+    if (key === 'id_compra') return { v: idRelacionDe(m, 'id_compra'), t: 'txt' };
     if (key === 'usuario') return { v: textoUsuario(m.updated_by, m.created_by), t: 'txt' };
     return { v: m.fecha, t: 'fecha' };
   }
@@ -1714,8 +1777,8 @@
     }
     var usd = esCanalUsd(state.canal);
     var headers = usd
-      ? ['Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito ARS', 'Débito ARS', 'Saldo ARS', 'Importe ARS', 'USD orig.', 'TC MEP', 'Fecha TC', 'ID', 'Usuario']
-      : ['Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito', 'Débito', 'Saldo', 'Importe', 'ID', 'Usuario'];
+      ? ['Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito ARS', 'Débito ARS', 'Saldo ARS', 'Importe ARS', 'USD orig.', 'TC MEP', 'Fecha TC', 'ID', 'ID Venta', 'ID Compra', 'Usuario']
+      : ['Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito', 'Débito', 'Saldo', 'Importe', 'ID', 'ID Venta', 'ID Compra', 'Usuario'];
     var aoa = [headers];
     list.forEach(function (m) {
       var row = [
@@ -1734,7 +1797,7 @@
       if (usd) {
         row.push(excelNum(m.monto_usd), excelNum(m.tipo_cambio_mep), excelDate(m.tipo_cambio_fecha));
       }
-      row.push(idVisible(m), textoUsuario(m.updated_by, m.created_by));
+      row.push(idVisible(m), excelIdRel(m, 'id_venta'), excelIdRel(m, 'id_compra'), textoUsuario(m.updated_by, m.created_by));
       aoa.push(row);
     });
     var ws = global.XLSX.utils.aoa_to_sheet(aoa);
@@ -1805,6 +1868,8 @@
         (usd ? '<td class="cf-col-monto">' + htmlMonto(m.monto_usd) + '</td>' +
           '<td class="cf-col-monto">' + esc(formatMonto(m.tipo_cambio_mep)) + '</td>' : '') +
         '<td>' + esc(idVisible(m)) + '</td>' +
+        '<td>' + esc(idRelacionDe(m, 'id_venta') || '—') + '</td>' +
+        '<td>' + esc(idRelacionDe(m, 'id_compra') || '—') + '</td>' +
         '<td>' + htmlUsuario(m.updated_by, m.created_by) + '</td>' +
         '<td class="cf-col-acc">' +
           (canCargar && state.lista === 'bajas'
@@ -1828,6 +1893,8 @@
         thSort('monto', usd ? 'Importe ARS' : 'Importe', 'cf-col-monto') +
         (usd ? thSort('monto_usd', 'USD orig.', 'cf-col-monto') + thSort('tipo_cambio_mep', 'TC MEP', 'cf-col-monto') : '') +
         thSort('id', 'ID') +
+        thSort('id_venta', 'ID Venta') +
+        thSort('id_compra', 'ID Compra') +
         thSort('usuario', 'Usuario') +
         '<th class="cf-col-acc"></th>' +
       '</tr></thead><tbody>' + html + '</tbody></table></div>';
@@ -1857,8 +1924,10 @@
     var tipoOpts = htmlOpcionesSelect(opcionesTipo(filtroDyn), d.tipo || '', 'Todos los tipos');
     var catOpts = htmlOpcionesSelect(opcionesCategoria(filtroDyn), d.categoria || '', 'Todas las categorías');
     var ctaOpts = htmlOpcionesSelect(opcionesCuenta(filtroDyn), d.cuenta || '', 'Todas las cuentas');
+    var ventaOn = !!(d.idVenta || '').trim();
+    var compraOn = !!(d.idCompra || '').trim();
     return FornitaliaHelp.row('tpl-cf-filtros', 'Ayuda: Filtros',
-      '<p>Filtrá por mes, tipo, categoría y cuenta contable. El buscar de la pantalla sigue libre y no se restringe acá.</p>') +
+      '<p>Filtrá por mes, tipo, categoría, cuenta contable, <strong>ID Venta</strong> e <strong>ID Compra</strong>. El buscar de la pantalla sigue libre.</p>') +
       '<div class="cf-filtros-modal-grid">' +
         '<div class="form-group' + (d.mes ? ' cf-filtro-activo' : '') + '"><label for="cf-filtro-mes">Mes</label>' +
           '<select id="cf-filtro-mes" title="Filtrar por mes">' + mesOpts + '</select></div>' +
@@ -1868,6 +1937,10 @@
           '<select id="cf-filtro-categoria" title="Filtrar por categoría">' + catOpts + '</select></div>' +
         '<div class="form-group' + (d.cuenta ? ' cf-filtro-activo' : '') + '"><label for="cf-filtro-cuenta">Cuenta contable</label>' +
           '<select id="cf-filtro-cuenta" title="Filtrar por cuenta contable">' + ctaOpts + '</select></div>' +
+        '<div class="form-group' + (ventaOn ? ' cf-filtro-activo' : '') + '"><label for="cf-filtro-id-venta">ID Venta</label>' +
+          '<input type="text" id="cf-filtro-id-venta" inputmode="numeric" autocomplete="off" value="' + esc(d.idVenta || '') + '" placeholder="129" title="ID Venta exacto del histórico"></div>' +
+        '<div class="form-group' + (compraOn ? ' cf-filtro-activo' : '') + '"><label for="cf-filtro-id-compra">ID Compra</label>' +
+          '<input type="text" id="cf-filtro-id-compra" inputmode="numeric" autocomplete="off" value="' + esc(d.idCompra || '') + '" placeholder="163" title="ID Compra exacto del histórico"></div>' +
       '</div>';
   }
 
@@ -1889,6 +1962,20 @@
     bindSel('#cf-filtro-tipo', 'tipo', true);
     bindSel('#cf-filtro-categoria', 'categoria', true);
     bindSel('#cf-filtro-cuenta', 'cuenta', false);
+    function bindTxt(id, campo) {
+      var el = bd.querySelector(id);
+      if (!el) return;
+      el.addEventListener('input', function () {
+        state.filtrosDraft[campo] = el.value || '';
+        var grp = el.closest && el.closest('.form-group');
+        if (grp) {
+          if (String(el.value || '').trim()) grp.classList.add('cf-filtro-activo');
+          else grp.classList.remove('cf-filtro-activo');
+        }
+      });
+    }
+    bindTxt('#cf-filtro-id-venta', 'idVenta');
+    bindTxt('#cf-filtro-id-compra', 'idCompra');
   }
 
   function refreshModalFiltros() {
@@ -1913,6 +2000,8 @@
       state.filtrosDraft.tipo = '';
       state.filtrosDraft.categoria = '';
       state.filtrosDraft.cuenta = '';
+      state.filtrosDraft.idVenta = '';
+      state.filtrosDraft.idCompra = '';
       refreshModalFiltros();
       return;
     }
@@ -1930,6 +2019,8 @@
     state.tipo = d.tipo || '';
     state.categoria = d.categoria || '';
     state.cuenta = d.cuenta || '';
+    state.idVenta = String(d.idVenta || '').trim();
+    state.idCompra = String(d.idCompra || '').trim();
     cerrarModalFiltros();
     renderShell();
   }
@@ -1941,7 +2032,9 @@
       mes: state.mes || '',
       tipo: state.tipo || '',
       categoria: state.categoria || '',
-      cuenta: state.cuenta || ''
+      cuenta: state.cuenta || '',
+      idVenta: state.idVenta || '',
+      idCompra: state.idCompra || ''
     };
     var bd = document.createElement('div');
     bd.className = 'cf-modal-backdrop cf-modal-filtros-backdrop';
@@ -2092,6 +2185,8 @@
       state.tipo = '';
       state.categoria = '';
       state.cuenta = '';
+      state.idVenta = '';
+      state.idCompra = '';
       state.msg = '';
       state.err = '';
       cerrarModal();

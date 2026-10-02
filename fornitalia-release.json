@@ -1,9 +1,9 @@
 {
-  "versionLabel": "v2.77",
+  "versionLabel": "v2.78",
   "lines": [
-    "En Saldos de Extracto, Mercado Pago vuelve a la carta de saldo.",
-    "El corte es el saldo total, con el dinero a liberar.",
-    "La última carta queda al 01/10/2026, como el resto de la serie.",
-    "El mes en curso parte de ese saldo y suma los movimientos del extracto."
+    "En las cajas de banco y en las cajas físicas se ve ID Venta e ID Compra.",
+    "También aparecen en Flujo de caja, en Todas las transacciones.",
+    "En Filtros se puede buscar por esos números.",
+    "El Excel de esos listados los incluye."
   ]
 }

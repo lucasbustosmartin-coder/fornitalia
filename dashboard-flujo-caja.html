@@ -869,6 +869,8 @@
     #tabla-todas-transacciones thead th.dash-th-sort { padding: 0; background: #f2f3f5; }
     @media (max-width: 768px) {
       .dash-th-sort-btn { min-height: 44px; }
+      .errores-filtros input,
+      .errores-filtros select { font-size: 16px; min-height: 44px; }
     }
     .fila-proyeccion { font-style: italic; color: #555; background: #fafafa; cursor: pointer; }
     .fila-proyeccion:hover { background: #f0f0f0; }
@@ -1376,7 +1378,7 @@
     <div id="panel-todas-transacciones" class="card panel">
       <template id="template-todas-transacciones-panel">
         <div class="th-help-rich-content">
-          <p>Listado de todas las transacciones. Filtros por mes, <strong>categoría y cuenta nueva (BD)</strong>, <strong>cliente</strong>, tipo, y buscador por <strong>id de operación o descripción</strong>. Clic en un encabezado para ordenar. En la tabla: categoría/cuenta del extracto (vieja) y nueva en BD por separado. Al guardar se marca como editado.</p>
+          <p>Listado de todas las transacciones. Filtros por mes, <strong>categoría y cuenta nueva (BD)</strong>, <strong>cliente</strong>, tipo, <strong>ID Venta</strong>, <strong>ID Compra</strong> y buscador por <strong>id de operación o descripción</strong>. Clic en un encabezado para ordenar. En la tabla: categoría/cuenta del extracto (vieja) y nueva en BD por separado. Al guardar se marca como editado.</p>
         </div>
       </template>
       <div class="errores-panel-toolbar">
@@ -1403,6 +1405,10 @@
           <select id="filtro-todas-cliente" title="Filtrar por cliente">
             <option value="todos">Todos</option>
           </select>
+          <label for="filtro-todas-id-venta" style="margin-left:0.75rem;">ID Venta:</label>
+          <input type="text" id="filtro-todas-id-venta" inputmode="numeric" placeholder="129" title="ID Venta exacto del histórico" style="padding:0.35rem 0.6rem; border-radius:6px; border:1px solid #ccc; font-size:0.9rem; min-width:90px; min-height:2.25rem; box-sizing:border-box;">
+          <label for="filtro-todas-id-compra" style="margin-left:0.75rem;">ID Compra:</label>
+          <input type="text" id="filtro-todas-id-compra" inputmode="numeric" placeholder="163" title="ID Compra exacto del histórico" style="padding:0.35rem 0.6rem; border-radius:6px; border:1px solid #ccc; font-size:0.9rem; min-width:90px; min-height:2.25rem; box-sizing:border-box;">
           <label for="filtro-todas-id-operacion" style="margin-left:0.75rem;">Buscar:</label>
           <input type="text" id="filtro-todas-id-operacion" placeholder="Id, descripción u observaciones" title="Filtrar por id operación, descripción u observaciones (coincidencia parcial)" style="padding:0.35rem 0.6rem; border-radius:6px; border:1px solid #ccc; font-size:0.9rem; min-width:180px;">
         </div>
@@ -1435,6 +1441,8 @@
               <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="origen" data-label="Origen" title="Ordenar Origen" aria-label="Ordenar por Origen">Origen<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
               <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="id_origen" data-label="Id origen" title="Ordenar Id origen" aria-label="Ordenar por Id origen">Id origen<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
               <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="id_operacion" data-label="Id operación" title="Ordenar Id operación" aria-label="Ordenar por Id operación">Id operación<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="id_venta" data-label="ID Venta" title="Ordenar ID Venta" aria-label="Ordenar por ID Venta">ID Venta<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
+              <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="id_compra" data-label="ID Compra" title="Ordenar ID Compra" aria-label="Ordenar por ID Compra">ID Compra<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
               <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="usuario" data-label="Usuario" title="Ordenar Usuario" aria-label="Ordenar por Usuario">Usuario<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
               <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="editado" data-label="Editado" title="Ordenar Editado" aria-label="Ordenar por Editado">Editado<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
               <th class="dash-th-sort"><button type="button" class="dash-th-sort-btn" data-sort="editado_detalle" data-label="Editado detalle" title="Ordenar Editado detalle" aria-label="Ordenar por Editado detalle">Editado detalle<span class="dash-sort-ind" aria-hidden="true">↕</span></button></th>
@@ -2065,7 +2073,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.77';
+    const APP_VERSION = '2.78';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -3877,6 +3885,13 @@
       return canal || '';
     }
 
+    function idRelacionDesdeTesoreria(m, campo) {
+      if (m && m[campo] != null && String(m[campo]).trim()) return String(m[campo]).trim();
+      const raw = m && m.raw && typeof m.raw === 'object' ? m.raw : {};
+      const v = raw[campo];
+      return v != null && String(v).trim() ? String(v).trim() : '';
+    }
+
     function idOrigenDesdeTesoreria(m) {
       const oid = String(m.origen_id || '').trim();
       if (oid.indexOf('id|') === 0) return oid.slice(3);
@@ -3922,6 +3937,8 @@
         canal_tesoreria: m.canal || '',
         id_origen: idOrigenDesdeTesoreria(m),
         id_operacion: m.origen_id || null,
+        id_venta: idRelacionDesdeTesoreria(m, 'id_venta'),
+        id_compra: idRelacionDesdeTesoreria(m, 'id_compra'),
         fecha: m.fecha,
         tipo_movimiento: tipo,
         monto: Number.isFinite(monto) ? monto : 0,
@@ -3957,12 +3974,12 @@
       const [cbRows, cfRows, matrizRes] = await Promise.all([
         fetchAllPaginated(
           'cb_movimiento',
-          'id,canal,origen,origen_id,fecha,tipo,descripcion,contraparte,monto,moneda,categoria,cuenta_contable,archivo,raw,pendiente_baja,created_by,updated_by',
+          'id,canal,origen,origen_id,fecha,tipo,descripcion,contraparte,monto,moneda,categoria,cuenta_contable,archivo,raw,pendiente_baja,id_venta,id_compra,created_by,updated_by',
           (q) => q.eq('origen', 'sistema').eq('pendiente_baja', false)
         ),
         fetchAllPaginated(
           'cf_movimiento',
-          'id,canal,origen_id,fecha,tipo,descripcion,contraparte,monto,moneda,categoria,cuenta_contable,archivo,raw,pendiente_baja,monto_usd,tipo_cambio_mep,created_by,updated_by',
+          'id,canal,origen_id,fecha,tipo,descripcion,contraparte,monto,moneda,categoria,cuenta_contable,archivo,raw,pendiente_baja,monto_usd,tipo_cambio_mep,id_venta,id_compra,created_by,updated_by',
           (q) => q.eq('pendiente_baja', false)
         ),
         client.from('matriz_cat_cuenta_ef').select('categoria,cuenta_contable,tipo_movimiento,ef_item,ef_subitem,costo_directo,costo_indirecto,vigente').eq('vigente', true)
@@ -4811,6 +4828,8 @@
         case 'origen': return (r.origen_archivo || '').trim();
         case 'id_origen': return r.id_origen != null ? String(r.id_origen) : '';
         case 'id_operacion': return r.id_operacion != null ? String(r.id_operacion) : '';
+        case 'id_venta': return r.id_venta != null ? String(r.id_venta) : '';
+        case 'id_compra': return r.id_compra != null ? String(r.id_compra) : '';
         case 'usuario': return window.FornitaliaUsuario ? FornitaliaUsuario.textoDe(r.updated_by, r.created_by) : '';
         case 'editado': return r.editado ? 1 : 0;
         case 'editado_detalle': return (r.editado_detalle || '').toString();
@@ -7516,10 +7535,12 @@
       const selTipo = document.getElementById('filtro-todas-tipo');
       const selCliente = document.getElementById('filtro-todas-cliente');
       const inputIdOperacion = document.getElementById('filtro-todas-id-operacion');
+      const inputIdVenta = document.getElementById('filtro-todas-id-venta');
+      const inputIdCompra = document.getElementById('filtro-todas-id-compra');
       if (!tbody || !selMes || !selCat || !selCuenta || !selTipo || !selCliente) return;
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       if (cacheTransacciones.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="27" style="text-align:center; color:#666;">No hay transacciones cargadas.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="29" style="text-align:center; color:#666;">No hay transacciones cargadas.</td></tr>';
         programarAjusteTablasScrollAncladas();
         return;
       }
@@ -7569,6 +7590,14 @@
       if (valorCliente !== 'todos') {
         list = list.filter(r => (r.cliente || '').trim() === valorCliente);
       }
+      const valorIdVenta = (inputIdVenta && inputIdVenta.value) ? String(inputIdVenta.value).trim().toLowerCase() : '';
+      const valorIdCompra = (inputIdCompra && inputIdCompra.value) ? String(inputIdCompra.value).trim().toLowerCase() : '';
+      if (valorIdVenta) {
+        list = list.filter(r => String(r.id_venta || '').trim().toLowerCase() === valorIdVenta);
+      }
+      if (valorIdCompra) {
+        list = list.filter(r => String(r.id_compra || '').trim().toLowerCase() === valorIdCompra);
+      }
       const valorIdOperacion = (inputIdOperacion && inputIdOperacion.value) ? String(inputIdOperacion.value).trim() : '';
       if (valorIdOperacion) {
         const busqueda = valorIdOperacion.toLowerCase();
@@ -7576,7 +7605,9 @@
           const idOp = ((r.id_operacion || '').toString().toLowerCase());
           const desc = ((r.descripcion || '').toString().toLowerCase());
           const obs = ((r.observaciones || '').toString().toLowerCase());
-          return idOp.includes(busqueda) || desc.includes(busqueda) || obs.includes(busqueda);
+          const idVenta = ((r.id_venta || '').toString().toLowerCase());
+          const idCompra = ((r.id_compra || '').toString().toLowerCase());
+          return idOp.includes(busqueda) || desc.includes(busqueda) || obs.includes(busqueda) || idVenta.includes(busqueda) || idCompra.includes(busqueda);
         });
       }
       if (sortTodas.key) {
@@ -7585,7 +7616,7 @@
       currentTodasTransaccionesList = list;
       const puedeEditar = puedeEditarRegistros();
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="27" style="text-align:center; color:#666;">No hay registros con los filtros seleccionados.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="29" style="text-align:center; color:#666;">No hay registros con los filtros seleccionados.</td></tr>';
         programarAjusteTablasScrollAncladas();
         return;
       }
@@ -7623,6 +7654,8 @@
             <td>${esc((r.origen_archivo || '').trim() || '')}</td>
             <td>${esc(r.id_origen != null ? r.id_origen : '')}</td>
             <td>${esc(r.id_operacion != null ? r.id_operacion : '')}</td>
+            <td>${esc(r.id_venta != null ? r.id_venta : '')}</td>
+            <td>${esc(r.id_compra != null ? r.id_compra : '')}</td>
             <td>${window.FornitaliaUsuario ? FornitaliaUsuario.celdaDe(r.updated_by, r.created_by) : '—'}</td>
             <td>${r.editado ? 'Sí' : '—'}</td>
             <td>${esc((r.editado_detalle || '').toString().slice(0, 60))}</td>
@@ -8215,6 +8248,10 @@
         document.getElementById('filtro-todas-cliente').addEventListener('change', renderTodasTransacciones);
         const filtroIdOperacionEl = document.getElementById('filtro-todas-id-operacion');
         if (filtroIdOperacionEl) filtroIdOperacionEl.addEventListener('input', renderTodasTransacciones);
+        const filtroIdVentaEl = document.getElementById('filtro-todas-id-venta');
+        const filtroIdCompraEl = document.getElementById('filtro-todas-id-compra');
+        if (filtroIdVentaEl) filtroIdVentaEl.addEventListener('input', renderTodasTransacciones);
+        if (filtroIdCompraEl) filtroIdCompraEl.addEventListener('input', renderTodasTransacciones);
         const filtroPeriodoEl = document.getElementById('filtro-periodo');
         if (filtroPeriodoEl) {
           filtroPeriodoEl.addEventListener('change', () => {
