@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.79',
+    versionLabel: 'v2.80',
     lines: [
-      'En Efectivo y en Morba, el saldo se rearma con los movimientos que siguen en la caja.',
-      'Lo eliminado no entra en el saldo ni en la comparación de Tesorería saldos.',
-      'Morba vuelve al cierre que cierra con esos movimientos.'
+      'En Tesorería vs mes en curso, la columna se llama Saldo Tesorería Fornitalia.',
+      'En Galicia, el mes en curso toma el saldo de cierre del último extracto cargado.',
+      'Ese saldo no mezcla la tesorería.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

@@ -1492,7 +1492,7 @@
   }
 
   function ultimoSaldoCorridoBanco(canal, hasta) {
-    var best = null;
+    var list = [];
     (state.movsMes || []).forEach(function (m) {
       if (!m || m.canal !== canal) return;
       if (m.origen !== origenMovsCanalSe(canal)) return;
@@ -1503,26 +1503,33 @@
       var f = String(m.fecha || '').slice(0, 10);
       if (!f) return;
       if (hasta && f > String(hasta).slice(0, 10)) return;
-      if (!best) {
-        best = m;
-        return;
-      }
-      var bf = String(best.fecha || '').slice(0, 10);
-      if (f > bf) {
-        best = m;
-        return;
-      }
-      if (f < bf) return;
-      var fe = Number(m.fila_excel) || 0;
-      var bfe = Number(best.fila_excel) || 0;
-      if (fe > bfe) {
-        best = m;
-        return;
-      }
-      if (fe < bfe) return;
-      if (String(m.created_at || '') > String(best.created_at || '')) best = m;
+      list.push(m);
     });
-    return best;
+    if (!list.length) return null;
+    var maxFecha = '';
+    list.forEach(function (m) {
+      var f = String(m.fecha).slice(0, 10);
+      if (f > maxFecha) maxFecha = f;
+    });
+    var porArchivo = {};
+    list.forEach(function (m) {
+      if (String(m.fecha).slice(0, 10) !== maxFecha) return;
+      var archivo = String(m.archivo || '');
+      var created = String(m.created_at || '');
+      var key = archivo + '\n' + created;
+      var g = porArchivo[key];
+      if (!g) {
+        porArchivo[key] = { archivo: archivo, created: created, mov: m };
+        return;
+      }
+      if ((Number(m.fila_excel) || 0) > (Number(g.mov.fila_excel) || 0)) g.mov = m;
+    });
+    var best = null;
+    Object.keys(porArchivo).forEach(function (k) {
+      var g = porArchivo[k];
+      if (!best || g.created > best.created || (g.created === best.created && g.archivo > best.archivo)) best = g;
+    });
+    return best ? best.mov : null;
   }
 
   function movsMesCanal(canal, desde, hasta) {
@@ -2242,7 +2249,7 @@
     }).join('');
     var body =
       '<p class="se-cmp-meta">Archivo al <strong>' + esc(al) + '</strong> · Mes en curso de la app al <strong>' + esc(hoy) + '</strong>.</p>' +
-      '<p class="se-cmp-note">El Excel de tesorería arma el saldo desde la última apertura. En Galicia la app muestra el saldo corrido del extracto (el del banco). En Mercado Pago, el mes en curso es el saldo total de la última carta más los movimientos del extracto. En Credicoop, último corte + movimientos del mes. En Efectivo y Morba, un corte que no cierra con los movimientos que siguen en la caja se rearma: lo eliminado no entra al saldo. En cajas dólar se compara US$.</p>' +
+      '<p class="se-cmp-note">Saldo Tesorería Fornitalia y mes en curso no se mezclan. En Galicia, el mes en curso es el saldo de cierre del último extracto cargado, sin sumar la tesorería. En Mercado Pago, es el saldo total de la última carta más los movimientos del extracto. En Credicoop, último corte + movimientos del mes. En Efectivo y Morba, un corte que no cierra con los movimientos que siguen en la caja se rearma: lo eliminado no entra al saldo. En cajas dólar se compara US$.</p>' +
       '<div class="se-cmp-chips">' +
         '<span class="se-cmp-chip se-cmp-chip-ok">Coinciden ' + cmp.nOk + '</span>' +
         '<span class="se-cmp-chip se-cmp-chip-bad">Diferencias ' + cmp.nBad + '</span>' +
@@ -2251,7 +2258,7 @@
         '<table class="se-tabla se-tabla-cmp">' +
           '<thead><tr>' +
             '<th>Caja</th>' +
-            '<th class="se-col-monto">Saldo Excel</th>' +
+            '<th class="se-col-monto">Saldo Tesorería Fornitalia</th>' +
             '<th class="se-col-monto">Mes en curso</th>' +
             '<th>Resultado</th>' +
           '</tr></thead>' +
