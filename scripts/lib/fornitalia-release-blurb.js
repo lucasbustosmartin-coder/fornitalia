@@ -8,11 +8,12 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.80',
+    versionLabel: 'v2.81',
     lines: [
-      'En Tesorería vs mes en curso, la columna se llama Saldo Tesorería Fornitalia.',
-      'En Galicia, el mes en curso toma el saldo de cierre del último extracto cargado.',
-      'Ese saldo no mezcla la tesorería.'
+      'Al descartar un potencial duplicado, no pasa a Confirmados.',
+      'Si la pareja se había armado sola al leer el extracto, vuelve a Sugeridos.',
+      'Mientras siga en Potenciales duplicados, el extracto no lo propone.',
+      'Una conciliación hecha a mano no se toca.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
