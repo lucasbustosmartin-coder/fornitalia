@@ -1,9 +1,8 @@
 {
-  "versionLabel": "v2.81",
+  "versionLabel": "v2.82",
   "lines": [
-    "Al descartar un potencial duplicado, no pasa a Confirmados.",
-    "Si la pareja se había armado sola al leer el extracto, vuelve a Sugeridos.",
-    "Mientras siga en Potenciales duplicados, el extracto no lo propone.",
-    "Una conciliación hecha a mano no se toca."
+    "Potenciales duplicados solo muestra movimientos que todavía no están conciliados.",
+    "Un movimiento ya confirmado no aparece en esa lista.",
+    "Descartar un duplicado no modifica ninguna conciliación ya hecha."
   ]
 }

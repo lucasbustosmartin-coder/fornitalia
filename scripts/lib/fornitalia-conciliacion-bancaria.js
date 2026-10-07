@@ -925,8 +925,18 @@
     return null;
   }
 
+  function tesoreriaYaConciliada(m) {
+    if (!m || !m.id) return false;
+    var hit = matchActivoDeTesoreria(m.id);
+    return !!(hit && hit.estado === 'confirmado');
+  }
+
+  function sistemaRowsSinConciliar() {
+    return sistemaRows().filter(function (m) { return !tesoreriaYaConciliada(m); });
+  }
+
   function gruposDupsActivos() {
-    return gruposTesoreriaDuplicados(sistemaRows()).filter(function (g) {
+    return gruposTesoreriaDuplicados(sistemaRowsSinConciliar()).filter(function (g) {
       return !descarteQueCubreIds(idsDeGrupoDup(g));
     });
   }
@@ -937,7 +947,7 @@
 
   function findGrupoDupPorId(groupId) {
     var found = null;
-    gruposTesoreriaDuplicados(sistemaRows()).forEach(function (g) {
+    gruposTesoreriaDuplicados(sistemaRowsSinConciliar()).forEach(function (g) {
       if (g.id === groupId) found = g;
     });
     return found;
@@ -4684,7 +4694,7 @@
     });
     if (!html) {
       return FornitaliaHelp.row('tpl-cb-dups', 'Ayuda: Potenciales duplicados',
-        '<p>Tesorería con el <strong>mismo importe</strong> y no más de <strong>' + DUP_TESORERIA_DIAS + ' días</strong> entre fechas. Puede ser duplicado, triplicado o más. El ojito abre todos los datos de cada registro del grupo. Descartar lo saca de la lista y no vuelve a entrar mientras sea el mismo conjunto; si aparece un movimiento nuevo, sí se muestra.</p>') +
+        '<p>Solo tesorería <strong>sin conciliar</strong>, con el <strong>mismo importe</strong> y no más de <strong>' + DUP_TESORERIA_DIAS + ' días</strong> entre fechas. Un movimiento ya confirmado no entra. Descartar lo saca de la lista y no toca ninguna conciliación ya hecha.</p>') +
         '<p class="cb-empty">' + (hayFiltrosActivos()
           ? 'No hay potenciales duplicados de tesorería con los filtros activos.'
           : 'No hay potenciales duplicados de tesorería (mismo importe y hasta ' + DUP_TESORERIA_DIAS + ' días).') + '</p>';
@@ -4707,7 +4717,7 @@
       '</div>';
     }
     return FornitaliaHelp.row('tpl-cb-dups', 'Ayuda: Potenciales duplicados',
-      '<p>Grupos de tesorería con <strong>importe idéntico</strong> y distancia de fechas de hasta <strong>' + DUP_TESORERIA_DIAS + ' días</strong> (si A está a ≤40 días de B y B de C, el grupo puede tener 3 o más). Mientras sigan acá, el extracto no los propone como conciliación. Descartar no los pasa a Confirmados: si había una pareja automática, vuelve a Sugeridos. Una conciliación manual no se toca. Un movimiento nuevo al grupo sí lo muestra otra vez.</p>') +
+      '<p>Solo tesorería <strong>sin conciliar</strong>, con <strong>importe idéntico</strong> y hasta <strong>' + DUP_TESORERIA_DIAS + ' días</strong> entre fechas. Un movimiento ya confirmado no entra en el grupo. Descartar lo saca de esta lista y no modifica ninguna conciliación ya hecha.</p>') +
       bar +
       '<div class="cb-tabla-wrap"><table class="cb-tabla">' +
       '<thead><tr>' +
@@ -5102,29 +5112,15 @@
     });
   }
 
-  async function soltarConfirmacionAutoDeDup(ids) {
-    var vistos = {};
-    var i;
-    for (i = 0; i < (ids || []).length; i++) {
-      var hit = matchActivoDeTesoreria(ids[i]);
-      if (!hit || hit.estado !== 'confirmado' || vistos[hit.id]) continue;
-      if (hit.origen_match === 'manual' || hit.criterio === 'manual' || hit.criterio === 'impuestos') continue;
-      vistos[hit.id] = true;
-      var rpc = await client().rpc('cb_set_match_estado', { p_match_id: hit.id, p_estado: 'sugerido' });
-      if (rpc.error) throw rpc.error;
-      hit.estado = 'sugerido';
-    }
-  }
-
   async function descartarGrupoDup(groupId) {
     if (!can(PERM_CONFIRMAR)) return;
     var g = findGrupoDupPorId(groupId);
     if (!g) return;
-    var ids = idsDeGrupoDup(g);
+    var ids = idsDeGrupoDup(g).filter(function (id) { return !tesoreriaYaConciliada({ id: id }); });
     if (ids.length < 2) return;
     if (!await FornitaliaMensajes.confirmar('¿Descartar este grupo como potencial duplicado?\n\n' +
         labelVecesDup(g.veces) + ' · ' + formatMonto(g.monto) +
-        '\n\nNo vuelve a listarse mientras sea el mismo conjunto de movimientos. No pasa a Confirmados: si había una pareja automática, vuelve a Sugeridos. Una conciliación manual no se toca. Podés deshacer el descarte en Duplicados descartados.')) {
+        '\n\nSolo saca de esta lista movimientos que todavía no están conciliados. No modifica ninguna conciliación ya hecha. Podés deshacer el descarte en Duplicados descartados.')) {
       return;
     }
     try {
@@ -5134,10 +5130,9 @@
         p_ids: ids
       });
       if (rpc.error) throw rpc.error;
-      await soltarConfirmacionAutoDeDup(ids);
       cerrarModal();
       state.dupSel = {};
-      state.msg = 'Grupo descartado. No queda en Confirmados: si había pareja automática, volvió a Sugeridos.';
+      state.msg = 'Grupo descartado. Las conciliaciones ya hechas no se modifican.';
       await recargarTodo();
     } catch (e) {
       soltarCarga();
@@ -5158,7 +5153,7 @@
       return;
     }
     if (!await FornitaliaMensajes.confirmar('¿Descartar los ' + groups.length + ' grupos como potenciales duplicados?\n\n' +
-        'No vuelven a listarse mientras sea el mismo conjunto de movimientos. No pasan a Confirmados: si había una pareja automática, vuelve a Sugeridos. Una conciliación manual no se toca. Podés deshacerlo en Duplicados descartados.')) {
+        'Solo salen de esta lista movimientos que todavía no están conciliados. No se modifica ninguna conciliación ya hecha. Podés deshacerlo en Duplicados descartados.')) {
       return;
     }
     var CHUNK = 40;
@@ -5168,7 +5163,10 @@
       marcarCargando('Descartando duplicados…');
       for (i = 0; i < groups.length; i += CHUNK) {
         var part = groups.slice(i, i + CHUNK);
-        var payload = part.map(function (g) { return idsDeGrupoDup(g); });
+        var payload = part.map(function (g) {
+          return idsDeGrupoDup(g).filter(function (id) { return !tesoreriaYaConciliada({ id: id }); });
+        }).filter(function (ids) { return ids.length >= 2; });
+        if (!payload.length) continue;
         var rpc = await client().rpc('cb_descartar_dup_tesoreria_lote', {
           p_canal: state.canal,
           p_grupos: payload
@@ -5178,12 +5176,13 @@
           if (rpc.error.code === 'PGRST202' || /could not find/i.test(msg)) {
             var j;
             for (j = 0; j < part.length; j++) {
+              var idsUno = idsDeGrupoDup(part[j]).filter(function (id) { return !tesoreriaYaConciliada({ id: id }); });
+              if (idsUno.length < 2) continue;
               var one = await client().rpc('cb_descartar_dup_tesoreria', {
                 p_canal: state.canal,
-                p_ids: idsDeGrupoDup(part[j])
+                p_ids: idsUno
               });
               if (one.error) throw one.error;
-              await soltarConfirmacionAutoDeDup(idsDeGrupoDup(part[j]));
               n += 1;
             }
             continue;
@@ -5191,12 +5190,10 @@
           throw rpc.error;
         }
         n += Number(rpc.data) || part.length;
-        var k;
-        for (k = 0; k < part.length; k++) await soltarConfirmacionAutoDeDup(idsDeGrupoDup(part[k]));
       }
       state.dupSel = {};
       state.lista = 'dups_desc';
-      state.msg = n + ' grupos descartados. No quedan en Confirmados: si había pareja automática, volvió a Sugeridos.';
+      state.msg = n + ' grupos descartados. Las conciliaciones ya hechas no se modifican.';
       await recargarTodo();
     } catch (e) {
       soltarCarga();
