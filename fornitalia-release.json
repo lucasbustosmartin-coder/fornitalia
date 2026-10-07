@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.82",
+  "versionLabel": "v2.83",
   "lines": [
-    "Potenciales duplicados solo muestra movimientos que todavía no están conciliados.",
-    "Un movimiento ya confirmado no aparece en esa lista.",
-    "Descartar un duplicado no modifica ninguna conciliación ya hecha."
+    "En Flujo de caja, cada perfil puede ver o no Cards, Flujo por mes, Todas las transacciones, Evolución y Estado financiero.",
+    "Cargar tesorería histórica quedó arriba, junto a Exportar Base Histórica.",
+    "Ese botón se muestra aunque la solapa Flujo por mes esté oculta."
   ]
 }

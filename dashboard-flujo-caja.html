@@ -12,7 +12,7 @@
   <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.76"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.82"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.83"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
@@ -1313,6 +1313,10 @@
         <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
         PDF
       </button>
+      <button type="button" class="btn" id="btn-cargar-historico-flujo" title="Cargar tesorería histórica en todas las cajas" aria-label="Cargar tesorería histórica en todas las cajas">
+        <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+        Cargar tesorería histórica
+      </button>
       <button type="button" class="btn btn-success btn-exportar-base export-excel-btn" id="btn-exportar-excel" title="Exportar base de transacciones a Excel" aria-label="Exportar Base Histórica">
         <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar Base Histórica
       </button>
@@ -1341,17 +1345,13 @@
           <p><strong>Costo Financiero MP / Ventas MP</strong> = egresos con <code>ef_subitem</code> <strong>Costo Financiero (Mercado Pago)</strong> ÷ cobranzas por ventas de la <strong>caja Mercado Pago</strong> (no las ventas de otras cajas).</p>
           <p>El denominador de <strong>Costo dir. / Ingresos</strong>, <strong>Costo ind. / Ingresos</strong>, <strong>Costo total / Ingreso total</strong> y <strong>Sueldos / Ingresos</strong> es siempre la columna <strong>Ingresos</strong> del mes. Numeradores: COSTOS DIRECTOS (§2), COSTOS INDIRECTOS (§3), Egresos de la fila (costo total) y Sueldos. Cálculo simple, sin Flujo Operativo Generado.</p>
           <p>La tabla se lee como en Dashboard: <strong>meses en columnas</strong>, filas Ingresos / Egresos / G/P y debajo <strong>Ratios del Negocio</strong> (Comisiones/Ventas, Sueldos/Ingresos, Sueldos + Cargas Sociales/Cobranzas, Costo Financiero MP/Ventas MP, Costo dir., Costo ind., Costo total sobre Ingresos). El <strong>mes en curso</strong> va en celeste: se ve, pero no entra en el <strong>Total</strong> (tarjetas, ratios, PDF y Excel) ni en las variaciones y la tendencia del gráfico, para no mezclar un mes incompleto con los cerrados. Las columnas <strong>Proy.</strong> quedan a la derecha y tampoco entran al Total. El gráfico <strong>G/P Mensual</strong> y el PDF usan el mismo filtro Período; en el PDF los filtros activos van remarcados en verde.</p>
-          <p>El botón <strong>Cargar tesorería histórica</strong> toma el Excel <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto) y lo reparte a todas las cajas de una vez: bancos en Conciliación y cajas físicas según la columna Caja. En Conciliación recálcula los sugeridos de cada caja (Mercado Pago, Galicia, Galicia USD, Credicoop) y el cartel siempre muestra el resultado, aunque sea 0.</p>
+          <p>Arriba, junto a <strong>Exportar Base Histórica</strong>, el botón <strong>Cargar tesorería histórica</strong> (si el perfil lo tiene) toma el Excel <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto) y lo reparte a todas las cajas de una vez: bancos en Conciliación y cajas físicas según la columna Caja. En Conciliación recálcula los sugeridos de cada caja (Mercado Pago, Galicia, Galicia USD, Credicoop) y el cartel siempre muestra el resultado, aunque sea 0. No depende de esta solapa.</p>
         </div>
       </template>
       <div class="errores-panel-toolbar">
         <div class="panel-toolbar-start">
         <button type="button" class="th-help th-help--inline" data-help-template="template-flujo-informe-pdf" aria-label="Ayuda: criterios alineados al informe PDF" title="Criterios de la tabla (informe PDF)">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
-        </button>
-        <button type="button" class="btn" id="btn-cargar-historico-flujo" title="Cargar tesorería histórica en todas las cajas" aria-label="Cargar tesorería histórica en todas las cajas">
-          <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
-          Cargar tesorería histórica
         </button>
         </div>
         <button type="button" class="btn btn-success btn-ver-errores btn-exportar-evolucion" id="btn-exportar-flujo-mes" title="Exportar tabla Flujo por mes a Excel"><span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></span> Exportar Flujo a Excel</button>
@@ -1597,7 +1597,7 @@
     <template id="template-seguridad-intro">
       <div class="th-help-rich-content">
         <p>Asigná el rol (Admin, Encargado, Visor o un perfil que crees) y el <strong>nombre para mostrar</strong> (habitualmente iniciales, ej. LB) a cada usuario. Ese nombre aparece como responsable en Gestión de Proyectos.</p>
-        <p>Con <strong>Nuevo perfil</strong> das de alta un rol vacío y después activás o desactivás <strong>cada solapa y menú</strong> para ese perfil. Los cambios de permisos aplican a todos los usuarios con ese rol. Admin, Encargado y Visor no se pueden borrar.</p>
+        <p>Con <strong>Nuevo perfil</strong> das de alta un rol vacío y después activás o desactivás <strong>cada solapa y menú</strong> para ese perfil. En <strong>Flujo de caja</strong> se elige qué se ve: Cards, Flujo por mes, Todas las transacciones, Evolución, Estado financiero y el botón Cargar tesorería histórica. Los cambios aplican a todos los usuarios con ese rol. Admin, Encargado y Visor no se pueden borrar.</p>
       </div>
     </template>
     <div id="seguridad-loading" class="seguridad-loading">Cargando usuarios…</div>
@@ -2073,7 +2073,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.82';
+    const APP_VERSION = '2.83';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -2106,10 +2106,13 @@
     const PERM_VER_SALDOS_EXTRACTOS = 'ver_saldos_extractos';
     const PERM_VER_IMPUESTOS = 'ver_impuestos';
     const PERM_VER_MATRIZ_EF = 'ver_matriz_ef';
+    const PERM_VER_FLUJO_CARDS = 'ver_flujo_cards';
+    const PERM_VER_FLUJO_POR_MES = 'ver_flujo_por_mes';
+    const PERM_CARGAR_TESORERIA_HISTORICA = 'cargar_tesoreria_historica';
 
     /** Solapas del dashboard → permiso granular. */
     const PANEL_PERMISO = {
-      flujo: 'ver_solapa_flujo',
+      flujo: 'ver_flujo_por_mes',
       'todas-transacciones': 'ver_solapa_todas_transacciones',
       evolucion: 'ver_solapa_evolucion',
       'estado-financiero': 'ver_solapa_estado_financiero',
@@ -2118,6 +2121,8 @@
     /** Bundle legacy: si el rol aún tiene solo dashboard_operador, equivale a estos permisos. */
     const OPERADOR_BUNDLE = [
       'ver_solapa_flujo',
+      'ver_flujo_cards',
+      'ver_flujo_por_mes',
       'ver_solapa_todas_transacciones',
       'ver_solapa_evolucion',
       'ver_solapa_estado_financiero',
@@ -2510,7 +2515,13 @@
       setVis('menu-cerrar-sesion', true);
       refreshUserBarLabel();
 
-      setVis('btn-cargar-historico-flujo', hasPerm(PERM_CARGAR_CONCILIACION_BANCARIA) || hasPerm(PERM_CARGAR_CAJAS_FISICAS));
+      setVis('btn-cargar-historico-flujo', puedeCargarTesoreriaHistorica());
+
+      const resumenEl = document.getElementById('resumen');
+      if (resumenEl) {
+        if (!puedeVerFlujoCards()) resumenEl.style.display = 'none';
+        else if (resumenEl.innerHTML.trim()) resumenEl.style.display = 'flex';
+      }
 
       const btnEx = document.getElementById('btn-exportar-excel');
       if (btnEx) btnEx.style.display = exp ? '' : 'none';
@@ -2530,6 +2541,11 @@
 
       const tt = document.querySelector('.tabs-toolbar');
       if (tt) tt.classList.toggle('solo-flujo', visibleCount <= 1);
+      const tablaWrapSeg = document.getElementById('tabla-wrap');
+      if (tablaWrapSeg) {
+        if (visibleCount === 0) tablaWrapSeg.style.display = 'none';
+        else if (fornitaliaDashboardInited) tablaWrapSeg.style.display = 'block';
+      }
 
       const activeTab = tabs.find((t) => t.classList.contains('activo') && t.style.display !== 'none');
       if (!activeTab && firstVisiblePanel) {
@@ -2559,8 +2575,16 @@
       return hasPerm(PERM_VER_REPORTES) || puedeExportarBaseHistorica();
     }
 
+    function puedeVerFlujoCards() {
+      return hasPerm(PERM_VER_FLUJO_CARDS);
+    }
+
+    function puedeCargarTesoreriaHistorica() {
+      return hasPerm(PERM_CARGAR_TESORERIA_HISTORICA);
+    }
+
     function puedeVerMenuFlujoCaja() {
-      return hasPerm(PANEL_PERMISO.flujo);
+      return hasPerm('ver_solapa_flujo');
     }
 
     function menusLateralesConVista() {
@@ -2799,12 +2823,15 @@
 
     const FORNITALIA_PERMISOS_MENU = [
       {
-        id: 'solapas',
-        titulo: 'Solapas del dashboard',
+        id: 'flujo-caja',
+        titulo: 'Flujo de caja',
         operar: [
+          'ver_flujo_cards',
+          'ver_flujo_por_mes',
           'ver_solapa_todas_transacciones',
           'ver_solapa_evolucion',
           'ver_solapa_estado_financiero',
+          'cargar_tesoreria_historica',
         ],
       },
       {
@@ -2945,7 +2972,13 @@
         const allPerms = rPerms.data || [];
         const permMap = {};
         allPerms.forEach((p) => { permMap[p.permission] = p.description || p.permission; });
-        if (permMap.ver_solapa_flujo) permMap.ver_solapa_flujo = 'Ver Flujo de caja (menú lateral y solapa)';
+        if (permMap.ver_solapa_flujo) permMap.ver_solapa_flujo = 'Ver Flujo de caja (menú lateral)';
+        if (permMap.ver_flujo_cards) permMap.ver_flujo_cards = 'Cards';
+        if (permMap.ver_flujo_por_mes) permMap.ver_flujo_por_mes = 'Flujo por mes';
+        if (permMap.ver_solapa_todas_transacciones) permMap.ver_solapa_todas_transacciones = 'Todas las transacciones';
+        if (permMap.ver_solapa_evolucion) permMap.ver_solapa_evolucion = 'Evolución';
+        if (permMap.ver_solapa_estado_financiero) permMap.ver_solapa_estado_financiero = 'Estado financiero';
+        if (permMap.cargar_tesoreria_historica) permMap.cargar_tesoreria_historica = 'Cargar tesorería histórica';
         const rolePermList = rRolePerms.data || [];
         const rolePermSet = new Set(rolePermList.map((r) => r.role + '|' + r.permission));
         const userCountByRole = {};
@@ -4078,7 +4111,7 @@
           await syncConfigFromSupabase();
           await cargarDatos();
           if (filtrosWrap) filtrosWrap.style.display = 'flex';
-          if (tablaWrap) tablaWrap.style.display = 'block';
+          if (tablaWrap) tablaWrap.style.display = puedeVerSolapa('flujo') || puedeVerSolapa('todas-transacciones') || puedeVerSolapa('evolucion') || puedeVerSolapa('estado-financiero') ? 'block' : 'none';
           recalcular();
           const panel = document.querySelector('#tabla-wrap .panel.activo');
           const pid = panel && panel.id;
@@ -4410,7 +4443,7 @@
         <div class="card" title="Egresos operativos netos de los meses cerrados. El mes en curso no entra."><div style="color:#555;">Egresos totales</div><div class="valor egresos">${simbolo}${formatearNumero(totalEgresos, moneda)}</div></div>
         <div class="card" title="Ingresos − egresos de los meses cerrados. El mes en curso no entra."><div style="color:#555;">G/P operativo</div><div class="valor balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</div></div>
       `;
-      document.getElementById('resumen').style.display = 'flex';
+      document.getElementById('resumen').style.display = puedeVerFlujoCards() ? 'flex' : 'none';
 
       const configProy = getProyeccionConfig();
       const N = configProy.meses;
@@ -8116,7 +8149,7 @@
         await syncConfigFromSupabase();
         await cargarDatos();
         filtrosWrap.style.display = 'flex';
-        tablaWrap.style.display = 'block';
+        tablaWrap.style.display = (puedeVerSolapa('flujo') || puedeVerSolapa('todas-transacciones') || puedeVerSolapa('evolucion') || puedeVerSolapa('estado-financiero')) ? 'block' : 'none';
         loading.style.display = 'none';
 
         document.querySelectorAll('#toggle-moneda button').forEach(btn => {
