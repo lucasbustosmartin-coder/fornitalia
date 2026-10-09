@@ -8,11 +8,12 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.83',
+    versionLabel: 'v2.84',
     lines: [
-      'En Flujo de caja, cada perfil puede ver o no Cards, Flujo por mes, Todas las transacciones, Evolución y Estado financiero.',
-      'Cargar tesorería histórica quedó arriba, junto a Exportar Base Histórica.',
-      'Ese botón se muestra aunque la solapa Flujo por mes esté oculta.'
+      'En Flujo de caja, a la derecha de las tarjetas, se ve la posición de caja de hoy en torta: Galicia, Mercado Pago, Credicoop, Efectivo y Resto, en millones y porcentaje.',
+      'El subtítulo muestra el total, por ejemplo Hoy · 10/2026 · 288,6 M pesos.',
+      'Las solapas quedan a la altura de la torta y el gráfico de G/P tiene más lugar.',
+      'El PDF de Flujo incluye esa torta.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

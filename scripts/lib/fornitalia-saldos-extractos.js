@@ -3653,10 +3653,40 @@
     recargar();
   }
 
+  function gruposPosicionCaja(fila) {
+    if (!fila) return null;
+    function n(v) { return v == null || !isFinite(Number(v)) ? 0 : Number(v); }
+    var grupos = [
+      { id: 'galicia', label: 'Galicia', monto: round2(n(fila.galicia) + n(fila.galicia_usd)) },
+      { id: 'mp', label: 'Mercado Pago', monto: round2(n(fila.mercadopago)) },
+      { id: 'credicoop', label: 'Credicoop', monto: round2(n(fila.credicoop)) },
+      { id: 'efectivo', label: 'Efectivo', monto: round2(n(fila.galicia_facturada) + n(fila.galicia_dolar)) },
+      { id: 'resto', label: 'Resto', monto: round2(n(fila.efectivo_sf) + n(fila.efectivo_sf_usd) + n(fila.morba_sf)) }
+    ];
+    var total = round2(grupos.reduce(function (s, g) { return s + g.monto; }, 0));
+    return { mes: fila.mes, total: total, grupos: grupos };
+  }
+
+  async function posicionCajaHoy() {
+    if (!client()) return null;
+    await cargarDatos();
+    await cargarMovimientosMes();
+    await cargarMovimientosCaja();
+    aplicarSaldosSinEliminados();
+    try { await ensureTipoCambio(); } catch (eTc) { /* sin MEP, Galicia USD queda en el corte ya pesificado */ }
+    var meses = filasConsolidado();
+    var ymHoy = mesYYYYMM(hoyYmd());
+    var fila = null;
+    meses.forEach(function (x) { if (x && x.mes === ymHoy) fila = x; });
+    if (!fila && meses.length) fila = meses[meses.length - 1];
+    return gruposPosicionCaja(fila);
+  }
+
   global.FornitaliaSaldosExtractos = {
     init: init,
     show: show,
     recargar: recargar,
+    posicionCajaHoy: posicionCajaHoy,
     guardarCorteGaliciaUsd: guardarCorteGaliciaUsd,
     guardarCorteCredicoop: guardarCorteCredicoop,
     guardarCorteDesdePdfGalicia: guardarCorteDesdePdfGalicia,

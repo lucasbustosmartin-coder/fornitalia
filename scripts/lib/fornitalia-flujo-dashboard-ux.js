@@ -692,11 +692,20 @@
 
     var fr = flujoParaReporte;
     var gpTot = fr.totalIngresos - fr.totalEgresos;
-    html += '<div class="rep-cards">' +
+    var pos = opts.posicionCaja;
+    var tortaHtml = '';
+    if (pos && pos.imagen && Array.isArray(pos.grupos) && pos.grupos.length) {
+      tortaHtml = '<div class="rep-torta"><div class="rep-torta-txt"><p class="rep-torta-titulo">Posición de caja</p><p class="rep-torta-sub">' + esc(pos.subtitulo || '') + '</p><ul class="rep-torta-leyenda">' +
+        pos.grupos.map(function (g) {
+          return '<li><span class="rep-swatch" style="background:' + esc(g.color || '#94a3b8') + '"></span><span>' + esc(g.label) + '</span><span class="rep-torta-num">' + esc(g.montoTxt) + '</span><span class="rep-torta-num">' + esc(g.pctTxt) + '</span></li>';
+        }).join('') +
+        '</ul></div><img class="rep-torta-img" alt="Posición de caja" src="' + pos.imagen + '" /></div>';
+    }
+    html += '<div class="rep-resumen-row"><div class="rep-cards">' +
       '<div class="card"><div class="card-titulo">Total ingresos</div><div class="valor ingresos">' + fmtMilesReporte(fr.totalIngresos, mon) + '</div></div>' +
       '<div class="card"><div class="card-titulo">Total egresos</div><div class="valor egresos">' + fmtMilesReporte(fr.totalEgresos, mon) + '</div></div>' +
       '<div class="card"><div class="card-titulo">G/P Total</div><div class="valor ' + (gpTot >= 0 ? 'positivo' : 'negativo') + '">' + fmtMilesReporte(gpTot, mon) + '</div></div>' +
-      '</div>';
+      '</div>' + tortaHtml + '</div>';
 
     var chartSrc = capturarGraficoGPParaPdf();
     if (chartSrc) {

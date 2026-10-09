@@ -9,17 +9,17 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="scripts/lib/fornitalia-mensajes.js?v=2.75"></script>
-  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.76"></script>
+  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.84"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.83"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.84"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.75">
   <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.82"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.58">
-  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.77"></script>
+  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.84"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.75">
   <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.75"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.55">
@@ -321,9 +321,31 @@
     .balance.negativo { color: #b91c1c; }
     .loading { color: #666; }
     .error { color: #b91c1c; }
-    .resumen { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-    .resumen .card { flex: 1; min-width: 11rem; }
-    .resumen .valor { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: thin; }
+    .flujo-cabeza { display: flex; align-items: stretch; gap: 0.75rem; margin-bottom: 0.35rem; }
+    .flujo-cabeza-izq { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 0.45rem; }
+    .flujo-cabeza .tabs-toolbar { margin-bottom: 0; }
+    .flujo-cabeza .tabs { margin-bottom: 0; }
+    .flujo-cabeza .tabs-toolbar.flujo-tabs-ocultas,
+    .flujo-cabeza .tabs-toolbar.solo-flujo { display: none; }
+    #resumen-torta-mount { flex: 0 0 auto; align-self: flex-start; margin-left: auto; }
+    #resumen-torta-mount:empty,
+    .flujo-cabeza.sin-torta #resumen-torta-mount { display: none; }
+    .resumen { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-start; margin-bottom: 0; }
+    .resumen-cards { display: flex; gap: 0.75rem; flex: 0 1 auto; align-items: flex-start; align-self: flex-start; min-width: 0; }
+    .resumen-cards .card { flex: 0 0 auto; align-self: flex-start; height: auto; width: max-content; max-width: 100%; min-width: 0; margin-bottom: 0; padding: 0.7rem 0.9rem; }
+    .resumen .valor { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .resumen-torta { flex: 0 1 auto; margin: 0; padding: 0.65rem 0.85rem; min-width: 16rem; max-width: 32rem; display: flex; flex-direction: column; gap: 0.2rem; align-self: flex-start; }
+    .resumen-torta-head { font-weight: 600; font-size: 0.92rem; color: #1a1a1a; }
+    .resumen-torta-sub { margin: 0; font-size: 0.75rem; color: #64748b; }
+    .resumen-torta-body { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+    .resumen-torta-canvas { width: 132px; height: 132px; flex: 0 0 132px; position: relative; }
+    .resumen-torta-canvas canvas { width: 132px !important; height: 132px !important; }
+    .resumen-torta-leyenda { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 0; font-size: 0.78rem; color: #1e293b; display: grid; grid-template-columns: 0.55rem minmax(4.2rem, 1fr) auto auto; column-gap: 0.4rem; row-gap: 0.18rem; align-items: baseline; }
+    .resumen-torta-leyenda li:not(.torta-vacio) { display: contents; }
+    .resumen-torta-leyenda li.torta-vacio { grid-column: 1 / -1; }
+    .torta-swatch { width: 0.55rem; height: 0.55rem; border-radius: 2px; justify-self: center; }
+    .torta-nombre { min-width: 0; }
+    .torta-monto, .torta-pct { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; text-align: right; }
     .filtros { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
     .filtros .filtros-izq { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
     .filtros .filtros-der { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; }
@@ -339,7 +361,7 @@
     .grafico-gp-wrap .grafico-titulo { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; font-size: 1.05rem; font-weight: 600; color: #1a1a1a; }
     .grafico-gp-wrap .grafico-titulo .grafico-icon { width: 22px; height: 22px; color: #555; }
     .grafico-gp-wrap .grafico-titulo .grafico-icon svg { width: 100%; height: 100%; stroke: currentColor; }
-    .grafico-gp-wrap .chart-container { position: relative; height: 300px; width: 100%; }
+    .grafico-gp-wrap .chart-container { position: relative; height: 360px; width: 100%; }
     .gp-resumen { display: flex; flex-wrap: wrap; gap: 0.4rem 1.25rem; margin: 0 0 0.5rem 0; font-size: 0.875rem; color: #334155; }
     .gp-resumen:empty { display: none; }
     .gp-resumen-item { display: inline-flex; align-items: baseline; gap: 0.3rem; padding: 0.3rem 0.6rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
@@ -416,7 +438,16 @@
       #rep-print-root .rep-chip.activo .rep-chip-lab { color: #ccfbf1; }
       #rep-print-root .rep-chip.activo .rep-chip-val { color: #fff; }
       #rep-print-root .rep-chip-tag { font-size: 0.48rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; background: #fff; color: #0f766e; border-radius: 4px; padding: 0 0.25rem; align-self: flex-start; }
-      #rep-print-root .rep-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.3rem; margin-bottom: 0.3rem; }
+      #rep-print-root .rep-resumen-row { display: flex; align-items: stretch; gap: 0.35rem; margin-bottom: 0.3rem; }
+      #rep-print-root .rep-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.3rem; margin-bottom: 0; flex: 1 1 auto; min-width: 0; }
+      #rep-print-root .rep-torta { flex: 0 0 auto; display: flex; align-items: center; gap: 0.35rem; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0.2rem 0.4rem; background: #fff; max-width: 92mm; }
+      #rep-print-root .rep-torta-titulo { margin: 0; font-size: 0.72rem; font-weight: 700; color: #0f172a; }
+      #rep-print-root .rep-torta-sub { margin: 0 0 0.15rem; font-size: 0.58rem; color: #64748b; }
+      #rep-print-root .rep-torta-leyenda { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 0.4rem auto auto auto; column-gap: 0.28rem; row-gap: 0.05rem; font-size: 0.58rem; align-items: baseline; }
+      #rep-print-root .rep-torta-leyenda li { display: contents; }
+      #rep-print-root .rep-swatch { width: 0.4rem; height: 0.4rem; border-radius: 2px; justify-self: center; }
+      #rep-print-root .rep-torta-num { font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; white-space: nowrap; }
+      #rep-print-root .rep-torta-img { width: 22mm; height: 22mm; object-fit: contain; }
       #rep-print-root .rep-cards .card { border: 1px solid #cbd5e1; border-radius: 8px; padding: 0.22rem 0.5rem; background: #fff; box-shadow: none; margin: 0; }
       #rep-print-root .rep-cards .card-titulo { display: flex; align-items: center; gap: 0.3rem; font-size: 0.7rem; color: #475569; }
       #rep-print-root .rep-cards .valor { font-size: 0.95rem; font-weight: 700; }
@@ -533,6 +564,14 @@
       #btn-seguridad-nuevo-perfil,
       .btn-seguridad-eliminar-perfil { min-height: 44px; }
       .grafico-gp-wrap .chart-container { height: 240px; }
+      .flujo-cabeza { flex-direction: column; }
+      .flujo-cabeza-izq { display: contents; }
+      #resumen { order: 1; }
+      #resumen-torta-mount { order: 2; margin-left: 0; width: 100%; }
+      #flujo-tabs { order: 3; }
+      .resumen { flex-direction: column; }
+      .resumen-cards { width: 100%; flex-wrap: wrap; }
+      .resumen-torta { margin-left: 0; max-width: none; width: 100%; min-width: 0; }
       #tabla-flujo th, #tabla-flujo td { padding: 0.4rem 0.5rem; font-size: 0.875rem; }
       #tabla-flujo th.col-item, #tabla-flujo td.col-item { min-width: 120px; }
     }
@@ -1323,10 +1362,10 @@
     </div>
   </div>
 
-  <div id="resumen" class="resumen" style="display:none;"></div>
-
-  <div id="tabla-wrap" style="display:none;">
-    <div class="tabs-toolbar">
+  <div id="flujo-cabeza" class="flujo-cabeza">
+    <div class="flujo-cabeza-izq">
+    <div id="resumen" class="resumen" style="display:none;"></div>
+    <div class="tabs-toolbar flujo-tabs-ocultas" id="flujo-tabs">
       <div class="tabs">
         <button type="button" class="tab activo" data-panel="flujo" role="tab" aria-selected="true" aria-current="true" title="Vista activa"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></span>Flujo por mes<span class="lyp-tab-activo-mark">Activo</span></button>
         <button type="button" class="tab" data-panel="todas-transacciones" role="tab" aria-selected="false"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span>Todas las transacciones</button>
@@ -1334,6 +1373,11 @@
         <button type="button" class="tab" data-panel="estado-financiero" role="tab" aria-selected="false"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>Estado Financiero</button>
       </div>
     </div>
+    </div>
+    <div id="resumen-torta-mount"></div>
+  </div>
+
+  <div id="tabla-wrap" style="display:none;">
     <div id="panel-flujo" class="card panel activo">
       <template id="template-flujo-informe-pdf">
         <div class="th-help-rich-content">
@@ -2073,7 +2117,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.83';
+    const APP_VERSION = '2.84';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -2517,12 +2561,6 @@
 
       setVis('btn-cargar-historico-flujo', puedeCargarTesoreriaHistorica());
 
-      const resumenEl = document.getElementById('resumen');
-      if (resumenEl) {
-        if (!puedeVerFlujoCards()) resumenEl.style.display = 'none';
-        else if (resumenEl.innerHTML.trim()) resumenEl.style.display = 'flex';
-      }
-
       const btnEx = document.getElementById('btn-exportar-excel');
       if (btnEx) btnEx.style.display = exp ? '' : 'none';
 
@@ -2562,6 +2600,7 @@
       } else if (activeTab && window.FornitaliaHelp && FornitaliaHelp.syncTabsActivo) {
         FornitaliaHelp.syncTabsActivo(tabs, activeTab);
       }
+      syncCabezaFlujo();
       syncFiltrosFlujoUi();
 
       const actual = vistaPrincipalActiva();
@@ -3831,6 +3870,8 @@
     let fechasConTasa = { mep: [], ccl: [], oficial: [] };
     let detalleProyeccionPorMes = {};
     let flujoMoneda = 'ARS';
+    let chartPosicionCaja = null;
+    let cachePosicionCaja = null;
     let flujoSimbolo = '$ ';
 
     /** Cotización del día anterior más cercano cuando la fecha no tiene tasa (MEP/CCL/Oficial). */
@@ -4113,6 +4154,7 @@
           if (filtrosWrap) filtrosWrap.style.display = 'flex';
           if (tablaWrap) tablaWrap.style.display = puedeVerSolapa('flujo') || puedeVerSolapa('todas-transacciones') || puedeVerSolapa('evolucion') || puedeVerSolapa('estado-financiero') ? 'block' : 'none';
           recalcular();
+          void cargarPosicionCaja();
           const panel = document.querySelector('#tabla-wrap .panel.activo');
           const pid = panel && panel.id;
           if (pid === 'panel-evolucion') renderEvolucion();
@@ -4268,12 +4310,195 @@
         }
         await cargarDatos();
         recalcular();
+        void cargarPosicionCaja();
         abrirModalFlujoHistorico(htmlResumenHistoricoFlujo(cbR, cfR));
       } catch (e) {
         FornitaliaMensajes.avisar((e && e.message) ? e.message : String(e || 'No se pudo cargar el histórico.'));
       } finally {
         setFlujoHistoricoOverlay(false);
       }
+    }
+
+    function fmtMillonesPosicion(n) {
+      const m = Number(n) / 1e6;
+      if (!isFinite(m)) return '—';
+      const abs = Math.abs(m);
+      const digits = abs >= 100 ? 0 : 1;
+      return m.toLocaleString('es-AR', { minimumFractionDigits: digits, maximumFractionDigits: digits }) + ' M';
+    }
+
+    function destruirTortaPosicion() {
+      if (chartPosicionCaja) {
+        chartPosicionCaja.destroy();
+        chartPosicionCaja = null;
+      }
+    }
+
+    const TORTA_POSICION_COLORES = {
+      galicia: '#ff6a00',
+      mp: '#009EE3',
+      credicoop: '#1e293b',
+      efectivo: '#0d7d3d',
+      resto: '#94a3b8'
+    };
+
+    function subtituloPosicionCaja(p) {
+      if (!p || !p.mes) return 'Hoy · pesos';
+      const mes = String(p.mes).slice(5, 7) + '/' + String(p.mes).slice(0, 4);
+      if (p.total == null || !isFinite(Number(p.total))) return 'Hoy · ' + mes + ' · pesos';
+      return 'Hoy · ' + mes + ' · ' + fmtMillonesPosicion(p.total) + ' pesos';
+    }
+
+    function syncCabezaFlujo() {
+      const resumenEl = document.getElementById('resumen');
+      const cabeza = document.getElementById('flujo-cabeza');
+      const tabs = document.getElementById('flujo-tabs');
+      const tablaWrap = document.getElementById('tabla-wrap');
+      const mount = document.getElementById('resumen-torta-mount');
+      const verCards = !!(puedeVerFlujoCards() && resumenEl && resumenEl.innerHTML.trim());
+      if (resumenEl) resumenEl.style.display = verCards ? 'flex' : 'none';
+      if (cabeza) cabeza.classList.toggle('sin-torta', !verCards);
+      if (mount && !verCards) {
+        destruirTortaPosicion();
+        mount.innerHTML = '';
+      }
+      const tablaVisible = !!(tablaWrap && tablaWrap.style.display !== 'none');
+      if (tabs) tabs.classList.toggle('flujo-tabs-ocultas', !tablaVisible);
+    }
+
+    function imagenTortaParaPdf() {
+      const canvas = document.getElementById('chart-posicion-caja');
+      if (!canvas || canvas.width < 8) return '';
+      const chart = (typeof Chart !== 'undefined' && Chart.getChart) ? Chart.getChart(canvas) : chartPosicionCaja;
+      const box = canvas.parentElement;
+      try {
+        if (box) {
+          box.style.setProperty('width', '220px', 'important');
+          box.style.setProperty('height', '220px', 'important');
+        }
+        canvas.style.setProperty('width', '220px', 'important');
+        canvas.style.setProperty('height', '220px', 'important');
+        if (chart && chart.resize) chart.resize();
+        return canvas.toDataURL('image/png');
+      } catch (e) {
+        try { return canvas.toDataURL('image/png'); } catch (e2) { return ''; }
+      } finally {
+        if (box) {
+          box.style.removeProperty('width');
+          box.style.removeProperty('height');
+        }
+        canvas.style.removeProperty('width');
+        canvas.style.removeProperty('height');
+        if (chart && chart.resize) {
+          try { chart.resize(); } catch (e3) { /* el tamaño de pantalla vuelve solo */ }
+        }
+      }
+    }
+
+    function posicionCajaParaPdf() {
+      const p = cachePosicionCaja;
+      if (!p || !Array.isArray(p.grupos) || p.error) return null;
+      const imagen = imagenTortaParaPdf();
+      if (!imagen) return null;
+      const total = Number(p.total);
+      return {
+        subtitulo: subtituloPosicionCaja(p),
+        imagen: imagen,
+        grupos: p.grupos.map(function (g) {
+          const monto = Number(g.monto) || 0;
+          const pct = total ? (monto / total * 100) : null;
+          const pctTxt = pct == null || !isFinite(pct) ? '—' : pct.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+          return {
+            label: g.label,
+            color: TORTA_POSICION_COLORES[g.id] || '#94a3b8',
+            montoTxt: fmtMillonesPosicion(monto),
+            pctTxt: pctTxt
+          };
+        })
+      };
+    }
+
+    function htmlTortaPosicion() {
+      const p = cachePosicionCaja;
+      const sub = subtituloPosicionCaja(p);
+      let leyenda = '<li class="torta-vacio">Cargando posición de caja…</li>';
+      if (p && p.error) leyenda = '<li class="torta-vacio">No se pudo leer la posición de caja.</li>';
+      else if (p && Array.isArray(p.grupos)) {
+        const total = Number(p.total);
+        leyenda = p.grupos.map(function (g) {
+          const monto = Number(g.monto) || 0;
+          const pct = total ? (monto / total * 100) : null;
+          const pctTxt = pct == null || !isFinite(pct) ? '—' : pct.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+          const color = TORTA_POSICION_COLORES[g.id] || '#94a3b8';
+          return '<li><span class="torta-swatch" style="background:' + color + '"></span><span class="torta-nombre">' + g.label + '</span><span class="torta-monto">' + fmtMillonesPosicion(monto) + '</span><span class="torta-pct">' + pctTxt + '</span></li>';
+        }).join('');
+      }
+      return '<div class="card resumen-torta" id="resumen-torta" title="Efectivo es Efectivo-f en pesos y en dólares. Resto es Efectivo sin factura (pesos y dólares) más Morba.">' +
+        '<div class="resumen-torta-head">Posición de caja</div>' +
+        '<p class="resumen-torta-sub">' + sub + '</p>' +
+        '<div class="resumen-torta-body">' +
+          '<div class="resumen-torta-canvas"><canvas id="chart-posicion-caja" aria-label="Posición consolidada de caja"></canvas></div>' +
+          '<ul class="resumen-torta-leyenda">' + leyenda + '</ul>' +
+        '</div></div>';
+    }
+
+    function pintarTortaPosicion() {
+      destruirTortaPosicion();
+      const canvas = document.getElementById('chart-posicion-caja');
+      const p = cachePosicionCaja;
+      if (!canvas || typeof Chart === 'undefined' || !p || !Array.isArray(p.grupos)) return;
+      const slices = p.grupos.filter(function (g) { return Number(g.monto) > 0; });
+      if (!slices.length) return;
+      chartPosicionCaja = new Chart(canvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: slices.map(function (g) { return g.label; }),
+          datasets: [{
+            data: slices.map(function (g) { return Number(g.monto); }),
+            backgroundColor: slices.map(function (g) { return TORTA_POSICION_COLORES[g.id] || '#94a3b8'; }),
+            borderWidth: 1,
+            borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: false,
+          maintainAspectRatio: false,
+          cutout: '58%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  const monto = Number(ctx.parsed) || 0;
+                  const total = Number(p.total) || 0;
+                  const pct = total ? (monto / total * 100) : 0;
+                  return ' ' + fmtMillonesPosicion(monto) + ' · ' + pct.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    async function cargarPosicionCaja() {
+      if (!puedeVerFlujoCards()) {
+        cachePosicionCaja = null;
+        return;
+      }
+      if (!window.FornitaliaSaldosExtractos || typeof window.FornitaliaSaldosExtractos.posicionCajaHoy !== 'function') return;
+      try {
+        cachePosicionCaja = await window.FornitaliaSaldosExtractos.posicionCajaHoy();
+      } catch (e) {
+        cachePosicionCaja = { error: true };
+      }
+      const caja = document.getElementById('resumen-torta');
+      if (!caja || !puedeVerFlujoCards()) return;
+      const padre = caja.parentElement;
+      if (!padre) return;
+      destruirTortaPosicion();
+      caja.outerHTML = htmlTortaPosicion();
+      pintarTortaPosicion();
     }
 
     function getMoneda() {
@@ -4438,12 +4663,21 @@
       const simbolo = moneda === 'USD' ? 'US$ ' : '$ ';
       flujoMoneda = moneda;
       flujoSimbolo = simbolo;
+      destruirTortaPosicion();
       document.getElementById('resumen').innerHTML = `
+        <div class="resumen-cards">
         <div class="card" title="Ingresos operativos netos de los meses cerrados. El mes en curso no entra."><div style="color:#555;">Ingresos totales</div><div class="valor ingresos">${simbolo}${formatearNumero(totalIngresos, moneda)}</div></div>
         <div class="card" title="Egresos operativos netos de los meses cerrados. El mes en curso no entra."><div style="color:#555;">Egresos totales</div><div class="valor egresos">${simbolo}${formatearNumero(totalEgresos, moneda)}</div></div>
         <div class="card" title="Ingresos − egresos de los meses cerrados. El mes en curso no entra."><div style="color:#555;">G/P operativo</div><div class="valor balance ${balanceTotal >= 0 ? 'positivo' : 'negativo'}">${simbolo}${formatearNumero(balanceTotal, moneda)}</div></div>
+        </div>
       `;
-      document.getElementById('resumen').style.display = puedeVerFlujoCards() ? 'flex' : 'none';
+      const tortaMount = document.getElementById('resumen-torta-mount');
+      if (tortaMount) {
+        if (puedeVerFlujoCards()) tortaMount.innerHTML = htmlTortaPosicion();
+        else tortaMount.innerHTML = '';
+      }
+      syncCabezaFlujo();
+      pintarTortaPosicion();
 
       const configProy = getProyeccionConfig();
       const N = configProy.meses;
@@ -8164,6 +8398,7 @@
         document.getElementById('btn-exportar-excel').addEventListener('click', exportarAExcel);
         labelTipoDolar.style.display = getMoneda() === 'USD' ? 'flex' : 'none';
         recalcular();
+        void cargarPosicionCaja();
 
         const tablaFlujoEl = document.getElementById('tabla-flujo');
         if (tablaFlujoEl) tablaFlujoEl.addEventListener('click', (e) => {
@@ -8301,6 +8536,7 @@
               escapeHtml: escapeHtmlSeg,
               usuarioLabel: userProfileLabelFromParts(currentUserNombre, currentUserEmail),
               logoSrc: 'favicon.svg',
+              posicionCaja: posicionCajaParaPdf(),
               getMoneda: getMoneda,
               getTipoDolar: function () {
                 const el = document.getElementById('tipoDolar');
