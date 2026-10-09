@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.85',
+    versionLabel: 'v2.86',
     lines: [
-      'Al elegir USD, la torta de posición, el gráfico de G/P y la tabla de Flujo pasan a dólares.',
-      'Usan el dólar que esté seleccionado: MEP, CCL u oficial.',
-      'En pesos, la torta sigue mostrando el total en millones.'
+      'Con USD, la torta de posición muestra los montos en miles, por ejemplo 135 mil dólares MEP.',
+      'En pesos, la torta sigue en millones.',
+      'El gráfico de G/P y la tabla siguen en el dólar seleccionado: MEP, CCL u oficial.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

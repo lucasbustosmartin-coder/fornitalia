@@ -12,7 +12,7 @@
   <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.85"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.85"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.86"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
@@ -2118,7 +2118,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.85';
+    const APP_VERSION = '2.86';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -4321,14 +4321,17 @@
     }
 
     function fmtMillonesPosicion(n, unidad) {
-      const m = Number(n) / 1e6;
-      if (!isFinite(m)) return '—';
-      const abs = Math.abs(m);
-      let digits = abs >= 100 ? 0 : 1;
+      const n0 = Number(n);
+      if (!isFinite(n0)) return '—';
       if (unidad === 'dolares') {
-        if (abs < 1) digits = 3;
-        else if (abs < 10) digits = 2;
+        const mil = n0 / 1e3;
+        const absMil = Math.abs(mil);
+        const digitsMil = absMil >= 100 ? 0 : 1;
+        return mil.toLocaleString('es-AR', { minimumFractionDigits: digitsMil, maximumFractionDigits: digitsMil }) + ' mil';
       }
+      const m = n0 / 1e6;
+      const abs = Math.abs(m);
+      const digits = abs >= 100 ? 0 : 1;
       return m.toLocaleString('es-AR', { minimumFractionDigits: digits, maximumFractionDigits: digits }) + ' M';
     }
 
