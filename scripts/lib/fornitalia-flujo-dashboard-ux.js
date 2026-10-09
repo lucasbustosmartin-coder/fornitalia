@@ -220,7 +220,8 @@
           var arribaCurso = gpCurso >= 0;
           ctx.fillStyle = gpCurso > 0 ? '#0d7d3d' : (gpCurso < 0 ? '#b91c1c' : '#64748b');
           ctx.textBaseline = arribaCurso ? 'bottom' : 'top';
-          texto(gpEnMillones(gpCurso), barCurso.x, arribaCurso ? barCurso.y - 6 : barCurso.y + 6, '700');
+          var etCurso = (opts && opts.moneda === 'USD') ? abreviarMonto(gpCurso, 'USD') : gpEnMillones(gpCurso);
+          texto(etCurso, barCurso.x, arribaCurso ? barCurso.y - 6 : barCurso.y + 6, '700');
         }
       }
       var vars = opts && opts.variaciones;
@@ -247,7 +248,18 @@
   function actualizarGraficoGP(porMes, moneda, simbolo, porMesAll) {
     var meses12 = getMesesPeriodo(Object.keys(porMesAll || porMes || {}));
     var subEl = document.getElementById('grafico-gp-periodo');
-    if (subEl) subEl.textContent = 'Período: ' + labelPeriodoActual() + '. Sobre cada barra cerrada: variación vs mes anterior. La barra celeste muestra el G/P del mes en curso, en millones, y no entra en la variación ni en la tendencia.';
+    if (subEl) {
+      var tipoEl = document.getElementById('tipoDolar');
+      var tipoVal = tipoEl && tipoEl.value;
+      var tipoNom = tipoVal === 'ccl' ? 'CCL' : (tipoVal === 'oficial' ? 'oficial' : 'MEP');
+      var enMoneda = moneda === 'USD'
+        ? ('Importes en dólares ' + tipoNom + '. ')
+        : '';
+      var cursoTxt = moneda === 'USD'
+        ? 'La barra celeste muestra el G/P del mes en curso'
+        : 'La barra celeste muestra el G/P del mes en curso, en millones,';
+      subEl.textContent = 'Período: ' + labelPeriodoActual() + '. ' + enMoneda + 'Sobre cada barra cerrada: variación vs mes anterior. ' + cursoTxt + ' y no entra en la variación ni en la tendencia.';
+    }
     var wrapVacio = document.getElementById('grafico-gp-wrap');
     if (!meses12.length || typeof Chart === 'undefined') {
       if (chartGP) { chartGP.destroy(); chartGP = null; }
@@ -414,7 +426,20 @@
             beginAtZero: true,
             grace: '18%',
             grid: { color: 'rgba(0,0,0,0.06)' },
-            ticks: { font: { size: 11 } }
+            ticks: {
+              font: { size: 11 },
+              callback: function (value) {
+                if (moneda !== 'USD') return value;
+                var n = Number(value);
+                if (!isFinite(n)) return value;
+                var a = Math.abs(n);
+                var s;
+                if (a >= 1e6) s = (a / 1e6).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + ' M';
+                else if (a >= 1e3) s = (a / 1e3).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + ' k';
+                else s = a.toLocaleString('es-AR', { maximumFractionDigits: 0 });
+                return (n < 0 ? '−' : '') + 'US$ ' + s;
+              }
+            }
           },
           x: {
             grid: { display: false },

@@ -9,10 +9,10 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="scripts/lib/fornitalia-mensajes.js?v=2.75"></script>
-  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.84"></script>
+  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.85"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.84"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.85"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
@@ -390,6 +390,7 @@
     #tabla-flujo th:first-child, #tabla-flujo td:first-child { text-align: left; }
     #tabla-flujo thead th { position: sticky; top: 0; z-index: 2; background: #1a1a1a; font-weight: 600; color: #fff; box-shadow: 0 1px 0 0 #333; }
     #tabla-flujo th.col-item, #tabla-flujo td.col-item { position: sticky; left: 0; z-index: 1; background: #fff; min-width: 220px; }
+    #tabla-flujo th.col-item .flujo-unidad-item { display: block; font-weight: 400; font-size: 0.68rem; letter-spacing: 0; text-transform: none; opacity: 0.9; }
     #tabla-flujo thead th.col-item { z-index: 3; background: #1a1a1a; color: #fff; }
     #tabla-flujo tbody tr td.col-item { background: #fff; }
     #tabla-flujo tfoot td.col-item { background: #f5f5f5; position: sticky; left: 0; z-index: 1; }
@@ -2117,7 +2118,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.84';
+    const APP_VERSION = '2.85';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -4319,12 +4320,57 @@
       }
     }
 
-    function fmtMillonesPosicion(n) {
+    function fmtMillonesPosicion(n, unidad) {
       const m = Number(n) / 1e6;
       if (!isFinite(m)) return '—';
       const abs = Math.abs(m);
-      const digits = abs >= 100 ? 0 : 1;
+      let digits = abs >= 100 ? 0 : 1;
+      if (unidad === 'dolares') {
+        if (abs < 1) digits = 3;
+        else if (abs < 10) digits = 2;
+      }
       return m.toLocaleString('es-AR', { minimumFractionDigits: digits, maximumFractionDigits: digits }) + ' M';
+    }
+
+    function tipoDolarSeleccionado() {
+      const el = document.getElementById('tipoDolar');
+      const v = el && el.value;
+      return v === 'ccl' || v === 'oficial' ? v : 'mep';
+    }
+
+    function etiquetaTipoDolar(tipo) {
+      if (tipo === 'ccl') return 'CCL';
+      if (tipo === 'oficial') return 'oficial';
+      return 'MEP';
+    }
+
+    function tasaDolarHoy(tipo) {
+      const ux = flujoUx();
+      const hoy = ux && typeof ux.fechaHoyYYYYMMDDArgentina === 'function' ? ux.fechaHoyYYYYMMDDArgentina() : '';
+      if (!hoy) return null;
+      const directa = cacheTC[hoy] && cacheTC[hoy][tipo];
+      if (directa != null && Number(directa) > 0) return Number(directa);
+      const ant = getTasaAnterior(hoy, tipo);
+      return ant != null && Number(ant) > 0 ? Number(ant) : null;
+    }
+
+    /** La posición consolidada llega en pesos. En USD se divide por el dólar elegido en pantalla (hoy, o el anterior si falta). */
+    function posicionCajaVista() {
+      const p = cachePosicionCaja;
+      if (!p) return null;
+      if (p.error || !Array.isArray(p.grupos)) return p;
+      if (getMoneda() !== 'USD') return { mes: p.mes, grupos: p.grupos, total: p.total, unidad: 'pesos' };
+      const tipo = tipoDolarSeleccionado();
+      const tasa = tasaDolarHoy(tipo);
+      if (!(tasa > 0)) return { mes: p.mes, grupos: p.grupos, total: p.total, unidad: 'dolares', tipoDolar: tipo, sinTasa: true };
+      function aUsd(v) {
+        return Math.round(((Number(v) || 0) / tasa) * 100) / 100;
+      }
+      const grupos = p.grupos.map(function (g) {
+        return { id: g.id, label: g.label, monto: aUsd(g.monto) };
+      });
+      const total = Math.round(grupos.reduce(function (s, g) { return s + g.monto; }, 0) * 100) / 100;
+      return { mes: p.mes, grupos: grupos, total: total, unidad: 'dolares', tipoDolar: tipo, tasa: tasa };
     }
 
     function destruirTortaPosicion() {
@@ -4342,11 +4388,18 @@
       resto: '#94a3b8'
     };
 
+    function unidadPosicionCaja(p) {
+      if (p && p.unidad === 'dolares') return 'dólares ' + etiquetaTipoDolar(p.tipoDolar);
+      return 'pesos';
+    }
+
     function subtituloPosicionCaja(p) {
-      if (!p || !p.mes) return 'Hoy · pesos';
+      const unidad = unidadPosicionCaja(p);
+      if (!p || !p.mes) return 'Hoy · ' + unidad;
       const mes = String(p.mes).slice(5, 7) + '/' + String(p.mes).slice(0, 4);
-      if (p.total == null || !isFinite(Number(p.total))) return 'Hoy · ' + mes + ' · pesos';
-      return 'Hoy · ' + mes + ' · ' + fmtMillonesPosicion(p.total) + ' pesos';
+      if (p.sinTasa) return 'Hoy · ' + mes + ' · sin cotización ' + etiquetaTipoDolar(p.tipoDolar);
+      if (p.total == null || !isFinite(Number(p.total))) return 'Hoy · ' + mes + ' · ' + unidad;
+      return 'Hoy · ' + mes + ' · ' + fmtMillonesPosicion(p.total, p.unidad) + ' ' + unidad;
     }
 
     function syncCabezaFlujo() {
@@ -4396,8 +4449,8 @@
     }
 
     function posicionCajaParaPdf() {
-      const p = cachePosicionCaja;
-      if (!p || !Array.isArray(p.grupos) || p.error) return null;
+      const p = posicionCajaVista();
+      if (!p || !Array.isArray(p.grupos) || p.error || p.sinTasa) return null;
       const imagen = imagenTortaParaPdf();
       if (!imagen) return null;
       const total = Number(p.total);
@@ -4411,7 +4464,7 @@
           return {
             label: g.label,
             color: TORTA_POSICION_COLORES[g.id] || '#94a3b8',
-            montoTxt: fmtMillonesPosicion(monto),
+            montoTxt: fmtMillonesPosicion(monto, p.unidad),
             pctTxt: pctTxt
           };
         })
@@ -4419,10 +4472,11 @@
     }
 
     function htmlTortaPosicion() {
-      const p = cachePosicionCaja;
+      const p = posicionCajaVista();
       const sub = subtituloPosicionCaja(p);
       let leyenda = '<li class="torta-vacio">Cargando posición de caja…</li>';
       if (p && p.error) leyenda = '<li class="torta-vacio">No se pudo leer la posición de caja.</li>';
+      else if (p && p.sinTasa) leyenda = '<li class="torta-vacio">No hay cotización ' + etiquetaTipoDolar(p.tipoDolar) + ' para dolarizar la posición.</li>';
       else if (p && Array.isArray(p.grupos)) {
         const total = Number(p.total);
         leyenda = p.grupos.map(function (g) {
@@ -4430,7 +4484,7 @@
           const pct = total ? (monto / total * 100) : null;
           const pctTxt = pct == null || !isFinite(pct) ? '—' : pct.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
           const color = TORTA_POSICION_COLORES[g.id] || '#94a3b8';
-          return '<li><span class="torta-swatch" style="background:' + color + '"></span><span class="torta-nombre">' + g.label + '</span><span class="torta-monto">' + fmtMillonesPosicion(monto) + '</span><span class="torta-pct">' + pctTxt + '</span></li>';
+          return '<li><span class="torta-swatch" style="background:' + color + '"></span><span class="torta-nombre">' + g.label + '</span><span class="torta-monto">' + fmtMillonesPosicion(monto, p.unidad) + '</span><span class="torta-pct">' + pctTxt + '</span></li>';
         }).join('');
       }
       return '<div class="card resumen-torta" id="resumen-torta" title="Efectivo es Efectivo-f en pesos y en dólares. Resto es Efectivo sin factura (pesos y dólares) más Morba.">' +
@@ -4445,8 +4499,8 @@
     function pintarTortaPosicion() {
       destruirTortaPosicion();
       const canvas = document.getElementById('chart-posicion-caja');
-      const p = cachePosicionCaja;
-      if (!canvas || typeof Chart === 'undefined' || !p || !Array.isArray(p.grupos)) return;
+      const p = posicionCajaVista();
+      if (!canvas || typeof Chart === 'undefined' || !p || p.sinTasa || !Array.isArray(p.grupos)) return;
       const slices = p.grupos.filter(function (g) { return Number(g.monto) > 0; });
       if (!slices.length) return;
       chartPosicionCaja = new Chart(canvas.getContext('2d'), {
@@ -4472,7 +4526,7 @@
                   const monto = Number(ctx.parsed) || 0;
                   const total = Number(p.total) || 0;
                   const pct = total ? (monto / total * 100) : 0;
-                  return ' ' + fmtMillonesPosicion(monto) + ' · ' + pct.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+                  return ' ' + fmtMillonesPosicion(monto, p.unidad) + ' · ' + pct.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
                 }
               }
             }
@@ -4811,7 +4865,8 @@
       const iconoEgreso = '<span class="item-con-icono"><span class="item-icon icono-egresos" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></span>Egresos</span>';
       const iconoGP = '<span class="item-con-icono"><span class="item-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>G/P</span>';
 
-      const theadCells = ['<th class="col-item">Item</th>'];
+      const unidadTabla = moneda === 'USD' ? ('US$ ' + etiquetaTipoDolar(tipoDolarSeleccionado())) : 'pesos';
+      const theadCells = ['<th class="col-item">Item <span class="flujo-unidad-item">(' + unidadTabla + ')</span></th>'];
       metricasMes.forEach(m => {
         const alertas = m.alertas || [];
         const alertasJson = alertas.length ? JSON.stringify(alertas).replace(/"/g, '&quot;') : '';
