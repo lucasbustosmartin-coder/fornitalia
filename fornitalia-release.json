@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.88",
+  "versionLabel": "v2.89",
   "lines": [
-    "Con USD, la torta, el gráfico y la tabla usan una sola cotización: la de hoy del dólar elegido.",
-    "Hoy el MEP es 1.541,03. Se ve en la torta y en el texto del gráfico.",
-    "El selector dice Dólar y esa fila queda en una sola línea."
+    "En pesos, la torta muestra a qué cotización se pesificaron los dólares.",
+    "Es la misma de hoy del dólar elegido, o la del día anterior, que al ver en dólares.",
+    "Hoy el MEP es 1.541,22."
   ]
 }

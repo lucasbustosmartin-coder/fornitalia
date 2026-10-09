@@ -9,20 +9,20 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="scripts/lib/fornitalia-mensajes.js?v=2.75"></script>
-  <script src="scripts/lib/fornitalia-tipo-cambio-global.js?v=2.88"></script>
-  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.88"></script>
+  <script src="scripts/lib/fornitalia-tipo-cambio-global.js?v=2.89"></script>
+  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.89"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.88"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.89"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.75">
   <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.82"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.58">
-  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.88"></script>
+  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.89"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.75">
-  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.88"></script>
+  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.89"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.55">
   <script src="scripts/lib/fornitalia-impuestos.js?v=2.75"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.56">
@@ -1318,7 +1318,7 @@
     <div class="th-help-rich-content">
       <p>Entradas y salidas por mes. No se incluyen transacciones anuladas.</p>
       <p>Los meses que desactives en <strong>Configuración → Inclusión por mes</strong> quedan fuera de totales, tabla de flujo, Evolución y exportaciones agregadas; <strong>Todas las transacciones</strong> y la exportación de base histórica siguen mostrando el detalle completo.</p>
-      <p>En pesos, si un movimiento en dólares no tiene cotización ese día, se usa la inmediata anterior. En dólares, la posición de caja, el gráfico y la tabla usan una sola cotización: la de hoy del dólar elegido, o la inmediata anterior si hoy no hay. El filtro <strong>Período</strong> (último año, un año o todo el histórico) recorta tarjetas, gráfico G/P y tabla. Hacé clic en un mes (encabezado o celda) para ver el detalle por categoría.</p>
+      <p>En pesos, si un movimiento en dólares no tiene cotización ese día, se usa la inmediata anterior. La torta de posición pesifica los dólares de hoy con la misma cotización que al ver en dólares: la de hoy del dólar elegido, o la inmediata anterior, y la muestra en el subtítulo. En dólares, la posición de caja, el gráfico y la tabla usan esa misma cotización. El filtro <strong>Período</strong> (último año, un año o todo el histórico) recorta tarjetas, gráfico G/P y tabla. Hacé clic en un mes (encabezado o celda) para ver el detalle por categoría.</p>
     </div>
   </template>
   <p id="flujo-nota-meses-excluidos" class="dashboard-nota-compact"></p>
@@ -2122,7 +2122,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.88';
+    const APP_VERSION = '2.89';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -4401,24 +4401,33 @@
       el.textContent = textoCotizacionActual(tipoDolarSeleccionado());
     }
 
-    /** La posición llega en pesos. En USD, los pesos de hoy se dividen por una sola cotización (la del dólar elegido, de hoy o la anterior). Los saldos que ya están en dólares no se vuelven a convertir. */
+    /** La posición llega partida en pesos y dólares. En ambas vistas se usa una sola cotización: la de hoy del dólar elegido, o la inmediata anterior. En ARS los dólares se multiplican por esa cotización. En USD los pesos se dividen por la misma; lo que ya está en dólares no se vuelve a convertir. */
     function posicionCajaVista() {
       const p = cachePosicionCaja;
       if (!p) return null;
       if (p.error || !Array.isArray(p.grupos)) return p;
-      if (getMoneda() !== 'USD') return { mes: p.mes, grupos: p.grupos, total: p.total, unidad: 'pesos' };
       const tipo = tipoDolarSeleccionado();
       const cot = cotizacionDolarHoy(tipo);
-      if (!(cot && cot.tasa > 0)) return { mes: p.mes, grupos: p.grupos, total: p.total, unidad: 'dolares', tipoDolar: tipo, sinTasa: true };
-      const tasa = cot.tasa;
-      function aUsd(g) {
-        const tieneUsd = g.montoUsd != null && isFinite(Number(g.montoUsd));
-        if (!tieneUsd) return Math.round(((Number(g.monto) || 0) / tasa) * 100) / 100;
-        const ars = g.montoArs != null && isFinite(Number(g.montoArs)) ? Number(g.montoArs) : 0;
-        return Math.round(((ars / tasa) + Number(g.montoUsd)) * 100) / 100;
+      const tasa = cot && cot.tasa > 0 ? cot.tasa : 0;
+      function parteArs(g) {
+        return g.montoArs != null && isFinite(Number(g.montoArs)) ? Number(g.montoArs) : 0;
       }
+      function tieneUsd(g) {
+        return g.montoUsd != null && isFinite(Number(g.montoUsd));
+      }
+      if (getMoneda() !== 'USD') {
+        if (!tasa) return { mes: p.mes, grupos: p.grupos, total: p.total, unidad: 'pesos', tipoDolar: tipo };
+        const grupos = p.grupos.map(function (g) {
+          if (!tieneUsd(g)) return { id: g.id, label: g.label, monto: Number(g.monto) || 0 };
+          return { id: g.id, label: g.label, monto: Math.round((parteArs(g) + Number(g.montoUsd) * tasa) * 100) / 100 };
+        });
+        const total = Math.round(grupos.reduce(function (s, g) { return s + g.monto; }, 0) * 100) / 100;
+        return { mes: p.mes, grupos: grupos, total: total, unidad: 'pesos', tipoDolar: tipo, tasa: tasa, tasaFecha: cot.fecha };
+      }
+      if (!tasa) return { mes: p.mes, grupos: p.grupos, total: p.total, unidad: 'dolares', tipoDolar: tipo, sinTasa: true };
       const grupos = p.grupos.map(function (g) {
-        return { id: g.id, label: g.label, monto: aUsd(g) };
+        if (!tieneUsd(g)) return { id: g.id, label: g.label, monto: Math.round(((Number(g.monto) || 0) / tasa) * 100) / 100 };
+        return { id: g.id, label: g.label, monto: Math.round(((parteArs(g) / tasa) + Number(g.montoUsd)) * 100) / 100 };
       });
       const total = Math.round(grupos.reduce(function (s, g) { return s + g.monto; }, 0) * 100) / 100;
       return { mes: p.mes, grupos: grupos, total: total, unidad: 'dolares', tipoDolar: tipo, tasa: tasa, tasaFecha: cot.fecha };
@@ -4451,7 +4460,7 @@
       if (p.sinTasa) return 'Hoy · ' + mes + ' · sin cotización ' + etiquetaTipoDolar(p.tipoDolar);
       if (p.total == null || !isFinite(Number(p.total))) return 'Hoy · ' + mes + ' · ' + unidad;
       let txt = 'Hoy · ' + mes + ' · ' + fmtMillonesPosicion(p.total, p.unidad) + ' ' + unidad;
-      if (p.unidad === 'dolares' && p.tasa > 0) txt += ' · ' + textoCotizacionActual(p.tipoDolar, { tasa: p.tasa, fecha: p.tasaFecha });
+      if (p.tasa > 0) txt += ' · ' + textoCotizacionActual(p.tipoDolar || 'mep', { tasa: p.tasa, fecha: p.tasaFecha });
       return txt;
     }
 
