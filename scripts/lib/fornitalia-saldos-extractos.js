@@ -148,17 +148,22 @@
   async function ensureTipoCambio() {
     state.tcLoaded = false;
     var all = [];
-    var offset = 0;
-    for (;;) {
-      var res = await client().from('tipo_de_cambio')
-        .select('fecha, usd_mep')
-        .order('fecha', { ascending: true })
-        .range(offset, offset + SUPABASE_PAGE - 1);
-      if (res.error) throw res.error;
-      var chunk = res.data || [];
-      all = all.concat(chunk);
-      if (chunk.length < SUPABASE_PAGE) break;
-      offset += SUPABASE_PAGE;
+    if (global.FornitaliaTipoCambioGlobal && typeof global.FornitaliaTipoCambioGlobal.listar === 'function') {
+      try { all = await global.FornitaliaTipoCambioGlobal.listar(); } catch (e) { all = []; }
+    }
+    if (!all.length) {
+      var offset = 0;
+      for (;;) {
+        var res = await client().from('tipo_de_cambio')
+          .select('fecha, usd_mep')
+          .order('fecha', { ascending: true })
+          .range(offset, offset + SUPABASE_PAGE - 1);
+        if (res.error) throw res.error;
+        var chunk = res.data || [];
+        all = all.concat(chunk);
+        if (chunk.length < SUPABASE_PAGE) break;
+        offset += SUPABASE_PAGE;
+      }
     }
     var map = {};
     all.forEach(function (r) {
@@ -3668,12 +3673,13 @@
   function gruposPosicionCaja(fila) {
     if (!fila) return null;
     function n(v) { return v == null || !isFinite(Number(v)) ? 0 : Number(v); }
+    function usdN(v) { return v == null || v === '' || !isFinite(Number(v)) ? null : Number(v); }
     var grupos = [
-      { id: 'galicia', label: 'Galicia', monto: round2(n(fila.galicia) + n(fila.galicia_usd)) },
-      { id: 'mp', label: 'Mercado Pago', monto: round2(n(fila.mercadopago)) },
-      { id: 'credicoop', label: 'Credicoop', monto: round2(n(fila.credicoop)) },
-      { id: 'efectivo', label: 'Efectivo', monto: round2(n(fila.galicia_facturada) + n(fila.galicia_dolar)) },
-      { id: 'resto', label: 'Resto', monto: round2(n(fila.efectivo_sf) + n(fila.efectivo_sf_usd) + n(fila.morba_sf)) }
+      { id: 'galicia', label: 'Galicia', montoArs: n(fila.galicia), montoUsd: usdN(fila.galicia_usd_orig), monto: round2(n(fila.galicia) + n(fila.galicia_usd)) },
+      { id: 'mp', label: 'Mercado Pago', montoArs: n(fila.mercadopago), montoUsd: null, monto: round2(n(fila.mercadopago)) },
+      { id: 'credicoop', label: 'Credicoop', montoArs: n(fila.credicoop), montoUsd: null, monto: round2(n(fila.credicoop)) },
+      { id: 'efectivo', label: 'Efectivo', montoArs: n(fila.galicia_facturada), montoUsd: usdN(fila.galicia_dolar_orig), monto: round2(n(fila.galicia_facturada) + n(fila.galicia_dolar)) },
+      { id: 'resto', label: 'Resto', montoArs: round2(n(fila.efectivo_sf) + n(fila.morba_sf)), montoUsd: usdN(fila.efectivo_sf_usd_orig), monto: round2(n(fila.efectivo_sf) + n(fila.efectivo_sf_usd) + n(fila.morba_sf)) }
     ];
     var total = round2(grupos.reduce(function (s, g) { return s + g.monto; }, 0));
     return { mes: fila.mes, total: total, grupos: grupos };

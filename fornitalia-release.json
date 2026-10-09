@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.87",
+  "versionLabel": "v2.88",
   "lines": [
-    "En Saldos extractos, el mes en curso de Galicia no suma un cheque o movimiento que el banco todavía no imputó.",
-    "El cheque del 09/10 (Acred. Cheque 48hs En Proceso, $ 2.266.220) queda afuera: el saldo pasa a $ 214.011.718,07.",
-    "Ese mismo saldo se refleja en la torta de posición de caja."
+    "Con USD, la torta, el gráfico y la tabla usan una sola cotización: la de hoy del dólar elegido.",
+    "Hoy el MEP es 1.541,03. Se ve en la torta y en el texto del gráfico.",
+    "El selector dice Dólar y esa fila queda en una sola línea."
   ]
 }

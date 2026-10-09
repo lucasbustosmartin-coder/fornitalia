@@ -370,18 +370,23 @@
   async function ensureTipoCambio() {
     if (state.tcLoaded) return;
     var all = [];
-    var offset = 0;
-    for (;;) {
-      var res = await client().from('tipo_de_cambio')
-        .select('fecha, usd_mep')
-        .order('fecha', { ascending: true })
-        .order('id', { ascending: true })
-        .range(offset, offset + SUPABASE_PAGE - 1);
-      if (res.error) throw res.error;
-      var chunk = res.data || [];
-      all = all.concat(chunk);
-      if (chunk.length < SUPABASE_PAGE) break;
-      offset += SUPABASE_PAGE;
+    if (global.FornitaliaTipoCambioGlobal && typeof global.FornitaliaTipoCambioGlobal.listar === 'function') {
+      try { all = await global.FornitaliaTipoCambioGlobal.listar(); } catch (e) { all = []; }
+    }
+    if (!all.length) {
+      var offset = 0;
+      for (;;) {
+        var res = await client().from('tipo_de_cambio')
+          .select('fecha, usd_mep')
+          .order('fecha', { ascending: true })
+          .order('id', { ascending: true })
+          .range(offset, offset + SUPABASE_PAGE - 1);
+        if (res.error) throw res.error;
+        var chunk = res.data || [];
+        all = all.concat(chunk);
+        if (chunk.length < SUPABASE_PAGE) break;
+        offset += SUPABASE_PAGE;
+      }
     }
     var map = {};
     all.forEach(function (r) {

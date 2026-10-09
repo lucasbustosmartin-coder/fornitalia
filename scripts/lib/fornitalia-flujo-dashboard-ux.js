@@ -252,8 +252,10 @@
       var tipoEl = document.getElementById('tipoDolar');
       var tipoVal = tipoEl && tipoEl.value;
       var tipoNom = tipoVal === 'ccl' ? 'CCL' : (tipoVal === 'oficial' ? 'oficial' : 'MEP');
+      var tcEl = document.getElementById('tipo-dolar-tc');
+      var tcTxt = tcEl && tcEl.textContent ? tcEl.textContent.trim() : '';
       var enMoneda = moneda === 'USD'
-        ? ('Importes en dólares ' + tipoNom + '. ')
+        ? ('Importes en dólares ' + tipoNom + (tcTxt ? ' (' + tcTxt + ')' : '') + ', una sola cotización para todo el período. ')
         : '';
       var cursoTxt = moneda === 'USD'
         ? 'La barra celeste muestra el G/P del mes en curso'
