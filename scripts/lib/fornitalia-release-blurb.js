@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.86',
+    versionLabel: 'v2.87',
     lines: [
-      'Con USD, la torta de posición muestra los montos en miles, por ejemplo 135 mil dólares MEP.',
-      'En pesos, la torta sigue en millones.',
-      'El gráfico de G/P y la tabla siguen en el dólar seleccionado: MEP, CCL u oficial.'
+      'En Saldos extractos, el mes en curso de Galicia no suma un cheque o movimiento que el banco todavía no imputó.',
+      'El cheque del 09/10 (Acred. Cheque 48hs En Proceso, $ 2.266.220) queda afuera: el saldo pasa a $ 214.011.718,07.',
+      'Ese mismo saldo se refleja en la torta de posición de caja.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

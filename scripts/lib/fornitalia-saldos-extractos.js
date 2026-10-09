@@ -667,6 +667,7 @@
     (movs || []).forEach(function (m) {
       if (!m || (m.origen && m.origen !== 'banco')) return;
       if (esAperturaSe(m)) return;
+      if (estadoBancoNoImputado(m)) return;
       if (m.saldo == null || m.saldo === '') return;
       var sal = Number(m.saldo);
       if (!isFinite(sal)) return;
@@ -697,7 +698,7 @@
     var offset = 0;
     for (;;) {
       var res = await client().from('cb_movimiento')
-        .select('id,canal,origen,origen_id,fecha,monto,credito,debito,saldo,fila_excel,archivo,created_at,tipo,descripcion,pendiente_baja,id_operacion_relacionada,raw')
+        .select('id,canal,origen,origen_id,fecha,monto,credito,debito,saldo,fila_excel,archivo,created_at,tipo,descripcion,pendiente_baja,estado_banco,id_operacion_relacionada,raw')
         .eq('canal', canal)
         .eq('origen', 'banco')
         .gte('fecha', desde)
@@ -1491,12 +1492,22 @@
     return canal === CANAL_GAL || canal === CANAL_GAL_USD;
   }
 
+  /** Estado del extracto distinto de Imputado (Pendiente, En proceso, cheque en proceso). Vacío no se descarta. */
+  function estadoBancoNoImputado(m) {
+    var n = String(m && m.estado_banco || '').trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (!n) return false;
+    if (n === 'imputado' || n.indexOf('imputado ') === 0 || n.indexOf('imputado-') === 0) return false;
+    return true;
+  }
+
   function ultimoSaldoCorridoBanco(canal, hasta) {
     var list = [];
     (state.movsMes || []).forEach(function (m) {
       if (!m || m.canal !== canal) return;
       if (m.origen !== origenMovsCanalSe(canal)) return;
       if (esAperturaSe(m)) return;
+      if (estadoBancoNoImputado(m)) return;
       if (m.saldo == null || m.saldo === '') return;
       var sal = Number(m.saldo);
       if (!isFinite(sal)) return;
@@ -1537,6 +1548,7 @@
       if (!m || m.canal !== canal) return false;
       if (m.origen !== origenMovsCanalSe(canal)) return false;
       if (m.pendiente_baja === true || m.pendiente_baja === 'true') return false;
+      if (estadoBancoNoImputado(m)) return false;
       if (esAperturaSe(m)) return false;
       var f = String(m.fecha || '').slice(0, 10);
       if (!f) return false;
@@ -1908,7 +1920,7 @@
     var offset = 0;
     for (;;) {
       var res = await client().from('cb_movimiento')
-        .select('id,canal,origen,fecha,monto,credito,debito,saldo,fila_excel,archivo,created_at,tipo,descripcion,categoria,moneda,pendiente_baja')
+        .select('id,canal,origen,fecha,monto,credito,debito,saldo,fila_excel,archivo,created_at,tipo,descripcion,categoria,moneda,pendiente_baja,estado_banco')
         .eq('pendiente_baja', false)
         .gte('fecha', desde)
         .lte('fecha', hoy)
@@ -2249,7 +2261,7 @@
     }).join('');
     var body =
       '<p class="se-cmp-meta">Archivo al <strong>' + esc(al) + '</strong> · Mes en curso de la app al <strong>' + esc(hoy) + '</strong>.</p>' +
-      '<p class="se-cmp-note">Saldo Tesorería Fornitalia y mes en curso no se mezclan. En Galicia, el mes en curso es el saldo de cierre del último extracto cargado, sin sumar la tesorería. En Mercado Pago, es el saldo total de la última carta más los movimientos del extracto. En Credicoop, último corte + movimientos del mes. En Efectivo y Morba, un corte que no cierra con los movimientos que siguen en la caja se rearma: lo eliminado no entra al saldo. En cajas dólar se compara US$.</p>' +
+      '<p class="se-cmp-note">Saldo Tesorería Fornitalia y mes en curso no se mezclan. En Galicia, el mes en curso es el saldo corrido del último movimiento Imputado del extracto (un cheque Pendiente o En proceso no entra), sin sumar la tesorería. En Mercado Pago, es el saldo total de la última carta más los movimientos del extracto. En Credicoop, último corte + movimientos del mes. En Efectivo y Morba, un corte que no cierra con los movimientos que siguen en la caja se rearma: lo eliminado no entra al saldo. En cajas dólar se compara US$.</p>' +
       '<div class="se-cmp-chips">' +
         '<span class="se-cmp-chip se-cmp-chip-ok">Coinciden ' + cmp.nOk + '</span>' +
         '<span class="se-cmp-chip se-cmp-chip-bad">Diferencias ' + cmp.nBad + '</span>' +
@@ -3456,10 +3468,10 @@
       return 'El corte de <strong>Mercado Pago</strong> es la carta de saldo (saldo total: disponible + a liberar). El resumen de cuenta no se usa: solo trae el disponible y deja afuera el saldo a liberar. El día a día entra por el Excel del extracto. El <strong>mes en curso</strong> (celeste) parte del saldo total de la última carta y le suma los movimientos banco desde el día siguiente hasta hoy.';
     }
     if (state.canal === CANAL_GAL) {
-      return 'Después del último corte, el saldo lo calculan los <strong>movimientos del Excel</strong> (Extracto_CC…), no el PDF. El PDF <em>Extracto_Cuentas_Galicia_…</em> solo verifica: muestra movimientos del período que el banco no metió en el resumen. Tesorería no entra en este saldo. Los cortes ya cargados no se recalculan. El <strong>mes en curso</strong> (celeste) es el saldo corrido de la última fila del Excel CC.';
+      return 'Después del último corte, el saldo lo calculan los <strong>movimientos del Excel</strong> (Extracto_CC…), no el PDF. El PDF <em>Extracto_Cuentas_Galicia_…</em> solo verifica: muestra movimientos del período que el banco no metió en el resumen. Tesorería no entra en este saldo. Los cortes ya cargados no se recalculan. El <strong>mes en curso</strong> (celeste) es el saldo corrido del último movimiento <strong>Imputado</strong>. Un cheque o movimiento Pendiente / En proceso no entra.';
     }
     if (state.canal === CANAL_GAL_USD) {
-      return 'Igual que Galicia ARS: el día a día entra por el Excel <em>Extracto_CCE…</em>. El PDF solo verifica. Un corte nuevo = último corte + movimientos Excel; históricos no se tocan. El USD se pesifica al MEP. El <strong>mes en curso</strong> (celeste) toma el saldo corrido del Excel y lo pesifica al MEP de hoy.';
+      return 'Igual que Galicia ARS: el día a día entra por el Excel <em>Extracto_CCE…</em>. El PDF solo verifica. Un corte nuevo = último corte + movimientos Excel; históricos no se tocan. El USD se pesifica al MEP. El <strong>mes en curso</strong> (celeste) toma el saldo corrido del último movimiento <strong>Imputado</strong> y lo pesifica al MEP de hoy. Un cheque o movimiento Pendiente / En proceso no entra.';
     }
     if (state.canal === CANAL_CRED) {
       return 'Saldo de <strong>' + esc(LABEL_CRED) + '</strong> (caja banco). No hay extractos históricos: el corte se arma con la tesorería de <strong>Conciliación Bancaria</strong> (<em>tesoreria_transferencia_credicoop_…</em>, cierre o histórico Transferencia Credicoop). Apertura de Caja no entra. Si un mes no tiene corte, el consolidado arrastra el anterior. El <strong>mes en curso</strong> (celeste) suma la tesorería del mes hasta hoy.';
