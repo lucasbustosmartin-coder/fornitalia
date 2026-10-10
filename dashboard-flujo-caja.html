@@ -9,20 +9,20 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="scripts/lib/fornitalia-mensajes.js?v=2.75"></script>
-  <script src="scripts/lib/fornitalia-tipo-cambio-global.js?v=2.89"></script>
-  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.89"></script>
+  <script src="scripts/lib/fornitalia-tipo-cambio-global.js?v=2.90"></script>
+  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.90"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.89"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.90"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.75">
-  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.82"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.58">
-  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.89"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.90">
+  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.90"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.90">
+  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.90"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.75">
-  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.89"></script>
+  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.90"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.55">
   <script src="scripts/lib/fornitalia-impuestos.js?v=2.75"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.56">
@@ -1318,7 +1318,7 @@
     <div class="th-help-rich-content">
       <p>Entradas y salidas por mes. No se incluyen transacciones anuladas.</p>
       <p>Los meses que desactives en <strong>Configuración → Inclusión por mes</strong> quedan fuera de totales, tabla de flujo, Evolución y exportaciones agregadas; <strong>Todas las transacciones</strong> y la exportación de base histórica siguen mostrando el detalle completo.</p>
-      <p>En pesos, si un movimiento en dólares no tiene cotización ese día, se usa la inmediata anterior. La torta de posición pesifica los dólares de hoy con la misma cotización que al ver en dólares: la de hoy del dólar elegido, o la inmediata anterior, y la muestra en el subtítulo. En dólares, la posición de caja, el gráfico y la tabla usan esa misma cotización. El filtro <strong>Período</strong> (último año, un año o todo el histórico) recorta tarjetas, gráfico G/P y tabla. Hacé clic en un mes (encabezado o celda) para ver el detalle por categoría.</p>
+      <p>En pesos, si un movimiento en dólares no tiene cotización ese día, se usa la inmediata anterior. La torta de posición pesifica los dólares de hoy con la misma cotización que al ver en dólares: la de hoy del dólar elegido, o la inmediata anterior, y la muestra en el subtítulo. FCI entra en esa torta (pesos del fondo más dólares pesificados, o al revés al ver en dólares). En dólares, la posición de caja, el gráfico y la tabla usan esa misma cotización. El filtro <strong>Período</strong> (último año, un año o todo el histórico) recorta tarjetas, gráfico G/P y tabla. Hacé clic en un mes (encabezado o celda) para ver el detalle por categoría.</p>
     </div>
   </template>
   <p id="flujo-nota-meses-excluidos" class="dashboard-nota-compact"></p>
@@ -2122,7 +2122,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.89';
+    const APP_VERSION = '2.90';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -3956,6 +3956,8 @@
       if (canal === 'galicia') return 'Transferencia Galicia';
       if (canal === 'galicia_usd') return 'Transferencia Galicia Dolar';
       if (canal === 'credicoop') return 'Transferencia Credicoop';
+      if (canal === 'fci_galicia') return 'FCI Galicia (ARS)';
+      if (canal === 'fci_galicia_usd') return 'FCI Galicia (USD)';
       if (canal === 'galicia_facturada') return 'Efectivo Pesos';
       if (canal === 'morba_sf') return 'Transferencia Morba';
       if (canal === 'galicia_dolar') return 'Efectivo Dolar';
@@ -3985,7 +3987,7 @@
       const cat = String(m.categoria || '').trim();
       const cta = String(m.cuenta_contable || '').trim();
       const rel = relMatrizEf(matrizMap, matrizMap._byPar, cat, cta, tipo);
-      const canalUsd = m.canal === 'galicia_dolar' || m.canal === 'efectivo_sf_usd' || m.canal === 'galicia_usd';
+      const canalUsd = m.canal === 'galicia_dolar' || m.canal === 'efectivo_sf_usd' || m.canal === 'galicia_usd' || m.canal === 'fci_galicia_usd';
       const medio = medioPagoDesdeTesoreria(m);
       let monto = Number(m.monto);
       let moneda = String(m.moneda || raw.moneda || raw.moneda_origen || 'ARS').toUpperCase();
@@ -4444,6 +4446,7 @@
       galicia: '#ff6a00',
       mp: '#009EE3',
       credicoop: '#1e293b',
+      fci: '#0f766e',
       efectivo: '#0d7d3d',
       resto: '#94a3b8'
     };
@@ -4549,7 +4552,7 @@
           return '<li><span class="torta-swatch" style="background:' + color + '"></span><span class="torta-nombre">' + g.label + '</span><span class="torta-monto">' + fmtMillonesPosicion(monto, p.unidad) + '</span><span class="torta-pct">' + pctTxt + '</span></li>';
         }).join('');
       }
-      return '<div class="card resumen-torta" id="resumen-torta" title="Efectivo es Efectivo-f en pesos y en dólares. Resto es Efectivo sin factura (pesos y dólares) más Morba.">' +
+      return '<div class="card resumen-torta" id="resumen-torta" title="Efectivo es Efectivo-f en pesos y en dólares. Resto es Efectivo sin factura (pesos y dólares) más Morba. FCI es la tenencia del fondo en pesos y en dólares.">' +
         '<div class="resumen-torta-head">Posición de caja</div>' +
         '<p class="resumen-torta-sub">' + sub + '</p>' +
         '<div class="resumen-torta-body">' +
@@ -7338,9 +7341,11 @@
      */
     const MEDIO_MONEDA_FORNITALIA_TABLA = [
       ['Transferencia Galicia Dolar', 'USD'],
+      ['FCI Galicia (USD)', 'USD'],
       ['Efectivo Dolar (sin factura)', 'USD'],
       ['Efectivo Dolar', 'USD'],
       ['Transferencia Credicoop', 'ARS'],
+      ['FCI Galicia (ARS)', 'ARS'],
       ['Transferencia Galicia', 'ARS'],
       ['Transferencia Morba', 'ARS'],
       ['Transferencia Morva', 'ARS'],

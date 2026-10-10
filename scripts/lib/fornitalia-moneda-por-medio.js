@@ -13,9 +13,11 @@
 
 const MEDIO_MONEDA_FILAS = [
   ["Transferencia Galicia Dolar", "USD"],
+  ["FCI Galicia (USD)", "USD"],
   ["Efectivo Dolar (sin factura)", "USD"],
   ["Efectivo Dolar", "USD"],
   ["Transferencia Credicoop", "ARS"],
+  ["FCI Galicia (ARS)", "ARS"],
   ["Transferencia Galicia", "ARS"],
   ["Transferencia Morba", "ARS"],
   ["Transferencia Morva", "ARS"],

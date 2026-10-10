@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.89',
+    versionLabel: 'v2.90',
     lines: [
-      'En pesos, la torta muestra a qué cotización se pesificaron los dólares.',
-      'Es la misma de hoy del dólar elegido, o la del día anterior, que al ver en dólares.',
-      'Hoy el MEP es 1.541,22.'
+      'Hay dos cajas nuevas: FCI Galicia en pesos y FCI Galicia en dólares.',
+      'En Conciliación se cargan como el resto y se sugieren contra el extracto de Galicia.',
+      'Entran en Saldos extractos y en la torta de posición, en pesos o en dólares.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

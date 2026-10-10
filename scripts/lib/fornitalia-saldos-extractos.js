@@ -3,6 +3,7 @@
  * Galicia ARS (resumen PDF), Galicia USD (PDF Extracto_Cuentas_Galicia_… o Excel Extracto_CCE, pesificado al MEP),
  * Mercado Pago (carta de saldo: saldo total, con el dinero a liberar), Credicoop (corte desde tesorería; no hay extractos históricos)
  * y cajas físicas Efectivo-f (ARS) / Morba-s/f (ARS) / Efectivo-f (USD) / Efectivo-s/f (ARS) / Efectivo-s/f (USD).
+ * FCI Galicia (ARS) y FCI Galicia (USD): saldo corrido de la tesorería (suscripción y rescate).
  * window.FornitaliaSaldosExtractos.init({ client, hasPerm, getRoot })
  */
 (function (global) {
@@ -26,6 +27,10 @@
   var LABEL_GAL_USD = 'Galicia (USD)';
   var CANAL_CRED = 'credicoop';
   var LABEL_CRED = 'Credicoop';
+  var CANAL_FCI = 'fci_galicia';
+  var CANAL_FCI_USD = 'fci_galicia_usd';
+  var LABEL_FCI = 'FCI Galicia (ARS)';
+  var LABEL_FCI_USD = 'FCI Galicia (USD)';
   var CANAL_CONS = 'consolidado';
   var PERM_VER = 'ver_saldos_extractos';
   var PERM_CARGAR = 'cargar_saldos_extractos';
@@ -60,6 +65,7 @@
     err: '',
     movsMes: [],
     movsCaja: [],
+    movsFci: [],
     chart: null,
     tcLoaded: false,
     tcMap: {},
@@ -1364,6 +1370,7 @@
   }
 
   function filasCanal(canal) {
+    if (canal === CANAL_FCI || canal === CANAL_FCI_USD) return filasFciMes(canal);
     return (state.rows || []).filter(function (r) {
       return r.canal === canal && !esResumenCuentaMp(r) && pasaFiltroMes(r.fecha_hasta);
     }).slice().sort(function (a, b) {
@@ -1668,6 +1675,10 @@
       var ym = mesYYYYMM(r.fecha_hasta);
       if (ym && pasaFiltroMes(r.fecha_hasta)) set[ym] = true;
     });
+    (state.movsFci || []).forEach(function (m) {
+      var ymF = mesYYYYMM(m && m.fecha);
+      if (ymF && pasaFiltroMes(String(m.fecha || '').slice(0, 10))) set[ymF] = true;
+    });
     var ymHoy = mesYYYYMM(hoyYmd());
     if (ymHoy && pasaFiltroMes(ymHoy + '-01')) {
       if (Object.keys(set).length || filaMesEnCurso(CANAL_MP) || filaMesEnCurso(CANAL_GAL) ||
@@ -1783,7 +1794,111 @@
     });
   }
 
+  function ultimoDiaYm(ym) {
+    var p = String(ym || '').split('-');
+    if (p.length < 2) return '';
+    var y = Number(p[0]);
+    var m = Number(p[1]);
+    if (!y || !m) return '';
+    var dt = new Date(Date.UTC(y, m, 0));
+    return dt.getUTCFullYear() + '-' + pad2(dt.getUTCMonth() + 1) + '-' + pad2(dt.getUTCDate());
+  }
+
+  function hastaSaldoFci(ym) {
+    var ymHoy = mesYYYYMM(hoyYmd());
+    if (ym === ymHoy) return hoyYmd();
+    return ultimoDiaYm(ym);
+  }
+
+  function saldoFciHasta(canal, ymd) {
+    var hasta = String(ymd || '').slice(0, 10);
+    if (!hasta) return null;
+    var hay = false;
+    var neto = 0;
+    (state.movsFci || []).forEach(function (m) {
+      if (!m || m.canal !== canal) return;
+      if (m.pendiente_baja === true || m.pendiente_baja === 'true') return;
+      if (esAperturaSe(m)) return;
+      var f = String(m.fecha || '').slice(0, 10);
+      if (!f || f > hasta) return;
+      hay = true;
+      neto = round2(neto + (netoMovimientoSe(m) || 0));
+    });
+    return hay ? neto : null;
+  }
+
+  function filasFciMes(canal) {
+    var hay = (state.movsFci || []).some(function (m) {
+      return m && m.canal === canal && !esAperturaSe(m);
+    });
+    if (!hay) return [];
+    var minF = '9999-99-99';
+    (state.movsFci || []).forEach(function (m) {
+      if (!m || m.canal !== canal || esAperturaSe(m)) return;
+      var f = String(m.fecha || '').slice(0, 10);
+      if (f && f < minF) minF = f;
+    });
+    var desdeYm = mesYYYYMM(minF);
+    var hastaYm = mesYYYYMM(hoyYmd());
+    if (!desdeYm || !hastaYm || desdeYm > hastaYm) return [];
+    var y = Number(desdeYm.slice(0, 4));
+    var mo = Number(desdeYm.slice(5, 7));
+    var ye = Number(hastaYm.slice(0, 4));
+    var me = Number(hastaYm.slice(5, 7));
+    var prev = null;
+    var prevUsd = null;
+    var rows = [];
+    while (y < ye || (y === ye && mo <= me)) {
+      var ym = y + '-' + pad2(mo);
+      var esHoy = ym === hastaYm;
+      var hasta = esHoy ? hoyYmd() : ultimoDiaYm(ym);
+      var usd = canal === CANAL_FCI_USD ? saldoFciHasta(canal, hasta) : null;
+      var ars = null;
+      var tc = null;
+      if (canal === CANAL_FCI_USD) {
+        tc = tasaMepParaFecha(hasta);
+        if (usd != null && tc && tc.tasa > 0) ars = round2(usd * tc.tasa);
+      } else {
+        ars = saldoFciHasta(canal, hasta);
+      }
+      if (ars != null) {
+        rows.push({
+          canal: canal,
+          fecha_desde: ym + '-01',
+          fecha_hasta: hasta,
+          saldo_inicial: prev,
+          saldo_final: ars,
+          archivo: 'Tesorería FCI',
+          raw: {
+            saldo_usd: usd,
+            saldo_usd_inicial: prevUsd,
+            tipo_cambio_mep: tc && tc.tasa > 0 ? tc.tasa : null,
+            tipo_cambio_fecha: tc && tc.fecha ? tc.fecha : null
+          },
+          _vivo: esHoy
+        });
+        prev = ars;
+        prevUsd = usd;
+      }
+      mo += 1;
+      if (mo > 12) { mo = 1; y += 1; }
+    }
+    return rows.filter(function (r) { return pasaFiltroMes(r.fecha_hasta); }).sort(function (a, b) {
+      return String(b.fecha_hasta).localeCompare(String(a.fecha_hasta));
+    });
+  }
+
   function saldoCanalMes(canal, ym) {
+    if (canal === CANAL_FCI || canal === CANAL_FCI_USD) {
+      var hastaFci = hastaSaldoFci(ym);
+      if (canal === CANAL_FCI_USD) {
+        var usdFci = saldoFciHasta(canal, hastaFci);
+        if (usdFci == null) return null;
+        var tcFci = tasaMepParaFecha(hastaFci);
+        return tcFci && tcFci.tasa > 0 ? round2(usdFci * tcFci.tasa) : null;
+      }
+      return saldoFciHasta(canal, hastaFci);
+    }
     var ymHoy = mesYYYYMM(hoyYmd());
     if (ym === ymHoy) {
       var vivo = filaMesEnCurso(canal);
@@ -1800,6 +1915,7 @@
   }
 
   function usdCanalMes(canal, ym) {
+    if (canal === CANAL_FCI_USD) return saldoFciHasta(canal, hastaSaldoFci(ym));
     if (!esCanalUsdSe(canal)) return null;
     var ymHoy = mesYYYYMM(hoyYmd());
     if (ym === ymHoy) {
@@ -1824,13 +1940,15 @@
       var galUsd = saldoCanalMes(CANAL_GAL_USD, ym);
       var mp = saldoCanalMes(CANAL_MP, ym);
       var cred = saldoCanalMes(CANAL_CRED, ym);
+      var fci = saldoCanalMes(CANAL_FCI, ym);
+      var fciUsd = saldoCanalMes(CANAL_FCI_USD, ym);
       var gf = saldoCanalMes(CANAL_GF, ym);
       var mor = saldoCanalMes(CANAL_MOR, ym);
       var usd = saldoCanalMes(CANAL_USD, ym);
       var sf = saldoCanalMes(CANAL_SF, ym);
       var sfUsd = saldoCanalMes(CANAL_SF_USD, ym);
-      var total = round2((gal || 0) + (galUsd || 0) + (mp || 0) + (cred || 0) + (gf || 0) + (mor || 0) + (usd || 0) + (sf || 0) + (sfUsd || 0));
-      if (gal == null && galUsd == null && mp == null && cred == null && gf == null && mor == null && usd == null && sf == null && sfUsd == null) total = null;
+      var total = round2((gal || 0) + (galUsd || 0) + (mp || 0) + (cred || 0) + (fci || 0) + (fciUsd || 0) + (gf || 0) + (mor || 0) + (usd || 0) + (sf || 0) + (sfUsd || 0));
+      if (gal == null && galUsd == null && mp == null && cred == null && fci == null && fciUsd == null && gf == null && mor == null && usd == null && sf == null && sfUsd == null) total = null;
       var vari = (prevTotal != null && total != null) ? round2(total - prevTotal) : null;
       if (total != null) prevTotal = total;
       return {
@@ -1841,6 +1959,9 @@
         galicia_usd_orig: usdCanalMes(CANAL_GAL_USD, ym),
         mercadopago: mp,
         credicoop: cred,
+        fci: fci,
+        fci_usd: fciUsd,
+        fci_usd_orig: usdCanalMes(CANAL_FCI_USD, ym),
         galicia_facturada: gf,
         morba_sf: mor,
         galicia_dolar: usd,
@@ -1968,6 +2089,31 @@
     state.movsCaja = all;
   }
 
+  async function cargarMovimientosFci() {
+    state.movsFci = [];
+    if (!client()) return;
+    var all = [];
+    var offset = 0;
+    for (;;) {
+      var res = await client().from('cb_movimiento')
+        .select('canal,fecha,monto,credito,debito,tipo,descripcion,categoria,pendiente_baja')
+        .eq('origen', 'sistema')
+        .eq('pendiente_baja', false)
+        .in('canal', [CANAL_FCI, CANAL_FCI_USD])
+        .order('fecha', { ascending: true })
+        .range(offset, offset + SUPABASE_PAGE - 1);
+      if (res.error) {
+        state.movsFci = [];
+        return;
+      }
+      var chunk = res.data || [];
+      all = all.concat(chunk);
+      if (chunk.length < SUPABASE_PAGE) break;
+      offset += SUPABASE_PAGE;
+    }
+    state.movsFci = all;
+  }
+
   async function recargar() {
     state.loading = true;
     renderShell();
@@ -1976,10 +2122,12 @@
       await cargarDatos();
       await cargarMovimientosMes();
       await cargarMovimientosCaja();
+      await cargarMovimientosFci();
       aplicarSaldosSinEliminados();
       var hayUsd = (state.rows || []).some(function (r) {
         return r.canal === CANAL_GAL_USD || r.canal === CANAL_USD || r.canal === CANAL_SF_USD;
-      }) || (state.movsMes || []).some(function (m) { return m.canal === CANAL_GAL_USD; });
+      }) || (state.movsMes || []).some(function (m) { return m.canal === CANAL_GAL_USD; })
+        || (state.movsFci || []).some(function (m) { return m.canal === CANAL_FCI_USD; });
       if (hayUsd) {
         try { await ensureTipoCambio(); } catch (eTc) { /* el mes en curso ARS sigue */ }
       }
@@ -2610,6 +2758,25 @@
             fill: false
           },
           {
+            label: LABEL_FCI,
+            data: meses.map(function (x) { return x.fci; }),
+            borderColor: '#0f766e',
+            backgroundColor: 'transparent',
+            tension: 0.15,
+            pointRadius: 3,
+            fill: false
+          },
+          {
+            label: LABEL_FCI_USD + ' (ARS, MEP)',
+            data: meses.map(function (x) { return x.fci_usd; }),
+            borderColor: '#14b8a6',
+            backgroundColor: 'transparent',
+            borderDash: [4, 3],
+            tension: 0.15,
+            pointRadius: 3,
+            fill: false
+          },
+          {
             label: LABEL_GF,
             data: meses.map(function (x) { return x.galicia_facturada; }),
             borderColor: '#b45309',
@@ -2739,10 +2906,10 @@
         return;
       }
       aoa = [['Saldos extractos — Posición consolidada']].concat(meta);
-      aoa.push(['Mes', LABEL_GAL, LABEL_GAL_USD, 'Mercado Pago', LABEL_CRED, LABEL_GF, LABEL_MOR, LABEL_USD, LABEL_SF, LABEL_SF_USD, 'Total', 'Variación']);
+      aoa.push(['Mes', LABEL_GAL, LABEL_GAL_USD, 'Mercado Pago', LABEL_CRED, LABEL_FCI, LABEL_FCI_USD, LABEL_GF, LABEL_MOR, LABEL_USD, LABEL_SF, LABEL_SF_USD, 'Total', 'Variación']);
       dateCols = [];
-      numCols = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-      cols = [{ wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 }];
+      numCols = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+      cols = [{ wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 }];
       meses.forEach(function (x) {
         aoa.push([
           formatMesLabel(x.mes) + (x._vivo ? ' (en curso)' : ''),
@@ -2750,6 +2917,8 @@
           excelNum(x.galicia_usd),
           excelNum(x.mercadopago),
           excelNum(x.credicoop),
+          excelNum(x.fci),
+          excelNum(x.fci_usd),
           excelNum(x.galicia_facturada),
           excelNum(x.morba_sf),
           excelNum(x.galicia_dolar),
@@ -2873,6 +3042,39 @@
       });
       sheetName = 'Credicoop';
       fileName = 'Saldos_Extractos_Credicoop.xlsx';
+    } else if (state.canal === CANAL_FCI || state.canal === CANAL_FCI_USD) {
+      var rowsFciX = conAnterior(filasCanal(state.canal));
+      var nomFciX = state.canal === CANAL_FCI_USD ? LABEL_FCI_USD : LABEL_FCI;
+      if (!rowsFciX.length) {
+        FornitaliaMensajes.avisar('No hay saldos visibles con el período elegido.');
+        return;
+      }
+      var esFciUsdX = state.canal === CANAL_FCI_USD;
+      aoa = [['Saldos extractos — ' + nomFciX + ' (desde tesorería)']].concat(meta);
+      aoa.push(esFciUsdX
+        ? ['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial ARS', 'Saldo final ARS', 'USD orig.', 'Variación ARS', 'Archivo', 'Usuario']
+        : ['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial', 'Saldo final', 'Variación', 'Archivo', 'Usuario']);
+      dateCols = [0, 1, 2];
+      numCols = esFciUsdX ? [3, 4, 5, 6] : [3, 4, 5];
+      cols = esFciUsdX
+        ? [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 16 }, { wch: 24 }]
+        : [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 24 }];
+      rowsFciX.forEach(function (r) {
+        var base = [
+          excelDate(r.fecha_hasta),
+          excelDate(r.fecha_desde),
+          excelDate(r.fecha_hasta),
+          excelNum(saldoInicialMostrar(r)),
+          excelNum(r.saldo_final)
+        ];
+        if (esFciUsdX) base.push(excelNum(usdFinalDeFilaSe(r)));
+        base.push(excelNum(variacionFila(r)));
+        base.push(r.archivo || '');
+        base.push(textoUsuario(r.updated_by, r.created_by));
+        aoa.push(base);
+      });
+      sheetName = esFciUsdX ? 'FCI USD' : 'FCI ARS';
+      fileName = esFciUsdX ? 'Saldos_Extractos_FCI_Galicia_USD.xlsx' : 'Saldos_Extractos_FCI_Galicia_ARS.xlsx';
     } else if (state.canal === CANAL_GF) {
       var rowsGf = conAnterior(filasCanal(CANAL_GF));
       if (!rowsGf.length) {
@@ -3013,6 +3215,8 @@
     if (canal === CANAL_GAL) return LABEL_GAL;
     if (canal === CANAL_GAL_USD) return LABEL_GAL_USD;
     if (canal === CANAL_CRED) return LABEL_CRED;
+    if (canal === CANAL_FCI) return LABEL_FCI;
+    if (canal === CANAL_FCI_USD) return LABEL_FCI_USD;
     if (canal === CANAL_GF) return LABEL_GF;
     if (canal === CANAL_MOR) return LABEL_MOR;
     if (canal === CANAL_USD) return LABEL_USD;
@@ -3026,6 +3230,7 @@
     if (canal === CANAL_MP) return 'se-tab-mp';
     if (canal === CANAL_GAL || canal === CANAL_GAL_USD) return 'se-tab-gal';
     if (canal === CANAL_CRED) return 'se-tab-cred';
+    if (canal === CANAL_FCI || canal === CANAL_FCI_USD) return 'se-tab-fci';
     if (canal === CANAL_CONS) return 'se-tab-cons';
     return 'se-tab-caja';
   }
@@ -3170,7 +3375,7 @@
   }
 
   function esCanalUsdSe(canal) {
-    return canal === CANAL_GAL_USD || canal === CANAL_USD || canal === CANAL_SF_USD;
+    return canal === CANAL_GAL_USD || canal === CANAL_USD || canal === CANAL_SF_USD || canal === CANAL_FCI_USD;
   }
 
   function tcDeFilaSe(r) {
@@ -3380,7 +3585,7 @@
 
   function renderTablaConsolidado(meses) {
     if (!meses.length) {
-      return '<p class="se-empty">No hay saldos para consolidar. Cargá ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ' y/o las cajas físicas (' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ', ' + esc(LABEL_SF_USD) + ').</p>';
+      return '<p class="se-empty">No hay saldos para consolidar. Cargá ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_FCI) + ', ' + esc(LABEL_FCI_USD) + ' y/o las cajas físicas (' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ', ' + esc(LABEL_SF_USD) + ').</p>';
     }
     var html = '';
     meses.slice().reverse().forEach(function (x) {
@@ -3390,6 +3595,8 @@
         '<td class="se-col-monto">' + htmlMontoConUsd(x.galicia_usd, x.galicia_usd_orig) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.mercadopago) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.credicoop) + '</td>' +
+        '<td class="se-col-monto">' + htmlMonto(x.fci) + '</td>' +
+        '<td class="se-col-monto">' + htmlMontoConUsd(x.fci_usd, x.fci_usd_orig) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.galicia_facturada) + '</td>' +
         '<td class="se-col-monto">' + htmlMonto(x.morba_sf) + '</td>' +
         '<td class="se-col-monto">' + htmlMontoConUsd(x.galicia_dolar, x.galicia_dolar_orig) + '</td>' +
@@ -3406,6 +3613,8 @@
         '<th class="se-col-monto">' + esc(LABEL_GAL_USD) + '</th>' +
         '<th class="se-col-monto">Mercado Pago</th>' +
         '<th class="se-col-monto">' + esc(LABEL_CRED) + '</th>' +
+        '<th class="se-col-monto">' + esc(LABEL_FCI) + '</th>' +
+        '<th class="se-col-monto">' + esc(LABEL_FCI_USD) + '</th>' +
         '<th class="se-col-monto">' + esc(LABEL_GF) + '</th>' +
         '<th class="se-col-monto">' + esc(LABEL_MOR) + '</th>' +
         '<th class="se-col-monto">' + esc(LABEL_USD) + '</th>' +
@@ -3481,6 +3690,13 @@
     if (state.canal === CANAL_CRED) {
       return 'Saldo de <strong>' + esc(LABEL_CRED) + '</strong> (caja banco). No hay extractos históricos: el corte se arma con la tesorería de <strong>Conciliación Bancaria</strong> (<em>tesoreria_transferencia_credicoop_…</em>, cierre o histórico Transferencia Credicoop). Apertura de Caja no entra. Si un mes no tiene corte, el consolidado arrastra el anterior. El <strong>mes en curso</strong> (celeste) suma la tesorería del mes hasta hoy.';
     }
+    if (state.canal === CANAL_FCI || state.canal === CANAL_FCI_USD) {
+      var nomFci = state.canal === CANAL_FCI_USD ? LABEL_FCI_USD : LABEL_FCI;
+      var extraFci = state.canal === CANAL_FCI_USD
+        ? ' El saldo en dólares se muestra pesificado al MEP de la fecha de corte. La torta de Flujo de caja usa la cotización de hoy (o la anterior) del dólar elegido.'
+        : '';
+      return 'Saldo de <strong>' + esc(nomFci) + '</strong>: suma corrida de la tesorería de suscripción y rescate (menú <strong>Conciliación Bancaria</strong>). No hay extracto propio: el movimiento de plata sigue en el extracto de Galicia de la misma moneda. Apertura de Caja no entra.' + extraFci;
+    }
     if (state.canal === CANAL_GF) {
       return 'Saldo de <strong>' + esc(LABEL_GF) + '</strong> (caja física / efectivo pesos). No se carga acá: se actualiza al importar <em>tesoreria_efectivo_pesos_…</em> o <em>cierre_PES-…</em> en el menú <strong>Cajas (físicas)</strong>.';
     }
@@ -3496,7 +3712,7 @@
     if (state.canal === CANAL_SF_USD) {
       return 'Saldo de <strong>' + esc(LABEL_SF_USD) + '</strong> (caja física / efectivo dólar sin factura, en ARS). No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Dolar (sin factura)</em> o Moneda USD en <strong>Cajas (físicas)</strong>.';
     }
-    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). En Mercado Pago el mes en curso parte del saldo total de la última carta. En Galicia, el <strong>mes en curso</strong> (celeste) es el saldo corrido del extracto (el saldo real del banco). El promedio de saldo es cuánto dinero queda en promedio.';
+    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_FCI) + ', ' + esc(LABEL_FCI_USD) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). FCI es la tenencia del fondo; el extracto de Galicia sigue mostrando la cuenta del banco. En Mercado Pago el mes en curso parte del saldo total de la última carta. En Galicia, el <strong>mes en curso</strong> (celeste) es el saldo corrido del extracto (el saldo real del banco). El promedio de saldo es cuánto dinero queda en promedio.';
   }
 
   function renderShell() {
@@ -3518,6 +3734,8 @@
     var rowsUsd = filasCanal(CANAL_USD);
     var rowsGalUsd = filasCanalConVivo(CANAL_GAL_USD);
     var rowsCred = filasCanalConVivo(CANAL_CRED);
+    var rowsFci = filasCanal(CANAL_FCI);
+    var rowsFciUsd = filasCanal(CANAL_FCI_USD);
     var meses = filasConsolidado();
 
     if (state.canal === CANAL_MP) {
@@ -3536,6 +3754,14 @@
       kpisHtml = renderKpis(kpisCanal(rowsCred), 'Cortes');
       tabla = renderTablaCajaFisica(CANAL_CRED, LABEL_CRED, 'tesoreria_transferencia_credicoop_… o el histórico Transferencia Credicoop', 'Conciliación Bancaria');
       hayChart = !!rowsCred.length;
+    } else if (state.canal === CANAL_FCI) {
+      kpisHtml = renderKpis(kpisCanal(rowsFci), 'Cortes');
+      tabla = renderTablaCajaFisica(CANAL_FCI, LABEL_FCI, 'el histórico con Caja FCI Galicia (ARS)', 'Conciliación Bancaria');
+      hayChart = !!rowsFci.length;
+    } else if (state.canal === CANAL_FCI_USD) {
+      kpisHtml = renderKpis(kpisCanal(rowsFciUsd), 'Cortes');
+      tabla = renderTablaCajaFisica(CANAL_FCI_USD, LABEL_FCI_USD, 'el histórico con Caja FCI Galicia (USD)', 'Conciliación Bancaria');
+      hayChart = !!rowsFciUsd.length;
     } else if (state.canal === CANAL_GF) {
       kpisHtml = renderKpis(kpisCanal(rowsGf), 'Cortes');
       tabla = renderTablaGf(rowsGf);
@@ -3585,6 +3811,8 @@
         htmlTabCanalSe(CANAL_MP) +
         htmlTabCanalSe(CANAL_GAL) +
         htmlTabCanalSe(CANAL_GAL_USD) +
+        htmlTabCanalSe(CANAL_FCI) +
+        htmlTabCanalSe(CANAL_FCI_USD) +
         htmlTabCanalSe(CANAL_CRED) +
         htmlTabCanalSe(CANAL_GF) +
         htmlTabCanalSe(CANAL_MOR) +
@@ -3610,6 +3838,8 @@
     else if (state.canal === CANAL_GAL && hayChart) pintarChartCanal(rowsGal, 'Serie de saldos ' + LABEL_GAL, 'Saldo de cierre (ARS)');
     else if (state.canal === CANAL_GAL_USD && hayChart) pintarChartCanal(rowsGalUsd, 'Serie de saldos ' + LABEL_GAL_USD + ' (ARS al MEP)', 'Saldo de caja (ARS)');
     else if (state.canal === CANAL_CRED && hayChart) pintarChartCanal(rowsCred, 'Serie de saldos ' + LABEL_CRED + ' (desde tesorería)', 'Saldo de caja (ARS)');
+    else if (state.canal === CANAL_FCI && hayChart) pintarChartCanal(rowsFci, 'Serie de saldos ' + LABEL_FCI, 'Saldo de caja (ARS)');
+    else if (state.canal === CANAL_FCI_USD && hayChart) pintarChartCanal(rowsFciUsd, 'Serie de saldos ' + LABEL_FCI_USD + ' (ARS al MEP)', 'Saldo de caja (ARS)');
     else if (state.canal === CANAL_GF && hayChart) pintarChartCanal(rowsGf, 'Serie de saldos ' + LABEL_GF + ' (caja física)', 'Saldo de caja (ARS)');
     else if (state.canal === CANAL_MOR && hayChart) pintarChartCanal(rowsMor, 'Serie de saldos ' + LABEL_MOR + ' (caja física)', 'Saldo de caja (ARS)');
     else if (state.canal === CANAL_USD && hayChart) pintarChartCanal(rowsUsd, 'Serie de saldos ' + LABEL_USD + ' (caja física, ARS al MEP)', 'Saldo de caja (ARS)');
@@ -3678,6 +3908,7 @@
       { id: 'galicia', label: 'Galicia', montoArs: n(fila.galicia), montoUsd: usdN(fila.galicia_usd_orig), monto: round2(n(fila.galicia) + n(fila.galicia_usd)) },
       { id: 'mp', label: 'Mercado Pago', montoArs: n(fila.mercadopago), montoUsd: null, monto: round2(n(fila.mercadopago)) },
       { id: 'credicoop', label: 'Credicoop', montoArs: n(fila.credicoop), montoUsd: null, monto: round2(n(fila.credicoop)) },
+      { id: 'fci', label: 'FCI', montoArs: n(fila.fci), montoUsd: usdN(fila.fci_usd_orig), monto: round2(n(fila.fci) + n(fila.fci_usd)) },
       { id: 'efectivo', label: 'Efectivo', montoArs: n(fila.galicia_facturada), montoUsd: usdN(fila.galicia_dolar_orig), monto: round2(n(fila.galicia_facturada) + n(fila.galicia_dolar)) },
       { id: 'resto', label: 'Resto', montoArs: round2(n(fila.efectivo_sf) + n(fila.morba_sf)), montoUsd: usdN(fila.efectivo_sf_usd_orig), monto: round2(n(fila.efectivo_sf) + n(fila.efectivo_sf_usd) + n(fila.morba_sf)) }
     ];
@@ -3690,6 +3921,7 @@
     await cargarDatos();
     await cargarMovimientosMes();
     await cargarMovimientosCaja();
+    await cargarMovimientosFci();
     aplicarSaldosSinEliminados();
     try { await ensureTipoCambio(); } catch (eTc) { /* sin MEP, Galicia USD queda en el corte ya pesificado */ }
     var meses = filasConsolidado();

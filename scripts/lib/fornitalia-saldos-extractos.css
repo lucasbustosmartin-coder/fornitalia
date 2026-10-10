@@ -248,6 +248,22 @@
   font-weight: 600;
 }
 
+.se-tabs button.se-tab-fci {
+  background: #ecfdf8;
+  border-color: #0f766e;
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.se-tabs button.se-tab-fci:hover { background: #d1fae5; opacity: 1; }
+
+.se-tabs button.se-tab-fci.activo {
+  background: #0f766e;
+  border-color: #0d645d;
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.35), 0 4px 10px rgba(15, 118, 110, 0.22);
+}
+
 .se-tabs button.se-tab-cred:hover { background: #2a2a2a; opacity: 1; }
 
 .se-tabs button.se-tab-cred.activo {

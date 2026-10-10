@@ -1,6 +1,6 @@
 /**
  * Conciliación Bancaria – Fornitalia
- * Canales: Mercado Pago, Galicia (ARS), Galicia (USD) y Credicoop.
+ * Canales: Mercado Pago, Galicia (ARS), Galicia (USD), Credicoop, FCI Galicia (ARS) y FCI Galicia (USD).
  * window.FornitaliaConciliacionBancaria.init({ client, hasPerm, getRoot })
  */
 (function (global) {
@@ -14,6 +14,10 @@
   var LABEL_GAL = 'Galicia (ARS)';
   var LABEL_GAL_USD = 'Galicia (USD)';
   var LABEL_CRED = 'Credicoop';
+  var CANAL_FCI = 'fci_galicia';
+  var CANAL_FCI_USD = 'fci_galicia_usd';
+  var LABEL_FCI = 'FCI Galicia (ARS)';
+  var LABEL_FCI_USD = 'FCI Galicia (USD)';
   var PERM_VER = 'ver_conciliacion_bancaria';
   var PERM_CARGAR = 'cargar_conciliacion_bancaria';
   var PERM_CONFIRMAR = 'confirmar_conciliacion_bancaria';
@@ -71,6 +75,7 @@
     matches: [],
     dupsDescartados: [],
     eliminados: [],
+    bancoAjeno: {},
     msg: '',
     err: '',
     resumenCarga: null,
@@ -457,11 +462,28 @@
     return c === CANAL_GAL_USD;
   }
 
+  function esCanalFci(c) {
+    return c === CANAL_FCI || c === CANAL_FCI_USD;
+  }
+
+  function canalBancoDeFci(c) {
+    return c === CANAL_FCI_USD ? CANAL_GAL_USD : CANAL_GAL;
+  }
+
+  function canalFciPorTexto(t) {
+    var n = normHeader(t);
+    if (n.indexOf('fci') < 0 || n.indexOf('galicia') < 0) return '';
+    if (n.indexOf('dolar') >= 0 || n.indexOf('dollar') >= 0 || /\busd\b/.test(n)) return CANAL_FCI_USD;
+    return CANAL_FCI;
+  }
+
   function canalesCb() {
-    return [CANAL_MP, CANAL_GAL, CANAL_GAL_USD, CANAL_CRED];
+    return [CANAL_MP, CANAL_GAL, CANAL_GAL_USD, CANAL_CRED, CANAL_FCI, CANAL_FCI_USD];
   }
 
   function labelCanalNombre(c) {
+    if (c === CANAL_FCI_USD) return LABEL_FCI_USD;
+    if (c === CANAL_FCI) return LABEL_FCI;
     if (c === CANAL_GAL_USD) return LABEL_GAL_USD;
     if (c === CANAL_GAL) return LABEL_GAL;
     if (c === CANAL_CRED) return LABEL_CRED;
@@ -589,8 +611,33 @@
     return (state.movimientos || []).filter(function (m) { return m.canal === state.canal; });
   }
 
+  function bancoRelevanteFci(m) {
+    var blob = normHeader([m && m.descripcion, m && m.tipo, m && m.concepto].filter(Boolean).join(' '));
+    if (/\bfci\b|fondo comun|rescate|suscrip/.test(blob)) return true;
+    var sist = sistemaRowsTodos();
+    var i;
+    for (i = 0; i < sist.length; i++) {
+      if (!mismoImporte(m.monto, sist[i].monto)) continue;
+      if (Math.abs(daysBetween(m.fecha, sist[i].fecha)) <= MAX_DIAS_SUGERENCIA) return true;
+    }
+    return false;
+  }
+
   function bancoRowsTodos() {
-    return movimientosCanal().filter(function (m) { return m.origen === 'banco'; });
+    var list;
+    if (esCanalFci(state.canal)) {
+      var bancoCanal = canalBancoDeFci(state.canal);
+      list = (state.movimientos || []).filter(function (m) {
+        return m.origen === 'banco' && m.canal === bancoCanal;
+      });
+    } else {
+      list = movimientosCanal().filter(function (m) { return m.origen === 'banco'; });
+    }
+    if (state.bancoAjeno) {
+      list = list.filter(function (m) { return !state.bancoAjeno[m.id]; });
+    }
+    if (esCanalFci(state.canal)) list = list.filter(bancoRelevanteFci);
+    return list;
   }
 
   function esTextoAnulacionMp(tipo) {
@@ -1086,6 +1133,8 @@
   function canalPorCaja(caja) {
     var t = normHeader(caja);
     if (!t) return '';
+    var fci = canalFciPorTexto(t);
+    if (fci) return fci;
     if (esTesoreriaGaliciaUsd('', '', caja)) return CANAL_GAL_USD;
     if (t.indexOf('credicoop') >= 0 || t.indexOf('credicop') >= 0) return CANAL_CRED;
     if (t.indexOf('galicia') >= 0) return CANAL_GAL;
@@ -1108,6 +1157,8 @@
   function canalPorArchivoTesoreria(archivo) {
     var t = normHeader(archivo);
     if (!t) return '';
+    var fci = canalFciPorTexto(t);
+    if (fci) return fci;
     if (esTesoreriaGaliciaUsd(archivo, '', '')) return CANAL_GAL_USD;
     if (t.indexOf('credicoop') >= 0 || t.indexOf('credicop') >= 0) return CANAL_CRED;
     if (t.indexOf('galicia') >= 0) return CANAL_GAL;
@@ -1209,6 +1260,8 @@
       }
     }
     blob = normHeader(blob);
+    var fciBlob = canalFciPorTexto(blob);
+    if (fciBlob) return fciBlob;
     if (esTesoreriaGaliciaUsd(archivo, (wb.SheetNames || []).join(' '), '')) return CANAL_GAL_USD;
     if (blob.indexOf('galicia dolar') >= 0 || blob.indexOf('galicia_dolar') >= 0) return CANAL_GAL_USD;
     if (blob.indexOf('credicoop') >= 0 || blob.indexOf('credicop') >= 0) return CANAL_CRED;
@@ -1827,7 +1880,7 @@
       }
       filas.push(aplicarIdsRelacion(Object.assign({}, filaComun, {
         canal: canalPorCaja(caja) || canalArchivo || null,
-        moneda: (esTesoreriaGaliciaUsd(archivo, name, caja) || String(monedaFila).toUpperCase() === 'USD')
+        moneda: (canalPorCaja(caja) === CANAL_FCI_USD || esTesoreriaGaliciaUsd(archivo, name, caja) || String(monedaFila).toUpperCase() === 'USD')
           ? 'USD'
           : (monedaFila || 'ARS'),
         id_operacion_relacionada: null,
@@ -2125,6 +2178,48 @@
     return all;
   }
 
+  async function fetchCanal(table, canal, origen, orderCols) {
+    var all = [];
+    var offset = 0;
+    var cols = (orderCols || []).slice();
+    var hasId = cols.some(function (c) { return c.name === 'id'; });
+    if (!hasId) cols.push({ name: 'id', asc: true });
+    for (;;) {
+      var q = client().from(table).select('*').eq('canal', canal);
+      if (origen) q = q.eq('origen', origen);
+      cols.forEach(function (col) {
+        q = q.order(col.name, { ascending: col.asc !== false });
+      });
+      var res = await q.range(offset, offset + SUPABASE_PAGE - 1);
+      if (res.error) throw res.error;
+      var chunk = res.data || [];
+      all = all.concat(chunk);
+      if (chunk.length < SUPABASE_PAGE) break;
+      offset += SUPABASE_PAGE;
+    }
+    return all;
+  }
+
+  async function idsBancoDeMatches(canal) {
+    var map = {};
+    var offset = 0;
+    for (;;) {
+      var res = await client().from('cb_match').select('banco_id, banco_ids')
+        .eq('canal', canal)
+        .in('estado', ['sugerido', 'confirmado'])
+        .range(offset, offset + SUPABASE_PAGE - 1);
+      if (res.error) throw res.error;
+      var chunk = res.data || [];
+      chunk.forEach(function (m) {
+        if (m.banco_id) map[m.banco_id] = true;
+        (m.banco_ids || []).forEach(function (id) { if (id) map[id] = true; });
+      });
+      if (chunk.length < SUPABASE_PAGE) break;
+      offset += SUPABASE_PAGE;
+    }
+    return map;
+  }
+
   function claveDedupTesoreria(m) {
     var monto = Number(m && m.monto);
     var montoKey = isFinite(monto) ? (Math.round(monto * 100) / 100).toFixed(2) : '';
@@ -2307,6 +2402,36 @@
   }
 
   async function cargarDatos() {
+    state.bancoAjeno = {};
+    if (esCanalFci(state.canal)) {
+      var bancoCanal = canalBancoDeFci(state.canal);
+      var resFci = await Promise.all([
+        fetchCanal('cb_movimiento', state.canal, null, [
+          { name: 'fecha', asc: true },
+          { name: 'origen_id', asc: true }
+        ]),
+        fetchCanal('cb_movimiento', bancoCanal, 'banco', [
+          { name: 'fecha', asc: true },
+          { name: 'origen_id', asc: true }
+        ]),
+        fetchCanal('cb_match', state.canal, null, [
+          { name: 'created_at', asc: false }
+        ]),
+        fetchCanal('cb_dup_descartado', state.canal, null, [
+          { name: 'descartado_at', asc: false }
+        ]),
+        fetchCanal('cb_movimiento_eliminado', state.canal, null, [
+          { name: 'eliminado_at', asc: false }
+        ]),
+        idsBancoDeMatches(bancoCanal)
+      ]);
+      state.movimientos = hidratarObservaciones(resFci[0].concat(resFci[1]));
+      state.matches = resFci[2];
+      state.dupsDescartados = resFci[3];
+      state.eliminados = hidratarObservaciones(resFci[4]);
+      state.bancoAjeno = resFci[5];
+      return;
+    }
     var res = await Promise.all([
       fetchAllCanal('cb_movimiento', [
         { name: 'fecha', asc: true },
@@ -2326,6 +2451,8 @@
     state.matches = res[1];
     state.dupsDescartados = res[2];
     state.eliminados = hidratarObservaciones(res[3]);
+    if (state.canal === CANAL_GAL) state.bancoAjeno = await idsBancoDeMatches(CANAL_FCI);
+    else if (state.canal === CANAL_GAL_USD) state.bancoAjeno = await idsBancoDeMatches(CANAL_FCI_USD);
   }
 
   var CB_RPC_CHUNK = 400;
@@ -2784,6 +2911,10 @@
 
   async function onUpload(origen) {
     if (!can(PERM_CARGAR)) return;
+    if (origen === 'banco' && esCanalFci(state.canal)) {
+      FornitaliaMensajes.avisar('FCI no tiene extracto propio. Las sugerencias usan el extracto de Galicia de la misma moneda.');
+      return;
+    }
     var acceptGal = '.xlsx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     var acceptXlsx = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     pedirArchivo(esCanalExtractoBanco(state.canal) ? acceptGal : acceptXlsx, async function (file) {
@@ -6188,9 +6319,11 @@
     var wb = global.XLSX.utils.book_new();
     var sheetName = listaLabel().slice(0, 31);
     global.XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    var canalFile = esCanalGalUsd(state.canal) ? 'Galicia_USD'
-      : (state.canal === CANAL_GAL ? 'Galicia_ARS'
-        : (state.canal === CANAL_CRED ? 'Credicoop' : 'MP'));
+    var canalFile = esCanalFci(state.canal)
+      ? (state.canal === CANAL_FCI_USD ? 'FCI_Galicia_USD' : 'FCI_Galicia_ARS')
+      : (esCanalGalUsd(state.canal) ? 'Galicia_USD'
+        : (state.canal === CANAL_GAL ? 'Galicia_ARS'
+          : (state.canal === CANAL_CRED ? 'Credicoop' : 'MP')));
     var listaFile = (state.lista || 'sugeridos').replace(/[^a-z]/g, '_');
     global.XLSX.writeFile(wb, 'Conciliacion_Bancaria_' + canalFile + '_' + listaFile + '_' + fechaHoyYmd() + '.xlsx', { cellStyles: true, cellDates: false });
   }
@@ -6207,6 +6340,20 @@
   }
 
   function labelsCanal() {
+    if (esCanalFci(state.canal)) {
+      var usd = state.canal === CANAL_FCI_USD;
+      var nom = usd ? LABEL_FCI_USD : LABEL_FCI;
+      var caja = usd ? 'FCI Galicia (USD)' : 'FCI Galicia (ARS)';
+      var gal = usd ? 'Galicia (USD)' : 'Galicia (ARS)';
+      return {
+        hintHtml:
+          '<p>Caja <strong>' + esc(nom) + '</strong> para suscripción y rescate de FCI. La tesorería se carga igual que el resto: histórico <em>movimientos-historico_…</em> con Caja = ' + esc(caja) + ', o un Excel de tesorería de esa caja. El Id evita duplicados. Apertura de Caja no entra. Status Anulado no se sube.</p>' +
+          '<p>No hay extracto propio. El dinero entra y sale por la cuenta ' + esc(gal) + ' del banco, así que las sugerencias comparan esta tesorería con ese extracto (importe y fecha, máximo 4 días). Una línea del extracto ya conciliada con la tesorería de Galicia no se vuelve a proponer.</p>',
+        btnBanco: '',
+        btnSistema: 'Cargar tesorería ' + nom,
+        kpiBanco: 'Extracto ' + gal
+      };
+    }
     if (esCanalCredicoop(state.canal)) {
       return {
         hintHtml:
@@ -6298,10 +6445,10 @@
     else if (state.lista === 'dups_desc') listaHtml = renderTablaDupsDesc();
     else listaHtml = renderTablaSolo('sistema');
 
-    var clsCarga = esCanalCredicoop(state.canal) ? 'cb-btn-cred' : (esCanalGalicia(state.canal) ? 'cb-btn-gal' : 'cb-btn-mp');
+    var clsCarga = esCanalFci(state.canal) ? 'cb-btn-fci' : (esCanalCredicoop(state.canal) ? 'cb-btn-cred' : (esCanalGalicia(state.canal) ? 'cb-btn-gal' : 'cb-btn-mp'));
     return FornitaliaHelp.row('tpl-cb-canal', 'Ayuda: ' + labelCanalNombre(state.canal), lab.hintHtml) +
       '<div class="cb-toolbar"><div class="cb-acciones">' +
-        (canCargar ? '<button type="button" class="cb-btn ' + clsCarga + '" data-cb="up-banco"><span class="btn-icon">' + ICO.upload + '</span>' + esc(lab.btnBanco) + '</button>' : '') +
+        (canCargar && !esCanalFci(state.canal) ? '<button type="button" class="cb-btn ' + clsCarga + '" data-cb="up-banco"><span class="btn-icon">' + ICO.upload + '</span>' + esc(lab.btnBanco) + '</button>' : '') +
         (canCargar ? '<button type="button" class="cb-btn ' + clsCarga + '" data-cb="up-sistema"><span class="btn-icon">' + ICO.upload + '</span>' + esc(lab.btnSistema) + '</button>' : '') +
         (can(PERM_CONFIRMAR) ? '<button type="button" class="cb-btn cb-btn-ghost" data-cb="manual"><span class="btn-icon">' + ICO.link + '</span>Conciliación manual</button>' : '') +
         ((canCargar || can(PERM_CONFIRMAR)) ? '<button type="button" class="cb-btn cb-btn-ghost" data-cb="recalc"><span class="btn-icon">' + ICO.refresh + '</span>Recalcular sugerencias</button>' : '') +
@@ -6352,7 +6499,7 @@
     if (!el) return;
     el.innerHTML =
       FornitaliaHelp.header(ICO.bank, 'Conciliación Bancaria', 'tpl-cb-intro', 'Ayuda: Conciliación Bancaria',
-        '<p>Confrontá el extracto de cada medio con lo cargado en tesorería. Mercado Pago, Galicia (ARS), Galicia (USD) y Credicoop (botón negro) usan el mismo flujo: extracto del banco + tesorería del sistema. La solapa Todos junta extracto y tesorería y muestra en qué listado está cada movimiento. En Filtros podés acotar por importe exacto o ID exacto; el buscar queda libre para concepto, cliente y observaciones. Tesorería eliminada guarda lo que se borra de Solo sistema o se confirma en A eliminar.</p>') +
+        '<p>Confrontá el extracto de cada medio con lo cargado en tesorería. Mercado Pago, Galicia (ARS), Galicia (USD) y Credicoop (botón negro) usan el mismo flujo: extracto del banco + tesorería del sistema. FCI Galicia (ARS) y FCI Galicia (USD) cargan solo tesorería y se concilian contra el extracto de Galicia de la misma moneda. La solapa Todos junta extracto y tesorería y muestra en qué listado está cada movimiento. En Filtros podés acotar por importe exacto o ID exacto; el buscar queda libre para concepto, cliente y observaciones. Tesorería eliminada guarda lo que se borra de Solo sistema o se confirma en A eliminar.</p>') +
       htmlCargando() +
       (state.err ? '<p class="cb-msg-err">' + esc(state.err) + '</p>' : '') +
       '<div class="cb-tabs">' +
@@ -6360,6 +6507,8 @@
         FornitaliaHelp.tabButton('cb-tab-gal', state.canal === CANAL_GAL, 'data-cb="canal" data-canal="' + CANAL_GAL + '"', esc(LABEL_GAL)) +
         FornitaliaHelp.tabButton('cb-tab-gal', state.canal === CANAL_GAL_USD, 'data-cb="canal" data-canal="' + CANAL_GAL_USD + '"', esc(LABEL_GAL_USD)) +
         FornitaliaHelp.tabButton('cb-tab-cred', state.canal === CANAL_CRED, 'data-cb="canal" data-canal="' + CANAL_CRED + '"', esc(LABEL_CRED)) +
+        FornitaliaHelp.tabButton('cb-tab-fci', state.canal === CANAL_FCI, 'data-cb="canal" data-canal="' + CANAL_FCI + '"', esc(LABEL_FCI)) +
+        FornitaliaHelp.tabButton('cb-tab-fci', state.canal === CANAL_FCI_USD, 'data-cb="canal" data-canal="' + CANAL_FCI_USD + '"', esc(LABEL_FCI_USD)) +
       '</div>' +
       renderCanal();
 
