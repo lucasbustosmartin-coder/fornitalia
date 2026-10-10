@@ -1889,6 +1889,16 @@
   }
 
   function saldoCanalMes(canal, ym) {
+    var ars = saldoCanalMesGuardado(canal, ym);
+    if (mesYYYYMM(hoyYmd()) !== ym || !esCanalUsdSe(canal)) return ars;
+    var usd = usdCanalMes(canal, ym);
+    if (usd == null || !isFinite(Number(usd))) return ars;
+    var tc = tasaMepParaFecha(hoyYmd());
+    if (!tc || !(tc.tasa > 0)) return ars;
+    return round2(Number(usd) * tc.tasa);
+  }
+
+  function saldoCanalMesGuardado(canal, ym) {
     if (canal === CANAL_FCI || canal === CANAL_FCI_USD) {
       var hastaFci = hastaSaldoFci(ym);
       if (canal === CANAL_FCI_USD) {
@@ -2217,6 +2227,7 @@
     var t = normHeader(caja);
     if (!t) return '';
     var esUsd = t.indexOf('dolar') >= 0 || t.indexOf('usd') >= 0;
+    if (t.indexOf('fci') >= 0 && t.indexOf('galicia') >= 0) return esUsd ? CANAL_FCI_USD : CANAL_FCI;
     if (t.indexOf('sin factura') >= 0) return esUsd ? CANAL_SF_USD : CANAL_SF;
     if (t.indexOf('morba') >= 0 || t.indexOf('morva') >= 0) return CANAL_MOR;
     if (t.indexOf('credicoop') >= 0) return CANAL_CRED;
@@ -2317,13 +2328,15 @@
     var hoy = hoyYmd();
     var filas = (parsed.cajas || []).map(function (c) {
       var app = c.canal ? saldoAppMesEnCurso(c.canal, c.moneda) : { monto: null, moneda: c.moneda };
-      var ok = !!(c.canal && coincideSaldoSe(c.saldo, app.monto));
+      var sinMovimientos = (c.canal === CANAL_FCI || c.canal === CANAL_FCI_USD) && app.monto == null;
+      var excelVacio = c.saldo == null || Math.abs(Number(c.saldo)) < 0.015;
+      var ok = !!(c.canal && (coincideSaldoSe(c.saldo, app.monto) || (sinMovimientos && excelVacio)));
       var diff = null;
-      if (c.saldo != null && app.monto != null) diff = round2(c.saldo - app.monto);
-      else if (c.saldo != null && app.monto == null) diff = round2(c.saldo);
+      if (!ok && c.saldo != null && app.monto != null) diff = round2(c.saldo - app.monto);
+      else if (!ok && c.saldo != null && app.monto == null) diff = round2(c.saldo);
       var motivo = '';
       if (!c.canal) motivo = 'Caja no reconocida';
-      else if (app.monto == null) motivo = 'Sin mes en curso';
+      else if (!ok && app.monto == null) motivo = 'Sin mes en curso';
       return {
         caja: c.caja,
         canal: c.canal,
@@ -2414,7 +2427,7 @@
     }).join('');
     var body =
       '<p class="se-cmp-meta">Archivo al <strong>' + esc(al) + '</strong> · Mes en curso de la app al <strong>' + esc(hoy) + '</strong>.</p>' +
-      '<p class="se-cmp-note">Saldo Tesorería Fornitalia y mes en curso no se mezclan. En Galicia, el mes en curso es el saldo corrido del último movimiento Imputado del extracto (un cheque Pendiente o En proceso no entra), sin sumar la tesorería. En Mercado Pago, es el saldo total de la última carta más los movimientos del extracto. En Credicoop, último corte + movimientos del mes. En Efectivo y Morba, un corte que no cierra con los movimientos que siguen en la caja se rearma: lo eliminado no entra al saldo. En cajas dólar se compara US$.</p>' +
+      '<p class="se-cmp-note">Saldo Tesorería Fornitalia y mes en curso no se mezclan. En Galicia, el mes en curso es el saldo corrido del último movimiento Imputado del extracto (un cheque Pendiente o En proceso no entra), sin sumar la tesorería. En Mercado Pago, es el saldo total de la última carta más los movimientos del extracto. En Credicoop, último corte + movimientos del mes. En Efectivo y Morba, un corte que no cierra con los movimientos que siguen en la caja se rearma: lo eliminado no entra al saldo. FCI sin suscripciones ni rescates no tiene mes en curso: si el archivo trae 0, coincide. En cajas dólar se compara US$.</p>' +
       '<div class="se-cmp-chips">' +
         '<span class="se-cmp-chip se-cmp-chip-ok">Coinciden ' + cmp.nOk + '</span>' +
         '<span class="se-cmp-chip se-cmp-chip-bad">Diferencias ' + cmp.nBad + '</span>' +
@@ -3693,7 +3706,7 @@
     if (state.canal === CANAL_FCI || state.canal === CANAL_FCI_USD) {
       var nomFci = state.canal === CANAL_FCI_USD ? LABEL_FCI_USD : LABEL_FCI;
       var extraFci = state.canal === CANAL_FCI_USD
-        ? ' El saldo en dólares se muestra pesificado al MEP de la fecha de corte. La torta de Flujo de caja usa la cotización de hoy (o la anterior) del dólar elegido.'
+        ? ' El mes en curso se pesifica al MEP de hoy (o el inmediato anterior), igual que la torta de Flujo de caja. Los meses cerrados quedan al MEP de esa fecha.'
         : '';
       return 'Saldo de <strong>' + esc(nomFci) + '</strong>: suma corrida de la tesorería de suscripción y rescate (menú <strong>Conciliación Bancaria</strong>). No hay extracto propio: el movimiento de plata sigue en el extracto de Galicia de la misma moneda. Apertura de Caja no entra.' + extraFci;
     }
@@ -3704,15 +3717,15 @@
       return 'Saldo de <strong>' + esc(LABEL_MOR) + '</strong> (caja física / Transferencia Morba). No se carga acá: se actualiza al importar <em>tesoreria_transferencia_morba_…</em> o <em>cierre_MOR-…</em> en el menú <strong>Cajas (físicas)</strong>.';
     }
     if (state.canal === CANAL_USD) {
-      return 'Saldo de <strong>' + esc(LABEL_USD) + '</strong> (caja física / efectivo dólar, en ARS). No se carga acá: se actualiza al importar <em>tesoreria_efectivo_dolar_…</em> o <em>cierre_DOL-…</em> en <strong>Cajas (físicas)</strong>. Cada movimiento se pesifica al MEP de la fecha (o el último anterior).';
+      return 'Saldo de <strong>' + esc(LABEL_USD) + '</strong> (caja física / efectivo dólar, en ARS). No se carga acá: se actualiza al importar <em>tesoreria_efectivo_dolar_…</em> o <em>cierre_DOL-…</em> en <strong>Cajas (físicas)</strong>. Cada corte queda al MEP de su fecha. En el consolidado, el <strong>mes en curso</strong> vuelve a pesificar esos dólares al MEP de hoy (o el inmediato anterior), igual que la torta de Flujo de caja.';
     }
     if (state.canal === CANAL_SF) {
       return 'Saldo de <strong>' + esc(LABEL_SF) + '</strong> (caja física / efectivo pesos sin factura). No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Pesos (sin factura)</em> en <strong>Cajas (físicas)</strong>.';
     }
     if (state.canal === CANAL_SF_USD) {
-      return 'Saldo de <strong>' + esc(LABEL_SF_USD) + '</strong> (caja física / efectivo dólar sin factura, en ARS). No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Dolar (sin factura)</em> o Moneda USD en <strong>Cajas (físicas)</strong>.';
+      return 'Saldo de <strong>' + esc(LABEL_SF_USD) + '</strong> (caja física / efectivo dólar sin factura, en ARS). No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Dolar (sin factura)</em> o Moneda USD en <strong>Cajas (físicas)</strong>. En el consolidado, el <strong>mes en curso</strong> pesifica esos dólares al MEP de hoy (o el inmediato anterior), igual que la torta.';
     }
-    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_FCI) + ', ' + esc(LABEL_FCI_USD) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). FCI es la tenencia del fondo; el extracto de Galicia sigue mostrando la cuenta del banco. En Mercado Pago el mes en curso parte del saldo total de la última carta. En Galicia, el <strong>mes en curso</strong> (celeste) es el saldo corrido del extracto (el saldo real del banco). El promedio de saldo es cuánto dinero queda en promedio.';
+    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_FCI) + ', ' + esc(LABEL_FCI_USD) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). FCI es la tenencia del fondo; el extracto de Galicia sigue mostrando la cuenta del banco. En Mercado Pago el mes en curso parte del saldo total de la última carta. En Galicia, el <strong>mes en curso</strong> (celeste) es el saldo corrido del extracto (el saldo real del banco). Los dólares del mes en curso (Galicia USD, FCI USD y efectivo en dólares) se pesifican al MEP de hoy, o al inmediato anterior: el mismo de la torta de Flujo de caja. Los meses cerrados no se recalculan. El promedio de saldo es cuánto dinero queda en promedio.';
   }
 
   function renderShell() {

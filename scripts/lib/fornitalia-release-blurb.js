@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.90',
+    versionLabel: 'v2.91',
     lines: [
-      'Hay dos cajas nuevas: FCI Galicia en pesos y FCI Galicia en dólares.',
-      'En Conciliación se cargan como el resto y se sugieren contra el extracto de Galicia.',
-      'Entran en Saldos extractos y en la torta de posición, en pesos o en dólares.'
+      'FCI sin suscripciones no marca diferencia: el mes en curso queda vacío.',
+      'El mes en curso de Saldos extractos pesifica los dólares al MEP de hoy, igual que la torta.',
+      'Los meses ya cerrados siguen con la cotización de cada fecha.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
