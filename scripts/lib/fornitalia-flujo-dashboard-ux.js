@@ -11,13 +11,17 @@
   var reportePdfCleanupBound = false;
 
   function fechaPartesAhoraArgentina() {
-    var d = new Date();
-    var s = d.toLocaleDateString('en-CA', { timeZone: ZONA_ARGENTINA });
-    if (s && /^\d{4}-\d{2}-\d{2}$/.test(s)) {
-      var p = s.split('-').map(Number);
-      return { anio: p[0], mes: p[1], dia: p[2] };
-    }
-    return { anio: d.getFullYear(), mes: d.getMonth() + 1, dia: d.getDate() };
+    var parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: ZONA_ARGENTINA, year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date());
+    var y = 0, m = 0, d = 0;
+    parts.forEach(function (p) {
+      if (p.type === 'year') y = Number(p.value);
+      if (p.type === 'month') m = Number(p.value);
+      if (p.type === 'day') d = Number(p.value);
+    });
+    if (y && m && d) return { anio: y, mes: m, dia: d };
+    return { anio: 0, mes: 0, dia: 0 };
   }
 
   function fechaHoyYYYYMMDDArgentina() {

@@ -1014,8 +1014,16 @@
   }
 
   function fechaArchivoExcel() {
-    var hoy = new Date();
-    return String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
+    var parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date());
+    var y = '', m = '', d = '';
+    parts.forEach(function (p) {
+      if (p.type === 'year') y = p.value;
+      if (p.type === 'month') m = p.value;
+      if (p.type === 'day') d = p.value;
+    });
+    return d && m && y ? d + '-' + m + '-' + y : '';
   }
 
   function exportarExcel() {

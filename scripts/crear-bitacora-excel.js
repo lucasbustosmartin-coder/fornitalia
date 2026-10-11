@@ -484,6 +484,8 @@ const datosLog = [
   ['10/10/2026', '13:29', 'FCI sin movimientos no es saldo 0', 'En Tesorería vs mes en curso, FCI Galicia (ARS) y (USD) se leían como la cuenta Galicia y el mes en curso tomaba ese saldo (diferencia de $ 215.847.791,48). Sin suscripciones ni rescates el mes en curso queda vacío. Si el archivo trae 0, coincide.', 'Ajuste'],
   ['10/10/2026', '13:39', 'Mes en curso al MEP de hoy', 'En Saldos extractos, el mes en curso pesifica los dólares (Galicia USD, FCI USD y efectivo en dólares) al MEP de hoy, o al inmediato anterior. Es la misma cotización de la torta de Flujo de caja, así el total consolidado y la torta coinciden. Los meses cerrados quedan al MEP de cada fecha.', 'Ajuste'],
   ['10/10/2026', '13:42', 'Despliegue v2.91 producción', 'Push a main y Vercel --prod: FCI sin movimientos no se compara con Galicia; el mes en curso de Saldos extractos pesifica los dólares al MEP de hoy, igual que la torta. APP_VERSION 2.91.', 'Despliegue'],
+  ['11/10/2026', '15:00', 'Fechas siempre en horario argentino', 'El día de negocio (hoy, mes en curso, cotización, cortes y nombres de Excel) sale del calendario de Argentina. Una fecha sin hora no se corre al día anterior. La cotización de hoy se lee primero: el 11/10/2026 el MEP global es 1.539,28; si la torta decía “del 10/10” era porque no había entrado la fila de hoy.', 'Ajuste'],
+  ['11/10/2026', '15:06', 'Despliegue v2.92 producción', 'Push a main y Vercel --prod: el día de hoy, la cotización y los Excel usan el calendario de Argentina. La torta toma el MEP de hoy (11/10, 1.539,28) o el inmediato anterior, con esa fecha a la vista. APP_VERSION 2.92.', 'Despliegue'],
 ];
 const datosLogParaExcel = preservarFechasHistoricasLog(projectRoot, outPath, datosLog);
 const wsLog = XLSX.utils.aoa_to_sheet(datosLogParaExcel);
@@ -728,6 +730,7 @@ const versiones = [
   ['2.89', '09/10/2026', 'Despliegue v2.89: en pesos, la torta de posición pesifica los dólares con la cotización de hoy del dólar elegido (hoy MEP 1.541,22), o la del día anterior, y la muestra en el subtítulo. Es la misma cotización que al ver en dólares. Producción Vercel.'],
   ['2.90', '10/10/2026', 'Despliegue v2.90: cajas FCI Galicia (ARS) y FCI Galicia (USD). En Conciliación se carga la tesorería y las sugerencias salen del extracto de Galicia de la misma moneda. Entran en Saldos extractos (solapas y consolidado) y en la torta de posición, pesificadas o dolarizadas con la cotización de hoy. sql/supabase_cb_fci_galicia.sql. Producción Vercel.'],
   ['2.91', '10/10/2026', 'Despliegue v2.91: FCI sin suscripciones no marca diferencia en Tesorería vs mes en curso (ya no se lee como la cuenta Galicia). El mes en curso de Saldos extractos pesifica los dólares al MEP de hoy, o al inmediato anterior, la misma cotización de la torta. Los meses cerrados no se recalculan. Producción Vercel.'],
+  ['2.92', '11/10/2026', 'Despliegue v2.92: el día de hoy, el mes en curso y los Excel usan el calendario de Argentina. La cotización del Flujo es la de hoy (MEP 1.539,28 del 11/10) o la inmediata anterior, con la fecha a la vista. Una fecha sin hora no se corre al día anterior. Producción Vercel.'],
 ];
 const versionesParaExcel = preservarFechasHistoricasVersiones(projectRoot, outPath, versiones);
 const wsVersiones = XLSX.utils.aoa_to_sheet(versionesParaExcel);

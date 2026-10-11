@@ -19,11 +19,17 @@
   async function listar() {
     var c = getClient();
     if (!c) throw new Error('No se pudo leer la cotización global.');
-    var all = [];
+    var cols = 'fecha, usd_mep, usd_ccl, usd_oficial';
+    var recientes = await c.from('tipos_cambio_global')
+      .select(cols)
+      .order('fecha', { ascending: false })
+      .limit(45);
+    if (recientes.error) throw recientes.error;
+    var all = (recientes.data || []).slice();
     var offset = 0;
     for (;;) {
       var res = await c.from('tipos_cambio_global')
-        .select('fecha, usd_mep, usd_ccl, usd_oficial')
+        .select(cols)
         .order('fecha', { ascending: true })
         .range(offset, offset + PAGE - 1);
       if (res.error) throw res.error;

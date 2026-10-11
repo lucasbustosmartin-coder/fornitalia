@@ -131,12 +131,28 @@
     return isFinite(n) ? round2(n) : null;
   }
 
+  function ymdArgentinaDesdeInstante(v) {
+    var dt = v instanceof Date ? v : new Date(v);
+    if (isNaN(dt.getTime())) return '';
+    var parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: ZONA_AR, year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(dt);
+    var y = '', m = '', d = '';
+    parts.forEach(function (p) {
+      if (p.type === 'year') y = p.value;
+      if (p.type === 'month') m = p.value;
+      if (p.type === 'day') d = p.value;
+    });
+    return y && m && d ? y + '-' + m + '-' + d : '';
+  }
+
   function parseFechaYmd(v) {
     if (v == null || v === '') return '';
     if (v instanceof Date && !isNaN(v.getTime())) {
-      return new Intl.DateTimeFormat('en-CA', {
-        timeZone: ZONA_AR, year: 'numeric', month: '2-digit', day: '2-digit'
-      }).format(v);
+      if (v.getUTCHours() === 0 && v.getUTCMinutes() === 0 && v.getUTCSeconds() === 0 && v.getUTCMilliseconds() === 0) {
+        return v.getUTCFullYear() + '-' + pad2(v.getUTCMonth() + 1) + '-' + pad2(v.getUTCDate());
+      }
+      return ymdArgentinaDesdeInstante(v);
     }
     if (typeof v === 'number' && isFinite(v)) {
       var epoch = Date.UTC(1899, 11, 30) + Math.round(v) * 86400000;
@@ -145,7 +161,13 @@
       }).format(new Date(epoch));
     }
     var s = String(v).trim();
-    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      if (s.length > 10 && (s.indexOf('T') >= 0 || /[zZ]|[+-]\d{2}/.test(s))) {
+        if (/T00:00:00(\.0+)?(Z|\+00:?00)?$/i.test(s)) return s.slice(0, 10);
+        return ymdArgentinaDesdeInstante(s);
+      }
+      return s.slice(0, 10);
+    }
     var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (m) return m[3] + '-' + String(m[2]).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
     return '';
@@ -173,7 +195,7 @@
     }
     var map = {};
     all.forEach(function (r) {
-      var f = String(r && r.fecha || '').slice(0, 10);
+      var f = parseFechaYmd(r && r.fecha);
       var t = Number(r && r.usd_mep);
       if (f && isFinite(t) && t > 0 && !map[f]) map[f] = t;
     });
@@ -183,7 +205,7 @@
   }
 
   function tasaMepParaFecha(fecha) {
-    var f = String(fecha || '').slice(0, 10);
+    var f = parseFechaYmd(fecha) || String(fecha || '').slice(0, 10);
     if (!f) return null;
     if (state.tcMap[f] > 0) return { tasa: state.tcMap[f], fechaTc: f };
     var list = state.tcFechas || [];

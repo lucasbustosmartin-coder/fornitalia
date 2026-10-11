@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.91',
+    versionLabel: 'v2.92',
     lines: [
-      'FCI sin suscripciones no marca diferencia: el mes en curso queda vacío.',
-      'El mes en curso de Saldos extractos pesifica los dólares al MEP de hoy, igual que la torta.',
-      'Los meses ya cerrados siguen con la cotización de cada fecha.'
+      'La cotización del Flujo es la de hoy.',
+      'Si ese día no tiene dólar, se usa el anterior y se muestra esa fecha.',
+      'Los Excel quedan fechados con el día de hoy.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

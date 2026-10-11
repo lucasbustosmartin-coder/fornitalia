@@ -9,24 +9,24 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="scripts/lib/fornitalia-mensajes.js?v=2.75"></script>
-  <script src="scripts/lib/fornitalia-tipo-cambio-global.js?v=2.91"></script>
-  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.91"></script>
+  <script src="scripts/lib/fornitalia-tipo-cambio-global.js?v=2.92"></script>
+  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.92"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.91"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.92"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.91">
   <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.91"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.91">
-  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.91"></script>
+  <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.92"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.75">
   <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.91"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.55">
   <script src="scripts/lib/fornitalia-impuestos.js?v=2.75"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.56">
-  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.75"></script>
+  <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.92"></script>
   <style>
     .lyp-user {
       font-weight: 600;
@@ -2122,7 +2122,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.91';
+    const APP_VERSION = '2.92';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -2773,8 +2773,7 @@
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheets[MR.SHEET_PROV_DETALLE]), MR.SHEET_PROV_DETALLE);
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheets[MR.SHEET_PROV_AGRUP]), MR.SHEET_PROV_AGRUP);
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheets.README), 'README');
-      const hoy = new Date();
-      const fecha = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
+      const fecha = fechaNombreArchivoArgentina();
       XLSX.writeFile(wb, 'Matriz_Relaciones_Transacciones_Fornitalia_' + fecha + '.xlsx');
     }
 
@@ -3783,13 +3782,51 @@
         || esMonedaUSD(r.medio_pago);
     }
 
-    /** Fecha como YYYY-MM-DD (solo día, sin hora). Proyecto Argentina: se evita usar Date para no depender de la franja horaria del navegador. */
+    /** Día de negocio en America/Argentina/Buenos_Aires. Un date sin hora se conserva; un instante pasa al calendario argentino. Medianoche UTC es un día de calendario, no “ayer”. */
+    function ymdEnArgentina(instante) {
+      const dt = instante instanceof Date ? instante : new Date(instante);
+      if (isNaN(dt.getTime())) return '';
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(dt);
+      let y = '', m = '', d = '';
+      parts.forEach(function (p) {
+        if (p.type === 'year') y = p.value;
+        if (p.type === 'month') m = p.value;
+        if (p.type === 'day') d = p.value;
+      });
+      return y && m && d ? y + '-' + m + '-' + d : '';
+    }
+
     function fechaStr(f) {
-      if (!f) return '';
-      if (typeof f === 'string') return f.slice(0, 10);
-      if (typeof f === 'object' && f instanceof Date) return f.toISOString().slice(0, 10);
-      if (typeof f === 'object' && f.toISOString) return f.toISOString().slice(0, 10);
-      return String(f).slice(0, 10);
+      if (f == null || f === '') return '';
+      if (typeof f === 'string') {
+        const s = f.trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+          if (s.length > 10 && (s.indexOf('T') >= 0 || /[zZ]|[+-]\d{2}/.test(s))) {
+            if (/T00:00:00(\.0+)?(Z|\+00:?00)?$/i.test(s)) return s.slice(0, 10);
+            return ymdEnArgentina(s);
+          }
+          return s.slice(0, 10);
+        }
+        return '';
+      }
+      if (f instanceof Date && !isNaN(f.getTime())) {
+        if (f.getUTCHours() === 0 && f.getUTCMinutes() === 0 && f.getUTCSeconds() === 0 && f.getUTCMilliseconds() === 0) {
+          const p = function (n) { return String(n).padStart(2, '0'); };
+          return f.getUTCFullYear() + '-' + p(f.getUTCMonth() + 1) + '-' + p(f.getUTCDate());
+        }
+        return ymdEnArgentina(f);
+      }
+      const s = String(f);
+      return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : '';
+    }
+
+    function fechaNombreArchivoArgentina() {
+      const ux = flujoUx();
+      const ymd = ux && typeof ux.fechaHoyYYYYMMDDArgentina === 'function' ? ux.fechaHoyYYYYMMDDArgentina() : ymdEnArgentina(new Date());
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return '';
+      return ymd.slice(8, 10) + '-' + ymd.slice(5, 7) + '-' + ymd.slice(0, 4);
     }
 
     /** Extrae año y mes desde una fecha (string YYYY-MM-DD o valor parseable) sin usar zona horaria. Para Argentina. */
@@ -6889,8 +6926,7 @@
       ws['!cols'] = colsWidth;
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Estado_Financiero');
-      const hoy = new Date();
-      const fecha = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
+      const fecha = fechaNombreArchivoArgentina();
       XLSX.writeFile(wb, 'Estado_Financiero_Fornitalia_' + fecha + '.xlsx', { cellStyles: true });
     }
 
@@ -7003,8 +7039,7 @@
       ws['!rows'] = [{ hpt: 28 }, { hpt: 22 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Flujo_por_mes');
-      const hoy = new Date();
-      const fecha = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
+      const fecha = fechaNombreArchivoArgentina();
       XLSX.writeFile(wb, 'Flujo_por_Mes_Fornitalia_' + fecha + '.xlsx', { cellStyles: true });
     }
 
@@ -7052,8 +7087,7 @@
       const ws = XLSX.utils.aoa_to_sheet(rows);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Evolucion');
-      const hoy = new Date();
-      const fecha = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
+      const fecha = fechaNombreArchivoArgentina();
       XLSX.writeFile(wb, 'Evolucion_Fornitalia_' + fecha + '.xlsx');
     }
 
@@ -7114,8 +7148,7 @@
       ws['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 6 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 36 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 18 }, { wch: 24 }, { wch: 22 }, { wch: 22 }, { wch: 8 }, { wch: 8 }, { wch: 42 }, { wch: 48 }, { wch: 10 }, { wch: 6 }, { wch: 32 }];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Transacciones');
-      const hoy = new Date();
-      const fecha = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
+      const fecha = fechaNombreArchivoArgentina();
       XLSX.writeFile(wb, 'Transacciones_Fornitalia_' + fecha + '.xlsx');
     }
 
