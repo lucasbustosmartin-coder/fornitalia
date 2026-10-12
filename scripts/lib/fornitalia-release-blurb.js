@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.93',
+    versionLabel: 'v2.94',
     lines: [
-      'Al cargar el histórico, Efectivo y Morba también marcan lo que ya no viene.',
-      'Ese Pendiente pasa a A eliminar, igual que en las cajas de banco.',
-      'Un Confirmado no se elimina. Volvé a cargar el mismo archivo para verlos.'
+      'En Efectivo y Morba volvieron los importes, en pesos y en dólares.',
+      'Al cargar el histórico, el monto de cada movimiento se mantiene.',
+      'Podés volver a cargar ese archivo: lo que ya no viene y está Pendiente pasa a A eliminar.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

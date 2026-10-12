@@ -569,8 +569,9 @@
     var det = detectarHojaCaja(wb, archivo);
     if (!det.rows.length) return { error: 'El Excel no tiene filas.', filas: [] };
     var map = det.map;
+    var mapaConMonto = esMapaTesoreriaCierre(map);
     var historicoMixto = esNombreTesoreriaHistorico(archivo);
-    var esCierre = esMapaTesoreriaCierre(map) && !historicoMixto;
+    var esCierre = mapaConMonto && !historicoMixto;
     if (!esMapaTesoreria(map) && !esMapaTesoreriaCierre(map)) {
       return {
         error: 'No reconocí el archivo de caja. Esperaba tesorería (Tipo, Fecha, Crédito, Débito e Id) o cierre (Fecha, Tipo, Monto e Id). En esta solapa: ' + archivosHint(state.canal) + '.',
@@ -670,7 +671,7 @@
         if (idCierre) origenIdsAnulado.push('id|' + idCierre);
         continue;
       }
-      if (esCierre) {
+      if (mapaConMonto) {
         if (!fecha) continue;
         var montoCierre = parseMonto(cell(row, map, ['Monto']));
         var tipoN = tipo.toLowerCase();
