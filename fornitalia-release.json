@@ -1,9 +1,8 @@
 {
-  "versionLabel": "v2.94",
+  "versionLabel": "v2.95",
   "lines": [
-    "En Efectivo y Morba volvieron los importes, en pesos y en dólares.",
-    "Al cargar el histórico, el monto de cada movimiento se mantiene.",
-    "El saldo de cada caja física sale de sus créditos y débitos.",
-    "Podés volver a cargar ese archivo: lo que ya no viene y está Pendiente pasa a A eliminar."
+    "En cada caja física, la columna Saldo suma los movimientos en orden de fecha.",
+    "En las cajas en dólares ese saldo se ve en dólares: por ejemplo 1.600, sin convertirlo.",
+    "En Saldos extractos y al comparar con la tesorería, esas cajas también quedan en dólares."
   ]
 }

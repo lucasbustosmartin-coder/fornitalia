@@ -1754,14 +1754,33 @@
     return { neto: round2(neto || 0), netoUsd: hayUsd ? round2(netoUsd) : null };
   }
 
+  function esCajaFisicaUsdSe(canal) {
+    return canal === CANAL_USD || canal === CANAL_SF_USD;
+  }
+
+  function saldoUsdDeCorteSe(r) {
+    var raw = r && r.raw;
+    var u = raw && raw.saldo_usd != null && raw.saldo_usd !== '' ? Number(raw.saldo_usd) : NaN;
+    return isFinite(u) ? u : null;
+  }
+
   function anclaSaldoCaja(canal) {
     var cortes = cortesCanalOrdenados(canal);
     if (!cortes.length) return null;
+    var fisicaUsd = esCajaFisicaUsdSe(canal);
     var accepted = cortes[cortes.length - 1];
     var i;
     for (i = cortes.length - 2; i >= 0; i--) {
       var older = cortes[i];
       var delta = netoMovsCaja(canal, String(older.fecha_hasta).slice(0, 10), String(accepted.fecha_hasta).slice(0, 10));
+      if (fisicaUsd) {
+        var baseU = saldoUsdDeCorteSe(older);
+        var finU = saldoUsdDeCorteSe(accepted);
+        var espU = baseU != null && delta.netoUsd != null ? round2(baseU + delta.netoUsd) : null;
+        if (espU != null && finU != null && Math.abs(finU - espU) < 0.02) break;
+        accepted = older;
+        continue;
+      }
       var base = Number(older.saldo_final);
       var esperado = isFinite(base) ? round2(base + delta.neto) : null;
       var fin = Number(accepted.saldo_final);
@@ -1802,7 +1821,15 @@
         var base = Number(older.saldo_final);
         var esperado = isFinite(base) ? round2(base + delta.neto) : null;
         var fin = Number(accepted.saldo_final);
-        if (esperado != null && isFinite(fin) && Math.abs(fin - esperado) < 0.02) break;
+        var arsOk = esperado != null && isFinite(fin) && Math.abs(fin - esperado) < 0.02;
+        if (esCajaFisicaUsdSe(canal) && older.raw && older.raw.saldo_usd != null && delta.netoUsd != null) {
+          var usdEsp = round2(Number(older.raw.saldo_usd) + delta.netoUsd);
+          var usdAct = accepted.raw && accepted.raw.saldo_usd != null ? Number(accepted.raw.saldo_usd) : NaN;
+          if (!isFinite(usdAct) || Math.abs(usdAct - usdEsp) >= 0.02) {
+            accepted.raw = Object.assign({}, accepted.raw || {}, { saldo_usd: usdEsp });
+          }
+        }
+        if (arsOk) break;
         if (esperado != null) {
           accepted.saldo_final = esperado;
           accepted.saldo_inicial = round2(base);
@@ -1912,6 +1939,7 @@
 
   function saldoCanalMes(canal, ym) {
     var ars = saldoCanalMesGuardado(canal, ym);
+    if (esCajaFisicaUsdSe(canal)) return ars;
     if (mesYYYYMM(hoyYmd()) !== ym || !esCanalUsdSe(canal)) return ars;
     var usd = usdCanalMes(canal, ym);
     if (usd == null || !isFinite(Number(usd))) return ars;
@@ -2029,6 +2057,29 @@
       fechaUltimo: last.fecha_hasta,
       promedioSaldo: meanNums(orden.map(function (r) { return r.saldo_final; })),
       promedioVar: meanNums(vars)
+    };
+  }
+
+  function kpisCanalUsd(rows) {
+    var list = conAnterior(rows.slice());
+    if (!list.length) {
+      return { n: 0, ultimo: null, varPer: null, fechaUltimo: null, promedioSaldo: null, promedioVar: null };
+    }
+    var orden = list.slice().sort(function (a, b) {
+      return String(a.fecha_hasta).localeCompare(String(b.fecha_hasta));
+    });
+    var first = orden[0];
+    var last = orden[orden.length - 1];
+    var ini = usdInicialDeFilaSe(first);
+    var fin = usdFinalDeFilaSe(last);
+    var varPer = (ini != null && fin != null) ? round2(fin - ini) : null;
+    return {
+      n: list.length,
+      ultimo: fin,
+      varPer: varPer,
+      fechaUltimo: last.fecha_hasta,
+      promedioSaldo: meanNums(orden.map(function (r) { return usdFinalDeFilaSe(r); })),
+      promedioVar: meanNums(orden.map(usdVariacionDeFilaSe))
     };
   }
 
@@ -2675,7 +2726,7 @@
     state.chart = null;
   }
 
-  function pintarChartCanal(rows, titulo, labelCierre) {
+  function pintarChartCanal(rows, titulo, labelCierre, valorDe) {
     destruirChart();
     var canvas = root() && root().querySelector('#se-chart');
     if (!canvas || typeof global.Chart === 'undefined') return;
@@ -2683,6 +2734,7 @@
       return String(a.fecha_hasta).localeCompare(String(b.fecha_hasta));
     });
     if (!orden.length) return;
+    var valor = valorDe || function (r) { return Number(r.saldo_final); };
     state.chart = new global.Chart(canvas.getContext('2d'), {
       type: 'line',
       data: {
@@ -2690,7 +2742,10 @@
         datasets: [
           {
             label: labelCierre,
-            data: orden.map(function (r) { return Number(r.saldo_final); }),
+            data: orden.map(function (r) {
+              var n = valor(r);
+              return n == null || !isFinite(Number(n)) ? null : Number(n);
+            }),
             borderColor: '#0f172a',
             backgroundColor: 'rgba(15, 23, 42, 0.08)',
             tension: 0.15,
@@ -3166,19 +3221,21 @@
         FornitaliaMensajes.avisar('No hay saldos visibles con el período elegido.');
         return;
       }
-      aoa = [['Saldos extractos — ' + LABEL_USD + ' (ARS, MEP)']].concat(meta);
-      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial ARS', 'Saldo final ARS', 'Variación', 'Archivo', 'Usuario']);
+      aoa = [['Saldos extractos — ' + LABEL_USD + ' (USD)']].concat(meta);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial USD', 'Saldo final USD', 'Variación USD', 'Saldo inicial ARS', 'Saldo final ARS', 'Archivo', 'Usuario']);
       dateCols = [0, 1, 2];
-      numCols = [3, 4, 5];
-      cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 40 }];
+      numCols = [3, 4, 5, 6, 7];
+      cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 40 }];
       rowsUsd.forEach(function (r) {
         aoa.push([
           excelDate(r.fecha_hasta),
           excelDate(r.fecha_desde),
           excelDate(r.fecha_hasta),
+          excelNum(usdInicialDeFilaSe(r)),
+          excelNum(usdFinalDeFilaSe(r)),
+          excelNum(usdVariacionDeFilaSe(r)),
           excelNum(saldoInicialMostrar(r)),
           excelNum(r.saldo_final),
-          excelNum(variacionFila(r)),
           r.archivo || '',
           textoUsuario(r.updated_by, r.created_by)
         ]);
@@ -3216,19 +3273,21 @@
         FornitaliaMensajes.avisar('No hay saldos visibles con el período elegido.');
         return;
       }
-      aoa = [['Saldos extractos — ' + LABEL_SF_USD + ' (ARS, MEP)']].concat(meta);
-      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial ARS', 'Saldo final ARS', 'Variación', 'Archivo', 'Usuario']);
+      aoa = [['Saldos extractos — ' + LABEL_SF_USD + ' (USD)']].concat(meta);
+      aoa.push(['Fecha cierre', 'Desde', 'Hasta', 'Saldo inicial USD', 'Saldo final USD', 'Variación USD', 'Saldo inicial ARS', 'Saldo final ARS', 'Archivo', 'Usuario']);
       dateCols = [0, 1, 2];
-      numCols = [3, 4, 5];
-      cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 40 }];
+      numCols = [3, 4, 5, 6, 7];
+      cols = [{ wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 40 }];
       rowsSfUsd.forEach(function (r) {
         aoa.push([
           excelDate(r.fecha_hasta),
           excelDate(r.fecha_desde),
           excelDate(r.fecha_hasta),
+          excelNum(usdInicialDeFilaSe(r)),
+          excelNum(usdFinalDeFilaSe(r)),
+          excelNum(usdVariacionDeFilaSe(r)),
           excelNum(saldoInicialMostrar(r)),
           excelNum(r.saldo_final),
-          excelNum(variacionFila(r)),
           r.archivo || '',
           textoUsuario(r.updated_by, r.created_by)
         ]);
@@ -3433,12 +3492,16 @@
     var raw = r.raw || {};
     var u = raw.saldo_usd != null ? Number(raw.saldo_usd) : NaN;
     if (isFinite(u)) return u;
-    if (!esCanalUsdSe(r.canal)) return null;
+    if (esCajaFisicaUsdSe(r.canal) || !esCanalUsdSe(r.canal)) return null;
     return usdDesdeArsSe(r, r.saldo_final);
   }
 
   function usdInicialDeFilaSe(r) {
     if (!r) return null;
+    if (esCajaFisicaUsdSe(r.canal) && r._prev) {
+      var enc = usdFinalDeFilaSe(r._prev);
+      if (enc != null) return enc;
+    }
     var raw = r.raw || {};
     var u = raw.saldo_usd_inicial != null ? Number(raw.saldo_usd_inicial) : NaN;
     if (isFinite(u)) return u;
@@ -3446,7 +3509,7 @@
       var pu = usdFinalDeFilaSe(r._prev);
       if (pu != null) return pu;
     }
-    if (!esCanalUsdSe(r.canal)) return null;
+    if (esCajaFisicaUsdSe(r.canal) || !esCanalUsdSe(r.canal)) return null;
     return usdDesdeArsSe(r, saldoInicialMostrar(r));
   }
 
@@ -3463,6 +3526,16 @@
     if (usd == null || usd === '' || !isFinite(u)) return main;
     return '<span class="se-monto-stack">' + main +
       '<span class="se-usd-sub">US$ ' + esc(formatMonto(u)) + '</span></span>';
+  }
+
+  function htmlSaldoCajaUsd(usd, ars, clsExtra) {
+    var u = Number(usd);
+    if (usd == null || usd === '' || !isFinite(u)) return htmlMonto(ars, clsExtra);
+    var main = htmlMonto(u, clsExtra);
+    var a = Number(ars);
+    if (ars == null || ars === '' || !isFinite(a)) return main;
+    return '<span class="se-monto-stack">' + main +
+      '<span class="se-usd-sub">$ ' + esc(formatMonto(a)) + ' ARS</span></span>';
   }
 
   function renderFiltros() {
@@ -3592,16 +3665,23 @@
         ? 'No hay cortes de ' + esc(label) + ' en el período elegido.'
         : 'Todavía no hay saldo de ' + esc(label) + '. Cargá ' + esc(hintCarga) + ' en el menú <strong>' + esc(menu) + '</strong>.') + '</p>';
     }
-    var usd = esCanalUsdSe(canal);
+    var cajaUsd = esCajaFisicaUsdSe(canal);
+    var usd = !cajaUsd && esCanalUsdSe(canal);
     var html = '';
     list.forEach(function (r) {
+      var ini = cajaUsd ? htmlSaldoCajaUsd(usdInicialDeFilaSe(r), saldoInicialMostrar(r))
+        : (usd ? htmlMontoConUsd(saldoInicialMostrar(r), usdInicialDeFilaSe(r)) : htmlMonto(saldoInicialMostrar(r)));
+      var fin = cajaUsd ? htmlSaldoCajaUsd(usdFinalDeFilaSe(r), r.saldo_final)
+        : (usd ? htmlMontoConUsd(r.saldo_final, usdFinalDeFilaSe(r)) : htmlMonto(r.saldo_final));
+      var vari = cajaUsd ? htmlSaldoCajaUsd(usdVariacionDeFilaSe(r), variacionFila(r), 'var')
+        : (usd ? htmlMontoConUsd(variacionFila(r), usdVariacionDeFilaSe(r), 'var') : htmlMonto(variacionFila(r), 'var'));
       html += '<tr' + (r._vivo ? ' class="se-fila-vivo"' : '') + '>' +
         '<td>' + htmlFechaCierre(r) + '</td>' +
         '<td>' + formatFecha(r.fecha_desde) + '</td>' +
         '<td>' + formatFecha(r.fecha_hasta) + '</td>' +
-        '<td class="se-col-monto">' + (usd ? htmlMontoConUsd(saldoInicialMostrar(r), usdInicialDeFilaSe(r)) : htmlMonto(saldoInicialMostrar(r))) + '</td>' +
-        '<td class="se-col-monto">' + (usd ? htmlMontoConUsd(r.saldo_final, usdFinalDeFilaSe(r)) : htmlMonto(r.saldo_final)) + '</td>' +
-        '<td class="se-col-monto">' + (usd ? htmlMontoConUsd(variacionFila(r), usdVariacionDeFilaSe(r), 'var') : htmlMonto(variacionFila(r), 'var')) + '</td>' +
+        '<td class="se-col-monto">' + ini + '</td>' +
+        '<td class="se-col-monto">' + fin + '</td>' +
+        '<td class="se-col-monto">' + vari + '</td>' +
         '<td>' + esc(r.archivo || '—') + '</td>' +
         '<td>' + htmlUsuario(r.updated_by, r.created_by) + '</td>' +
       '</tr>';
@@ -3609,7 +3689,8 @@
     return '<div class="se-tabla-wrap"><table class="se-tabla">' +
       '<thead><tr>' +
         '<th>Cierre</th><th>Desde</th><th>Hasta</th>' +
-        '<th class="se-col-monto">Saldo inicial</th><th class="se-col-monto">Saldo final</th>' +
+        '<th class="se-col-monto">' + (cajaUsd ? 'Saldo inicial USD' : 'Saldo inicial') + '</th>' +
+        '<th class="se-col-monto">' + (cajaUsd ? 'Saldo final USD' : 'Saldo final') + '</th>' +
         '<th class="se-col-monto">Variación</th><th>Archivo</th><th>Usuario</th>' +
       '</tr></thead><tbody>' + html + '</tbody></table></div>';
   }
@@ -3669,6 +3750,11 @@
 
   function renderKpis(k, nLabel) {
     var esCons = state.canal === CANAL_CONS;
+    var enUsd = esCajaFisicaUsdSe(state.canal);
+    function montoKpi(n) {
+      if (!enUsd || n == null || !isFinite(Number(n))) return formatMonto(n);
+      return 'US$ ' + formatMonto(n);
+    }
     var unidad = esCons ? 'mes' : 'corte';
     var nLower = String(nLabel || 'cortes').toLowerCase();
     var periodo = textoPeriodoSe();
@@ -3690,24 +3776,24 @@
               '<p>Si aparece Mes en curso (celeste), es ese. No es cuánto subió ni bajó: eso está en Variación del período.</p>'
             : '<p><strong>Cuánta plata hay ahora</strong>: el saldo de cierre del último corte visible.</p>' +
               '<p>Si aparece Mes en curso (celeste), es ese. No es cuánto subió ni bajó: eso está en Variación del período.</p>') +
-        '<p class="val">' + esc(formatMonto(k.ultimo)) + '</p>' + subUltimo + '</div>' +
+        '<p class="val">' + esc(montoKpi(k.ultimo)) + '</p>' + subUltimo + '</div>' +
       '<div class="se-resumen-card">' +
         htmlKpiLab('Variación del período', 'tpl-se-kpi-var',
           '<p><strong>Cuánto cambió</strong> la plata en el período de abajo: último saldo menos con cuánto arrancó el primero.</p>' +
           '<p>No es lo mismo que Último saldo. Si no dan igual, está bien: la diferencia es el arranque.</p>') +
-        '<p class="val">' + esc(formatMonto(k.varPer)) + '</p>' +
+        '<p class="val">' + esc(montoKpi(k.varPer)) + '</p>' +
         '<p class="sub">' + esc(periodo) + '</p></div>' +
       '<div class="se-resumen-card">' +
         htmlKpiLab('Promedio de saldo', 'tpl-se-kpi-prom-saldo',
           '<p><strong>Cuánta plata queda, en promedio</strong>, en cada ' + unidad + ' del período.</p>' +
           '<p>No es el último saldo ni cuánto cambió.</p>') +
-        '<p class="val">' + esc(formatMonto(k.promedioSaldo)) + '</p>' +
+        '<p class="val">' + esc(montoKpi(k.promedioSaldo)) + '</p>' +
         '<p class="sub">Cuánto queda en promedio</p></div>' +
       '<div class="se-resumen-card">' +
         htmlKpiLab('Promedio de variación', 'tpl-se-kpi-prom-var',
           '<p><strong>Cuánto se mueve, en promedio</strong>, de un ' + unidad + ' al siguiente.</p>' +
           '<p>No es el total del período: eso es Variación del período.</p>') +
-        '<p class="val">' + esc(formatMonto(k.promedioVar)) + '</p>' +
+        '<p class="val">' + esc(montoKpi(k.promedioVar)) + '</p>' +
         '<p class="sub">Cambio medio entre cortes</p></div>' +
     '</div>';
   }
@@ -3739,15 +3825,15 @@
       return 'Saldo de <strong>' + esc(LABEL_MOR) + '</strong> (caja física / Transferencia Morba). No se carga acá: se actualiza al importar <em>tesoreria_transferencia_morba_…</em> o <em>cierre_MOR-…</em> en el menú <strong>Cajas (físicas)</strong>.';
     }
     if (state.canal === CANAL_USD) {
-      return 'Saldo de <strong>' + esc(LABEL_USD) + '</strong> (caja física / efectivo dólar, en ARS). No se carga acá: se actualiza al importar <em>tesoreria_efectivo_dolar_…</em> o <em>cierre_DOL-…</em> en <strong>Cajas (físicas)</strong>. Cada corte queda al MEP de su fecha. En el consolidado, el <strong>mes en curso</strong> vuelve a pesificar esos dólares al MEP de hoy (o el inmediato anterior), igual que la torta de Flujo de caja.';
+      return 'Saldo de <strong>' + esc(LABEL_USD) + '</strong> (caja física / efectivo dólar). El número grande es el saldo en <strong>dólares</strong>: la suma de los movimientos en USD, sin dividir los pesos por el tipo de cambio. Debajo queda el importe en pesos ya guardado. No se carga acá: se actualiza al importar <em>tesoreria_efectivo_dolar_…</em> o <em>cierre_DOL-…</em> en <strong>Cajas (físicas)</strong>.';
     }
     if (state.canal === CANAL_SF) {
       return 'Saldo de <strong>' + esc(LABEL_SF) + '</strong> (caja física / efectivo pesos sin factura). No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Pesos (sin factura)</em> en <strong>Cajas (físicas)</strong>. Si un corte no cierra con los créditos y débitos que siguen, el saldo se rearma con esos movimientos.';
     }
     if (state.canal === CANAL_SF_USD) {
-      return 'Saldo de <strong>' + esc(LABEL_SF_USD) + '</strong> (caja física / efectivo dólar sin factura, en ARS). No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Dolar (sin factura)</em> o Moneda USD en <strong>Cajas (físicas)</strong>. En el consolidado, el <strong>mes en curso</strong> pesifica esos dólares al MEP de hoy (o el inmediato anterior), igual que la torta.';
+      return 'Saldo de <strong>' + esc(LABEL_SF_USD) + '</strong> (caja física / efectivo dólar sin factura). El número grande es el saldo en <strong>dólares</strong> (por ejemplo 1.600), no los pesos divididos por el MEP de hoy. No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Dolar (sin factura)</em> o Moneda USD en <strong>Cajas (físicas)</strong>. Si un corte no cierra con esos dólares, se rearma con los movimientos.';
     }
-    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_FCI) + ', ' + esc(LABEL_FCI_USD) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). FCI es la tenencia del fondo; el extracto de Galicia sigue mostrando la cuenta del banco. En Mercado Pago el mes en curso parte del saldo total de la última carta. En Galicia, el <strong>mes en curso</strong> (celeste) es el saldo corrido del extracto (el saldo real del banco). Los dólares del mes en curso (Galicia USD, FCI USD y efectivo en dólares) se pesifican al MEP de hoy, o al inmediato anterior: el mismo de la torta de Flujo de caja. Los meses cerrados no se recalculan. El promedio de saldo es cuánto dinero queda en promedio.';
+    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_FCI) + ', ' + esc(LABEL_FCI_USD) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). FCI es la tenencia del fondo; el extracto de Galicia sigue mostrando la cuenta del banco. En Mercado Pago el mes en curso parte del saldo total de la última carta. En Galicia, el <strong>mes en curso</strong> (celeste) es el saldo corrido del extracto (el saldo real del banco). Los dólares del mes en curso de Galicia USD y FCI USD se pesifican al MEP de hoy, o al inmediato anterior: el mismo de la torta de Flujo de caja. El efectivo en dólares queda en dólares (la suma de los movimientos), sin dividir los pesos por el tipo de cambio. Los meses cerrados no se recalculan. El promedio de saldo es cuánto dinero queda en promedio.';
   }
 
   function renderShell() {
@@ -3806,7 +3892,7 @@
       tabla = renderTablaCajaFisica(CANAL_MOR, LABEL_MOR, 'tesoreria_transferencia_morba_… o cierre_MOR-…');
       hayChart = !!rowsMor.length;
     } else if (state.canal === CANAL_USD) {
-      kpisHtml = renderKpis(kpisCanal(rowsUsd), 'Cortes');
+      kpisHtml = renderKpis(kpisCanalUsd(rowsUsd), 'Cortes');
       tabla = renderTablaCajaFisica(CANAL_USD, LABEL_USD, 'tesoreria_efectivo_dolar_… o cierre_DOL-…');
       hayChart = !!rowsUsd.length;
     } else if (state.canal === CANAL_SF) {
@@ -3814,7 +3900,7 @@
       tabla = renderTablaCajaFisica(CANAL_SF, LABEL_SF, 'histórico Efectivo Pesos (sin factura)');
       hayChart = !!filasCanal(CANAL_SF).length;
     } else if (state.canal === CANAL_SF_USD) {
-      kpisHtml = renderKpis(kpisCanal(filasCanal(CANAL_SF_USD)), 'Cortes');
+      kpisHtml = renderKpis(kpisCanalUsd(filasCanal(CANAL_SF_USD)), 'Cortes');
       tabla = renderTablaCajaFisica(CANAL_SF_USD, LABEL_SF_USD, 'histórico Efectivo Dolar (sin factura)');
       hayChart = !!filasCanal(CANAL_SF_USD).length;
     } else {
@@ -3877,9 +3963,9 @@
     else if (state.canal === CANAL_FCI_USD && hayChart) pintarChartCanal(rowsFciUsd, 'Serie de saldos ' + LABEL_FCI_USD + ' (ARS al MEP)', 'Saldo de caja (ARS)');
     else if (state.canal === CANAL_GF && hayChart) pintarChartCanal(rowsGf, 'Serie de saldos ' + LABEL_GF + ' (caja física)', 'Saldo de caja (ARS)');
     else if (state.canal === CANAL_MOR && hayChart) pintarChartCanal(rowsMor, 'Serie de saldos ' + LABEL_MOR + ' (caja física)', 'Saldo de caja (ARS)');
-    else if (state.canal === CANAL_USD && hayChart) pintarChartCanal(rowsUsd, 'Serie de saldos ' + LABEL_USD + ' (caja física, ARS al MEP)', 'Saldo de caja (ARS)');
+    else if (state.canal === CANAL_USD && hayChart) pintarChartCanal(rowsUsd, 'Serie de saldos ' + LABEL_USD + ' (caja física, USD)', 'Saldo de caja (USD)', usdFinalDeFilaSe);
     else if (state.canal === CANAL_SF && hayChart) pintarChartCanal(filasCanal(CANAL_SF), 'Serie de saldos ' + LABEL_SF + ' (caja física)', 'Saldo de caja (ARS)');
-    else if (state.canal === CANAL_SF_USD && hayChart) pintarChartCanal(filasCanal(CANAL_SF_USD), 'Serie de saldos ' + LABEL_SF_USD + ' (caja física, ARS al MEP)', 'Saldo de caja (ARS)');
+    else if (state.canal === CANAL_SF_USD && hayChart) pintarChartCanal(filasCanal(CANAL_SF_USD), 'Serie de saldos ' + LABEL_SF_USD + ' (caja física, USD)', 'Saldo de caja (USD)', usdFinalDeFilaSe);
     else if (state.canal === CANAL_CONS && hayChart) pintarChartConsolidado(meses);
 
     var dEl = el.querySelector('#se-mes-desde');

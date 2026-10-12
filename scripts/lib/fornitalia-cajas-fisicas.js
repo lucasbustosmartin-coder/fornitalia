@@ -45,6 +45,8 @@
     canal: CANAL_GF,
     lista: 'movimientos',
     movimientos: [],
+    cortes: [],
+    saldosCorridos: null,
     tcMap: {},
     tcFechas: [],
     tcLoaded: false,
@@ -853,8 +855,20 @@
           break;
         }
       }
-      if (usdFin == null && fin != null && tcLast > 0) usdFin = round2(Number(fin) / tcLast);
-      if (usdIni == null && ini != null && tcLast > 0) usdIni = round2(Number(ini) / tcLast);
+      if (usdFin == null) {
+        var usdRun = 0;
+        var hayUsdMov = false;
+        for (i = 0; i < orden.length; i++) {
+          var uu = orden[i].monto_usd != null && orden[i].monto_usd !== '' ? Number(orden[i].monto_usd) : NaN;
+          if (!isFinite(uu)) continue;
+          hayUsdMov = true;
+          usdRun = round2(usdRun + uu);
+        }
+        if (hayUsdMov) {
+          usdFin = usdRun;
+          if (usdIni == null) usdIni = 0;
+        }
+      }
       if (usdFin != null) raw.saldo_usd = round2(usdFin);
       if (usdIni != null) raw.saldo_usd_inicial = round2(usdIni);
       if (tcLast > 0) raw.tipo_cambio_mep = tcLast;
@@ -1006,7 +1020,7 @@
     var blob = normHeader([
       m.fecha, m.tipo, m.descripcion, observacionesDe(m), m.contraparte, m.categoria, m.cuenta_contable,
       m.origen_id, idRelacionDe(m, 'id_venta'), idRelacionDe(m, 'id_compra'),
-      m.monto, m.credito, m.debito, m.saldo, m.monto_usd, m.tipo_cambio_mep
+      m.monto, m.credito, m.debito, saldoVisible(m), m.monto_usd, m.tipo_cambio_mep
     ].join(' '));
     return blob.indexOf(q) >= 0;
   }
@@ -1060,7 +1074,7 @@
     if (key === 'cuenta_contable') return { v: valorCatCta(m.cuenta_contable), t: 'txt' };
     if (key === 'credito') return { v: m.credito, t: 'num' };
     if (key === 'debito') return { v: m.debito, t: 'num' };
-    if (key === 'saldo') return { v: m.saldo, t: 'num' };
+    if (key === 'saldo') return { v: saldoVisible(m), t: 'num' };
     if (key === 'monto') return { v: m.monto, t: 'num' };
     if (key === 'monto_usd') return { v: m.monto_usd, t: 'num' };
     if (key === 'tipo_cambio_mep') return { v: m.tipo_cambio_mep, t: 'num' };
@@ -1094,7 +1108,160 @@
       esc(label) + '<span class="cf-sort-ind" aria-hidden="true">' + ind + '</span></button></th>';
   }
 
+  function filaExcelDe(m) {
+    if (!m) return 0;
+    if (m.fila_excel != null && m.fila_excel !== '') {
+      var n = Number(m.fila_excel);
+      if (isFinite(n)) return n;
+    }
+    var raw = m.raw && typeof m.raw === 'object' ? m.raw : {};
+    var f = Number(raw.fila_excel);
+    return isFinite(f) ? f : 0;
+  }
+
+  function claveSaldo(m) {
+    return String((m && (m.id || m.origen_id)) || '');
+  }
+
+  function netoMovimientoCaja(m) {
+    var cred = m && m.credito != null && m.credito !== '' ? Number(m.credito) : NaN;
+    var deb = m && m.debito != null && m.debito !== '' ? Number(m.debito) : NaN;
+    if (isFinite(cred) || isFinite(deb)) {
+      return round2((isFinite(cred) ? cred : 0) - Math.abs(isFinite(deb) ? deb : 0));
+    }
+    var n = Number(m && m.monto);
+    return isFinite(n) ? round2(n) : 0;
+  }
+
+  function fechaMov(m) {
+    return String(m && m.fecha || '').slice(0, 10);
+  }
+
+  function ordenCronologico(a, b) {
+    var c = fechaMov(a).localeCompare(fechaMov(b));
+    if (c) return c;
+    var fa = filaExcelDe(a);
+    var fb = filaExcelDe(b);
+    if (fa !== fb) return fa - fb;
+    var ia = Number(String(a.origen_id || '').replace(/\D/g, '')) || 0;
+    var ib = Number(String(b.origen_id || '').replace(/\D/g, '')) || 0;
+    if (ia !== ib) return ia - ib;
+    return claveSaldo(a).localeCompare(claveSaldo(b));
+  }
+
+  function saldoUsdDeCorte(r) {
+    var raw = r && r.raw;
+    var u = raw && raw.saldo_usd != null && raw.saldo_usd !== '' ? Number(raw.saldo_usd) : NaN;
+    return isFinite(u) ? u : null;
+  }
+
+  function netoUsdMovimiento(m) {
+    var u = m && m.monto_usd != null && m.monto_usd !== '' ? Number(m.monto_usd) : NaN;
+    if (!isFinite(u) && m && m.raw && m.raw.monto_usd != null && m.raw.monto_usd !== '') u = Number(m.raw.monto_usd);
+    if (!isFinite(u)) return null;
+    var signo = Number(m.monto);
+    if (isFinite(signo) && signo < 0 && u > 0) return round2(-u);
+    return round2(u);
+  }
+
+  function netoEntre(desdeExcl, hastaIncl, enUsd) {
+    var neto = 0;
+    var hay = false;
+    filasMovimientos().forEach(function (m) {
+      var f = fechaMov(m);
+      if (!f) return;
+      if (desdeExcl && f <= desdeExcl) return;
+      if (hastaIncl && f > hastaIncl) return;
+      if (enUsd) {
+        var u = netoUsdMovimiento(m);
+        if (u == null) return;
+        hay = true;
+        neto = round2(neto + u);
+        return;
+      }
+      hay = true;
+      neto = round2(neto + (netoMovimientoCaja(m) || 0));
+    });
+    return hay ? round2(neto) : (enUsd ? null : 0);
+  }
+
+  function netoParaSaldo(m) {
+    if (esCanalUsd(state.canal)) {
+      var u = netoUsdMovimiento(m);
+      return u == null ? 0 : u;
+    }
+    return netoMovimientoCaja(m) || 0;
+  }
+
+  function anclaSaldoCaja() {
+    var cortes = (state.cortes || []).filter(function (r) {
+      return r && String(r.fecha_hasta || '').slice(0, 10);
+    }).slice().sort(function (a, b) {
+      return String(a.fecha_hasta).localeCompare(String(b.fecha_hasta));
+    });
+    if (!cortes.length) return null;
+    var enUsd = esCanalUsd(state.canal);
+    var accepted = cortes[cortes.length - 1];
+    var i;
+    for (i = cortes.length - 2; i >= 0; i--) {
+      var older = cortes[i];
+      var desde = String(older.fecha_hasta).slice(0, 10);
+      var hasta = String(accepted.fecha_hasta).slice(0, 10);
+      if (enUsd) {
+        var deltaU = netoEntre(desde, hasta, true);
+        var baseU = saldoUsdDeCorte(older);
+        var finU = saldoUsdDeCorte(accepted);
+        var espU = baseU != null && deltaU != null ? round2(baseU + deltaU) : null;
+        if (espU != null && finU != null && Math.abs(finU - espU) < 0.02) break;
+        accepted = older;
+        continue;
+      }
+      var delta = netoEntre(desde, hasta, false);
+      var base = Number(older.saldo_final);
+      var esperado = isFinite(base) ? round2(base + (delta || 0)) : null;
+      var fin = Number(accepted.saldo_final);
+      if (esperado != null && isFinite(fin) && Math.abs(fin - esperado) < 0.02) break;
+      accepted = older;
+    }
+    var saldo = enUsd ? saldoUsdDeCorte(accepted) : Number(accepted.saldo_final);
+    if (saldo == null || !isFinite(Number(saldo))) return null;
+    return { fecha: String(accepted.fecha_hasta).slice(0, 10), saldo: Number(saldo) };
+  }
+
+  function mapaSaldosCorridos() {
+    var orden = filasMovimientos().slice().sort(ordenCronologico);
+    var ancla = anclaSaldoCaja();
+    var prefAncla = 0;
+    if (ancla) {
+      orden.forEach(function (m) {
+        var f = fechaMov(m);
+        if (f && f <= ancla.fecha) prefAncla = round2((prefAncla || 0) + netoParaSaldo(m));
+      });
+    }
+    var run = 0;
+    var map = {};
+    orden.forEach(function (m) {
+      run = round2((run || 0) + netoParaSaldo(m));
+      var saldo = ancla ? round2(ancla.saldo + run - (prefAncla || 0)) : run;
+      var k = claveSaldo(m);
+      if (k) map[k] = saldo;
+    });
+    return map;
+  }
+
+  function saldoVisible(m) {
+    var map = state.saldosCorridos;
+    var k = claveSaldo(m);
+    if (map && k && Object.prototype.hasOwnProperty.call(map, k)) return map[k];
+    if (m && m.saldo != null && m.saldo !== '') {
+      var n = Number(m.saldo);
+      return isFinite(n) ? n : null;
+    }
+    return null;
+  }
+
   function filasVisibles() {
+    state.saldosCorridos = mapaSaldosCorridos();
     var list = state.lista === 'bajas' ? filasBajas() : filasMovimientos();
     return ordenarFilas(list.filter(pasaFiltros));
   }
@@ -1103,18 +1270,12 @@
     var movs = filasMovimientos().filter(pasaFiltros);
     var ing = 0;
     var egr = 0;
-    var saldo = null;
-    var lastFecha = '';
     movs.forEach(function (m) {
       if (m.credito != null) ing += Number(m.credito) || 0;
       if (m.debito != null) egr += Math.abs(Number(m.debito) || 0);
     });
-    filasMovimientos().forEach(function (m) {
-      if (m.saldo != null && String(m.fecha) >= lastFecha) {
-        lastFecha = String(m.fecha);
-        saldo = Number(m.saldo);
-      }
-    });
+    var ult = movs.slice().sort(ordenCronologico).pop();
+    var saldo = ult ? saldoVisible(ult) : null;
     return {
       n: movs.length,
       ingresos: round2(ing),
@@ -1160,6 +1321,13 @@
       offset += SUPABASE_PAGE;
     }
     state.movimientos = hidratarObservaciones(all);
+    state.cortes = [];
+    if (!client()) return;
+    var cortes = await client().from('eb_saldo_extracto')
+      .select('fecha_hasta,saldo_final,raw')
+      .eq('canal', state.canal)
+      .order('fecha_hasta', { ascending: true });
+    if (!cortes.error && cortes.data) state.cortes = cortes.data;
   }
 
   function marcarCargando(msg) {
@@ -1700,8 +1868,10 @@
         if (nBajas) state.lista = 'bajas';
         var nota = '';
         if (snap) {
-          nota = 'Saldo al ' + formatFecha(snap.fecha_hasta) + ': $ ' + formatMonto(snap.saldo_final) +
-            (esCanalUsd(state.canal) ? ' ARS (pesificado al MEP de cada fecha, o el último anterior).' : '.');
+          nota = 'Saldo al ' + formatFecha(snap.fecha_hasta) + ': ' +
+            (esCanalUsd(state.canal)
+              ? ('US$ ' + formatMonto(snap.raw && snap.raw.saldo_usd) + ' (dólares del movimiento, sin dividir por el tipo de cambio).')
+              : ('$ ' + formatMonto(snap.saldo_final) + '.'));
         } else if (parsed.formatoHistorico) {
           nota = 'El histórico no pisa Saldos extractos (Apertura de Caja no entra al saldo). Queda el corte de tesorería o cierre.';
         }
@@ -1783,7 +1953,7 @@
     }
     var usd = esCanalUsd(state.canal);
     var headers = usd
-      ? ['Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito ARS', 'Débito ARS', 'Saldo ARS', 'Importe ARS', 'USD orig.', 'TC MEP', 'Fecha TC', 'ID', 'ID Venta', 'ID Compra', 'Usuario']
+      ? ['Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito ARS', 'Débito ARS', 'Saldo USD', 'Importe ARS', 'USD orig.', 'TC MEP', 'Fecha TC', 'ID', 'ID Venta', 'ID Compra', 'Usuario']
       : ['Fecha', 'Tipo', 'Descripción', 'Observaciones', 'Cliente', 'Categoría', 'Cuenta contable', 'Crédito', 'Débito', 'Saldo', 'Importe', 'ID', 'ID Venta', 'ID Compra', 'Usuario'];
     var aoa = [headers];
     list.forEach(function (m) {
@@ -1797,7 +1967,7 @@
         m.cuenta_contable || '',
         excelNum(m.credito),
         excelNum(m.debito),
-        excelNum(m.saldo),
+        excelNum(saldoVisible(m)),
         excelNum(m.monto)
       ];
       if (usd) {
@@ -1869,7 +2039,7 @@
         '<td>' + esc(m.cuenta_contable || '—') + '</td>' +
         '<td class="cf-col-monto">' + htmlMonto(m.credito) + '</td>' +
         '<td class="cf-col-monto">' + htmlMonto(m.debito != null ? -Math.abs(m.debito) : null) + '</td>' +
-        '<td class="cf-col-monto">' + htmlMonto(m.saldo) + '</td>' +
+        '<td class="cf-col-monto" title="' + (usd ? 'Saldo en dólares: suma de cada movimiento en USD, sin convertir por el tipo de cambio' : 'Saldo acumulado con los créditos y débitos, en orden de fecha') + '">' + htmlMonto(saldoVisible(m)) + '</td>' +
         '<td class="cf-col-monto">' + htmlMonto(m.monto) + '</td>' +
         (usd ? '<td class="cf-col-monto">' + htmlMonto(m.monto_usd) + '</td>' +
           '<td class="cf-col-monto">' + esc(formatMonto(m.tipo_cambio_mep)) + '</td>' : '') +
@@ -1895,7 +2065,7 @@
         thSort('cuenta_contable', 'Cuenta contable') +
         thSort('credito', usd ? 'Crédito ARS' : 'Crédito', 'cf-col-monto') +
         thSort('debito', usd ? 'Débito ARS' : 'Débito', 'cf-col-monto') +
-        thSort('saldo', usd ? 'Saldo ARS' : 'Saldo', 'cf-col-monto') +
+        thSort('saldo', usd ? 'Saldo USD' : 'Saldo', 'cf-col-monto') +
         thSort('monto', usd ? 'Importe ARS' : 'Importe', 'cf-col-monto') +
         (usd ? thSort('monto_usd', 'USD orig.', 'cf-col-monto') + thSort('tipo_cambio_mep', 'TC MEP', 'cf-col-monto') : '') +
         thSort('id', 'ID') +
@@ -2106,12 +2276,13 @@
       el.innerHTML = '<p class="cf-empty">No tenés permiso para ver Cajas (físicas).</p>';
       return;
     }
+    state.saldosCorridos = mapaSaldosCorridos();
     var k = kpis();
     syncCamposFiltro(state);
     el.innerHTML =
       FornitaliaHelp.header(ICO.cash, 'Cajas (físicas)', 'tpl-cf-help', 'Ayuda: Cajas (físicas)',
         '<p>Cajas que <strong>no se concilian</strong> con extracto bancario. Solapas <strong>' + esc(LABEL_GF) + '</strong> (efectivo pesos), <strong>' + esc(LABEL_MOR) + '</strong> (Transferencia Morba), <strong>' + esc(LABEL_USD) + '</strong> (efectivo dólar, pesificado al MEP), <strong>' + esc(LABEL_SF) + '</strong> (Caja = Efectivo Pesos (sin factura)) y <strong>' + esc(LABEL_SF_USD) + '</strong> (Caja = Efectivo Dolar (sin factura)).</p>' +
-        '<p>Mismos Excel que tesorería/cierre, con Id para no duplicar. El saldo alimenta Saldos extractos.</p>' +
+        '<p>Mismos Excel que tesorería/cierre, con Id para no duplicar. El saldo alimenta Saldos extractos. La columna Saldo acumula el crédito y el débito de cada movimiento, en orden de fecha. En las cajas en dólares ese saldo es la suma en dólares, sin dividir los pesos por el tipo de cambio.</p>' +
         '<p>Cargá <em>' + esc(archivosHint(state.canal).split(' o ')[0]) + '</em> o <em>' + esc(archivosHint(state.canal).split(' o ')[1] || '') + '</em>. Tesorería abierta trae saldo corrido; el cierre ya cerrado trae Fecha, Tipo, Monto e Id.</p>' +
         '<p>Apertura de Caja y Status Anulado no se suben. Apertura no entra al corte de Saldos extractos. El histórico carga movimientos pero no pisa el saldo de tesorería o cierre. Status Pendiente sí se da de alta en todas las cajas. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> entran a Efectivo-s/f aunque vengan en un histórico, cierre u otro Excel de tesorería; el saldo alimenta Saldos extractos. Solo un Id <strong>Pendiente o sin Status</strong> cuya fecha cae dentro del rango del archivo (histórico o tesorería) y que no viene ahí pasa a <strong>A eliminar</strong>. Si el Excel no cubre esa fecha, no se marca. Un Confirmado no se elimina.' +
         (esCanalUsd(state.canal) ? ' Los montos del Excel están en <strong>USD</strong> y se pesifican al <strong>MEP</strong> de <em>tipo_de_cambio</em> (fecha del movimiento o última cotización anterior). La grilla muestra ARS, USD original y el TC usado.' : '') + '</p>') +
@@ -2134,7 +2305,7 @@
         '<div class="cf-resumen-card"><p class="lab">Movimientos</p><p class="val">' + k.n + '</p></div>' +
         '<div class="cf-resumen-card"><p class="lab">' + (esCanalUsd(state.canal) ? 'Ingresos ARS' : 'Ingresos') + '</p><p class="val">' + esc(formatMonto(k.ingresos)) + '</p></div>' +
         '<div class="cf-resumen-card"><p class="lab">' + (esCanalUsd(state.canal) ? 'Egresos ARS' : 'Egresos') + '</p><p class="val">' + esc(formatMonto(k.egresos)) + '</p></div>' +
-        '<div class="cf-resumen-card"><p class="lab">' + (esCanalUsd(state.canal) ? 'Saldo ARS' : 'Saldo') + '</p><p class="val">' + esc(formatMonto(k.saldo)) + '</p></div>' +
+        '<div class="cf-resumen-card"><p class="lab">' + (esCanalUsd(state.canal) ? 'Saldo USD' : 'Saldo') + '</p><p class="val">' + esc((esCanalUsd(state.canal) ? 'US$ ' : '') + formatMonto(k.saldo)) + '</p></div>' +
         '<div class="cf-resumen-card' + (k.bajas ? ' cf-resumen-warn' : '') + '" data-cf="lista" data-lista="bajas" role="button" tabindex="0"><p class="lab">A eliminar</p><p class="val">' + k.bajas + '</p></div>' +
       '</div>' +
       '<div class="cf-tabs">' +
