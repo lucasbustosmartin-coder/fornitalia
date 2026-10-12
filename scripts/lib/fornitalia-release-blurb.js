@@ -12,6 +12,7 @@
     lines: [
       'En Efectivo y Morba volvieron los importes, en pesos y en dólares.',
       'Al cargar el histórico, el monto de cada movimiento se mantiene.',
+      'El saldo de cada caja física sale de sus créditos y débitos.',
       'Podés volver a cargar ese archivo: lo que ya no viene y está Pendiente pasa a A eliminar.'
     ]
   };

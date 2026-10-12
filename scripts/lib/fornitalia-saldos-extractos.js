@@ -1712,7 +1712,7 @@
   }
 
   function canalesSaldoPorMovimientos() {
-    return [CANAL_GF, CANAL_MOR, CANAL_USD];
+    return [CANAL_GF, CANAL_MOR, CANAL_USD, CANAL_SF, CANAL_SF_USD];
   }
 
   function cortesCanalOrdenados(canal) {
@@ -3742,7 +3742,7 @@
       return 'Saldo de <strong>' + esc(LABEL_USD) + '</strong> (caja física / efectivo dólar, en ARS). No se carga acá: se actualiza al importar <em>tesoreria_efectivo_dolar_…</em> o <em>cierre_DOL-…</em> en <strong>Cajas (físicas)</strong>. Cada corte queda al MEP de su fecha. En el consolidado, el <strong>mes en curso</strong> vuelve a pesificar esos dólares al MEP de hoy (o el inmediato anterior), igual que la torta de Flujo de caja.';
     }
     if (state.canal === CANAL_SF) {
-      return 'Saldo de <strong>' + esc(LABEL_SF) + '</strong> (caja física / efectivo pesos sin factura). No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Pesos (sin factura)</em> en <strong>Cajas (físicas)</strong>.';
+      return 'Saldo de <strong>' + esc(LABEL_SF) + '</strong> (caja física / efectivo pesos sin factura). No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Pesos (sin factura)</em> en <strong>Cajas (físicas)</strong>. Si un corte no cierra con los créditos y débitos que siguen, el saldo se rearma con esos movimientos.';
     }
     if (state.canal === CANAL_SF_USD) {
       return 'Saldo de <strong>' + esc(LABEL_SF_USD) + '</strong> (caja física / efectivo dólar sin factura, en ARS). No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Dolar (sin factura)</em> o Moneda USD en <strong>Cajas (físicas)</strong>. En el consolidado, el <strong>mes en curso</strong> pesifica esos dólares al MEP de hoy (o el inmediato anterior), igual que la torta.';
