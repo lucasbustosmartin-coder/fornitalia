@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.92",
+  "versionLabel": "v2.93",
   "lines": [
-    "La cotización del Flujo es la de hoy.",
-    "Si ese día no tiene dólar, se usa el anterior y se muestra esa fecha.",
-    "Los Excel quedan fechados con el día de hoy."
+    "Al cargar el histórico, Efectivo y Morba también marcan lo que ya no viene.",
+    "Ese Pendiente pasa a A eliminar, igual que en las cajas de banco.",
+    "Un Confirmado no se elimina. Volvé a cargar el mismo archivo para verlos."
   ]
 }

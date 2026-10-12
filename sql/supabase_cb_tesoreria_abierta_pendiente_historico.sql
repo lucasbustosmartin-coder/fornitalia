@@ -20,12 +20,18 @@ LANGUAGE sql
 STABLE
 AS $$
   SELECT p_mov.origen_id LIKE 'id|%'
-    AND COALESCE(p_mov.raw->>'formato', '') <> 'cierre'
-    AND COALESCE(p_mov.archivo, '') NOT ILIKE '%cierre%'
+    AND NOT (
+      COALESCE(p_mov.raw->>'formato', '') = 'cierre'
+      AND COALESCE(p_mov.archivo, '') !~* 'historico'
+    )
+    AND (
+      COALESCE(p_mov.archivo, '') !~* 'cierre'
+      OR COALESCE(p_mov.archivo, '') ~* 'historico'
+    )
     AND lower(btrim(COALESCE(p_mov.raw->>'status', p_mov.raw->>'Status', ''))) IN ('pendiente', '');
 $$;
 
 COMMENT ON FUNCTION public.cb_es_tesoreria_abierta(public.cb_movimiento) IS
   'Caja abierta = Status Pendiente o vacío (tesorería o histórico). Confirmado y cierre no.';
 COMMENT ON FUNCTION public.cf_es_tesoreria_abierta(public.cf_movimiento) IS
-  'Caja abierta = Status Pendiente o vacío (tesorería o histórico). Confirmado y cierre no.';
+  'Caja abierta = Status Pendiente o vacío (tesorería o histórico). Un movimientos-historico no es cierre aunque el Excel traiga columna Monto. Confirmado y un archivo de cierre no.';

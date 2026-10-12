@@ -569,8 +569,9 @@
     var det = detectarHojaCaja(wb, archivo);
     if (!det.rows.length) return { error: 'El Excel no tiene filas.', filas: [] };
     var map = det.map;
-    var esCierre = esMapaTesoreriaCierre(map);
-    if (!esMapaTesoreria(map) && !esCierre) {
+    var historicoMixto = esNombreTesoreriaHistorico(archivo);
+    var esCierre = esMapaTesoreriaCierre(map) && !historicoMixto;
+    if (!esMapaTesoreria(map) && !esMapaTesoreriaCierre(map)) {
       return {
         error: 'No reconocí el archivo de caja. Esperaba tesorería (Tipo, Fecha, Crédito, Débito e Id) o cierre (Fecha, Tipo, Monto e Id). En esta solapa: ' + archivosHint(state.canal) + '.',
         filas: []
@@ -582,7 +583,6 @@
       cajaMuestra = String(cell(det.rows[r] || [], map, ['Caja']) || '').trim();
       if (cajaMuestra) break;
     }
-    var historicoMixto = esNombreTesoreriaHistorico(archivo);
     var haySf = hayFilasCajaSinFactura(det.rows, map);
     var mixtoCaja = historicoMixto || haySf || todosLosCanales;
     if (!mixtoCaja && esArchivoBancoConciliable(archivo, cajaMuestra, det.hoja)) {
@@ -718,7 +718,7 @@
           descripcion: desc, cliente: cliente, credito: cred, debito: deb, saldo: saldo,
           observaciones: obs, caja: caja || null, usuario: usuario || null, status: status || null,
           moneda: monedaFila, tipo_cambio: tcFila,
-          id: idCierre, formato: esCierre ? 'cierre' : 'tesoreria'
+          id: idCierre, formato: historicoMixto ? 'historico' : (esCierre ? 'cierre' : 'tesoreria')
         }
       };
       aplicarIdsRelacion(filaObj, idVenta, idCompra);
