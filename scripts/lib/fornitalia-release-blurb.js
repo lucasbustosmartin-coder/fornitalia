@@ -8,11 +8,12 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.95',
+    versionLabel: 'v2.96',
     lines: [
-      'En cada caja física, la columna Saldo suma los movimientos en orden de fecha.',
-      'En las cajas en dólares ese saldo se ve en dólares: por ejemplo 1.600, sin convertirlo.',
-      'En Saldos extractos y al comparar con la tesorería, esas cajas también quedan en dólares.'
+      'Al cargar el histórico, si falta un Id en la secuencia (el 8 entre 1 y 10), las cajas físicas lo muestran agrupado por caja.',
+      'En cada caja hay Eliminar: hay que confirmar para borrar esos movimientos.',
+      'Mercado Pago, Galicia, Credicoop y FCI mandan ese mismo Id a A eliminar de su caja.',
+      'En Mercado Pago se puede deshacer una anulación: el cobro y la devolución vuelven al extracto.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

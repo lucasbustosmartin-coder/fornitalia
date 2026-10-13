@@ -18,11 +18,11 @@
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-conciliacion-bancaria.css?v=2.91">
-  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.91"></script>
+  <script src="scripts/lib/fornitalia-conciliacion-bancaria.js?v=2.97"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-saldos-extractos.css?v=2.91">
   <script src="scripts/lib/fornitalia-saldos-extractos.js?v=2.95"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.75">
-  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.95"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-cajas-fisicas.css?v=2.76">
+  <script src="scripts/lib/fornitalia-cajas-fisicas.js?v=2.96"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-impuestos.css?v=2.55">
   <script src="scripts/lib/fornitalia-impuestos.js?v=2.75"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.56">
@@ -140,6 +140,7 @@
     .flujo-historico-overlay-card p { margin: 0 0 0.4rem; color: #1e293b; font-size: 1rem; }
     .flujo-historico-overlay-card .hint { color: #64748b; font-size: 0.88rem; margin: 0; }
     #modal-flujo-historico { max-width: min(96vw, 40rem); width: 100%; }
+    #modal-flujo-historico.modal-flujo-historico-ancho { max-width: min(96vw, 52rem); }
     #modal-flujo-historico .modal-body { max-height: min(72vh, 36rem); overflow: auto; -webkit-overflow-scrolling: touch; }
     #btn-cargar-historico-flujo { min-height: 2.25rem; }
     @media (max-width: 768px) {
@@ -1394,7 +1395,7 @@
           <p><strong>Costo Financiero MP / Ventas MP</strong> = egresos con <code>ef_subitem</code> <strong>Costo Financiero (Mercado Pago)</strong> ÷ cobranzas por ventas de la <strong>caja Mercado Pago</strong> (no las ventas de otras cajas).</p>
           <p>El denominador de <strong>Costo dir. / Ingresos</strong>, <strong>Costo ind. / Ingresos</strong>, <strong>Costo total / Ingreso total</strong> y <strong>Sueldos / Ingresos</strong> es siempre la columna <strong>Ingresos</strong> del mes. Numeradores: COSTOS DIRECTOS (§2), COSTOS INDIRECTOS (§3), Egresos de la fila (costo total) y Sueldos. Cálculo simple, sin Flujo Operativo Generado.</p>
           <p>La tabla se lee como en Dashboard: <strong>meses en columnas</strong>, filas Ingresos / Egresos / G/P y debajo <strong>Ratios del Negocio</strong> (Comisiones/Ventas, Sueldos/Ingresos, Sueldos + Cargas Sociales/Cobranzas, Costo Financiero MP/Ventas MP, Costo dir., Costo ind., Costo total sobre Ingresos). El <strong>mes en curso</strong> va en celeste: se ve, pero no entra en el <strong>Total</strong> (tarjetas, ratios, PDF y Excel) ni en las variaciones y la tendencia del gráfico, para no mezclar un mes incompleto con los cerrados. Las columnas <strong>Proy.</strong> quedan a la derecha y tampoco entran al Total. El gráfico <strong>G/P Mensual</strong> y el PDF usan el mismo filtro Período; en el PDF los filtros activos van remarcados en verde.</p>
-          <p>Arriba, junto a <strong>Exportar Base Histórica</strong>, el botón <strong>Cargar tesorería histórica</strong> (si el perfil lo tiene) toma el Excel <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto) y lo reparte a todas las cajas de una vez: bancos en Conciliación y cajas físicas según la columna Caja. En Conciliación recálcula los sugeridos de cada caja (Mercado Pago, Galicia, Galicia USD, Credicoop) y el cartel siempre muestra el resultado, aunque sea 0. No depende de esta solapa.</p>
+          <p>Arriba, junto a <strong>Exportar Base Histórica</strong>, el botón <strong>Cargar tesorería histórica</strong> (si el perfil lo tiene) toma el Excel <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto) y lo reparte a todas las cajas de una vez: bancos en Conciliación y cajas físicas según la columna Caja. En Conciliación recálcula los sugeridos de cada caja (Mercado Pago, Galicia, Galicia USD, Credicoop) y el cartel siempre muestra el resultado, aunque sea 0. Si un Id Pendiente corta la secuencia del archivo (van del 1 al 10 y falta el 8), las cajas físicas lo muestran por caja con Eliminar para confirmar; el resto queda en A eliminar de su caja. No depende de esta solapa.</p>
         </div>
       </template>
       <div class="errores-panel-toolbar">
@@ -2122,7 +2123,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.95';
+    const APP_VERSION = '2.96';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -4246,7 +4247,7 @@
       b.setAttribute('aria-hidden', 'true');
     }
 
-    function htmlResumenHistoricoFlujo(cbR, cfR) {
+    function htmlResumenHistoricoFlujo(cbR, cfR, huecos) {
       function n(obj, k) { return Number((obj && obj[k]) || 0) || 0; }
       function item(label, val, cls, hint) {
         return '<div class="cb-resumen-item' + (cls ? ' ' + cls : '') + '">' +
@@ -4304,19 +4305,47 @@
           item('Registros nuevos', n(cbR, 'nNuevos') + n(cfR, 'nNuevos'), 'cb-resumen-ok', 'No estaban: se dieron de alta.') +
           item('Registros que cambiaron', n(cbR, 'nCambiaron') + n(cfR, 'nCambiaron'), 'cb-resumen-warn', 'Mismo Id: se actualizaron fecha, monto, categoría, cuenta u otro dato.') +
           item('Sin cambios', n(cbR, 'nIguales') + n(cfR, 'nIguales'), '', 'Mismo Id y mismos datos: no se duplicaron.') +
+          itemSi('A eliminar', n(cbR, 'nBajas') + n(cfR, 'nBajas'), 'cb-resumen-warn', 'Pendiente cuya fecha entra en el rango del archivo y cuyo Id no vino. En las cajas de banco queda en A eliminar.') +
           sugHtml +
         '</dl>' +
         idsHtml +
         (omitHtml ? '<h3>Se omitieron</h3><dl class="cb-resumen-grid cb-resumen-omit">' + omitHtml + '</dl>' : '') +
+        (window.FornitaliaCajasFisicas && typeof window.FornitaliaCajasFisicas.htmlHuecosHistorico === 'function'
+          ? window.FornitaliaCajasFisicas.htmlHuecosHistorico(huecos)
+          : '') +
         (notas.length ? '<p class="cb-resumen-nota">' + escapeHtmlSeg(notas.join(' ')) + '</p>' : '') +
       '</div>';
     }
 
-    function abrirModalFlujoHistorico(html) {
+    function abrirModalFlujoHistorico(html, ancho) {
       var cuerpo = document.getElementById('modal-flujo-historico-cuerpo');
       var backdrop = document.getElementById('modal-flujo-historico-backdrop');
+      var modal = document.getElementById('modal-flujo-historico');
       if (!cuerpo || !backdrop) return;
       cuerpo.innerHTML = html || '';
+      if (modal) modal.classList.toggle('modal-flujo-historico-ancho', !!ancho);
+      if (!cuerpo._huecoClick) {
+        cuerpo._huecoClick = true;
+        cuerpo.addEventListener('click', function (ev) {
+          var btn = ev.target.closest && ev.target.closest('[data-hueco-eliminar]');
+          if (!btn || !cuerpo.contains(btn)) return;
+          ev.preventDefault();
+          if (!window.FornitaliaCajasFisicas || typeof window.FornitaliaCajasFisicas.eliminarHuecosCanal !== 'function') return;
+          var canal = btn.getAttribute('data-canal');
+          btn.disabled = true;
+          window.FornitaliaCajasFisicas.eliminarHuecosCanal(canal).then(function (nDel) {
+            btn.disabled = false;
+            if (!nDel) return;
+            var caja = btn.closest && btn.closest('[data-hueco-caja]');
+            if (caja && caja.parentNode) caja.parentNode.removeChild(caja);
+            void cargarDatos();
+            recalcular();
+          }).catch(function (errDel) {
+            btn.disabled = false;
+            FornitaliaMensajes.avisar((errDel && errDel.message) ? errDel.message : String(errDel || 'No se pudo eliminar.'));
+          });
+        });
+      }
       backdrop.classList.remove('oculto');
       backdrop.setAttribute('aria-hidden', 'false');
     }
@@ -4361,7 +4390,16 @@
         await cargarDatos();
         recalcular();
         void cargarPosicionCaja();
-        abrirModalFlujoHistorico(htmlResumenHistoricoFlujo(cbR, cfR));
+        var huecos = null;
+        if (window.FornitaliaCajasFisicas && typeof window.FornitaliaCajasFisicas.aplicarHuecosDeArchivo === 'function') {
+          try {
+            huecos = await window.FornitaliaCajasFisicas.aplicarHuecosDeArchivo(file);
+          } catch (eHueco) {
+            huecos = { idMin: '', idMax: '', bancos: [], fisicas: [], error: (eHueco && eHueco.message) ? eHueco.message : String(eHueco || 'No se pudo revisar la secuencia de Id.') };
+          }
+        }
+        var hayFisicas = !!(huecos && huecos.fisicas && huecos.fisicas.length);
+        abrirModalFlujoHistorico(htmlResumenHistoricoFlujo(cbR, cfR, huecos), hayFisicas);
       } catch (e) {
         FornitaliaMensajes.avisar((e && e.message) ? e.message : String(e || 'No se pudo cargar el histórico.'));
       } finally {

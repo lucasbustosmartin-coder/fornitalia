@@ -1529,6 +1529,7 @@
       var clsTot = { nNuevos: 0, nCambiaron: 0, nIguales: 0, idsNuevos: [] };
       var canales = [];
       var nReconocidas = 0;
+      var nBajas = 0;
       var i;
       for (i = 0; i < order.length; i++) {
         var canalSave = order[i];
@@ -1551,7 +1552,7 @@
         };
         await rpcLotes('cf_guardar_movimientos', canalSave, parte);
         if (!parsed.formatoCierre) {
-          await marcarTesoreriaAbiertaAusente(canalSave, parte);
+          nBajas += await marcarTesoreriaAbiertaAusente(canalSave, parte);
         }
         if (esCanalSinFactura(canalSave)) {
           var snap = snapshotSaldo(parte, file.name, parsed.formatoCierre, canalSave);
@@ -1577,6 +1578,7 @@
           nCambiaron: clsTot.nCambiaron,
           nIguales: clsTot.nIguales,
           idsNuevos: clsTot.idsNuevos || [],
+          nBajas: nBajas,
           omitidasApertura: parsed.omitidasApertura || 0,
           omitidasPend: parsed.omitidasPend || 0,
           omitidasAnulado: parsed.omitidasAnulado || 0,
@@ -1631,6 +1633,213 @@
     });
     if (baja.error) throw baja.error;
     return Number(baja.data || 0);
+  }
+
+  var LABEL_BANCO_HUECO = {
+    mercadopago: 'Mercado Pago',
+    galicia: 'Galicia (ARS)',
+    galicia_usd: 'Galicia (USD)',
+    credicoop: 'Credicoop',
+    fci_galicia: 'FCI Galicia (ARS)',
+    fci_galicia_usd: 'FCI Galicia (USD)'
+  };
+  var ORDEN_CAJA_HUECO = [CANAL_GF, CANAL_MOR, CANAL_USD, CANAL_SF, CANAL_SF_USD];
+  var huecosPorCanal = {};
+
+  function idEnteroCelda(raw) {
+    if (raw == null || raw === '') return null;
+    if (typeof raw === 'number' && isFinite(raw)) {
+      var redondeado = Math.round(raw);
+      if (Math.abs(raw - redondeado) > 0.001 || redondeado <= 0) return null;
+      return String(redondeado);
+    }
+    var s = String(raw).trim();
+    if (!/^\d+$/.test(s) || s === '0') return null;
+    return s.replace(/^0+/, '') || null;
+  }
+
+  function idsOrigenDeWorkbook(wb) {
+    var ids = {};
+    var names = (wb && wb.SheetNames) || [];
+    var i;
+    var r;
+    for (i = 0; i < names.length; i++) {
+      var info = filasHoja(wb, names[i]);
+      var idx = info.map && info.map.id;
+      if (idx == null) continue;
+      for (r = 1; r < (info.rows || []).length; r++) {
+        var n = idEnteroCelda((info.rows[r] || [])[idx]);
+        if (n) ids['id|' + n] = true;
+      }
+    }
+    return Object.keys(ids);
+  }
+
+  function normalizarHuecos(data) {
+    var d = data || {};
+    var fisicas = Array.isArray(d.fisicas) ? d.fisicas : [];
+    var bancos = Array.isArray(d.bancos) ? d.bancos : [];
+    return {
+      idMin: d.id_min != null ? String(d.id_min) : '',
+      idMax: d.id_max != null ? String(d.id_max) : '',
+      bancos: bancos.filter(function (b) { return b && Number(b.n) > 0; }),
+      fisicas: fisicas.filter(function (f) { return f && f.id && f.canal; }),
+      error: d.error || ''
+    };
+  }
+
+  async function aplicarHuecosHistorico(ids) {
+    var list = [];
+    var seen = {};
+    (ids || []).forEach(function (id) {
+      var s = String(id || '').trim();
+      if (!s || seen[s]) return;
+      seen[s] = true;
+      list.push(s);
+    });
+    if (list.length < 2) return normalizarHuecos(null);
+    var res = await client().rpc('historico_huecos_secuencia', { p_origen_ids: list });
+    if (res.error) throw res.error;
+    return normalizarHuecos(res.data);
+  }
+
+  async function aplicarHuecosDeWorkbook(wb) {
+    return aplicarHuecosHistorico(idsOrigenDeWorkbook(wb));
+  }
+
+  async function aplicarHuecosDeArchivo(file) {
+    var wb = await leerExcelFile(file);
+    return aplicarHuecosDeWorkbook(wb);
+  }
+
+  function idVisibleHueco(origenId) {
+    var s = String(origenId || '');
+    return s.indexOf('id|') === 0 ? s.slice(3) : s;
+  }
+
+  function labelBancoHueco(canal) {
+    return LABEL_BANCO_HUECO[canal] || canal || 'Caja';
+  }
+
+  function registrarHuecos(h) {
+    huecosPorCanal = {};
+    ((h && h.fisicas) || []).forEach(function (f) {
+      if (!huecosPorCanal[f.canal]) huecosPorCanal[f.canal] = [];
+      huecosPorCanal[f.canal].push(f);
+    });
+  }
+
+  function htmlHuecosHistorico(h) {
+    if (!h || (h.error && !(h.fisicas || []).length && !(h.bancos || []).length)) {
+      return h && h.error
+        ? '<p class="cf-resumen-nota">' + esc(h.error) + '</p>'
+        : '';
+    }
+    var fisicas = h.fisicas || [];
+    var bancos = (h.bancos || []).slice().sort(function (a, b) {
+      return sortTxtEs(labelBancoHueco(a.canal), labelBancoHueco(b.canal));
+    });
+    if (!fisicas.length && !bancos.length) {
+      return h.error ? '<p class="cf-resumen-nota">' + esc(h.error) + '</p>' : '';
+    }
+    registrarHuecos(h);
+    var rango = (h.idMin && h.idMax)
+      ? ' La secuencia del archivo va del Id ' + esc(h.idMin) + ' al ' + esc(h.idMax) + '.'
+      : '';
+    var html = '<div class="cf-huecos">';
+    if (fisicas.length) {
+      var grupos = {};
+      var orden = [];
+      fisicas.forEach(function (f) {
+        if (!grupos[f.canal]) {
+          grupos[f.canal] = [];
+          orden.push(f.canal);
+        }
+        grupos[f.canal].push(f);
+      });
+      orden.sort(function (a, b) {
+        var ia = ORDEN_CAJA_HUECO.indexOf(a);
+        var ib = ORDEN_CAJA_HUECO.indexOf(b);
+        if (ia < 0) ia = 99;
+        if (ib < 0) ib = 99;
+        if (ia !== ib) return ia - ib;
+        return sortTxtEs(labelDeCanal(a), labelDeCanal(b));
+      });
+      html += '<h3>Cajas físicas que ya no están en el archivo</h3>' +
+        '<p class="cf-huecos-lead">Movimientos Pendiente (o sin estado) cuyo Id falta en la secuencia.' + rango +
+        ' Confirmá la baja en cada caja.</p>';
+      orden.forEach(function (canal) {
+        var filas = grupos[canal];
+        html += '<section class="cf-huecos-caja" data-hueco-caja="' + esc(canal) + '">' +
+          '<div class="cf-huecos-head">' +
+            '<h4>' + esc(labelDeCanal(canal)) + ' <span>(' + filas.length + ')</span></h4>' +
+            '<button type="button" class="cf-btn cf-btn-danger" data-hueco-eliminar="1" data-cf="hueco-eliminar" data-cb="hueco-eliminar" data-canal="' + esc(canal) + '">' +
+              '<span class="btn-icon">' + ICO.trash + '</span>Eliminar' +
+            '</button>' +
+          '</div>' +
+          '<div class="cf-huecos-tabla-wrap"><table class="cf-huecos-tabla"><thead><tr>' +
+            '<th>Id</th><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Importe</th>' +
+          '</tr></thead><tbody>';
+        filas.forEach(function (f) {
+          var moneda = String(f.moneda || '').toUpperCase() === 'USD' ? 'US$ ' : '$ ';
+          html += '<tr>' +
+            '<td>' + esc(idVisibleHueco(f.origen_id)) + '</td>' +
+            '<td>' + formatFecha(f.fecha) + '</td>' +
+            '<td>' + esc(f.tipo || '—') + '</td>' +
+            '<td>' + esc(f.descripcion || '—') + '</td>' +
+            '<td class="cf-col-monto">' + esc(moneda + formatMonto(f.monto)) + '</td>' +
+          '</tr>';
+        });
+        html += '</tbody></table></div></section>';
+      });
+    }
+    if (bancos.length) {
+      html += '<h3>Otras cajas: a eliminar</h3>' +
+        '<p class="cf-huecos-lead">Esos mismos Id que faltan en la secuencia, de cajas que no son físicas, quedaron en A eliminar de cada caja.' +
+        (fisicas.length ? '' : rango) + '</p><ul class="cf-huecos-bancos">';
+      bancos.forEach(function (b) {
+        html += '<li><strong>' + esc(labelBancoHueco(b.canal)) + '</strong>: ' + esc(String(b.n)) + '</li>';
+      });
+      html += '</ul>';
+    }
+    if (h.error) html += '<p class="cf-resumen-nota">' + esc(h.error) + '</p>';
+    html += '</div>';
+    return html;
+  }
+
+  async function eliminarHuecosCanal(canal) {
+    var filas = (huecosPorCanal[canal] || []).slice();
+    if (!filas.length || !canal) return 0;
+    var idsVis = filas.map(function (f) { return idVisibleHueco(f.origen_id); });
+    var muestra = idsVis.slice(0, 12).join(', ');
+    if (idsVis.length > 12) muestra += ' y ' + (idsVis.length - 12) + ' más';
+    var ok = await FornitaliaMensajes.confirmar(
+      '¿Eliminar ' + filas.length + (filas.length === 1 ? ' movimiento' : ' movimientos') +
+        ' de ' + labelDeCanal(canal) + '?\n\nYa no están en el histórico.\n\nId: ' + muestra,
+      { titulo: 'Eliminar de la caja', aceptar: 'Eliminar', peligro: true }
+    );
+    if (!ok) return 0;
+    var ids = filas.map(function (f) { return f.id; }).filter(Boolean);
+    var total = 0;
+    var i;
+    for (i = 0; i < ids.length; i += RPC_LOTE) {
+      var res = await client().rpc('cf_eliminar_tesoreria_abierta_lote', {
+        p_ids: ids.slice(i, i + RPC_LOTE)
+      });
+      if (res.error) throw res.error;
+      total += Number(res.data || 0);
+    }
+    delete huecosPorCanal[canal];
+    if (window.FornitaliaSaldosExtractos && typeof window.FornitaliaSaldosExtractos.recargar === 'function') {
+      window.FornitaliaSaldosExtractos.recargar();
+    }
+    if (state.canal === canal && state.mounted) {
+      try { await recargarTodo(); } catch (e) { /* el aviso de la baja igual se muestra */ }
+    }
+    if (total < ids.length) {
+      FornitaliaMensajes.avisar('Se eliminaron ' + total + ' de ' + ids.length + '. El resto ya no estaba pendiente.');
+    }
+    return total;
   }
 
   function txtEqCarga(a, b) {
@@ -1735,6 +1944,7 @@
       (omitHtml
         ? '<h3>Se omitieron</h3><dl class="cf-resumen-grid cf-resumen-omit">' + omitHtml + '</dl>'
         : '') +
+      (r.huecos ? htmlHuecosHistorico(r.huecos) : '') +
       (r.nota ? '<p class="cf-resumen-nota">' + esc(r.nota) + '</p>' : '') +
     '</div>';
   }
@@ -1786,9 +1996,25 @@
     if (ev.target === bd) { cerrarModal(); return; }
     var t = ev.target.closest && ev.target.closest('[data-cf]');
     if (!t || !bd.contains(t)) return;
-    if (t.getAttribute('data-cf') === 'cerrar-modal') {
+    var accion = t.getAttribute('data-cf');
+    if (accion === 'cerrar-modal') {
       ev.preventDefault();
       cerrarModal();
+      return;
+    }
+    if (accion === 'hueco-eliminar') {
+      ev.preventDefault();
+      var canalHueco = t.getAttribute('data-canal');
+      t.disabled = true;
+      eliminarHuecosCanal(canalHueco).then(function (n) {
+        t.disabled = false;
+        if (!n) return;
+        var caja = t.closest && t.closest('[data-hueco-caja]');
+        if (caja && caja.parentNode) caja.parentNode.removeChild(caja);
+      }).catch(function (e) {
+        t.disabled = false;
+        FornitaliaMensajes.avisar(errMsg(e));
+      });
     }
   }
 
@@ -1801,7 +2027,8 @@
   }
 
   function abrirModalResumenCarga(r) {
-    abrirModal('Resultado de la carga', htmlResumenCarga(r), '', 'cf-modal-resumen');
+    var ancho = r && r.huecos && r.huecos.fisicas && r.huecos.fisicas.length;
+    abrirModal('Resultado de la carga', htmlResumenCarga(r), '', 'cf-modal-resumen' + (ancho ? ' cf-modal-resumen-ancho' : ''));
   }
 
   async function onUpload() {
@@ -1878,6 +2105,14 @@
         if (ingestSf.n && ingestSf.canales && ingestSf.canales.length) {
           nota = (nota ? nota + ' ' : '') + 'También se cargó ' + ingestSf.canales.join(', ') + ' en Saldos extractos.';
         }
+        var huecos = null;
+        if (parsed.formatoHistorico) {
+          try {
+            huecos = await aplicarHuecosDeWorkbook(wb);
+          } catch (eHueco) {
+            huecos = { idMin: '', idMax: '', bancos: [], fisicas: [], error: errMsg(eHueco) };
+          }
+        }
         var resumen = {
           archivo: file.name,
           tipo: tipoCargaLabel(parsed, file.name),
@@ -1896,7 +2131,8 @@
           omitidasOtraCaja: parsed.omitidasOtraCaja || 0,
           omitidasSinId: parsed.omitidasSinId || 0,
           omitidasIdDup: parsed.omitidasIdDup || 0,
-          nota: nota
+          nota: nota,
+          huecos: huecos
         };
         state.msg = msgCortoResumen(resumen);
         state.resumenCarga = resumen;
@@ -2284,7 +2520,7 @@
         '<p>Cajas que <strong>no se concilian</strong> con extracto bancario. Solapas <strong>' + esc(LABEL_GF) + '</strong> (efectivo pesos), <strong>' + esc(LABEL_MOR) + '</strong> (Transferencia Morba), <strong>' + esc(LABEL_USD) + '</strong> (efectivo dólar, pesificado al MEP), <strong>' + esc(LABEL_SF) + '</strong> (Caja = Efectivo Pesos (sin factura)) y <strong>' + esc(LABEL_SF_USD) + '</strong> (Caja = Efectivo Dolar (sin factura)).</p>' +
         '<p>Mismos Excel que tesorería/cierre, con Id para no duplicar. El saldo alimenta Saldos extractos. La columna Saldo acumula el crédito y el débito de cada movimiento, en orden de fecha. En las cajas en dólares ese saldo es la suma en dólares, sin dividir los pesos por el tipo de cambio.</p>' +
         '<p>Cargá <em>' + esc(archivosHint(state.canal).split(' o ')[0]) + '</em> o <em>' + esc(archivosHint(state.canal).split(' o ')[1] || '') + '</em>. Tesorería abierta trae saldo corrido; el cierre ya cerrado trae Fecha, Tipo, Monto e Id.</p>' +
-        '<p>Apertura de Caja y Status Anulado no se suben. Apertura no entra al corte de Saldos extractos. El histórico carga movimientos pero no pisa el saldo de tesorería o cierre. Status Pendiente sí se da de alta en todas las cajas. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> entran a Efectivo-s/f aunque vengan en un histórico, cierre u otro Excel de tesorería; el saldo alimenta Saldos extractos. Solo un Id <strong>Pendiente o sin Status</strong> cuya fecha cae dentro del rango del archivo (histórico o tesorería) y que no viene ahí pasa a <strong>A eliminar</strong>. Si el Excel no cubre esa fecha, no se marca. Un Confirmado no se elimina.' +
+        '<p>Apertura de Caja y Status Anulado no se suben. Apertura no entra al corte de Saldos extractos. El histórico carga movimientos pero no pisa el saldo de tesorería o cierre. Status Pendiente sí se da de alta en todas las cajas. Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> entran a Efectivo-s/f aunque vengan en un histórico, cierre u otro Excel de tesorería; el saldo alimenta Saldos extractos. Solo un Id <strong>Pendiente o sin Status</strong> cuya fecha cae dentro del rango del archivo (histórico o tesorería) y que no viene ahí pasa a <strong>A eliminar</strong>. Si el Excel no cubre esa fecha, no se marca. En el histórico, además, se muestra el Id que corta la secuencia (si van del 1 al 10 y falta el 8, aparece el 8) agrupado por caja, con Eliminar para confirmar. Un Confirmado no se elimina.' +
         (esCanalUsd(state.canal) ? ' Los montos del Excel están en <strong>USD</strong> y se pesifican al <strong>MEP</strong> de <em>tipo_de_cambio</em> (fecha del movimiento o última cotización anterior). La grilla muestra ARS, USD original y el TC usado.' : '') + '</p>') +
       htmlCargando() +
       (state.err ? '<p class="cf-msg-err">' + esc(state.err) + '</p>' : '') +
@@ -2391,5 +2627,14 @@
     recargarTodo();
   }
 
-  global.FornitaliaCajasFisicas = { init: init, show: show, ingestSinFactura: ingestSinFactura, ingestHistoricoCompleto: ingestHistoricoCompleto };
+  global.FornitaliaCajasFisicas = {
+    init: init,
+    show: show,
+    ingestSinFactura: ingestSinFactura,
+    ingestHistoricoCompleto: ingestHistoricoCompleto,
+    aplicarHuecosDeArchivo: aplicarHuecosDeArchivo,
+    aplicarHuecosDeWorkbook: aplicarHuecosDeWorkbook,
+    htmlHuecosHistorico: htmlHuecosHistorico,
+    eliminarHuecosCanal: eliminarHuecosCanal
+  };
 })(window);

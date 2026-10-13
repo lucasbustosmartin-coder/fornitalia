@@ -74,6 +74,7 @@
     movimientos: [],
     matches: [],
     dupsDescartados: [],
+    anulacionesDeshechas: [],
     eliminados: [],
     bancoAjeno: {},
     msg: '',
@@ -640,6 +641,61 @@
     return list;
   }
 
+  function claveIdsAnulacion(idA, idB) {
+    return [String(idA || ''), String(idB || '')].sort().join('|');
+  }
+
+  function anulacionMpDeshecha(idA, idB) {
+    var key = claveIdsAnulacion(idA, idB);
+    if (!key || key === '|') return false;
+    return (state.anulacionesDeshechas || []).some(function (r) {
+      return r && r.ids_key === key;
+    });
+  }
+
+  function movPorId(id) {
+    var sid = String(id || '');
+    if (!sid) return null;
+    var arr = state.movimientos || [];
+    var i;
+    for (i = 0; i < arr.length; i++) {
+      if (String(arr[i].id) === sid) return arr[i];
+    }
+    return null;
+  }
+
+  function idsDeFilaDeshecha(r) {
+    var ids = r && r.movimiento_ids;
+    if (Array.isArray(ids)) return ids.map(String).filter(Boolean);
+    var s = String(ids || '').replace(/^\{|\}$/g, '');
+    if (!s) return [];
+    return s.split(',').map(function (x) { return String(x || '').trim(); }).filter(Boolean);
+  }
+
+  function filasAnulacionesDeshechas() {
+    return (state.anulacionesDeshechas || []).map(function (r) {
+      var ids = idsDeFilaDeshecha(r);
+      var ma = movPorId(ids[0]);
+      var mb = movPorId(ids[1]);
+      var a = ma;
+      var b = mb;
+      if (a && b && String(b.fecha || '') < String(a.fecha || '')) {
+        a = mb;
+        b = ma;
+      }
+      return {
+        id: r.id,
+        a: a,
+        b: b,
+        opRel: r.op_rel || (a && a.id_operacion_relacionada) || (b && b.id_operacion_relacionada) || '',
+        deshecho_at: r.deshecho_at,
+        deshecho_by: r.deshecho_by
+      };
+    }).sort(function (x, y) {
+      return String(y.deshecho_at || '').localeCompare(String(x.deshecho_at || ''));
+    });
+  }
+
   function esTextoAnulacionMp(tipo) {
     var t = normTxt(tipo);
     return /\banulacion\b|\bdevolucion\b/.test(t);
@@ -682,6 +738,7 @@
         if (!best) return;
         used[a.id] = true;
         used[best.id] = true;
+        if (anulacionMpDeshecha(a.id, best.id)) return;
         var orig = a;
         var anul = best;
         if (esTextoAnulacionMp(a.tipo) && !esTextoAnulacionMp(best.tipo)) {
@@ -2429,6 +2486,7 @@
       state.matches = resFci[2];
       state.dupsDescartados = resFci[3];
       state.eliminados = hidratarObservaciones(resFci[4]);
+      state.anulacionesDeshechas = [];
       state.bancoAjeno = resFci[5];
       return;
     }
@@ -2445,12 +2503,16 @@
       ]),
       fetchAllCanal('cb_movimiento_eliminado', [
         { name: 'eliminado_at', asc: false }
+      ]),
+      fetchAllCanal('cb_mp_anulacion_deshecha', [
+        { name: 'deshecho_at', asc: false }
       ])
     ]);
     state.movimientos = hidratarObservaciones(res[0]);
     state.matches = res[1];
     state.dupsDescartados = res[2];
     state.eliminados = hidratarObservaciones(res[3]);
+    state.anulacionesDeshechas = res[4] || [];
     if (state.canal === CANAL_GAL) state.bancoAjeno = await idsBancoDeMatches(CANAL_FCI);
     else if (state.canal === CANAL_GAL_USD) state.bancoAjeno = await idsBancoDeMatches(CANAL_FCI_USD);
   }
@@ -2847,6 +2909,9 @@
         ? '<h3>Se omitieron</h3><dl class="cb-resumen-grid cb-resumen-omit">' + omitHtml + '</dl>'
         : '') +
       htmlIdsNuevosCarga(r.idsNuevos) +
+      (r.huecos && window.FornitaliaCajasFisicas && typeof window.FornitaliaCajasFisicas.htmlHuecosHistorico === 'function'
+        ? window.FornitaliaCajasFisicas.htmlHuecosHistorico(r.huecos)
+        : '') +
       (r.nota ? '<p class="cb-resumen-nota">' + esc(r.nota) + '</p>' : '') +
     '</div>';
   }
@@ -2906,7 +2971,8 @@
   }
 
   function abrirModalResumenCarga(r) {
-    abrirModal('Resultado de la carga', htmlResumenCarga(r), '', 'cb-modal-resumen');
+    var ancho = r && r.huecos && r.huecos.fisicas && r.huecos.fisicas.length;
+    abrirModal('Resultado de la carga', htmlResumenCarga(r), '', 'cb-modal-resumen' + (ancho ? ' cb-modal-resumen-ancho' : ''));
   }
 
   async function onUpload(origen) {
@@ -3133,6 +3199,15 @@
           notaSaldo = (notaSaldo ? notaSaldo + ' ' : '') +
             'Efectivo-s/f cargado en Cajas físicas y Saldos extractos: ' + ingestSf.canales.join(', ') + '.';
         }
+        var huecos = null;
+        if (parsed.formatoHistorico && window.FornitaliaCajasFisicas &&
+            typeof window.FornitaliaCajasFisicas.aplicarHuecosDeWorkbook === 'function') {
+          try {
+            huecos = await window.FornitaliaCajasFisicas.aplicarHuecosDeWorkbook(wb);
+          } catch (eHueco) {
+            huecos = { idMin: '', idMax: '', bancos: [], fisicas: [], error: errMsg(eHueco) };
+          }
+        }
         var resumen = {
           archivo: file.name,
           tipo: tipoCargaLabel(origen, parsed, file.name),
@@ -3165,7 +3240,8 @@
           nExtracto: corteVerif ? corteVerif.nExtracto : 0,
           saldoExtractoTxt: corteVerif && corteVerif.saldoExtracto != null ? formatMonto(corteVerif.saldoExtracto) : '',
           saldoCompletoTxt: corteVerif && corteVerif.saldoCompleto != null ? formatMonto(corteVerif.saldoCompleto) : '',
-          saldoBancoAppTxt: corteVerif && corteVerif.saldoBancoApp != null ? formatMonto(corteVerif.saldoBancoApp) : ''
+          saldoBancoAppTxt: corteVerif && corteVerif.saldoBancoApp != null ? formatMonto(corteVerif.saldoBancoApp) : '',
+          huecos: huecos
         };
         state.msg = msgCortoResumen(resumen);
         state.resumenCarga = resumen;
@@ -3210,6 +3286,7 @@
       var nYaContenido = filDup.nYa;
       var clsTot = { nNuevos: 0, nCambiaron: 0, nIguales: nYaContenido, idsNuevos: [] };
       var nSug = 0;
+      var nBajas = 0;
       var sugeridosPorCanal = [];
       var canalesCargados = [];
       var nReconocidas = parsed.filas.length;
@@ -3226,6 +3303,7 @@
             marcarBajas: !parsed.formatoCierre
           });
           clsTot = sumarClasificacion(clsTot, rec.cls);
+          nBajas += rec.nBajas || 0;
           canalesCargados.push(labelCanalNombre(canalSave) + ' (' + parte.length + ')');
         } catch (eSave) {
           notasCarga.push(labelCanalNombre(canalSave) + ': ' + errMsg(eSave));
@@ -3291,6 +3369,7 @@
           idsNuevos: clsTot.idsNuevos || [],
           nSug: nSug,
           sugeridosPorCanal: sugeridosPorCanal,
+          nBajas: nBajas,
           omitidasApertura: parsed.omitidasApertura || 0,
           omitidasPendiente: parsed.omitidasPendiente || 0,
           omitidasAnulado: parsed.omitidasAnulado || 0,
@@ -4922,44 +5001,73 @@
     );
   }
 
+  function htmlFilaAnulado(p, deshecha) {
+    var a = p.a || {};
+    var b = p.b || {};
+    var acc = btnIcon('ver-par-anulado', deshecha ? '' : p.id, 'Ver el par anulado', ICO.eye);
+    if (deshecha) {
+      acc = (a.id ? btnIcon('ver-mov', a.id, 'Ver el movimiento', ICO.eye) : '') +
+        (b.id ? btnIcon('ver-mov', b.id, 'Ver la anulación', ICO.eye) : '') +
+        (can(PERM_CONFIRMAR) ? btnIcon('anul-redo', p.id, 'Volver a anular: salen otra vez de la conciliación', ICO.x, 'cb-btn-danger') : '');
+    } else if (can(PERM_CONFIRMAR)) {
+      acc += btnIcon('anul-undo', p.id, 'Deshacer anulación: los dos vuelven al extracto', ICO.undo);
+    }
+    return '<tr>' +
+      '<td>' + formatFecha(a.fecha) + '</td>' +
+      '<td>' + esc(a.tipo || a.descripcion || '—') + '</td>' +
+      '<td class="cb-col-monto">' + htmlMonto(a.monto) + '</td>' +
+      '<td>' + formatFecha(b.fecha) + '</td>' +
+      '<td>' + esc(b.tipo || b.descripcion || '—') + '</td>' +
+      '<td class="cb-col-monto">' + htmlMonto(b.monto) + '</td>' +
+      '<td>' + esc(p.opRel || '—') + '</td>' +
+      '<td>' + (deshecha
+        ? esc(formatFecha(isoAFechaArgentina(p.deshecho_at)) || '—')
+        : htmlUsuario(a.created_by)) + '</td>' +
+      '<td class="cb-col-acc">' + acc + '</td>' +
+    '</tr>';
+  }
+
   function renderTablaAnulados() {
     var rows = filasVisiblesAnulados();
+    var deshechas = filasAnulacionesDeshechas();
     var html = '';
-    rows.forEach(function (p) {
-      html += '<tr>' +
-        '<td>' + formatFecha(p.a.fecha) + '</td>' +
-        '<td>' + esc(p.a.tipo || p.a.descripcion || '—') + '</td>' +
-        '<td class="cb-col-monto">' + htmlMonto(p.a.monto) + '</td>' +
-        '<td>' + formatFecha(p.b.fecha) + '</td>' +
-        '<td>' + esc(p.b.tipo || p.b.descripcion || '—') + '</td>' +
-        '<td class="cb-col-monto">' + htmlMonto(p.b.monto) + '</td>' +
-        '<td>' + esc(p.opRel || '—') + '</td>' +
-        '<td>' + htmlUsuario(p.a && p.a.created_by) + '</td>' +
-        '<td class="cb-col-acc">' +
-          btnIcon('ver-par-anulado', p.id, 'Ver el par anulado', ICO.eye) +
-        '</td>' +
-      '</tr>';
-    });
-    if (!html) {
+    rows.forEach(function (p) { html += htmlFilaAnulado(p, false); });
+    var desHtml = '';
+    deshechas.forEach(function (p) { desHtml += htmlFilaAnulado(p, true); });
+    if (!html && !desHtml) {
       return '<p class="cb-empty">' + (hayFiltrosActivos()
         ? 'No hay pares anulados con el mes o concepto elegidos.'
         : 'No hay movimientos de Mercado Pago que se autoanulen (mismo ID de operación relacionada e importes opuestos).') + '</p>';
     }
+    var tabla = html
+      ? ('<div class="cb-tabla-wrap"><table class="cb-tabla">' +
+        '<thead><tr>' +
+          thSort('fecha', 'Fecha') +
+          thSort('tipo', 'Movimiento') +
+          thSort('monto', 'Importe', 'cb-col-monto') +
+          thSort('fecha_anula', 'Fecha anulación') +
+          thSort('descripcion', 'Anulación') +
+          thSort('monto_anula', 'Importe', 'cb-col-monto') +
+          thSort('id', 'Operación relacionada') +
+          thSort('usuario', 'Usuario') +
+          '<th class="cb-col-acc">Acciones</th>' +
+        '</tr></thead>' +
+        '<tbody>' + html + '</tbody></table></div>')
+      : '<p class="cb-empty">No hay pares anulados en el listado. Los que deshiciste están abajo.</p>';
+    var bloqueDes = desHtml
+      ? (FornitaliaHelp.row('tpl-cb-anulados-des', 'Ayuda: Anulaciones deshechas',
+          '<p>Estos pares ya no se tratan como anulación. Los dos movimientos están en el extracto y se pueden conciliar. Volver a anular los saca otra vez de la conciliación.</p>') +
+        '<p class="cb-field-hint"><strong>Anulaciones deshechas</strong></p>' +
+        '<div class="cb-tabla-wrap"><table class="cb-tabla">' +
+        '<thead><tr>' +
+          '<th>Fecha</th><th>Movimiento</th><th class="cb-col-monto">Importe</th>' +
+          '<th>Fecha anulación</th><th>Anulación</th><th class="cb-col-monto">Importe</th>' +
+          '<th>Operación relacionada</th><th>Deshecha</th><th class="cb-col-acc">Acciones</th>' +
+        '</tr></thead><tbody>' + desHtml + '</tbody></table></div>')
+      : '';
     return FornitaliaHelp.row('tpl-cb-anulados', 'Ayuda: Mercado Pago Anulados',
-      '<p>Pares del extracto con la misma operación relacionada e importes opuestos (cobro/devolución, impuesto/anulación, etc.). No entran a la conciliación: en tesorería no existen.</p>') +
-      '<div class="cb-tabla-wrap"><table class="cb-tabla">' +
-      '<thead><tr>' +
-        thSort('fecha', 'Fecha') +
-        thSort('tipo', 'Movimiento') +
-        thSort('monto', 'Importe', 'cb-col-monto') +
-        thSort('fecha_anula', 'Fecha anulación') +
-        thSort('descripcion', 'Anulación') +
-        thSort('monto_anula', 'Importe', 'cb-col-monto') +
-        thSort('id', 'Operación relacionada') +
-        thSort('usuario', 'Usuario') +
-        '<th class="cb-col-acc">Acciones</th>' +
-      '</tr></thead>' +
-      '<tbody>' + html + '</tbody></table></div>';
+      '<p>Pares del extracto con la misma operación relacionada e importes opuestos (cobro/devolución, impuesto/anulación, etc.). No entran a la conciliación: en tesorería no existen. Deshacer la anulación los devuelve al extracto.</p>') +
+      tabla + bloqueDes;
   }
 
   function filasVisiblesNoRequiere() {
@@ -5156,15 +5264,75 @@
       if (p.id === pairId) found = p;
     });
     if (!found) return;
+    var footerAnul = can(PERM_CONFIRMAR)
+      ? '<button type="button" class="cb-btn cb-btn-ghost" data-cb="anul-undo" data-id="' + esc(found.id) + '"><span class="btn-icon">' + ICO.undo + '</span>Deshacer anulación</button>'
+      : '';
     abrirModal(
       'Par anulado Mercado Pago',
-      '<p class="cb-field-hint">Operación relacionada: <strong>' + esc(found.opRel) + '</strong>. Importes opuestos; no se concilian con tesorería.</p>' +
+      '<p class="cb-field-hint">Operación relacionada: <strong>' + esc(found.opRel) + '</strong>. Importes opuestos; no se concilian con tesorería. Deshacer la anulación los devuelve al extracto.</p>' +
       '<div class="cb-detalle">' +
         htmlDetalleMov(found.a, 'Movimiento') +
         htmlDetalleMov(found.b, 'Anulación') +
       '</div>',
-      ''
+      footerAnul
     );
+  }
+
+  function textoParAnulado(a, b) {
+    function linea(m) {
+      if (!m) return 'Movimiento que ya no está en el extracto';
+      return formatFecha(m.fecha) + ' · ' + formatMonto(m.monto) + ' · ' + (m.tipo || m.descripcion || '—');
+    }
+    return linea(a) + '\n' + linea(b);
+  }
+
+  async function deshacerAnulacionMp(pairId) {
+    if (!can(PERM_CONFIRMAR) || state.canal !== CANAL_MP) return;
+    var ids = String(pairId || '').split('|');
+    if (ids.length !== 2 || !ids[0] || !ids[1]) return;
+    var a = movPorId(ids[0]);
+    var b = movPorId(ids[1]);
+    if (!await FornitaliaMensajes.confirmar(
+      '¿Deshacer esta anulación?\n\n' + textoParAnulado(a, b) +
+      '\n\nLos dos movimientos vuelven al extracto y se pueden conciliar.'
+    )) return;
+    try {
+      marcarCargando('Deshaciendo la anulación…');
+      var rpc = await client().rpc('cb_deshacer_anulacion_mp', { p_id_a: ids[0], p_id_b: ids[1] });
+      if (rpc.error) throw rpc.error;
+      cerrarModal();
+      state.lista = 'anulados';
+      state.msg = 'Anulación deshecha. Los dos movimientos volvieron al extracto.';
+      await recargarTodo();
+    } catch (e) {
+      soltarCarga();
+      renderShell();
+      FornitaliaMensajes.avisar(errMsg(e));
+    }
+  }
+
+  async function reanularMp(id) {
+    if (!can(PERM_CONFIRMAR) || state.canal !== CANAL_MP) return;
+    var fila = null;
+    filasAnulacionesDeshechas().forEach(function (p) { if (p.id === id) fila = p; });
+    if (!fila) return;
+    if (!await FornitaliaMensajes.confirmar(
+      '¿Volver a anular este par?\n\n' + textoParAnulado(fila.a, fila.b) +
+      '\n\nDejan de entrar a la conciliación.'
+    )) return;
+    try {
+      marcarCargando('Volviendo a anular el par…');
+      var rpc = await client().rpc('cb_reanular_mp', { p_id: id });
+      if (rpc.error) throw rpc.error;
+      cerrarModal();
+      state.lista = 'anulados';
+      state.msg = 'El par volvió a Anulados.';
+      await recargarTodo();
+    } catch (e) {
+      soltarCarga();
+      renderShell();
+      FornitaliaMensajes.avisar(errMsg(e));
+    }
   }
 
   function htmlCuerpoGrupoDup(found, extraHint) {
@@ -5407,6 +5575,23 @@
     if (a === 'no-req-ok') { ev.preventDefault(); confirmarExcluirConciliacion(); return; }
     if (a === 'dup-off') { ev.preventDefault(); descartarGrupoDup(id); return; }
     if (a === 'dup-undo') { ev.preventDefault(); deshacerDupDescartado(id); return; }
+    if (a === 'anul-undo') { ev.preventDefault(); deshacerAnulacionMp(id); return; }
+    if (a === 'anul-redo') { ev.preventDefault(); reanularMp(id); return; }
+    if (a === 'hueco-eliminar') {
+      ev.preventDefault();
+      var canalHueco = t.getAttribute('data-canal');
+      if (!window.FornitaliaCajasFisicas || typeof window.FornitaliaCajasFisicas.eliminarHuecosCanal !== 'function') return;
+      t.disabled = true;
+      window.FornitaliaCajasFisicas.eliminarHuecosCanal(canalHueco).then(function (n) {
+        t.disabled = false;
+        if (!n) return;
+        var caja = t.closest && t.closest('[data-hueco-caja]');
+        if (caja && caja.parentNode) caja.parentNode.removeChild(caja);
+      }).catch(function (e) {
+        t.disabled = false;
+        FornitaliaMensajes.avisar(errMsg(e));
+      });
+    }
   }
 
   function cerrarModal() {
@@ -6397,7 +6582,7 @@
         '<p>Cargá el extracto de Mercado Pago (Número de Movimiento evita duplicados) y la tesorería del sistema (<em>tesoreria_mercadopago_…</em>: Tipo, Fecha, Crédito, Débito e Id), el cierre de caja (Fecha, Tipo, Monto e Id; p. ej. <em>cierre_CIERRE-…</em> o <em>MP_CIERRE-…</em>) o el histórico <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto: se cargan las filas MercadoPago; Galicia por Caja; Efectivo/Morba se omiten).</p>' +
         '<p><strong>El extracto MP es el banco (fuente de verdad)</strong>: lo que no está ahí no está. Tesorería son los movimientos administrativos de la app; las diferencias se ven en Sugeridos, Solo banco y Solo sistema.</p>' +
         '<p>El Id evita duplicados y actualiza categoría, cuenta y el resto de datos. Status Pendiente sí se da de alta. Status Anulado no se sube (si el Id ya existía, se elimina). Caja <em>Efectivo Pesos (sin factura)</em> y <em>Efectivo Dolar (sin factura)</em> van a Cajas físicas Efectivo-s/f (ARS/USD) y a Saldos extractos. Solo un Id <strong>Pendiente o sin Status</strong> cuya fecha cae dentro del rango del archivo (histórico o tesorería) y que no viene ahí pasa a la solapa <strong>A eliminar</strong> para confirmar la baja. Si el Excel no cubre esa fecha, no se marca. Un Confirmado no se elimina. Apertura de Caja no se sube. Tras cada carga se abre un resumen: nuevos, actualizados, sin cambios, sugerencias y omitidos.</p>' +
-        '<p>Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. En Solo banco y Solo sistema podés marcar uno, varios o todos los listados como <strong>No requiere conciliación</strong> (con una justificación): no se borran.</p>' +
+        '<p>Los pares del extracto que se autoanulan (misma operación relacionada e importes opuestos) van a la solapa Anulados y no entran a la conciliación. Desde ahí se puede <strong>deshacer la anulación</strong>: los dos movimientos vuelven al extracto y se pueden conciliar. En Solo banco y Solo sistema podés marcar uno, varios o todos los listados como <strong>No requiere conciliación</strong> (con una justificación): no se borran.</p>' +
         '<p>La app propone parejas por importe (tolerancia según el tamaño: centavos en montos chicos, $1/$10 en montos grandes) y concepto, solo si las fechas no difieren en más de 4 días. Si coinciden monto y fecha exactos, el criterio va en verde.</p>' +
         '<p>También podés conciliar a mano varios extractos con una o más tesorerías, o dos o más movimientos del mismo extracto si el crédito y el débito se compensan. El Excel exporta el listado visible con los filtros activos.</p>',
       btnBanco: 'Cargar extracto Mercado Pago',
@@ -6595,6 +6780,8 @@
     if (a === 'ver-mov') { abrirDetalleMov(id); return; }
     if (a === 'ver-elim') { abrirDetalleEliminado(id); return; }
     if (a === 'ver-par-anulado') { abrirDetalleParAnulado(id); return; }
+    if (a === 'anul-undo') { deshacerAnulacionMp(id); return; }
+    if (a === 'anul-redo') { reanularMp(id); return; }
     if (a === 'ver-dup') { abrirDetalleDup(id); return; }
     if (a === 'ver-dup-desc') { abrirDetalleDupDesc(id); return; }
     if (a === 'dup-sel') {
