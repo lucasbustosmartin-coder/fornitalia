@@ -13,7 +13,7 @@
   <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.92"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.95"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.97"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
@@ -755,6 +755,7 @@
     }
     #tabla-estado-financiero .ef-pct-ref { font-weight: 400; color: #888; }
     #tabla-estado-financiero th.ef-th-periodo,
+    #tabla-estado-financiero th.ef-th-avg,
     #tabla-estado-financiero th.ef-th-total {
       white-space: nowrap;
       text-align: right;
@@ -763,7 +764,15 @@
       font-size: 0.85rem;
       line-height: 1.25;
     }
-    #tabla-estado-financiero th.ef-th-total { font-weight: 700; }
+    #tabla-estado-financiero th.ef-th-total,
+    #tabla-estado-financiero th.ef-th-avg { font-weight: 700; }
+    @media (max-width: 768px) {
+      #tabla-estado-financiero th.ef-th-avg .th-help {
+        min-width: 44px;
+        min-height: 44px;
+        justify-content: center;
+      }
+    }
     #tabla-estado-financiero tr.ef-fila-indicadores-seccion td {
       background: #e8eef4;
       font-weight: 600;
@@ -1541,6 +1550,7 @@
           <p>Estructura desde Supabase <code>ef_estructura</code> (ABM en menú <strong>Matriz EF → Estructura EF</strong>), montos desde tesorería por <code>ef_subitem</code> (matriz categoría + cuenta; Ingreso y Egreso del mismo par pegan en la misma línea, p. ej. Pago de Cuotas de Créditos / Intereses Bancarios). En <strong>ARS</strong>, movimientos en USD se convierten al <strong>dólar MEP</strong> de la fecha (tabla de cotización; si falta, la última MEP conocida o el TC de la fila).</p>
           <p>Columna <strong>Ítem</strong>: secciones y totales en negrita; detalle con viñeta. Subtotales y fórmulas muestran % del <strong>Flujo Operativo Generado</strong>. Clic en un <strong>importe</strong> abre el detalle de transacciones que lo componen. Icono <strong>línea</strong> por fila: evolución mensual. Icono <strong>barras</strong> en columnas: consumo del Flujo Op. (Margen bruto de caja y Flujo neto del período).</p>
           <p>Al final de la tabla, filas <strong>Indicadores de Gestión</strong> (mismas columnas de período). Fórmula y notas en el icono <strong>?</strong> junto al nombre.</p>
+          <p>La columna <strong>Avg Mensual</strong>, antes de <strong>Total</strong>, es el promedio de los <strong>últimos 12 meses cerrados móviles</strong>: el mes en curso no entra y un mes sin movimientos cuenta como cero.</p>
           <p><em>Conciliación de disponibilidades (sección 7) oculta por ahora.</em></p>
         </div>
       </template>
@@ -2123,7 +2133,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.96';
+    const APP_VERSION = '2.97';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -6054,6 +6064,53 @@
       return line.nivel === 0 || line.nivel === 2;
     }
 
+    /** Últimos 12 meses calendario anteriores al mes en curso (Argentina). El mes abierto no entra. */
+    function llavesUltimos12MesesCerradosEf() {
+      const ux = typeof flujoUx === 'function' ? flujoUx() : null;
+      const ymd = ux && typeof ux.fechaHoyYYYYMMDDArgentina === 'function'
+        ? ux.fechaHoyYYYYMMDDArgentina()
+        : ymdEnArgentina(new Date());
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd || '')) return [];
+      let y = parseInt(ymd.slice(0, 4), 10);
+      let m = parseInt(ymd.slice(5, 7), 10);
+      const keys = [];
+      let i;
+      for (i = 0; i < 12; i++) {
+        m -= 1;
+        if (m < 1) { m = 12; y -= 1; }
+        keys.unshift(String(y) + '-' + String(m).padStart(2, '0'));
+      }
+      return keys;
+    }
+
+    function promedioUltimos12CerradosEf(montos, keys) {
+      if (!keys || !keys.length) return null;
+      let sum = 0;
+      keys.forEach(function (k) { sum += Number((montos && montos[k]) || 0) || 0; });
+      return sum / keys.length;
+    }
+
+    function montosMensualesEf(allLines, moneda, tipoDolar) {
+      const montosSubitem = buildMontosPorSubitemEf('mensual', moneda, tipoDolar);
+      const columnasSet = new Set();
+      Object.values(montosSubitem).forEach(function (colMap) {
+        Object.keys(colMap).forEach(function (c) { columnasSet.add(c); });
+      });
+      const columnas = Array.from(columnasSet).sort();
+      return {
+        montosSubitem: montosSubitem,
+        columnas: columnas,
+        montosPorOrden: computeEfMontosPorOrden(allLines, montosSubitem, columnas)
+      };
+    }
+
+    const EF_AVG_MENSUAL_HELP = 'Últimos 12 meses cerrados móviles. El mes en curso no entra. Un mes sin movimientos cuenta como cero.';
+
+    function htmlThAvgMensualEf() {
+      return '<th class="num-ef ef-th-avg"><div class="ef-th-periodo-wrap"><span class="ef-th-periodo-label">Avg Mensual</span>'
+        + helpIndicadorHtml(EF_AVG_MENSUAL_HELP) + '</div></th>';
+    }
+
     function getEfFlujoOperativoBase(lines, montosPorOrden, columnas) {
       const ln = lines.find(l => l.nivel === 0 && normalizarString(l.codigo) === '1');
       if (!ln) return { porCol: {}, total: 0 };
@@ -6538,12 +6595,21 @@
       const foBase = getEfFlujoOperativoBase(allLines, montosPorOrden, columnasOrdenadas);
 
       const formatearColHeader = (key) => formatearColHeaderEvolucion(key, periodo);
+      const keys12 = llavesUltimos12MesesCerradosEf();
+      const baseMensual = periodo === 'mensual'
+        ? { montosPorOrden: montosPorOrden, montosSubitem: montosSubitem, columnas: columnasOrdenadas }
+        : montosMensualesEf(allLines, moneda, tipoDolar);
+      const foMensual = periodo === 'mensual'
+        ? foBase
+        : getEfFlujoOperativoBase(allLines, baseMensual.montosPorOrden, baseMensual.columnas);
+      const avgFo = promedioUltimos12CerradosEf(foMensual.porCol, keys12);
       thead.innerHTML = '<tr><th class="ef-col-label ef-sticky-label">Ítem</th>'
         + columnasOrdenadas.map(c => {
           const lbl = esc(formatearColHeader(c));
           return '<th class="num-ef ef-th-periodo"><div class="ef-th-periodo-wrap"><span class="ef-th-periodo-label">' + lbl + '</span>'
             + efGraficoColumnaBtnHtml(c, formatearColHeader(c)) + '</div></th>';
         }).join('')
+        + htmlThAvgMensualEf()
         + '<th class="num-ef ef-th-total"><div class="ef-th-periodo-wrap"><span class="ef-th-periodo-label">Total</span>'
         + efGraficoColumnaBtnHtml('__total__', 'Total del rango') + '</div></th></tr>';
 
@@ -6568,16 +6634,24 @@
         });
         const totalRed = Math.round(totalFila);
         const totalCls = totalRed >= 0 ? 'balance positivo' : 'balance negativo';
+        const avgFila = promedioUltimos12CerradosEf(baseMensual.montosPorOrden[line.orden] || {}, keys12);
+        const avgRed = Math.round(avgFila || 0);
+        const avgCls = avgRed >= 0 ? 'balance positivo' : 'balance negativo';
+        const avgInner = formatEfCeldaMontoHtml(avgFila || 0, simbolo, avgFo || 0, esSubtotal);
         const labelHtml = formatEfCeldaItem(line, esc);
         const tituloFila = formatEfItemExport(line);
         const totalInner = formatEfCeldaMontoHtml(totalFila, simbolo, foBase.total, esSubtotal);
         return '<tr class="ef-nivel-' + line.nivel + (esSubtotal ? ' ef-fila-subtotal' : '') + '"><td class="ef-col-label ef-sticky-label">'
           + '<div class="ef-label-row">' + labelHtml + efGraficoLineaBtnHtml(line.orden, tituloFila) + '</div></td>'
           + celdas.join('')
+          + '<td class="num-ef ' + avgCls + (esSubtotal ? ' ef-celda-subtotal' : '') + '" style="font-weight:600;">' + avgInner + '</td>'
           + '<td class="num-ef ef-monto-clickable ' + totalCls + (esSubtotal ? ' ef-celda-subtotal' : '') + '" style="font-weight:600;"' + attrsCeldaMonto('__total__') + '>' + totalInner + '</td></tr>';
       }).join('');
 
-      tbody.innerHTML = filasHtml + buildFilasIndicadoresGestionHtml(columnasOrdenadas, montosSubitem, esc);
+      tbody.innerHTML = filasHtml + buildFilasIndicadoresGestionHtml(columnasOrdenadas, montosSubitem, esc, {
+        keys: keys12,
+        montosSubitem: baseMensual.montosSubitem
+      });
       efTablaState = {
         allLines,
         lines,
@@ -6638,12 +6712,27 @@
       return '<span class="th-help" data-help="' + escHelpAttr(ayudaTexto) + '" role="button" tabindex="0" aria-label="Ayuda del indicador" title="Ayuda">' + SVG_HELP_ICON + '</span>';
     }
 
-    function buildFilasIndicadoresGestionHtml(columnasOrdenadas, montosSubitem, esc) {
+    function ratioPromedio12Indicador(montosSubitem, indicador, keys) {
+      if (!keys || !keys.length) return null;
+      let sum = 0;
+      let n = 0;
+      keys.forEach(function (colKey) {
+        const ratio = calcularRatioIndicadorGestion(montosSubitem, indicador, colKey);
+        if (ratio == null || !Number.isFinite(ratio)) return;
+        sum += ratio;
+        n += 1;
+      });
+      return n ? sum / n : null;
+    }
+
+    function buildFilasIndicadoresGestionHtml(columnasOrdenadas, montosSubitem, esc, avgCtx) {
       if (!INDICADORES_GESTION.length || !columnasOrdenadas.length) return '';
+      const keysAvg = (avgCtx && avgCtx.keys) || [];
+      const subAvg = (avgCtx && avgCtx.montosSubitem) || montosSubitem;
       const vacios = columnasOrdenadas.map(() => '<td class="num-ef"></td>').join('');
       let html = '<tr class="ef-nivel-0 ef-fila-subtotal ef-fila-indicadores-seccion"><td class="ef-col-label ef-sticky-label">'
         + '<span class="ef-label ef-label-seccion">Indicadores de Gestión</span></td>'
-        + vacios + '<td class="num-ef"></td></tr>';
+        + vacios + '<td class="num-ef"></td><td class="num-ef"></td></tr>';
       INDICADORES_GESTION.forEach(ind => {
         let sumNum = 0;
         let sumDen = 0;
@@ -6659,19 +6748,33 @@
         });
         const totalRatio = sumDen > 0 ? sumNum / sumDen : null;
         const totalTxt = formatearValorIndicadorGestion(totalRatio, ind.tipo);
+        const avgRatio = ratioPromedio12Indicador(subAvg, ind, keysAvg);
+        const avgTxt = formatearValorIndicadorGestion(avgRatio, ind.tipo);
         const ayuda = ind.formula + ' — ' + ind.notas;
         const labelHtml = '<span class="ef-label ef-label-detalle"><span class="ef-bullet" aria-hidden="true">•</span><span>'
           + esc(ind.label) + '</span>' + helpIndicadorHtml(ayuda) + '</span>';
         html += '<tr class="ef-nivel-1 ef-fila-indicador"><td class="ef-col-label ef-sticky-label">' + labelHtml + '</td>'
           + celdas.join('')
+          + '<td class="num-ef" style="font-weight:600;">' + esc(avgTxt) + '</td>'
           + '<td class="num-ef" style="font-weight:600;">' + esc(totalTxt) + '</td></tr>';
       });
       return html;
     }
 
-    function appendIndicadoresGestionExport(rows, rowMeta, columnasOrdenadas, montosSubitem) {
+    function valorIndicadorExcel(ratio, tipo) {
+      if (ratio == null || !Number.isFinite(ratio)) return '';
+      if (tipo === 'pct') {
+        const v = efPctValorParaExcel(ratio * 100);
+        return v != null ? v : '';
+      }
+      return Math.round(ratio * 10000) / 10000;
+    }
+
+    function appendIndicadoresGestionExport(rows, rowMeta, columnasOrdenadas, montosSubitem, avgCtx) {
       if (!INDICADORES_GESTION.length || !columnasOrdenadas.length) return;
-      rows.push(['Indicadores de Gestión', ...columnasOrdenadas.map(() => ''), '', '']);
+      const keysAvg = (avgCtx && avgCtx.keys) || [];
+      const subAvg = (avgCtx && avgCtx.montosSubitem) || montosSubitem;
+      rows.push(['Indicadores de Gestión', ...columnasOrdenadas.map(() => ''), '', '', '']);
       rowMeta.push({ kind: 'data', nivel: 0 });
       INDICADORES_GESTION.forEach(ind => {
         let sumNum = 0;
@@ -6683,19 +6786,12 @@
           sumNum += num;
           sumDen += den;
           const ratio = calcularRatioIndicadorGestion(montosSubitem, ind, colKey);
-          if (ratio == null) return '';
-          if (ind.tipo === 'pct') {
-            const v = efPctValorParaExcel(ratio * 100);
-            return v != null ? v : '';
-          }
-          return Math.round(ratio * 10000) / 10000;
+          return valorIndicadorExcel(ratio, ind.tipo);
         });
         const totalRatio = sumDen > 0 ? sumNum / sumDen : null;
-        let totalVal = '';
-        if (totalRatio != null) {
-          totalVal = ind.tipo === 'pct' ? (efPctValorParaExcel(totalRatio * 100) ?? '') : Math.round(totalRatio * 10000) / 10000;
-        }
-        rows.push(['• ' + ind.label + ' (' + ind.formula + ')', ...vals, totalVal, ind.notas]);
+        const totalVal = valorIndicadorExcel(totalRatio, ind.tipo);
+        const avgVal = valorIndicadorExcel(ratioPromedio12Indicador(subAvg, ind, keysAvg), ind.tipo);
+        rows.push(['• ' + ind.label + ' (' + ind.formula + ')', ...vals, avgVal, totalVal, ind.notas]);
         rowMeta.push({ kind: 'indicador', nivel: 1 });
       });
     }
@@ -6900,9 +6996,17 @@
       const columnasOrdenadas = Array.from(columnasSet).sort();
       const montosPorOrden = computeEfMontosPorOrden(allLines, montosSubitem, columnasOrdenadas);
       const foBase = getEfFlujoOperativoBase(allLines, montosPorOrden, columnasOrdenadas);
-      const header = ['Item', ...columnasOrdenadas.map(c => formatearColHeaderEvolucion(c, periodo)), 'Total', 'Notas'];
-      const idxColTotal = columnasOrdenadas.length + 1;
-      const idxColNotas = columnasOrdenadas.length + 2;
+      const keys12 = llavesUltimos12MesesCerradosEf();
+      const baseMensual = periodo === 'mensual'
+        ? { montosPorOrden: montosPorOrden, montosSubitem: montosSubitem, columnas: columnasOrdenadas }
+        : montosMensualesEf(allLines, moneda, tipoDolar);
+      const foMensual = periodo === 'mensual'
+        ? foBase
+        : getEfFlujoOperativoBase(allLines, baseMensual.montosPorOrden, baseMensual.columnas);
+      const avgFo = promedioUltimos12CerradosEf(foMensual.porCol, keys12);
+      const header = ['Item', ...columnasOrdenadas.map(c => formatearColHeaderEvolucion(c, periodo)), 'Avg Mensual', 'Total', 'Notas'];
+      const idxColTotal = columnasOrdenadas.length + 2;
+      const idxColNotas = columnasOrdenadas.length + 3;
       const rows = [header];
       const rowMeta = [{ kind: 'header' }];
       lines.forEach(line => {
@@ -6916,10 +7020,13 @@
           return red !== 0 ? red : '';
         });
         const totalRed = Math.round(total);
+        const avgFila = promedioUltimos12CerradosEf(baseMensual.montosPorOrden[line.orden] || {}, keys12);
+        const avgRed = Math.round(avgFila || 0);
         const notas = generarNotasAnalisisEf(montos, columnasOrdenadas, line, periodo);
         rows.push([
           formatEfItemExport(line),
           ...vals,
+          avgRed !== 0 ? avgRed : null,
           totalRed !== 0 ? totalRed : '',
           notas
         ]);
@@ -6932,16 +7039,23 @@
           });
           const pTotal = pctDelFlujoOperativo(total, foBase.total);
           const vTotal = efPctValorParaExcel(pTotal);
+          const avgLinea = promedioUltimos12CerradosEf(baseMensual.montosPorOrden[line.orden] || {}, keys12);
+          const pAvg = pctDelFlujoOperativo(avgLinea || 0, avgFo || 0);
+          const vAvg = efPctValorParaExcel(pAvg);
           rows.push([
             '  % del Flujo Operativo',
             ...pctVals,
+            vAvg != null ? vAvg : null,
             vTotal != null ? vTotal : '',
             ''
           ]);
           rowMeta.push({ kind: 'pct' });
         }
       });
-      appendIndicadoresGestionExport(rows, rowMeta, columnasOrdenadas, montosSubitem);
+      appendIndicadoresGestionExport(rows, rowMeta, columnasOrdenadas, montosSubitem, {
+        keys: keys12,
+        montosSubitem: baseMensual.montosSubitem
+      });
       const colCount = header.length;
       const ws = XLSX.utils.aoa_to_sheet(rows);
       aplicarFormatoNumerosExportEf(ws, rowMeta, idxColTotal);
@@ -6960,7 +7074,7 @@
       aplicarEstiloColumnaNotasEf(ws, rowMeta, idxColNotas);
       const colsWidth = [{ wch: 42 }];
       columnasOrdenadas.forEach(() => colsWidth.push({ wch: 14 }));
-      colsWidth.push({ wch: 16 }, { wch: 52 });
+      colsWidth.push({ wch: 14 }, { wch: 16 }, { wch: 52 });
       ws['!cols'] = colsWidth;
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Estado_Financiero');

@@ -8,12 +8,12 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.96',
+    versionLabel: 'v2.97',
     lines: [
-      'Al cargar el histórico, si falta un Id en la secuencia (el 8 entre 1 y 10), las cajas físicas lo muestran agrupado por caja.',
-      'En cada caja hay Eliminar: hay que confirmar para borrar esos movimientos.',
-      'Mercado Pago, Galicia, Credicoop y FCI mandan ese mismo Id a A eliminar de su caja.',
-      'En Mercado Pago se puede deshacer una anulación: el cobro y la devolución vuelven al extracto.'
+      'En Estado Financiero, antes de Total, está la columna Avg Mensual.',
+      'Es el promedio de los últimos 12 meses cerrados: el mes en curso no entra.',
+      'Si un mes no tuvo movimientos, cuenta como cero. El signo de ayuda del encabezado lo aclara.',
+      'El Excel del Estado Financiero trae la misma columna.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
