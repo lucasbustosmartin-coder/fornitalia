@@ -1,9 +1,9 @@
 {
-  "versionLabel": "v2.97",
+  "versionLabel": "v2.98",
   "lines": [
-    "En Estado Financiero, antes de Total, está la columna Avg Mensual.",
-    "Es el promedio de los últimos 12 meses cerrados: el mes en curso no entra.",
-    "Si un mes no tuvo movimientos, cuenta como cero. El signo de ayuda del encabezado lo aclara.",
-    "El Excel del Estado Financiero trae la misma columna."
+    "En Matriz EF se puede borrar una relación que no tiene movimientos.",
+    "Si tiene movimientos, queda el candado y se ve cuántos hay.",
+    "En Estructura EF, un renglón se puede sacar junto con esas relaciones vacías.",
+    "Las fórmulas del Estado Financiero siguen protegidas."
   ]
 }

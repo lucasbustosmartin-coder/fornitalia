@@ -231,6 +231,7 @@
   .vista-mef { padding: 1rem; }
   .mef-form-grid { grid-template-columns: 1fr; }
   .mef-busqueda input[type="search"] { min-width: 0; width: 100%; }
+  .mef-btn-icon-only { min-width: 44px; min-height: 44px; }
 }
 
 @media (max-width: 480px) {

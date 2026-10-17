@@ -260,6 +260,63 @@
     return (state.rows || []).filter(function (r) { return normKey(r.ef_subitem) === k; });
   }
 
+  /** Misma regla que el Flujo: el movimiento queda en la relación exacta, o en la del otro tipo del mismo par. */
+  function relacionQueCubreMovimiento(byClave, byPar, cat, cta, tipo) {
+    var exact = byClave[clave(cat, cta, tipo)];
+    if (exact && String(exact.ef_subitem || '').trim()) return exact;
+    var altTipo = tipo === 'Ingreso' ? 'Egreso' : 'Ingreso';
+    var alt = byClave[clave(cat, cta, altTipo)];
+    if (alt && String(alt.ef_subitem || '').trim()) return alt;
+    var pars = byPar[clavePar(cat, cta)] || [];
+    var i;
+    for (i = 0; i < pars.length; i++) {
+      if (String(pars[i].ef_subitem || '').trim()) return pars[i];
+    }
+    return exact || alt || (pars.length ? pars[0] : null);
+  }
+
+  function prepararUsosRelacion() {
+    var filas = typeof opts.getFilasFlujo === 'function' ? (opts.getFilasFlujo() || []) : [];
+    state.flujoListo = filas.length > 0;
+    var counts = {};
+    var byClave = {};
+    var byPar = {};
+    (state.rows || []).forEach(function (r) {
+      if (r.id != null) counts[String(r.id)] = 0;
+      if (r.vigente === false) return;
+      byClave[clave(r.categoria, r.cuenta_contable, r.tipo_movimiento)] = r;
+      var pk = clavePar(r.categoria, r.cuenta_contable);
+      if (!byPar[pk]) byPar[pk] = [];
+      byPar[pk].push(r);
+    });
+    Object.keys(byPar).forEach(function (pk) {
+      byPar[pk].sort(function (a, b) {
+        var as = String(a.ef_subitem || '').trim() ? 0 : 1;
+        var bs = String(b.ef_subitem || '').trim() ? 0 : 1;
+        return as - bs;
+      });
+    });
+    if (state.flujoListo) {
+      filas.forEach(function (f) {
+        var cat = String(f.categoria || f.nueva_categoria || '').trim();
+        var cta = String(f.cuenta_contable || f.nueva_cuenta_contable || '').trim();
+        var tipo = String(f.tipo_movimiento || '').trim();
+        if (!cat || !cta || !tipo || esTraspaso(cat)) return;
+        var elegida = relacionQueCubreMovimiento(byClave, byPar, cat, cta, tipo);
+        if (elegida && elegida.id != null) {
+          var id = String(elegida.id);
+          counts[id] = (counts[id] || 0) + 1;
+        }
+      });
+    }
+    state.usosRel = counts;
+  }
+
+  function usosDeRelacion(row) {
+    if (!row || row.id == null || !state.usosRel) return 0;
+    return state.usosRel[String(row.id)] || 0;
+  }
+
   function hijosDeItem(item) {
     var it = String(item || '').trim();
     return (state.estRows || []).filter(function (r) {
@@ -344,11 +401,18 @@
       }
       var rel = relacionesDeSubitem(row.ef_subitem);
       if (rel.length) {
-        var nRel = rel.length;
-        return (nRel === 1
-          ? 'Hay 1 relación en la matriz apuntando a este subítem. '
-          : 'Hay ' + nRel + ' relaciones en la matriz apuntando a este subítem. ') +
-          'Cambiá o quitá esas relaciones antes de borrar el renglón.';
+        if (!state.flujoListo) {
+          return 'Hay relaciones en la matriz. Esperá a que cargue el Flujo para ver si tienen movimientos.';
+        }
+        var conUso = rel.filter(function (relRow) { return usosDeRelacion(relRow) > 0; });
+        if (conUso.length) {
+          var nReg = 0;
+          conUso.forEach(function (relRow) { nReg += usosDeRelacion(relRow); });
+          return (conUso.length === 1
+            ? 'Hay 1 relación con movimientos (' + nReg + '). '
+            : 'Hay ' + conUso.length + ' relaciones con movimientos (' + nReg + '). ') +
+            'No se puede borrar el renglón mientras esas relaciones tengan registros.';
+        }
       }
     }
     return null;
@@ -619,6 +683,26 @@
     return html;
   }
 
+  function htmlAccionesRelacion(r) {
+    if (!can(PERM_EDITAR)) return '';
+    var edit = '<button type="button" class="mef-btn mef-btn-ghost mef-btn-icon-only" data-mef="editar" data-id="' + esc(r.id || '') + '" data-cat="' + esc(r.categoria) + '" data-cta="' + esc(r.cuenta_contable) + '" data-tipo="' + esc(r.tipo_movimiento) + '" title="Editar" aria-label="Editar"><span class="btn-icon">' + ICO.edit + '</span></button>';
+    if (state.lista !== 'relaciones' || r.id == null || r.id === '') {
+      return '<div class="mef-acciones-fila">' + edit + '</div>';
+    }
+    var baja;
+    if (!state.flujoListo) {
+      var espera = 'Esperá a que cargue el Flujo para saber si hay movimientos.';
+      baja = '<button type="button" class="mef-btn mef-btn-ghost mef-btn-icon-only" data-mef="rel-info" title="' + esc(espera) + '" aria-label="' + esc(espera) + '"><span class="btn-icon">' + ICO.lock + '</span></button>';
+    } else if (usosDeRelacion(r) > 0) {
+      var n = usosDeRelacion(r);
+      var tit = 'Hay ' + n + (n === 1 ? ' movimiento asociado. No se puede borrar.' : ' movimientos asociados. No se puede borrar.');
+      baja = '<button type="button" class="mef-btn mef-btn-ghost mef-btn-icon-only" data-mef="rel-info" title="' + esc(tit) + '" aria-label="' + esc(tit) + '"><span class="btn-icon">' + ICO.lock + '</span></button>';
+    } else {
+      baja = '<button type="button" class="mef-btn mef-btn-danger mef-btn-icon-only" data-mef="rel-borrar" data-id="' + esc(r.id) + '" title="Borrar: no tiene movimientos" aria-label="Borrar relación sin movimientos"><span class="btn-icon">' + ICO.trash + '</span></button>';
+    }
+    return '<div class="mef-acciones-fila">' + edit + baja + '</div>';
+  }
+
   function renderTabla() {
     var list = filasVisibles();
     if (!list.length) {
@@ -638,9 +722,7 @@
         '<td>' + esc(r.costo_indirecto || '') + '</td>' +
         '<td>' + (r.vigente === false ? 'No' : 'Sí') + '</td>' +
         '<td>' + htmlUsuario(r.updated_by, r.created_by) + '</td>' +
-        '<td>' + (can(PERM_EDITAR)
-          ? '<button type="button" class="mef-btn mef-btn-ghost mef-btn-icon-only" data-mef="editar" data-id="' + esc(r.id || '') + '" data-cat="' + esc(r.categoria) + '" data-cta="' + esc(r.cuenta_contable) + '" data-tipo="' + esc(r.tipo_movimiento) + '" title="Editar" aria-label="Editar"><span class="btn-icon">' + ICO.edit + '</span></button>'
-          : '') + '</td>' +
+        '<td>' + htmlAccionesRelacion(r) + '</td>' +
       '</tr>';
     });
     return '<div class="mef-tabla-wrap"><table class="mef-tabla"><thead><tr>' +
@@ -996,14 +1078,28 @@
       return;
     }
     var label = (row.codigo ? row.codigo + ' — ' : '') + (row.ef_subitem || row.ef_item || '');
-    if (!await FornitaliaMensajes.confirmar('Se va a borrar el renglón «' + label + '». El Estado Financiero dejará de dibujarlo. ¿Continuar?')) return;
+    var relVacias = relacionesDeSubitem(row && row.ef_subitem).filter(function (relRow) {
+      return relRow.id != null && usosDeRelacion(relRow) === 0;
+    });
+    var msg = relVacias.length
+      ? ('¿Eliminar el renglón «' + label + '» y ' +
+        (relVacias.length === 1 ? 'su relación' : 'sus ' + relVacias.length + ' relaciones') +
+        '? Esas relaciones no tienen movimientos. El Estado Financiero dejará de dibujar el renglón.')
+      : ('¿Eliminar el renglón «' + label + '»? El Estado Financiero dejará de dibujarlo.');
+    if (!await FornitaliaMensajes.confirmar(msg)) return;
     state.loading = true;
     state.err = '';
     renderShell();
     try {
+      if (relVacias.length) {
+        var resR = await client().from('matriz_cat_cuenta_ef').delete().in('id', relVacias.map(function (relRow) { return relRow.id; }));
+        if (resR.error) throw resR.error;
+      }
       var res = await client().from('ef_estructura').delete().eq('id', id);
       if (res.error) throw res.error;
-      state.msg = 'Renglón borrado.';
+      state.msg = relVacias.length
+        ? ('Renglón borrado y ' + (relVacias.length === 1 ? '1 relación sin movimientos.' : relVacias.length + ' relaciones sin movimientos.'))
+        : 'Renglón borrado.';
       state.estForm = null;
       await recargar();
     } catch (e) {
@@ -1092,6 +1188,40 @@
     global.XLSX.writeFile(wb, 'Estructura_EF_Fornitalia_' + fechaArchivoExcel() + '.xlsx');
   }
 
+  async function borrarRelacion(id) {
+    if (!can(PERM_EDITAR) || id == null || id === '') return;
+    prepararUsosRelacion();
+    var row = (state.rows || []).filter(function (r) { return String(r.id) === String(id); })[0];
+    if (!row) return;
+    if (!state.flujoListo) {
+      state.err = 'Esperá a que cargue el Flujo para saber si hay movimientos.';
+      renderShell();
+      return;
+    }
+    var n = usosDeRelacion(row);
+    if (n > 0) {
+      state.err = 'Hay ' + n + (n === 1 ? ' movimiento asociado. No se puede borrar.' : ' movimientos asociados. No se puede borrar.');
+      renderShell();
+      return;
+    }
+    var label = (row.categoria || '') + ' / ' + (row.cuenta_contable || '') + ' / ' + (row.tipo_movimiento || '');
+    if (!await FornitaliaMensajes.confirmar('¿Eliminar la relación «' + label + '»? No tiene movimientos asociados.')) return;
+    state.loading = true;
+    state.err = '';
+    renderShell();
+    try {
+      var res = await client().from('matriz_cat_cuenta_ef').delete().eq('id', id);
+      if (res.error) throw res.error;
+      state.msg = 'Relación borrada.';
+      state.form = null;
+      await recargar();
+    } catch (e) {
+      state.err = errMsg(e);
+      state.loading = false;
+      renderShell();
+    }
+  }
+
   function renderShell() {
     var el = root();
     if (!el) return;
@@ -1099,6 +1229,7 @@
       el.innerHTML = '<p class="mef-empty">No tenés permiso para ver la Matriz EF.</p>';
       return;
     }
+    prepararUsosRelacion();
     var sin = filasSinRelacion();
     var nRel = (state.rows || []).length;
     var nEst = (state.estRows || []).length;
@@ -1107,7 +1238,7 @@
     el.innerHTML =
       (global.FornitaliaHelp ? FornitaliaHelp.header(ICO.grid, 'Matriz EF', 'tpl-mef-help', 'Ayuda: Matriz EF',
         '<p>Conecta <strong>categoría + cuenta contable + tipo</strong> de tesorería con el <strong>ítem y subítem</strong> del Estado Financiero. Los nombres son los de tesorería.</p>' +
-        '<p>La solapa <strong>Estructura EF</strong> es el ABM del árbol (secciones, subítems y totales). Un renglón vacío se dibuja si está acá, aunque no tenga relaciones. No se pueden borrar las secciones 1–6 ni 1.2 (ajuste de saldos), los totales A–D ni los subítems 6.1–6.3 (fórmulas); tampoco un subítem con relaciones en la matriz.</p>' +
+        '<p>La solapa <strong>Estructura EF</strong> es el ABM del árbol (secciones, subítems y totales). Un renglón vacío se dibuja si está acá, aunque no tenga relaciones. No se pueden borrar las secciones 1–6 ni 1.2 (ajuste de saldos), los totales A–D ni los subítems 6.1–6.3 (fórmulas). Una relación se puede borrar si no tiene movimientos. Un subítem cuyas relaciones no tienen movimientos se puede borrar junto con esas relaciones.</p>' +
         '<p>La tabla de relaciones ya está cargada. Usá el ABM para <strong>nuevos rubros</strong> o <strong>nuevas relaciones</strong>. Sin relación lista pares del Flujo sin fila. Clic en un encabezado para <strong>ordenar</strong>.</p>'
       ) : '<h1>Matriz EF</h1>') +
       (state.loading ? '<p class="loading">Cargando matriz…</p>' : '') +
@@ -1119,8 +1250,10 @@
         FornitaliaHelp.tabButton('', esEst, 'data-mef="lista" data-lista="estructura"', 'Estructura EF (' + nEst + ')') +
       '</div>' +
       (esEst
-        ? '<p class="mef-hint">Este árbol es el que dibuja la tabla del Estado Financiero. AJUSTE DE SALDOS (CAJA) va debajo de FLUJO OPERATIVO GENERADO y entra en el total D (no en A–C). Podés sacar renglones que ya no uses si no tienen relaciones y no son una fórmula. Las secciones 1–6 y 1.2, los totales A–D y 6.1–6.3 están bloqueados.</p>'
-        : '') +
+        ? '<p class="mef-hint">Este árbol es el que dibuja la tabla del Estado Financiero. AJUSTE DE SALDOS (CAJA) va debajo de FLUJO OPERATIVO GENERADO y entra en el total D (no en A–C). Podés sacar un subítem que no sea fórmula, aunque tenga relaciones, si ninguna de esas relaciones tiene movimientos: se borran junto con el renglón. Las secciones 1–6 y 1.2, los totales A–D y 6.1–6.3 están bloqueados.</p>'
+        : (state.lista === 'relaciones'
+          ? '<p class="mef-hint">El tacho borra una relación solo cuando no tiene movimientos de tesorería. Si tiene registros, queda el candado.</p>'
+          : '')) +
       '<div class="mef-toolbar"><div class="mef-acciones">' +
         (can(PERM_EDITAR)
           ? (esEst
@@ -1210,6 +1343,15 @@
     }
     if (a === 'est-borrar') {
       borrarEst(t.getAttribute('data-id'));
+      return;
+    }
+    if (a === 'rel-info') {
+      state.err = t.getAttribute('title') || 'Esta relación no se puede borrar.';
+      renderShell();
+      return;
+    }
+    if (a === 'rel-borrar') {
+      borrarRelacion(t.getAttribute('data-id'));
       return;
     }
     if (a === 'est-editar') {
