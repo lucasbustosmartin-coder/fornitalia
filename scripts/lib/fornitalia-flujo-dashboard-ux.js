@@ -549,8 +549,42 @@
       return vals;
     }
 
+    function redondearPct1(x) {
+      if (x == null || !isFinite(x)) return null;
+      return Math.round(x * 10) / 10;
+    }
+    /** c/f redondeado a 1 decimal; s/f es el complemento para que el par sume 100. */
+    function filaParIngresosCaja() {
+      var cfMes = function (k) { return pctRatio(Number(dato(k).ingresosCf) || 0, ing(k)); };
+      var serieCf = meses.map(function (k) { return redondearPct1(cfMes(k)); });
+      var serieSf = serieCf.map(function (p) { return p == null ? null : redondearPct1(100 - p); });
+      function celdas(serie) {
+        var prevKey = mesAnteriorKey(meses[0]);
+        var cfPrev = (prevKey && prevKey !== keyCurso) ? redondearPct1(cfMes(prevKey)) : null;
+        var anteriorPrimero = cfPrev == null ? null : (serie === serieCf ? cfPrev : redondearPct1(100 - cfPrev));
+        function anteriorCerrado(i) {
+          if (meses[i] === keyCurso) return null;
+          for (var j = i - 1; j >= 0; j--) {
+            if (meses[j] !== keyCurso) return serie[j];
+          }
+          return anteriorPrimero;
+        }
+        var vals = serie.map(function (p, i) {
+          return '<td class="' + clsCurso(meses[i], 'valor-ratio') + '"><span class="ratio-con-variacion">' + fmtPct(p) + iconoVar(p, anteriorCerrado(i)) + '</span></td>';
+        });
+        var num = mesesCerrados.reduce(function (s, k) { return s + (Number(dato(k).ingresosCf) || 0); }, 0);
+        var denTot = mesesCerrados.reduce(function (s, k) { return s + ing(k); }, 0);
+        var totCf = redondearPct1(pctRatio(num, denTot));
+        var tot = serie === serieCf ? totCf : (totCf == null ? null : redondearPct1(100 - totCf));
+        vals.push('<td class="valor-ratio">' + fmtPct(tot) + '</td>');
+        return vals;
+      }
+      return { cf: celdas(serieCf), sf: celdas(serieSf) };
+    }
+
     var ventas = function (k) { return Number(dato(k).ventas) || 0; };
     var ventasMp = function (k) { return Number(dato(k).ventasMp) || 0; };
+    var parCaja = filaParIngresosCaja();
     var filas = [
       { tipo: 'datos', item: 'Ingresos', vals: filaMontos(ing, 'ingresos', totIng) },
       { tipo: 'datos', item: 'Egresos', vals: filaMontos(egr, 'egresos', totEgr) },
@@ -562,7 +596,9 @@
       { tipo: 'datos', item: 'Costo Financiero MP / Ventas MP', vals: filaRatio(function (k) { return Number(dato(k).costoFinancieroMp) || 0; }, ventasMp) },
       { tipo: 'datos', item: 'Costo dir. / Ingresos', vals: filaRatio(function (k) { return Number(dato(k).egresosCostoDirecto) || 0; }) },
       { tipo: 'datos', item: 'Costo ind. / Ingresos', vals: filaRatio(function (k) { return Number(dato(k).egresosCostoIndirecto) || 0; }) },
-      { tipo: 'datos', item: 'Costo total / Ingreso total', vals: filaRatio(egr) }
+      { tipo: 'datos', item: 'Costo total / Ingreso total', vals: filaRatio(egr) },
+      { tipo: 'datos', item: 'Ingresos c/f / Ingresos', vals: parCaja.cf },
+      { tipo: 'datos', item: 'Ingresos s/f / Ingresos', vals: parCaja.sf }
     ];
     var headItem = 'Item <span class="rep-unidad">(' + unidadMilesReporte(mon) + ')</span>';
     var notas = ['Importes expresados en ' + unidadMilesReporte(mon) + ' (redondeados). Período ' + labelPeriodoActual() + '. La columna Total suma los meses cerrados: el mes en curso (celeste) no entra, ni los proyectados.'];

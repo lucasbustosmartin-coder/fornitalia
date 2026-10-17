@@ -10,10 +10,10 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="scripts/lib/fornitalia-mensajes.js?v=2.75"></script>
   <script src="scripts/lib/fornitalia-tipo-cambio-global.js?v=2.92"></script>
-  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.92"></script>
+  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.99"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.98"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.99"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
@@ -1402,8 +1402,9 @@
           <p><strong>Sueldos / Ingresos</strong> = egresos de categoría <strong>Sueldos</strong> (sin comisiones de venta imputadas ahí) ÷ columna Ingresos del mes.</p>
           <p><strong>Sueldos + Cargas Sociales / Cobranzas</strong> = egresos con <code>ef_subitem</code> <strong>Sueldos (Neto / Bolsillo)</strong> más <strong>Cargas Sociales</strong> ÷ ingresos con <code>ef_subitem</code> <strong>Cobranzas por Ventas (Efectivo neto ingresado)</strong>.</p>
           <p><strong>Costo Financiero MP / Ventas MP</strong> = egresos con <code>ef_subitem</code> <strong>Costo Financiero (Mercado Pago)</strong> ÷ cobranzas por ventas de la <strong>caja Mercado Pago</strong> (no las ventas de otras cajas).</p>
+          <p><strong>Ingresos c/f / Ingresos</strong> = ingresos del mes que vienen de Efectivo Pesos, Efectivo Dólar, Mercado Pago, Transferencia Galicia, Transferencia Galicia Dólar y Transferencia Credicoop, ÷ la fila Ingresos. <strong>Ingresos s/f / Ingresos</strong> es el resto (efectivo sin factura, Morba, FCI y cualquier otra caja). Los dos suman 100%.</p>
           <p>El denominador de <strong>Costo dir. / Ingresos</strong>, <strong>Costo ind. / Ingresos</strong>, <strong>Costo total / Ingreso total</strong> y <strong>Sueldos / Ingresos</strong> es siempre la columna <strong>Ingresos</strong> del mes. Numeradores: COSTOS DIRECTOS (§2), COSTOS INDIRECTOS (§3), Egresos de la fila (costo total) y Sueldos. Cálculo simple, sin Flujo Operativo Generado.</p>
-          <p>La tabla se lee como en Dashboard: <strong>meses en columnas</strong>, filas Ingresos / Egresos / G/P y debajo <strong>Ratios del Negocio</strong> (Comisiones/Ventas, Sueldos/Ingresos, Sueldos + Cargas Sociales/Cobranzas, Costo Financiero MP/Ventas MP, Costo dir., Costo ind., Costo total sobre Ingresos). El <strong>mes en curso</strong> va en celeste: se ve, pero no entra en el <strong>Total</strong> (tarjetas, ratios, PDF y Excel) ni en las variaciones y la tendencia del gráfico, para no mezclar un mes incompleto con los cerrados. Las columnas <strong>Proy.</strong> quedan a la derecha y tampoco entran al Total. El gráfico <strong>G/P Mensual</strong> y el PDF usan el mismo filtro Período; en el PDF los filtros activos van remarcados en verde.</p>
+          <p>La tabla se lee como en Dashboard: <strong>meses en columnas</strong>, filas Ingresos / Egresos / G/P y debajo <strong>Ratios del Negocio</strong> (Comisiones/Ventas, Sueldos/Ingresos, Sueldos + Cargas Sociales/Cobranzas, Costo Financiero MP/Ventas MP, Costo dir., Costo ind., Costo total sobre Ingresos, Ingresos c/f e Ingresos s/f sobre Ingresos). El <strong>mes en curso</strong> va en celeste: se ve, pero no entra en el <strong>Total</strong> (tarjetas, ratios, PDF y Excel) ni en las variaciones y la tendencia del gráfico, para no mezclar un mes incompleto con los cerrados. Las columnas <strong>Proy.</strong> quedan a la derecha y tampoco entran al Total. El gráfico <strong>G/P Mensual</strong> y el PDF usan el mismo filtro Período; en el PDF los filtros activos van remarcados en verde.</p>
           <p>Arriba, junto a <strong>Exportar Base Histórica</strong>, el botón <strong>Cargar tesorería histórica</strong> (si el perfil lo tiene) toma el Excel <em>movimientos-historico_…</em> (Id, Fecha, Tipo, Caja, Monto) y lo reparte a todas las cajas de una vez: bancos en Conciliación y cajas físicas según la columna Caja. En Conciliación recálcula los sugeridos de cada caja (Mercado Pago, Galicia, Galicia USD, Credicoop) y el cartel siempre muestra el resultado, aunque sea 0. Si un Id Pendiente corta la secuencia del archivo (van del 1 al 10 y falta el 8), las cajas físicas lo muestran por caja con Eliminar para confirmar; el resto queda en A eliminar de su caja. No depende de esta solapa.</p>
         </div>
       </template>
@@ -2133,7 +2134,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.98';
+    const APP_VERSION = '2.99';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -3560,6 +3561,17 @@
     }
 
     /** Ratio sobre Ingresos (columna Ingresos): Costo dir., Costo ind. y Costo total. */
+    /** Los dos % se muestran con un decimal y el segundo es el complemento, para que sumen 100%. */
+    function parRatiosIngresoCaja(cf, ingresos) {
+      const ing = ingresos != null ? Number(ingresos) : 0;
+      const num = cf != null ? Number(cf) : 0;
+      if (!(ing > 0)) return { cfTxt: '–', sfTxt: '–', cfFrac: null, sfFrac: null };
+      const cfTxt = formatearPctRatioFlujo((num / ing) * 100);
+      const shown = pctNumeroRatioFlujo(cfTxt);
+      const sfTxt = shown == null ? '–' : formatearPctRatioFlujo(100 - shown);
+      return { cfTxt: cfTxt, sfTxt: sfTxt, cfFrac: num / ing, sfFrac: 1 - (num / ing) };
+    }
+
     function ratioSobreIngresos(numerador, ingresos) {
       const ing = ingresos != null ? Number(ingresos) : 0;
       if (!(ing > 0)) return '–';
@@ -3659,7 +3671,7 @@
       return porMes[key] || {
         anio: ay, mes: am, ingresos: 0, egresos: 0, comisiones: 0, comisionesParaRatio: 0, ventas: 0,
         flujoOperativoGenerado: 0, egresosCostoDirecto: 0, egresosCostoIndirecto: 0,
-        sueldos: 0, sueldosCargas: 0, costoFinancieroMp: 0, ventasMp: 0
+        sueldos: 0, sueldosCargas: 0, costoFinancieroMp: 0, ventasMp: 0, ingresosCf: 0
       };
     }
 
@@ -4739,7 +4751,7 @@
           flujoOperativoGenerado: 0,
           egresosCostoDirecto: 0, egresosCostoIndirecto: 0,
           devolucionesSec1: 0,
-          sueldos: 0, sueldosCargas: 0, costoFinancieroMp: 0, ventasMp: 0
+          sueldos: 0, sueldosCargas: 0, costoFinancieroMp: 0, ventasMp: 0, ingresosCf: 0, devCf: 0
         };
         if (!porMesCategoria[key]) porMesCategoria[key] = {};
         if (!porMesCategoria[key][catMatriz]) porMesCategoria[key][catMatriz] = 0;
@@ -4752,6 +4764,7 @@
           porMesCatIng[key][catMatriz] = (porMesCatIng[key][catMatriz] || 0) + montoParaSumar;
           if (esEfSubitemCobranzasPorVentas(r)) porMes[key].ventas += montoParaSumar;
           if (esEfSubitemCobranzasPorVentas(r) && esCajaMercadoPago(r)) porMes[key].ventasMp += montoParaSumar;
+          if (esCajaIngresoConFactura(r)) porMes[key].ingresosCf += montoParaSumar;
           if (esEfItemFlujoOperativoGenerado(r)) porMes[key].flujoOperativoGenerado += montoParaSumar;
         } else if (r.tipo_movimiento === 'Egreso') {
           porMes[key].egresos += montoParaSumar;
@@ -4761,6 +4774,7 @@
             porMes[key].devolucionesSec1 += montoParaSumar;
             if (esEfSubitemCobranzasPorVentas(r)) porMes[key].ventas -= montoParaSumar;
             if (esEfSubitemCobranzasPorVentas(r) && esCajaMercadoPago(r)) porMes[key].ventasMp -= montoParaSumar;
+            if (esCajaIngresoConFactura(r)) porMes[key].devCf += montoParaSumar;
           }
           if (esEfItemCostosDirectos(r)) porMes[key].egresosCostoDirecto += montoParaSumar;
           if (esEfItemCostosIndirectos(r)) porMes[key].egresosCostoIndirecto += montoParaSumar;
@@ -4780,6 +4794,7 @@
         if (!(dev > 0)) return;
         porMes[key].ingresos -= dev;
         porMes[key].egresos -= dev;
+        porMes[key].ingresosCf = (porMes[key].ingresosCf || 0) - (porMes[key].devCf || 0);
         totalIngresos -= dev;
         totalEgresos -= dev;
       });
@@ -4908,6 +4923,7 @@
           ingMes, d.egresosCostoDirecto, d.egresosCostoIndirecto
         );
         const costoTotalIngPct = ratioSobreIngresos(d.egresos, ingMes);
+        const parCaja = parRatiosIngresoCaja(d.ingresosCf, ingMes);
         const alertas = alertasPorMes[key] || [];
         filasFlujoExcel.push({
           kind: esMesCursoFlujo(key) ? 'mes_curso' : 'real',
@@ -4922,9 +4938,11 @@
           costoDir: fraccionSobreIngresos(d.egresosCostoDirecto, d.ingresos),
           costoInd: fraccionSobreIngresos(d.egresosCostoIndirecto, d.ingresos),
           costoTotal: fraccionSobreIngresos(d.egresos, d.ingresos),
+          ingresosCf: parCaja.cfFrac,
+          ingresosSf: parCaja.sfFrac,
           alertas: textoPlanoAlertasFlujo(alertas)
         });
-        return { key, d, label, balance, comVentasPct, sueldosIngPct, sueldosCargasPct, costoFinMpPct, costoDirIngPct, costoIndIngPct, costoTotalIngPct, alertas };
+        return { key, d, label, balance, comVentasPct, sueldosIngPct, sueldosCargasPct, costoFinMpPct, costoDirIngPct, costoIndIngPct, costoTotalIngPct, ingresosCfPct: parCaja.cfTxt, ingresosSfPct: parCaja.sfTxt, alertas };
       });
 
       const mostrarProyeccion = ordenadosBaseProy.length > 0 && N > 0 && mesesAProyectar > 0 && (!ux || ux.keyEnRangoPeriodo(ux.keyMesEnCurso(), rangoPeriodo));
@@ -4940,6 +4958,7 @@
       let proyVentasMp = [];
       let proyEgrDir = [];
       let proyEgrInd = [];
+      let proyIngresosCf = [];
       let keyProyList = [];
       let proys = [];
       if (mostrarProyeccion) {
@@ -4983,17 +5002,20 @@
         const valoresEgrInd = ordenadosBaseProy.map(k => { const x = porMes[k]; return x && x.egresosCostoIndirecto != null ? x.egresosCostoIndirecto : 0; });
         proyEgrDir = proyeccionDesdeSerie(valoresEgrDir, N, agg, mesesAProyectar);
         proyEgrInd = proyeccionDesdeSerie(valoresEgrInd, N, agg, mesesAProyectar);
+        const valoresIngresosCf = ordenadosBaseProy.map(k => { const x = porMes[k]; return x && x.ingresosCf != null ? x.ingresosCf : 0; });
+        proyIngresosCf = proyeccionDesdeSerie(valoresIngresosCf, N, agg, mesesAProyectar);
         for (let i = 0; i < mesesAProyectar; i++) {
           const comVentasPctI = proyVentas[i] > 0 ? ((proyComisionesParaRatio[i] / proyVentas[i]) * 100).toFixed(1) + '%' : '–';
           const sueldosIngPctI = ratioSobreIngresos(proySueldos[i], proyIng[i]);
           const sueldosCargasPctI = proyVentas[i] > 0 ? ((proySueldosCargas[i] / proyVentas[i]) * 100).toFixed(1) + '%' : '–';
           const costoFinMpPctI = proyVentasMp[i] > 0 ? ((proyCostoFinMp[i] / proyVentasMp[i]) * 100).toFixed(1) + '%' : '–';
           const { pctDir: costoDirIngPctI, pctInd: costoIndIngPctI } = ratiosCostoDirectoIndirectoVsIngresos(proyIng[i], proyEgrDir[i], proyEgrInd[i]);
-          const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct: comVentasPctI, sueldosIngPct: sueldosIngPctI, sueldosCargasPct: sueldosCargasPctI, costoFinMpPct: costoFinMpPctI, costoDirIngPct: costoDirIngPctI, costoIndIngPct: costoIndIngPctI, costoTotalIngPct: ratioSobreIngresos(proyEgr[i], proyIng[i]) };
+          const parCajaI = parRatiosIngresoCaja(proyIngresosCf[i], proyIng[i]);
+          const proy = { ing: proyIng[i], egr: proyEgr[i], gp: proyIng[i] - proyEgr[i], comVentasPct: comVentasPctI, sueldosIngPct: sueldosIngPctI, sueldosCargasPct: sueldosCargasPctI, costoFinMpPct: costoFinMpPctI, costoDirIngPct: costoDirIngPctI, costoIndIngPct: costoIndIngPctI, costoTotalIngPct: ratioSobreIngresos(proyEgr[i], proyIng[i]), ingresosCfPct: parCajaI.cfTxt, ingresosSfPct: parCajaI.sfTxt };
           proys.push(proy);
           const keyProy = keyProyList[i];
           const [anioProy, mesProy] = keyProy.split('-').map(Number);
-          detalleProyeccionPorMes[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), ing: proy.ing, egr: proy.egr, gp: proy.gp, comVentasPct: proy.comVentasPct, sueldosIngPct: proy.sueldosIngPct, sueldosCargasPct: proy.sueldosCargasPct, costoFinMpPct: proy.costoFinMpPct, costoDirIngPct: proy.costoDirIngPct, costoIndIngPct: proy.costoIndIngPct, costoTotalIngPct: proy.costoTotalIngPct, ingresoPorCat: { ...proyDetalle[keyProy].ingresoPorCat }, egresoPorCat: { ...proyDetalle[keyProy].egresoPorCat } };
+          detalleProyeccionPorMes[keyProy] = { label: 'Proy. ' + formatoMesAnio(mesProy, anioProy), ing: proy.ing, egr: proy.egr, gp: proy.gp, comVentasPct: proy.comVentasPct, sueldosIngPct: proy.sueldosIngPct, sueldosCargasPct: proy.sueldosCargasPct, costoFinMpPct: proy.costoFinMpPct, costoDirIngPct: proy.costoDirIngPct, costoIndIngPct: proy.costoIndIngPct, costoTotalIngPct: proy.costoTotalIngPct, ingresosCfPct: proy.ingresosCfPct, ingresosSfPct: proy.ingresosSfPct, ingresoPorCat: { ...proyDetalle[keyProy].ingresoPorCat }, egresoPorCat: { ...proyDetalle[keyProy].egresoPorCat } };
           filasProyExcel.push({
             kind: 'proy',
             mes: 'Proy. ' + formatoMesAnio(mesProy, anioProy),
@@ -5007,6 +5029,8 @@
             costoDir: fraccionSobreIngresos(proyEgrDir[i], proyIng[i]),
             costoInd: fraccionSobreIngresos(proyEgrInd[i], proyIng[i]),
             costoTotal: fraccionSobreIngresos(proyEgr[i], proyIng[i]),
+            ingresosCf: parCajaI.cfFrac,
+            ingresosSf: parCajaI.sfFrac,
             alertas: ''
           });
         }
@@ -5072,7 +5096,7 @@
         return s + (pm && pm.ventas != null ? pm.ventas : 0);
       }, 0);
       const comVentasPctTotal = totalVentas > 0 ? ((totalComisionesParaRatio / totalVentas) * 100).toFixed(1) + '%' : '–';
-      let sumEgrDir = 0, sumEgrInd = 0, sumSueldos = 0, sumSueldosCargas = 0, sumCostoFinMp = 0, sumVentasMp = 0;
+      let sumEgrDir = 0, sumEgrInd = 0, sumSueldos = 0, sumSueldosCargas = 0, sumCostoFinMp = 0, sumVentasMp = 0, sumIngresosCf = 0;
       ordenadosCerrados.forEach(k => {
         const pm = porMes[k];
         if (!pm) return;
@@ -5082,12 +5106,14 @@
         sumSueldosCargas += pm.sueldosCargas || 0;
         sumCostoFinMp += pm.costoFinancieroMp || 0;
         sumVentasMp += pm.ventasMp || 0;
+        sumIngresosCf += pm.ingresosCf || 0;
       });
       const { pctDir: totCostoDirIng, pctInd: totCostoIndIng } = ratiosCostoDirectoIndirectoVsIngresos(totalIngresos, sumEgrDir, sumEgrInd);
       const totCostoTotalIng = ratioSobreIngresos(totalEgresos, totalIngresos);
       const totSueldosIng = ratioSobreIngresos(sumSueldos, totalIngresos);
       const totSueldosCargas = totalVentas > 0 ? ((sumSueldosCargas / totalVentas) * 100).toFixed(1) + '%' : '–';
       const totCostoFinMp = sumVentasMp > 0 ? ((sumCostoFinMp / sumVentasMp) * 100).toFixed(1) + '%' : '–';
+      const parCajaTotal = parRatiosIngresoCaja(sumIngresosCf, totalIngresos);
 
       const pctsCom = metricasMes.map(m => pctNumeroRatioFlujo(m.comVentasPct));
       const pctsSue = metricasMes.map(m => pctNumeroRatioFlujo(m.sueldosIngPct));
@@ -5096,6 +5122,8 @@
       const pctsDir = metricasMes.map(m => pctNumeroRatioFlujo(m.costoDirIngPct));
       const pctsInd = metricasMes.map(m => pctNumeroRatioFlujo(m.costoIndIngPct));
       const pctsTot = metricasMes.map(m => pctNumeroRatioFlujo(m.costoTotalIngPct));
+      const pctsCf = metricasMes.map(m => pctNumeroRatioFlujo(m.ingresosCfPct));
+      const pctsSf = metricasMes.map(m => pctNumeroRatioFlujo(m.ingresosSfPct));
       function pctAnteriorCerrado(pcts, i) {
         if (esMesCursoFlujo(metricasMes[i].key)) return null;
         for (let j = i - 1; j >= 0; j--) {
@@ -5117,6 +5145,8 @@
       const celdasDirReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoDirIngPct, pctAnteriorCerrado(pctsDir, i), claseMesRatio(m)));
       const celdasIndReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoIndIngPct, pctAnteriorCerrado(pctsInd, i), claseMesRatio(m)));
       const celdasTotReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.costoTotalIngPct, pctAnteriorCerrado(pctsTot, i), claseMesRatio(m)));
+      const celdasCfReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.ingresosCfPct, pctAnteriorCerrado(pctsCf, i), claseMesRatio(m)));
+      const celdasSfReales = metricasMes.map((m, i) => celdaRatioFlujoConVar(m.ingresosSfPct, pctAnteriorCerrado(pctsSf, i), claseMesRatio(m)));
       const celdasComProy = [];
       const celdasSueProy = [];
       const celdasSueCargasProy = [];
@@ -5124,6 +5154,8 @@
       const celdasDirProy = [];
       const celdasIndProy = [];
       const celdasTotProy = [];
+      const celdasCfProy = [];
+      const celdasSfProy = [];
       proys.forEach(function (proy, i) {
         celdasComProy.push(celdaRatioFlujoConVar(proy.comVentasPct, i === 0 ? pctUltimoCerrado(pctsCom) : pctNumeroRatioFlujo(proys[i - 1].comVentasPct), 'col-proyeccion'));
         celdasSueProy.push(celdaRatioFlujoConVar(proy.sueldosIngPct, i === 0 ? pctUltimoCerrado(pctsSue) : pctNumeroRatioFlujo(proys[i - 1].sueldosIngPct), 'col-proyeccion'));
@@ -5132,6 +5164,8 @@
         celdasDirProy.push(celdaRatioFlujoConVar(proy.costoDirIngPct, i === 0 ? pctUltimoCerrado(pctsDir) : pctNumeroRatioFlujo(proys[i - 1].costoDirIngPct), 'col-proyeccion'));
         celdasIndProy.push(celdaRatioFlujoConVar(proy.costoIndIngPct, i === 0 ? pctUltimoCerrado(pctsInd) : pctNumeroRatioFlujo(proys[i - 1].costoIndIngPct), 'col-proyeccion'));
         celdasTotProy.push(celdaRatioFlujoConVar(proy.costoTotalIngPct, i === 0 ? pctUltimoCerrado(pctsTot) : pctNumeroRatioFlujo(proys[i - 1].costoTotalIngPct), 'col-proyeccion'));
+        celdasCfProy.push(celdaRatioFlujoConVar(proy.ingresosCfPct, i === 0 ? pctUltimoCerrado(pctsCf) : pctNumeroRatioFlujo(proys[i - 1].ingresosCfPct), 'col-proyeccion'));
+        celdasSfProy.push(celdaRatioFlujoConVar(proy.ingresosSfPct, i === 0 ? pctUltimoCerrado(pctsSf) : pctNumeroRatioFlujo(proys[i - 1].ingresosSfPct), 'col-proyeccion'));
       });
       const celdasCom = celdasConTotalYProy(celdasComReales, celdaRatioFlujoConVar(comVentasPctTotal, null, 'col-total-real'), celdasComProy);
       const celdasSue = celdasConTotalYProy(celdasSueReales, celdaRatioFlujoConVar(totSueldosIng, null, 'col-total-real'), celdasSueProy);
@@ -5140,6 +5174,8 @@
       const celdasDir = celdasConTotalYProy(celdasDirReales, celdaRatioFlujoConVar(totCostoDirIng, null, 'col-total-real'), celdasDirProy);
       const celdasInd = celdasConTotalYProy(celdasIndReales, celdaRatioFlujoConVar(totCostoIndIng, null, 'col-total-real'), celdasIndProy);
       const celdasTot = celdasConTotalYProy(celdasTotReales, celdaRatioFlujoConVar(totCostoTotalIng, null, 'col-total-real'), celdasTotProy);
+      const celdasCf = celdasConTotalYProy(celdasCfReales, celdaRatioFlujoConVar(parCajaTotal.cfTxt, null, 'col-total-real'), celdasCfProy);
+      const celdasSf = celdasConTotalYProy(celdasSfReales, celdaRatioFlujoConVar(parCajaTotal.sfTxt, null, 'col-total-real'), celdasSfProy);
       const colspanResto = ordenados.length + keyProyList.length + 1;
       const iconoRatiosTitulo = '<span class="ratios-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>';
       const tbodyRatios = document.getElementById('tbody-ratios');
@@ -5152,7 +5188,9 @@
           '<tr><td class="col-item" title="Costo Financiero (Mercado Pago) ÷ ventas de la caja Mercado Pago">Costo Financiero MP / Ventas MP</td>' + celdasFinMp.join('') + '</tr>' +
           '<tr><td class="col-item">Costo dir. / Ingresos</td>' + celdasDir.join('') + '</tr>' +
           '<tr><td class="col-item">Costo ind. / Ingresos</td>' + celdasInd.join('') + '</tr>' +
-          '<tr><td class="col-item">Costo total / Ingreso total</td>' + celdasTot.join('') + '</tr>';
+          '<tr><td class="col-item">Costo total / Ingreso total</td>' + celdasTot.join('') + '</tr>' +
+          '<tr><td class="col-item" title="Ingresos de Efectivo Pesos, Efectivo Dólar, Mercado Pago, Transferencia Galicia, Transferencia Galicia Dólar y Transferencia Credicoop, sobre los ingresos del mes">Ingresos c/f / Ingresos</td>' + celdasCf.join('') + '</tr>' +
+          '<tr><td class="col-item" title="Ingresos del resto de las cajas (efectivo sin factura, Morba, FCI y cualquier otra). Junto con Ingresos c/f suma 100%">Ingresos s/f / Ingresos</td>' + celdasSf.join('') + '</tr>';
       }
 
       const tfoot = document.getElementById('tfoot-flujo');
@@ -5180,6 +5218,8 @@
           costoDir: fraccionSobreIngresos(sumEgrDir, totalIngresos),
           costoInd: fraccionSobreIngresos(sumEgrInd, totalIngresos),
           costoTotal: fraccionSobreIngresos(totalEgresos, totalIngresos),
+          ingresosCf: parCajaTotal.cfFrac,
+          ingresosSf: parCajaTotal.sfFrac,
           alertas: ''
         });
       }
@@ -5230,7 +5270,7 @@
     let cacheFilasFlujoReales = [];
     let sortFlujo = { key: 'mes', dir: 'asc' };
     let sortTodas = { key: '', dir: 'asc' };
-    const FLUJO_SORT_NUMERIC = { ingresos: true, egresos: true, gp: true, comVentas: true, sueldosIng: true, sueldosCargas: true, costoFinMp: true, costoDir: true, costoInd: true, costoTotal: true };
+    const FLUJO_SORT_NUMERIC = { ingresos: true, egresos: true, gp: true, comVentas: true, sueldosIng: true, sueldosCargas: true, costoFinMp: true, costoDir: true, costoInd: true, costoTotal: true, ingresosCf: true, ingresosSf: true };
     const TODAS_SORT_NUMERIC = { mes: true, anio: true, monto: true, editado: true };
 
     function valorSortVacio(v) {
@@ -7105,6 +7145,8 @@
         'Costo dir. / Ingresos',
         'Costo ind. / Ingresos',
         'Costo total / Ingreso total',
+        'Ingresos c/f / Ingresos',
+        'Ingresos s/f / Ingresos',
         'Alertas'
       ];
       const periodoLabel = (flujoUx() && flujoUx().labelPeriodoActual()) ? flujoUx().labelPeriodoActual() : 'Período actual';
@@ -7113,7 +7155,7 @@
       const rowMeta = [{ kind: 'titulo' }, { kind: 'header' }];
       snap.filas.forEach((f) => {
         if (f.kind === 'titulo_proy' || f.kind === 'disclaimer') {
-          rows.push([f.mes || '', '', '', '', '', '', '', '', '', '', '', '']);
+          rows.push([f.mes || '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
           rowMeta.push({ kind: f.kind });
           return;
         }
@@ -7130,6 +7172,8 @@
           celdaPct(f.costoDir),
           celdaPct(f.costoInd),
           celdaPct(f.costoTotal),
+          celdaPct(f.ingresosCf),
+          celdaPct(f.ingresosSf),
           f.alertas || ''
         ]);
         rowMeta.push({ kind: f.kind || 'real' });
@@ -7172,13 +7216,13 @@
               partial.numFmt = EF_EXCEL_NUMFMT_ENTERO_AR;
             }
           }
-          if (c >= 4 && c <= 10) {
+          if (c >= 4 && c <= 12) {
             if (cell && typeof cell.v === 'number') {
               cell.z = EF_EXCEL_NUMFMT_PCT_AR;
               partial.numFmt = EF_EXCEL_NUMFMT_PCT_AR;
             }
           }
-          if (c === 11) partial.alignment = { wrapText: true, vertical: 'top' };
+          if (c === 13) partial.alignment = { wrapText: true, vertical: 'top' };
           efExcelMergeCellStyle(cell, partial);
         }
       }
@@ -7186,6 +7230,7 @@
       ws['!cols'] = [
         { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
         { wch: 16 }, { wch: 16 }, { wch: 28 }, { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 18 },
+        { wch: 22 }, { wch: 22 },
         { wch: 48 }
       ];
       ws['!rows'] = [{ hpt: 28 }, { hpt: 22 }];
@@ -7465,6 +7510,25 @@
       const medio = String((r && r.medio_pago) || '').toLowerCase();
       const medioC = medio.replace(/\s+/g, '');
       return medioC.includes('mercadopago') || (medio.includes('mercado') && medio.includes('pago'));
+    }
+
+    function normCajaFlujo(s) {
+      return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    /** Cajas con factura de la lista de Flujo: efectivo pesos y dólar, Mercado Pago y las tres transferencias de banco. */
+    function esCajaIngresoConFactura(r) {
+      const canal = String((r && r.canal_tesoreria) || '').trim().toLowerCase();
+      if (canal === 'efectivo_sf' || canal === 'efectivo_sf_usd' || canal === 'morba_sf' || canal === 'fci_galicia' || canal === 'fci_galicia_usd') return false;
+      if (canal === 'mercadopago' || canal === 'galicia' || canal === 'galicia_usd' || canal === 'credicoop' || canal === 'galicia_facturada' || canal === 'galicia_dolar') return true;
+      const medio = normCajaFlujo(r && r.medio_pago);
+      if (!medio || medio.indexOf('sin factura') >= 0 || medio.indexOf('s/f') >= 0) return false;
+      if (medio.indexOf('morba') >= 0 || medio.indexOf('morva') >= 0 || medio.indexOf('fci') >= 0) return false;
+      if (medio === 'efectivo pesos' || medio === 'efectivo dolar') return true;
+      const compact = medio.replace(/\s+/g, '');
+      if (compact === 'mercadopago' || (medio.indexOf('mercado') >= 0 && medio.indexOf('pago') >= 0)) return true;
+      if (medio === 'transferencia galicia' || medio === 'transferencia galicia dolar' || medio === 'transferencia credicoop') return true;
+      return false;
     }
 
     function esEgresoSueldosParaRatio(r) {
@@ -8100,7 +8164,7 @@
       });
       const esc = (v) => (v == null ? '' : String(v)).replace(/</g, '&lt;');
       let html = '<p class="sin-cotizacion-note" style="margin-top:0;">Valores proyectados (sin transacciones reales).</p>';
-      html += '<p><strong>Resumen:</strong> Ingresos ' + simbolo + formatearNumero(d.ing, moneda) + ' · Egresos ' + simbolo + formatearNumero(d.egr, moneda) + ' · G/P ' + simbolo + formatearNumero(d.gp, moneda) + ' · Comisiones/Ventas ' + (d.comVentasPct || '–') + ' · Sueldos/Ingr. ' + (d.sueldosIngPct || '–') + ' · Sueldos+Cargas/Cobranzas ' + (d.sueldosCargasPct || '–') + ' · Costo Fin. MP/Ventas MP ' + (d.costoFinMpPct || '–') + ' · Costo dir./Ingr. ' + (d.costoDirIngPct || '–') + ' · Costo ind./Ingr. ' + (d.costoIndIngPct || '–') + ' · Costo total/Ingr. ' + (d.costoTotalIngPct || '–') + '</p>';
+      html += '<p><strong>Resumen:</strong> Ingresos ' + simbolo + formatearNumero(d.ing, moneda) + ' · Egresos ' + simbolo + formatearNumero(d.egr, moneda) + ' · G/P ' + simbolo + formatearNumero(d.gp, moneda) + ' · Comisiones/Ventas ' + (d.comVentasPct || '–') + ' · Sueldos/Ingr. ' + (d.sueldosIngPct || '–') + ' · Sueldos+Cargas/Cobranzas ' + (d.sueldosCargasPct || '–') + ' · Costo Fin. MP/Ventas MP ' + (d.costoFinMpPct || '–') + ' · Costo dir./Ingr. ' + (d.costoDirIngPct || '–') + ' · Costo ind./Ingr. ' + (d.costoIndIngPct || '–') + ' · Costo total/Ingr. ' + (d.costoTotalIngPct || '–') + ' · Ingresos c/f ' + (d.ingresosCfPct || '–') + ' · Ingresos s/f ' + (d.ingresosSfPct || '–') + '</p>';
       html += '<table class="modal-tabla"><thead><tr><th>Agrupación (matriz)</th><th>Ingresos</th><th>Egresos</th><th>G/P</th></tr></thead><tbody>';
       filas.forEach(f => {
         const cls = f.gp >= 0 ? 'positivo' : 'negativo';

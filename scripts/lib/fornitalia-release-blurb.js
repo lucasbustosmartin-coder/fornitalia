@@ -8,12 +8,12 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.98',
+    versionLabel: 'v2.99',
     lines: [
-      'En Matriz EF se puede borrar una relación que no tiene movimientos.',
-      'Si tiene movimientos, queda el candado y se ve cuántos hay.',
-      'En Estructura EF, un renglón se puede sacar junto con esas relaciones vacías.',
-      'Las fórmulas del Estado Financiero siguen protegidas.'
+      'En Flujo por mes hay dos ratios nuevos: ingresos con factura y sin factura.',
+      'Con factura son Efectivo Pesos, Efectivo Dólar, Mercado Pago y las transferencias de Galicia y Credicoop.',
+      'Sin factura es el resto de las cajas. Entre los dos siempre suman 100%.',
+      'También salen en el Excel y en el PDF del flujo.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
