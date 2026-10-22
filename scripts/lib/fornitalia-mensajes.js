@@ -40,6 +40,7 @@
           '<p id="fn-msg-texto" class="fn-msg-texto"></p>' +
           '<div class="fn-msg-actions">' +
             '<button type="button" class="btn" id="fn-msg-cancelar"><span class="btn-icon">' + SVG_X + '</span><span class="fn-msg-label">Cancelar</span></button>' +
+            '<button type="button" class="btn btn-danger" id="fn-msg-extra" hidden><span class="btn-icon">' + SVG_X + '</span><span class="fn-msg-label">Extra</span></button>' +
             '<button type="button" class="btn btn-primary" id="fn-msg-aceptar"><span class="btn-icon">' + SVG_CHECK + '</span><span class="fn-msg-label">Aceptar</span></button>' +
           '</div>' +
         '</div>' +
@@ -51,9 +52,11 @@
       texto: backdrop.querySelector('#fn-msg-texto'),
       aceptar: backdrop.querySelector('#fn-msg-aceptar'),
       cancelar: backdrop.querySelector('#fn-msg-cancelar'),
+      extra: backdrop.querySelector('#fn-msg-extra'),
       cerrar: backdrop.querySelector('#fn-msg-cerrar'),
       labelAceptar: backdrop.querySelector('#fn-msg-aceptar .fn-msg-label'),
-      labelCancelar: backdrop.querySelector('#fn-msg-cancelar .fn-msg-label')
+      labelCancelar: backdrop.querySelector('#fn-msg-cancelar .fn-msg-label'),
+      labelExtra: backdrop.querySelector('#fn-msg-extra .fn-msg-label')
     };
     return nodo;
   }
@@ -71,6 +74,12 @@
     ui.labelCancelar.textContent = opts.cancelar || 'Cancelar';
     ui.cancelar.hidden = !!esAviso;
     ui.aceptar.className = 'btn ' + (opts.peligro ? 'btn-danger' : 'btn-primary');
+    var extra = !esAviso && opts.extra && opts.extra.texto ? opts.extra : null;
+    ui.extra.hidden = !extra;
+    if (extra) {
+      ui.labelExtra.textContent = extra.texto;
+      ui.extra.className = 'btn ' + (extra.peligro ? 'btn-danger' : 'btn-primary');
+    }
     ui.backdrop.classList.add('activo');
     ui.backdrop.setAttribute('aria-hidden', 'false');
 
@@ -79,6 +88,7 @@
       ui.backdrop.setAttribute('aria-hidden', 'true');
       ui.aceptar.onclick = null;
       ui.cancelar.onclick = null;
+      ui.extra.onclick = null;
       ui.cerrar.onclick = null;
       document.removeEventListener('keydown', onKey, true);
       ui.backdrop.removeEventListener('mousedown', onDown, true);
@@ -101,6 +111,7 @@
     }
     ui.aceptar.onclick = function () { terminar(esAviso ? undefined : true); };
     ui.cancelar.onclick = function () { terminar(false); };
+    ui.extra.onclick = function () { terminar('extra'); };
     ui.cerrar.onclick = function () { terminar(esAviso ? undefined : false); };
     document.addEventListener('keydown', onKey, true);
     ui.backdrop.addEventListener('mousedown', onDown, true);
@@ -128,7 +139,8 @@
       titulo: opciones.titulo || 'Confirmar',
       aceptar: opciones.aceptar || 'Aceptar',
       cancelar: opciones.cancelar || 'Cancelar',
-      peligro: esPeligro(mensaje, opciones)
+      peligro: esPeligro(mensaje, opciones),
+      extra: opciones.extra || null
     });
   }
 

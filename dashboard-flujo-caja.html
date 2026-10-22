@@ -8,12 +8,14 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-  <script src="scripts/lib/fornitalia-mensajes.js?v=2.75"></script>
+  <script src="scripts/lib/fornitalia-mensajes.js?v=2.100"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-todo.css?v=2.100">
+  <script src="scripts/lib/fornitalia-todo.js?v=2.100"></script>
   <script src="scripts/lib/fornitalia-tipo-cambio-global.js?v=2.92"></script>
-  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.99"></script>
+  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.100"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.99"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.100"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
@@ -1262,6 +1264,10 @@
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M16 8.5H10.5a2.5 2.5 0 000 5h3a2.5 2.5 0 010 5H8"/></svg></span>
         <span class="menu-label">Flujo de caja</span>
       </button>
+      <button type="button" class="menu-item" id="menu-todo" title="To-Do" aria-label="To-Do" style="display:none;">
+        <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
+        <span class="menu-label">To-Do</span>
+      </button>
       <button type="button" class="menu-item" id="menu-gestion-proyectos" title="Gestión de Proyectos" aria-label="Gestión de Proyectos" style="display:none;">
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg></span>
         <span class="menu-label">Gestión de Proyectos</span>
@@ -1581,6 +1587,385 @@
     © 2026 Developed by L&amp;P Financial Consulting
   </footer>
   </div>
+  <div id="view-todo" style="display:none;">
+    <div class="dashboard-header-row">
+      <h1 class="vista-titulo">
+        <span class="vista-titulo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
+        To-Do
+      </h1>
+    </div>
+      <div id="todo-bandeja" class="vista-todo">
+        <div id="todo-resumen" class="todo-resumen" aria-label="Resumen de tareas">
+          <div class="todo-resumen-card"><p class="todo-resumen-label">Pendientes</p><p class="todo-resumen-valor" id="todo-sum-pendientes">0</p></div>
+          <div class="todo-resumen-card"><p class="todo-resumen-label">En curso</p><p class="todo-resumen-valor" id="todo-sum-en-curso">0</p></div>
+          <div class="todo-resumen-card vencidas"><p class="todo-resumen-label">Vencidas</p><p class="todo-resumen-valor" id="todo-sum-vencidas">0</p></div>
+          <div class="todo-resumen-card hechas"><p class="todo-resumen-label">Hechas hoy</p><p class="todo-resumen-valor" id="todo-sum-hechas">0</p></div>
+        </div>
+        <div class="card todo-toolbar">
+          <div class="todo-filtros">
+            <div class="form-group">
+              <label for="todo-filtro-estado">Estado</label>
+              <select id="todo-filtro-estado" aria-label="Filtrar por estado">
+                <option value="abiertas" selected>Abiertas</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="en_curso">En curso</option>
+                <option value="vencida">Vencida</option>
+                <option value="hecha">Hecha</option>
+                <option value="cancelada">Cancelada</option>
+                <option value="">Todos</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="todo-filtro-prioridad">Prioridad</label>
+              <select id="todo-filtro-prioridad" aria-label="Filtrar por prioridad">
+                <option value="">Todas</option>
+                <option value="1">Alta</option>
+                <option value="2">Media</option>
+                <option value="3">Baja</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="todo-filtro-ventana">Vencimiento</label>
+              <select id="todo-filtro-ventana" aria-label="Filtrar por ventana de vencimiento">
+                <option value="hoy" selected>Hoy</option>
+                <option value="semana">Próximos 7 días</option>
+                <option value="vencidas">Solo vencidas</option>
+                <option value="todas">Todas</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="todo-filtro-sede">Sede</label>
+              <select id="todo-filtro-sede" aria-label="Filtrar por sede">
+                <option value="">Todas</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="todo-filtro-q">Buscar</label>
+              <input type="search" id="todo-filtro-q" placeholder="Título o responsable" aria-label="Buscar tareas" />
+            </div>
+          </div>
+          <div class="todo-acciones">
+            <button type="button" class="btn-todo-excel" id="btn-todo-excel" title="Exportar a Excel" aria-label="Exportar To-Do a Excel">
+              <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+              Excel
+            </button>
+            <button type="button" class="btn-todo-nueva" id="btn-todo-nueva" style="display:none;" title="Nueva tarea" aria-label="Nueva tarea">
+              <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+              Nueva tarea
+            </button>
+          </div>
+        </div>
+        <div id="todo-estado" class="card" style="display:none;" role="alert"></div>
+        <div class="tabs todo-tabs" id="todo-tabs" role="tablist" aria-label="Vistas del To-Do">
+          <button type="button" class="tab activo" id="todo-tab-tareas" data-todo-tab="tareas" role="tab" aria-selected="true" aria-controls="todo-panel-tareas">
+            <span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
+            Tareas
+          </button>
+          <button type="button" class="tab" id="todo-tab-matriz" data-todo-tab="matriz" role="tab" aria-selected="false" aria-controls="todo-panel-matriz" style="display:none;">
+            <span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span>
+            Por responsable
+          </button>
+        </div>
+        <div id="todo-panel-tareas" class="todo-panel activo" role="tabpanel" aria-labelledby="todo-tab-tareas">
+          <div class="todo-tabla-wrap tabla-wrap-con-scroll">
+            <table class="todo-tabla" id="todo-tabla" aria-label="Bandeja de tareas">
+              <thead>
+                <tr>
+                  <th class="col-tarea">Tarea</th>
+                  <th class="col-sede">Sede</th>
+                  <th class="col-responsable">Responsable</th>
+                  <th class="col-accion">Acción</th>
+                  <th class="col-venc">Vencimiento</th>
+                  <th class="col-prio">Prioridad</th>
+                  <th class="col-estado">Estado</th>
+                  <th class="col-usuario">Usuario</th>
+                  <th class="col-rec">Recurrencia</th>
+                </tr>
+              </thead>
+              <tbody id="todo-tbody"></tbody>
+            </table>
+          </div>
+          <p class="todo-tabla-scroll-hint">Deslizá la tabla hacia la derecha para ver vencimiento, prioridad, estado y el resto de columnas.</p>
+        </div>
+        <div id="todo-panel-matriz" class="todo-panel" role="tabpanel" aria-labelledby="todo-tab-matriz">
+          <p class="todo-matriz-hint">Cantidad de tareas por responsable (perfil o usuario) y estado, según los filtros de arriba. Hacé clic en un número para ver el detalle.</p>
+          <div class="todo-tabla-wrap tabla-wrap-con-scroll">
+            <table class="todo-tabla todo-matriz" id="todo-matriz" aria-label="Resumen por responsable">
+              <thead>
+                <tr>
+                  <th class="sticky-col">Responsable</th>
+                  <th class="num">Pendiente</th>
+                  <th class="num">En curso</th>
+                  <th class="num">Vencida</th>
+                  <th class="num">Hecha</th>
+                  <th class="num">Cancelada</th>
+                  <th class="num">Total</th>
+                </tr>
+              </thead>
+              <tbody id="todo-matriz-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="modal-todo-matriz-backdrop" class="modal-backdrop oculto" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-todo-matriz-titulo">
+          <div class="modal-header">
+            <h2 id="modal-todo-matriz-titulo" style="margin:0; font-size:1.15rem;">Detalle</h2>
+            <button type="button" class="modal-close" id="modal-todo-matriz-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
+          </div>
+          <div class="modal-body" id="modal-todo-matriz-body">
+            <div class="todo-tabla-wrap tabla-wrap-con-scroll">
+              <table class="todo-tabla" aria-label="Tareas del responsable">
+                <thead>
+                  <tr>
+                    <th>Tarea</th>
+                    <th>Sede</th>
+                    <th>Vencimiento</th>
+                    <th>Prioridad</th>
+                    <th>Estado</th>
+                    <th>Usuario</th>
+                    <th>Recurrencia</th>
+                  </tr>
+                </thead>
+                <tbody id="todo-matriz-modal-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="modal-todo-nueva-backdrop" class="modal-backdrop oculto" aria-hidden="true">
+        <div class="modal modal-todo" role="dialog" aria-modal="true" aria-labelledby="modal-todo-nueva-titulo">
+          <div class="modal-header">
+            <h2 id="modal-todo-nueva-titulo" style="margin:0; font-size:1.15rem;">Nueva tarea</h2>
+            <button type="button" class="modal-close" id="modal-todo-nueva-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
+          </div>
+          <div class="modal-body">
+            <form id="form-todo-nueva" class="todo-form-grid">
+              <div class="form-group full">
+                <label for="todo-nueva-titulo">Título *</label>
+                <input type="text" id="todo-nueva-titulo" required maxlength="200" placeholder="Ej. Revisar caja de recepción" />
+              </div>
+              <div class="form-group full">
+                <label for="todo-nueva-desc">Descripción</label>
+                <textarea id="todo-nueva-desc" maxlength="2000" placeholder="Detalle opcional"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="todo-nueva-prioridad">Prioridad</label>
+                <select id="todo-nueva-prioridad">
+                  <option value="1">Alta</option>
+                  <option value="2" selected>Media</option>
+                  <option value="3">Baja</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="todo-nueva-resp-tipo">Responsable *</label>
+                <select id="todo-nueva-resp-tipo">
+                  <option value="usuario">Usuario</option>
+                  <option value="rol">Perfil / rol</option>
+                </select>
+              </div>
+              <div class="form-group full" id="todo-nueva-resp-user-wrap">
+                <label for="todo-nueva-resp-user">Usuario responsable *</label>
+                <select id="todo-nueva-resp-user" required></select>
+              </div>
+              <div class="form-group full" id="todo-nueva-resp-rol-wrap" style="display:none;">
+                <label for="todo-nueva-resp-rol">Perfil responsable *</label>
+                <select id="todo-nueva-resp-rol"></select>
+              </div>
+              <div class="form-group">
+                <label for="todo-nueva-sede-modo">Sede *</label>
+                <select id="todo-nueva-sede-modo">
+                  <option value="todas">Todas las sedes (replica)</option>
+                  <option value="una">Una sede</option>
+                  <option value="empresa">Empresa (una sola tarea)</option>
+                </select>
+              </div>
+              <div class="form-group" id="todo-nueva-sede-wrap" style="display:none;">
+                <label for="todo-nueva-sede">Sede concreta *</label>
+                <select id="todo-nueva-sede"></select>
+              </div>
+              <div class="form-group">
+                <label for="todo-nueva-recurrencia">Recurrencia</label>
+                <select id="todo-nueva-recurrencia">
+                  <option value="ninguna">Una vez (ad-hoc)</option>
+                  <option value="diaria">Diaria (con hora)</option>
+                  <option value="semanal">Semanal</option>
+                  <option value="mensual">Mensual</option>
+                  <option value="bimestral">Bimestral</option>
+                  <option value="trimestral">Trimestral</option>
+                  <option value="anual">Anual</option>
+                </select>
+              </div>
+              <div class="form-group" id="todo-nueva-fecha-wrap">
+                <label for="todo-nueva-fecha" id="todo-nueva-fecha-label">Fecha de vencimiento</label>
+                <input type="date" id="todo-nueva-fecha" />
+                <small id="todo-nueva-fecha-hint" style="display:block; margin-top:0.25rem; color:#64748b; font-size:0.78rem;">No se asignan vencimientos en domingo (el comercio está cerrado).</small>
+              </div>
+              <div class="form-group" id="todo-nueva-fecha-fin-wrap" style="display:none;">
+                <label for="todo-nueva-fecha-fin">Replicar hasta *</label>
+                <input type="date" id="todo-nueva-fecha-fin" />
+                <small style="display:block; margin-top:0.25rem; color:#64748b; font-size:0.78rem;">Obligatorio en recurrentes. Máx. 366 días desde el primer vencimiento.</small>
+              </div>
+              <div class="form-group" id="todo-nueva-hora-wrap">
+                <label for="todo-nueva-hora">Hora (Argentina)</label>
+                <input type="time" id="todo-nueva-hora" value="18:00" />
+              </div>
+              <div class="form-group" id="todo-nueva-dia-semana-wrap" style="display:none;">
+                <label for="todo-nueva-dia-semana">Día de la semana</label>
+                <select id="todo-nueva-dia-semana">
+                  <option value="1">Lunes</option>
+                  <option value="2">Martes</option>
+                  <option value="3">Miércoles</option>
+                  <option value="4">Jueves</option>
+                  <option value="5">Viernes</option>
+                  <option value="6">Sábado</option>
+                  <option value="7">Domingo</option>
+                </select>
+              </div>
+              <div class="form-group" id="todo-nueva-dia-mes-wrap" style="display:none;">
+                <label for="todo-nueva-dia-mes">Día del mes</label>
+                <input type="number" id="todo-nueva-dia-mes" min="1" max="31" value="1" />
+              </div>
+              <p id="todo-nueva-error" class="todo-form-error full" style="display:none;"></p>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" form="form-todo-nueva" class="btn-todo-nueva" id="todo-nueva-guardar">
+              <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              Guardar
+            </button>
+            <button type="button" id="todo-nueva-cancelar" style="min-height:44px; padding:0.5rem 1rem; border:1px solid #999; background:#fff; border-radius:8px; cursor:pointer; font-size:0.9rem;">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="modal-todo-editar-backdrop" class="modal-backdrop oculto" aria-hidden="true">
+        <div class="modal modal-todo" role="dialog" aria-modal="true" aria-labelledby="modal-todo-editar-titulo">
+          <div class="modal-header">
+            <h2 id="modal-todo-editar-titulo" style="margin:0; font-size:1.15rem;">Editar tarea</h2>
+            <button type="button" class="modal-close" id="modal-todo-editar-close" aria-label="Cerrar"><span class="icon-close"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span></button>
+          </div>
+          <div class="modal-body">
+            <form id="form-todo-editar" class="todo-form-grid">
+              <input type="hidden" id="todo-editar-id" />
+              <div class="form-group full">
+                <label for="todo-editar-titulo">Título *</label>
+                <input type="text" id="todo-editar-titulo" required maxlength="200" />
+              </div>
+              <div class="form-group full">
+                <label for="todo-editar-desc">Descripción</label>
+                <textarea id="todo-editar-desc" maxlength="2000"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="todo-editar-prioridad">Prioridad</label>
+                <select id="todo-editar-prioridad">
+                  <option value="1">Alta</option>
+                  <option value="2">Media</option>
+                  <option value="3">Baja</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="todo-editar-sede">Sede</label>
+                <select id="todo-editar-sede"></select>
+              </div>
+              <div class="form-group">
+                <label for="todo-editar-fecha">Fecha vencimiento</label>
+                <input type="date" id="todo-editar-fecha" />
+              </div>
+              <div class="form-group">
+                <label for="todo-editar-hora">Hora (Argentina)</label>
+                <input type="time" id="todo-editar-hora" />
+              </div>
+              <div class="form-group full" id="todo-editar-plantilla-wrap" style="display:none;">
+                <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+                  <input type="checkbox" id="todo-editar-plantilla" />
+                  <span>También actualizar la plantilla recurrente (título, descripción, prioridad)</span>
+                </label>
+              </div>
+              <p id="todo-editar-error" class="todo-form-error full" style="display:none;"></p>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" form="form-todo-editar" class="btn-todo-nueva" id="todo-editar-guardar">
+              <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+              Guardar cambios
+            </button>
+            <button type="button" id="todo-editar-cancelar" style="min-height:44px; padding:0.5rem 1rem; border:1px solid #999; background:#fff; border-radius:8px; cursor:pointer; font-size:0.9rem;">Cancelar</button>
+          </div>
+        </div>
+      </div>
+<section id="todo-reasignar" class="todo-reasignar" style="display:none;">
+<h2 class="vista-titulo" style="font-size:1.15rem;margin:0 0 0.75rem;">Reasignar tareas</h2>
+      <div id="vista-config" class="vista-config" style="display:block;">
+        <p class="config-hint">Reasigná tareas abiertas (pendiente / en curso) de un usuario o perfil a otro. Sirve para bajas o ausencias: una, varias o todas. Si reasignás todas, también se mueven las plantillas recurrentes para que las próximas ocurrencias queden en el destino.</p>
+        <div class="tabs" id="config-tabs" role="tablist" aria-label="Reasignar por usuario o perfil">
+          <button type="button" class="tab activo" id="config-tab-usuario" data-config-tab="usuario" role="tab" aria-selected="true">
+            <span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+            Por usuario
+          </button>
+          <button type="button" class="tab" id="config-tab-perfil" data-config-tab="perfil" role="tab" aria-selected="false">
+            <span class="tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span>
+            Por perfil
+          </button>
+        </div>
+        <div class="card config-toolbar">
+          <div class="config-filtros" id="config-filtros-usuario">
+            <div class="form-group">
+              <label for="config-from-user">Desde usuario</label>
+              <select id="config-from-user" aria-label="Usuario de origen"></select>
+            </div>
+            <div class="form-group">
+              <label for="config-to-user">Hacia usuario</label>
+              <select id="config-to-user" aria-label="Usuario de destino"></select>
+            </div>
+          </div>
+          <div class="config-filtros" id="config-filtros-perfil" style="display:none;">
+            <div class="form-group">
+              <label for="config-from-rol">Desde perfil</label>
+              <select id="config-from-rol" aria-label="Perfil de origen"></select>
+            </div>
+            <div class="form-group">
+              <label for="config-to-rol">Hacia perfil</label>
+              <select id="config-to-rol" aria-label="Perfil de destino"></select>
+            </div>
+          </div>
+          <div class="config-acciones">
+            <button type="button" class="btn-config btn-config-buscar" id="btn-config-buscar" title="Buscar tareas" aria-label="Buscar tareas">
+              <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span>
+              Buscar
+            </button>
+            <button type="button" class="btn-config btn-config-reasign" id="btn-config-seleccionadas" title="Reasignar seleccionadas" aria-label="Reasignar seleccionadas">
+              <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></span>
+              Reasignar seleccionadas
+            </button>
+            <button type="button" class="btn-config btn-config-todas" id="btn-config-todas" title="Reasignar todas" aria-label="Reasignar todas">
+              <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/></svg></span>
+              Reasignar todas
+            </button>
+          </div>
+        </div>
+        <div id="config-estado" class="card" style="display:none;" role="alert"></div>
+        <div class="config-tabla-wrap tabla-wrap-con-scroll">
+          <table class="config-tabla" id="config-tabla" aria-label="Tareas a reasignar">
+            <thead>
+              <tr>
+                <th class="chk"><input type="checkbox" id="config-check-all" title="Seleccionar todas" aria-label="Seleccionar todas" /></th>
+                <th>Tarea</th>
+                <th>Sede</th>
+                <th>Vencimiento</th>
+                <th>Prioridad</th>
+                <th>Estado</th>
+                <th>Recurrencia</th>
+              </tr>
+            </thead>
+            <tbody id="config-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+</section>
+  </div>
   <div id="view-gestion-proyectos" class="card vista-gp" style="display:none;"></div>
   <div id="view-conciliacion-bancaria" class="card vista-cb" style="display:none;"></div>
   <div id="view-cajas-fisicas" class="card vista-cf" style="display:none;"></div>
@@ -1658,7 +2043,7 @@
     <template id="template-seguridad-intro">
       <div class="th-help-rich-content">
         <p>Asigná el rol (Admin, Encargado, Visor o un perfil que crees) y el <strong>nombre para mostrar</strong> (habitualmente iniciales, ej. LB) a cada usuario. Ese nombre aparece como responsable en Gestión de Proyectos.</p>
-        <p>Con <strong>Nuevo perfil</strong> das de alta un rol vacío y después activás o desactivás <strong>cada solapa y menú</strong> para ese perfil. En <strong>Flujo de caja</strong> se elige qué se ve: Cards, Flujo por mes, Todas las transacciones, Evolución, Estado financiero y el botón Cargar tesorería histórica. Los cambios aplican a todos los usuarios con ese rol. Admin, Encargado y Visor no se pueden borrar.</p>
+        <p>Con <strong>Nuevo perfil</strong> das de alta un rol vacío y después activás o desactivás <strong>cada solapa y menú</strong> para ese perfil. En <strong>Flujo de caja</strong> se elige qué se ve: Cards, Flujo por mes, Todas las transacciones, Evolución, Estado financiero y el botón Cargar tesorería histórica. En <strong>To-Do</strong>, el menú está en Menús laterales; crear, editar, eliminar y completar se eligen en el bloque To-Do. Los cambios aplican a todos los usuarios con ese rol. Admin, Encargado y Visor no se pueden borrar.</p>
       </div>
     </template>
     <div id="seguridad-loading" class="seguridad-loading">Cargando usuarios…</div>
@@ -2134,7 +2519,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.99';
+    const APP_VERSION = '2.100';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -2160,6 +2545,7 @@
     const PERM_VER_CONFIGURACION = 'ver_configuracion';
     const PERM_VER_REPORTES = 'ver_reportes';
     const PERM_VER_GESTION_PROYECTOS = 'ver_gestion_proyectos';
+    const PERM_VER_TODO = 'ver_todo';
     const PERM_VER_CONCILIACION_BANCARIA = 'ver_conciliacion_bancaria';
     const PERM_CARGAR_CONCILIACION_BANCARIA = 'cargar_conciliacion_bancaria';
     const PERM_VER_CAJAS_FISICAS = 'ver_cajas_fisicas';
@@ -2551,6 +2937,7 @@
       const nov = hasPerm(PERM_VER_NOVEDADES);
       const cfg = hasPerm(PERM_VER_CONFIGURACION);
       const gp = hasPerm(PERM_VER_GESTION_PROYECTOS);
+      const todo = hasPerm(PERM_VER_TODO);
       const cb = hasPerm(PERM_VER_CONCILIACION_BANCARIA);
       const cf = hasPerm(PERM_VER_CAJAS_FISICAS);
       const se = hasPerm(PERM_VER_SALDOS_EXTRACTOS);
@@ -2565,6 +2952,7 @@
       setVis('menu-reportes', rep);
       setVis('menu-novedades', nov);
       setVis('menu-configuracion', cfg);
+      setVis('menu-todo', todo);
       setVis('menu-gestion-proyectos', gp);
       setVis('menu-conciliacion-bancaria', cb);
       setVis('menu-cajas-fisicas', cf);
@@ -2646,6 +3034,7 @@
     function menusLateralesConVista() {
       return [
         { vista: 'dashboard', menuId: 'menu-home', ok: () => puedeVerMenuFlujoCaja() },
+        { vista: 'todo', menuId: 'menu-todo', ok: () => hasPerm(PERM_VER_TODO) },
         { vista: 'gestion-proyectos', menuId: 'menu-gestion-proyectos', ok: () => hasPerm(PERM_VER_GESTION_PROYECTOS) },
         { vista: 'conciliacion-bancaria', menuId: 'menu-conciliacion-bancaria', ok: () => hasPerm(PERM_VER_CONCILIACION_BANCARIA) },
         { vista: 'cajas-fisicas', menuId: 'menu-cajas-fisicas', ok: () => hasPerm(PERM_VER_CAJAS_FISICAS) },
@@ -2670,6 +3059,7 @@
     function vistaPrincipalActiva() {
       const pares = [
         ['view-dashboard', 'dashboard'],
+        ['view-todo', 'todo'],
         ['view-gestion-proyectos', 'gestion-proyectos'],
         ['view-conciliacion-bancaria', 'conciliacion-bancaria'],
         ['view-cajas-fisicas', 'cajas-fisicas'],
@@ -2701,7 +3091,8 @@
       }
       mostrarVistaPrincipal(first.vista, opts);
       activarMenuLateral(first.menuId);
-      if (first.vista === 'gestion-proyectos' && window.FornitaliaGestionProyectos) window.FornitaliaGestionProyectos.show();
+      if (first.vista === 'todo' && window.FornitaliaTodo) window.FornitaliaTodo.show();
+      else if (first.vista === 'gestion-proyectos' && window.FornitaliaGestionProyectos) window.FornitaliaGestionProyectos.show();
       else if (first.vista === 'conciliacion-bancaria' && window.FornitaliaConciliacionBancaria) window.FornitaliaConciliacionBancaria.show();
       else if (first.vista === 'cajas-fisicas' && window.FornitaliaCajasFisicas) window.FornitaliaCajasFisicas.show();
       else if (first.vista === 'saldos-extractos' && window.FornitaliaSaldosExtractos) window.FornitaliaSaldosExtractos.show();
@@ -2718,6 +3109,7 @@
       const vn = document.getElementById('view-novedades');
       const vr = document.getElementById('view-reportes');
       const vs = document.getElementById('view-seguridad');
+      const vtodo = document.getElementById('view-todo');
       const vgp = document.getElementById('view-gestion-proyectos');
       const vcb = document.getElementById('view-conciliacion-bancaria');
       const vcf = document.getElementById('view-cajas-fisicas');
@@ -2728,6 +3120,7 @@
       if (vn) vn.style.display = idVista === 'novedades' ? 'block' : 'none';
       if (vr) vr.style.display = idVista === 'reportes' ? 'block' : 'none';
       if (vs) vs.style.display = idVista === 'seguridad' ? 'block' : 'none';
+      if (vtodo) vtodo.style.display = idVista === 'todo' ? 'block' : 'none';
       if (vgp) vgp.style.display = idVista === 'gestion-proyectos' ? 'block' : 'none';
       if (vcb) vcb.style.display = idVista === 'conciliacion-bancaria' ? 'block' : 'none';
       if (vcf) vcf.style.display = idVista === 'cajas-fisicas' ? 'block' : 'none';
@@ -2892,7 +3285,12 @@
       {
         id: 'menus',
         titulo: 'Menús laterales',
-        operar: ['ver_solapa_flujo', 'ver_novedades', 'ver_configuracion', 'ver_reportes', 'ver_gestion_proyectos', 'ver_conciliacion_bancaria', 'ver_cajas_fisicas', 'ver_saldos_extractos', 'ver_impuestos', 'ver_matriz_ef'],
+        operar: ['ver_solapa_flujo', 'ver_todo', 'ver_novedades', 'ver_configuracion', 'ver_reportes', 'ver_gestion_proyectos', 'ver_conciliacion_bancaria', 'ver_cajas_fisicas', 'ver_saldos_extractos', 'ver_impuestos', 'ver_matriz_ef'],
+      },
+      {
+        id: 'todo',
+        titulo: 'To-Do',
+        operar: ['crear_todo', 'editar_todo', 'eliminar_todo', 'completar_todo'],
       },
       {
         id: 'gestion-proyectos',
@@ -3034,6 +3432,11 @@
         if (permMap.ver_solapa_evolucion) permMap.ver_solapa_evolucion = 'Evolución';
         if (permMap.ver_solapa_estado_financiero) permMap.ver_solapa_estado_financiero = 'Estado financiero';
         if (permMap.cargar_tesoreria_historica) permMap.cargar_tesoreria_historica = 'Cargar tesorería histórica';
+        if (permMap.ver_todo) permMap.ver_todo = 'Ver To-Do (menú lateral)';
+        if (permMap.crear_todo) permMap.crear_todo = 'Crear tareas y ver las de todos';
+        if (permMap.editar_todo) permMap.editar_todo = 'Editar tareas';
+        if (permMap.eliminar_todo) permMap.eliminar_todo = 'Eliminar tareas';
+        if (permMap.completar_todo) permMap.completar_todo = 'Completar y cambiar estado';
         const rolePermList = rRolePerms.data || [];
         const rolePermSet = new Set(rolePermList.map((r) => r.role + '|' + r.permission));
         const userCountByRole = {};
@@ -8614,6 +9017,13 @@
         if (window.FornitaliaUsuario) {
           try { await window.FornitaliaUsuario.cargar(client); } catch (e) { /* no cortar el init */ }
         }
+        if (window.FornitaliaTodo) {
+          window.FornitaliaTodo.init({
+            client,
+            hasPerm,
+            getUserId: () => currentUserId,
+          });
+        }
         if (window.FornitaliaGestionProyectos) {
           window.FornitaliaGestionProyectos.init({
             client,
@@ -8684,6 +9094,14 @@
           if (!puedeVerMenuFlujoCaja()) return;
           mostrarVistaPrincipal('dashboard');
           activarMenuLateral('menu-home');
+        });
+        document.getElementById('menu-todo')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (!hasPerm(PERM_VER_TODO)) return;
+          mostrarVistaPrincipal('todo');
+          document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+          document.getElementById('menu-todo')?.classList.add('menu-item-active');
+          if (window.FornitaliaTodo) window.FornitaliaTodo.show();
         });
         document.getElementById('menu-gestion-proyectos')?.addEventListener('click', (e) => {
           e.preventDefault();

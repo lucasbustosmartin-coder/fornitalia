@@ -1,9 +1,9 @@
 {
-  "versionLabel": "v2.99",
+  "versionLabel": "v2.100",
   "lines": [
-    "En Flujo por mes hay dos ratios nuevos: ingresos con factura y sin factura.",
-    "Con factura son Efectivo Pesos, Efectivo Dólar, Mercado Pago y las transferencias de Galicia y Credicoop.",
-    "Sin factura es el resto de las cajas. Entre los dos siempre suman 100%.",
-    "También salen en el Excel y en el PDF del flujo."
+    "Hay un menú nuevo, To-Do, para ver y seguir las tareas.",
+    "Se puede crear una tarea única o que se repite, y asignarla a una persona o a un perfil.",
+    "En Seguridad se elige quién ve el menú y quién puede crear, editar, eliminar o completar.",
+    "La descripción se abre con el ícono de ayuda, al lado del título."
   ]
 }
