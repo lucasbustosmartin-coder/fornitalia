@@ -8,14 +8,14 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-  <script src="scripts/lib/fornitalia-mensajes.js?v=2.100"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-todo.css?v=2.100">
-  <script src="scripts/lib/fornitalia-todo.js?v=2.100"></script>
+  <script src="scripts/lib/fornitalia-mensajes.js?v=2.101"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-todo.css?v=2.101">
+  <script src="scripts/lib/fornitalia-todo.js?v=2.101"></script>
   <script src="scripts/lib/fornitalia-tipo-cambio-global.js?v=2.92"></script>
-  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.100"></script>
+  <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.101"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.100"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.101"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
@@ -1625,6 +1625,19 @@
               </select>
             </div>
             <div class="form-group">
+              <label for="todo-filtro-recurrencia">Recurrencia</label>
+              <select id="todo-filtro-recurrencia" aria-label="Filtrar por recurrencia">
+                <option value="">Todas</option>
+                <option value="ninguna">Única</option>
+                <option value="diaria">Diaria</option>
+                <option value="semanal">Semanal</option>
+                <option value="mensual">Mensual</option>
+                <option value="bimestral">Bimestral</option>
+                <option value="trimestral">Trimestral</option>
+                <option value="anual">Anual</option>
+              </select>
+            </div>
+            <div class="form-group">
               <label for="todo-filtro-ventana">Vencimiento</label>
               <select id="todo-filtro-ventana" aria-label="Filtrar por ventana de vencimiento">
                 <option value="hoy" selected>Hoy</option>
@@ -2519,7 +2532,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.100';
+    const APP_VERSION = '2.101';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';

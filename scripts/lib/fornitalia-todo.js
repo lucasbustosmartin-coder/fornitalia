@@ -484,11 +484,23 @@
         return ((row.titulo || '') + ' ' + (row.descripcion || '') + ' ' + (row.responsable_label || '')).toLowerCase();
       }
 
+      function todoRecurrenciaSeleccionada() {
+        return ((document.getElementById('todo-filtro-recurrencia') || {}).value || '').trim();
+      }
+
+      function todoCoincideRecurrencia(row, rec) {
+        if (!rec) return true;
+        var actual = (row && row.recurrencia) ? String(row.recurrencia) : 'ninguna';
+        return actual === rec;
+      }
+
       function todoListaFiltradaLocal() {
         var q = ((document.getElementById('todo-filtro-q') || {}).value || '').trim().toLowerCase();
-        if (!q) return TODO_LISTA_ACTUAL.slice();
+        var rec = todoRecurrenciaSeleccionada();
         return TODO_LISTA_ACTUAL.filter(function(row) {
-          return todoTextoBusqueda(row).indexOf(q) !== -1;
+          if (!todoCoincideRecurrencia(row, rec)) return false;
+          if (q && todoTextoBusqueda(row).indexOf(q) === -1) return false;
+          return true;
         });
       }
 
@@ -502,8 +514,10 @@
           else if (est === 'en_curso') sum.en_curso += 1;
           else if (est === 'vencida') sum.vencidas += 1;
         });
+        var rec = todoRecurrenciaSeleccionada();
         (TODO_HECHAS_HOY || []).forEach(function(r) {
           if (q && todoTextoBusqueda(r).indexOf(q) === -1) return;
+          if (!todoCoincideRecurrencia(r, rec)) return;
           sum.hechas_hoy += 1;
         });
         renderTodoResumen(sum);
@@ -653,7 +667,7 @@
       }
 
       function syncTodoFiltrosActivos() {
-        ['todo-filtro-estado', 'todo-filtro-prioridad', 'todo-filtro-ventana', 'todo-filtro-sede', 'todo-filtro-q'].forEach(function(id) {
+        ['todo-filtro-estado', 'todo-filtro-prioridad', 'todo-filtro-recurrencia', 'todo-filtro-ventana', 'todo-filtro-sede', 'todo-filtro-q'].forEach(function(id) {
           var el = document.getElementById(id);
           if (!el) return;
           var group = el.closest ? el.closest('.form-group') : el.parentElement;
@@ -1010,6 +1024,15 @@
             cargarTodoBandeja();
           });
         });
+        var recFiltro = document.getElementById('todo-filtro-recurrencia');
+        if (recFiltro) {
+          recFiltro.addEventListener('change', function() {
+            syncTodoFiltrosActivos();
+            renderTodoTabla();
+            renderTodoResumenDesdeFiltros();
+            renderTodoMatriz();
+          });
+        }
         var q = document.getElementById('todo-filtro-q');
         if (q) {
           var t = null;

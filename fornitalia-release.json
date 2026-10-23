@@ -1,9 +1,8 @@
 {
-  "versionLabel": "v2.100",
+  "versionLabel": "v2.101",
   "lines": [
-    "Hay un menú nuevo, To-Do, para ver y seguir las tareas.",
-    "Se puede crear una tarea única o que se repite, y asignarla a una persona o a un perfil.",
-    "En Seguridad se elige quién ve el menú y quién puede crear, editar, eliminar o completar.",
-    "La descripción se abre con el ícono de ayuda, al lado del título."
+    "En To-Do hay un filtro de Recurrencia.",
+    "Se puede dejar solo las únicas, o las diarias, semanales, mensuales, bimestrales, trimestrales o anuales.",
+    "También recorta las tarjetas, la matriz por responsable y el Excel."
   ]
 }
