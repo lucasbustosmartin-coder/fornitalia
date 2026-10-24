@@ -6,12 +6,17 @@
  * (no compara el monto). Sin ID compra: solo si es frecuente, y nunca se marca
  * como pagado. Sueldos y Jornales se proyecta el día 1, cada 30 días, con los
  * pagos cargados desde septiembre de 2026.
+ * Cada semana suma un colchón de entre 5% y 30% del estimado.
+ * El porcentaje sale de la dispersión de esa semana del mes en los
+ * últimos 6 meses: la más pareja queda en 5% y la más variable en 30%.
+ * Mercaderías no entra en esa dispersión.
  */
 (function (root) {
   'use strict';
 
   var ZONA = 'America/Argentina/Buenos_Aires';
   var HISTORIA_DIAS = 92;
+  var HISTORIA_COLCHON_MESES = 6;
   var SEMANAS = 4;
   var UMBRAL_IMPUESTO_ARS = 500000;
   var DESDE_NOMINA = '2026-09-01';
@@ -111,6 +116,11 @@
     return /gastos?\s+bancari/.test(norm(cat));
   }
 
+  /** Compra de mercadería: sumas grandes y espaciadas. No entra en el colchón. */
+  function esMercaderia(cuenta) {
+    return norm(cuenta).indexOf('mercaderia') !== -1;
+  }
+
   function esSueldosYJornales(cuenta) {
     return norm(cuenta).indexOf('sueldos y jornales') !== -1;
   }
@@ -121,6 +131,65 @@
 
   function mesDe(ymd) {
     return String(ymd || '').slice(0, 7);
+  }
+
+  function addMonths(ymd, delta) {
+    var p = String(ymd || '').split('-');
+    var y = Number(p[0]);
+    var m = Number(p[1]) + Number(delta || 0);
+    var d = Number(p[2]);
+    if (!y || !Number(p[1]) || !d) return '';
+    while (m > 12) { m -= 12; y += 1; }
+    while (m < 1) { m += 12; y -= 1; }
+    var last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    if (d > last) d = last;
+    return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+
+  /** 1 = días 1 a 7 del mes, 2 = 8 a 14, 3 = 15 a 21, 4 = 22 a 28, 5 = 29 a 31. El día es el lunes de esa semana. */
+  function semanaDelMes(lunes) {
+    var d = diaDelMes(lunes);
+    if (d <= 7) return 1;
+    if (d <= 14) return 2;
+    if (d <= 21) return 3;
+    if (d <= 28) return 4;
+    return 5;
+  }
+
+  function desvioMuestral(nums) {
+    var a = (nums || []).filter(function (n) { return Number.isFinite(n); });
+    if (a.length < 2) return 0;
+    var mean = 0;
+    a.forEach(function (n) { mean += n; });
+    mean /= a.length;
+    var acc = 0;
+    a.forEach(function (n) {
+      var d = n - mean;
+      acc += d * d;
+    });
+    return Math.sqrt(acc / (a.length - 1));
+  }
+
+  /** La semana del mes más pareja suma 5% del estimado; la más variable, 30%. */
+  function porcentajesColchon(stats) {
+    var cvs = [];
+    Object.keys(stats || {}).forEach(function (k) {
+      if (stats[k].n >= 2) cvs.push(stats[k].cv);
+    });
+    var cvMin = cvs.length ? Math.min.apply(null, cvs) : 0;
+    var cvMax = cvs.length ? Math.max.apply(null, cvs) : 0;
+    var out = {};
+    Object.keys(stats || {}).forEach(function (k) {
+      var cv = stats[k].cv;
+      var t = 0;
+      if (cvMax > cvMin) {
+        t = (cv - cvMin) / (cvMax - cvMin);
+        if (t < 0) t = 0;
+        if (t > 1) t = 1;
+      }
+      out[k] = 0.05 + 0.25 * t;
+    });
+    return out;
   }
 
   function diaUnoMesSiguiente(ymd) {
@@ -238,23 +307,30 @@
     opts = opts || {};
     var hoy = opts.hoy || hoyArgentina();
     var desdeHist = addDays(hoy, -HISTORIA_DIAS);
+    var desdeColchon = addMonths(hoy, -HISTORIA_COLCHON_MESES);
     var montoArs = typeof opts.montoArs === 'function' ? opts.montoArs : function (r) { return Number(r.monto) || 0; };
     var excluir = typeof opts.excluir === 'function' ? opts.excluir : function () { return false; };
     var semanas = armarSemanas(hoy);
     var pagos = [];
+    var totalesPorLunes = {};
 
     (rows || []).forEach(function (r) {
       if (!r || excluir(r)) return;
       if (String(r.tipo_movimiento || '') !== 'Egreso') return;
       var fecha = ymdDe(r.fecha);
-      if (!fecha || fecha < desdeHist || fecha > hoy) return;
+      if (!fecha || fecha > hoy || fecha < desdeColchon) return;
       var cat = titulo(r.nueva_categoria || r.categoria, 'Sin categoría');
       if (esAjuste(cat) || esGastoBancario(cat)) return;
       var monto = montoArs(r);
       if (monto == null || !Number.isFinite(Number(monto)) || Number(monto) <= 0) return;
       if (esImpuesto(cat) && Number(monto) <= UMBRAL_IMPUESTO_ARS) return;
-      var prov = titulo(r.cliente, 'Sin identificar');
       var cuenta = titulo(r.nueva_cuenta_contable || r.cuenta_contable, 'Sin cuenta contable');
+      var lunes = lunesDe(diaHabil(fecha));
+      if (!esMercaderia(cuenta) && lunes >= desdeColchon && addDays(lunes, 4) <= hoy) {
+        totalesPorLunes[lunes] = (totalesPorLunes[lunes] || 0) + Number(monto);
+      }
+      if (fecha < desdeHist) return;
+      var prov = titulo(r.cliente, 'Sin identificar');
       pagos.push({
         fecha: fecha,
         prov: prov,
@@ -412,21 +488,73 @@
       if (pagadoEnSemana[it.provKey + '|' + it.semana]) it.yaPagado = true;
     });
 
-    items.sort(function (a, b) {
-      if (a.semana !== b.semana) return a.semana - b.semana;
-      return b.monto - a.monto;
+    var porSemMes = {};
+    Object.keys(totalesPorLunes).forEach(function (lunes) {
+      var k = String(semanaDelMes(lunes));
+      if (!porSemMes[k]) porSemMes[k] = [];
+      porSemMes[k].push(totalesPorLunes[lunes]);
     });
+    var statsSemMes = {};
+    Object.keys(porSemMes).forEach(function (k) {
+      var nums = porSemMes[k];
+      var media = 0;
+      nums.forEach(function (n) { media += n; });
+      media = nums.length ? media / nums.length : 0;
+      var desvio = desvioMuestral(nums);
+      statsSemMes[k] = { n: nums.length, media: media, desvio: desvio, cv: media > 0 ? desvio / media : 0 };
+    });
+    var pctPorSemMes = porcentajesColchon(statsSemMes);
 
     var semanasOut = semanas.map(function (s) {
-      return { i: s.i, desde: s.desde, hasta: s.hasta, label: s.label, rango: s.rango, pendiente: 0, pagado: 0 };
+      var semMes = semanaDelMes(s.desde);
+      var st = statsSemMes[String(semMes)] || { n: 0, cv: 0 };
+      var nHist = st.n;
+      var cv = st.cv || 0;
+      if (nHist < 2 && semMes === 5 && statsSemMes['4']) {
+        nHist = statsSemMes['4'].n;
+        cv = statsSemMes['4'].cv || 0;
+      }
+      var pct = pctPorSemMes[String(semMes)];
+      if (nHist < 2 && semMes === 5 && pctPorSemMes['4'] != null) pct = pctPorSemMes['4'];
+      if (pct == null) pct = 0.05;
+      return {
+        i: s.i, desde: s.desde, hasta: s.hasta, label: s.label, rango: s.rango,
+        pendiente: 0, pagado: 0, colchon: 0, pct: pct, semMes: semMes, colchonN: nHist
+      };
     });
+
     items.forEach(function (it) {
       var s = semanasOut[it.semana];
       if (it.yaPagado) s.pagado += it.monto;
       else s.pendiente += it.monto;
     });
+    semanasOut.forEach(function (s) {
+      var estimado = s.pendiente + s.pagado;
+      s.colchon = estimado > 0 ? s.pct * estimado : 0;
+      if (!(s.colchon > 0)) return;
+      items.push({
+        semana: s.i,
+        fecha: s.desde,
+        prov: 'Últimos 6 meses',
+        provKey: 'colchon',
+        cat: 'Colchón de liquidez',
+        cuenta: 'Semana ' + s.semMes + ' del mes',
+        monto: s.colchon,
+        origen: 'colchon',
+        cada: null,
+        veces: s.colchonN,
+        pct: s.pct,
+        yaPagado: false
+      });
+    });
 
-    return { hoy: hoy, desdeHist: desdeHist, semanas: semanasOut, items: items };
+    items.sort(function (a, b) {
+      if (a.semana !== b.semana) return a.semana - b.semana;
+      if ((a.origen === 'colchon') !== (b.origen === 'colchon')) return a.origen === 'colchon' ? 1 : -1;
+      return b.monto - a.monto;
+    });
+
+    return { hoy: hoy, desdeHist: desdeHist, desdeColchon: desdeColchon, semanas: semanasOut, items: items };
   }
 
   var semanaFiltro = null;
@@ -435,21 +563,28 @@
     return '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>';
   }
 
+  function totalSemana(s) {
+    return s.pendiente + s.pagado + (s.colchon || 0);
+  }
+
   function htmlBarras(modelo, activo) {
     var max = 1;
     modelo.semanas.forEach(function (s) {
-      var t = s.pendiente + s.pagado;
+      var t = totalSemana(s);
       if (t > max) max = t;
     });
     return '<div class="agp-barras" role="list">' + modelo.semanas.map(function (s) {
-      var t = s.pendiente + s.pagado;
+      var t = totalSemana(s);
+      var col = s.colchon || 0;
       var h = t > 0 ? Math.max(8, Math.round((t / max) * 92)) : 0;
       var hPag = t > 0 ? Math.round((s.pagado / t) * h) : 0;
-      var hPen = h - hPag;
+      var hPen = t > 0 ? Math.round((s.pendiente / t) * h) : 0;
+      var hCol = Math.max(0, h - hPag - hPen);
       var on = activo === s.i ? ' agp-barra-on' : '';
-      return '<button type="button" class="agp-barra' + on + '" data-semana="' + s.i + '" role="listitem" title="' + esc(s.label + ' ' + s.rango) + '" aria-label="' + esc(s.label + ', ' + s.rango + ', por pagar ' + fmtPesos(s.pendiente) + ', ya pagado ' + fmtPesos(s.pagado)) + '">' +
+      return '<button type="button" class="agp-barra' + on + '" data-semana="' + s.i + '" role="listitem" title="' + esc(s.label + ' ' + s.rango) + '" aria-label="' + esc(s.label + ', ' + s.rango + ', por pagar ' + fmtPesos(s.pendiente) + ', colchón ' + fmtPesos(col) + ', ya pagado ' + fmtPesos(s.pagado)) + '">' +
         '<span class="agp-barra-monto">' + esc(fmtPesos(t)) + '</span>' +
         '<span class="agp-barra-col" style="height:' + h + 'px">' +
+          '<span class="agp-barra-buf" style="height:' + hCol + 'px"></span>' +
           '<span class="agp-barra-pen" style="height:' + hPen + 'px"></span>' +
           '<span class="agp-barra-pag" style="height:' + hPag + 'px"></span>' +
         '</span>' +
@@ -472,32 +607,44 @@
     var semActual = null;
     var subPen = 0;
     var subPag = 0;
+    var subCol = 0;
     function filaTotal(sem) {
       var s = modelo.semanas[sem];
+      var partes = ['Por pagar ' + fmtPesos(subPen)];
+      if (subCol) partes.push('colchón ' + fmtPesos(subCol));
+      if (subPag) partes.push('ya pagado ' + fmtPesos(subPag));
       return '<tr class="agp-total"><td colspan="4">Total ' + esc(s.label) + ' · ' + esc(s.rango) + '</td>' +
-        '<td class="num">' + esc(fmtPesos(subPen + subPag)) + '</td>' +
-        '<td colspan="2">Por pagar ' + esc(fmtPesos(subPen)) + (subPag ? ' · ya pagado ' + esc(fmtPesos(subPag)) : '') + '</td></tr>';
+        '<td class="num">' + esc(fmtPesos(subPen + subPag + subCol)) + '</td>' +
+        '<td colspan="2">' + esc(partes.join(' · ')) + '</td></tr>';
     }
     lista.forEach(function (it) {
       if (semActual != null && it.semana !== semActual) {
         html += filaTotal(semActual);
         subPen = 0;
         subPag = 0;
+        subCol = 0;
       }
       semActual = it.semana;
-      if (it.yaPagado) subPag += it.monto;
+      if (it.origen === 'colchon') subCol += it.monto;
+      else if (it.yaPagado) subPag += it.monto;
       else subPen += it.monto;
       var s = modelo.semanas[it.semana];
-      var estado = it.yaPagado
-        ? '<span class="agp-badge agp-badge-ok">Ya pagado</span>'
-        : '<span class="agp-badge agp-badge-pend">Por pagar</span>';
-      var base = it.origen === 'nomina'
-        ? 'Día 1 del mes · cada 30 días · carga desde septiembre'
-        : (it.origen === 'compra'
-          ? 'Con ID compra · cada ' + it.cada + ' días'
-          : 'Frecuente, sin ID compra · cada ' + it.cada + ' días');
-      html += '<tr' + (it.yaPagado ? ' class="agp-row-ok"' : '') + '>' +
-        '<td>' + esc(s.label) + '<div class="agp-sub">' + esc(fmtDia(it.fecha)) + '</div></td>' +
+      var estado = it.origen === 'colchon'
+        ? '<span class="agp-badge agp-badge-buf">Colchón</span>'
+        : (it.yaPagado
+          ? '<span class="agp-badge agp-badge-ok">Ya pagado</span>'
+          : '<span class="agp-badge agp-badge-pend">Por pagar</span>');
+      var base = it.origen === 'colchon'
+        ? (Math.round(it.pct * 100) + '% del estimado · semana ' + s.semMes + ' del mes · ' + it.veces + ' semanas en 6 meses')
+        : (it.origen === 'nomina'
+          ? 'Día 1 del mes · cada 30 días · carga desde septiembre'
+          : (it.origen === 'compra'
+            ? 'Con ID compra · cada ' + it.cada + ' días'
+            : 'Frecuente, sin ID compra · cada ' + it.cada + ' días'));
+      var sub = it.origen === 'colchon' ? ('Semana ' + s.semMes + ' del mes') : fmtDia(it.fecha);
+      var filaClase = it.origen === 'colchon' ? 'agp-row-buf' : (it.yaPagado ? 'agp-row-ok' : '');
+      html += '<tr' + (filaClase ? ' class="' + filaClase + '"' : '') + '>' +
+        '<td>' + esc(s.label) + '<div class="agp-sub">' + esc(sub) + '</div></td>' +
         '<td>' + esc(it.cat) + '</td>' +
         '<td>' + esc(it.cuenta || 'Sin cuenta contable') + '</td>' +
         '<td>' + esc(it.prov) + '</td>' +
@@ -518,14 +665,17 @@
     var m = modeloActual;
     var pendiente = 0;
     var pagado = 0;
+    var colchon = 0;
     var nPag = 0;
     m.items.forEach(function (it) {
+      if (it.origen === 'colchon') return;
       if (it.yaPagado) { pagado += it.monto; nPag += 1; }
       else pendiente += it.monto;
     });
+    m.semanas.forEach(function (s) { colchon += s.colchon || 0; });
     var cats = {};
     m.items.forEach(function (it) {
-      if (it.yaPagado) return;
+      if (it.yaPagado || it.origen === 'colchon') return;
       if (!cats[it.cat]) cats[it.cat] = 0;
       cats[it.cat] += it.monto;
     });
@@ -542,15 +692,16 @@
     mount.innerHTML =
       '<section class="agp-card" aria-label="Agenda de pagos">' +
         '<div class="agp-card-top">' +
-          '<button type="button" class="th-help th-help--inline" data-help="Estimado de egresos de las próximas 4 semanas, según los últimos 3 meses. El importe usa los últimos 3 pagos de ese proveedor y categoría: el más reciente pesa más. Primero las series con ID compra. También entran los pagos frecuentes sin ID compra. Impuestos de hasta $ 500.000 y Gastos bancarios no entran. Cada serie se abre por cuenta contable. Las semanas son de lunes a viernes. Si el cálculo cae sábado o domingo, el pago pasa al lunes. Sueldos y Jornales a pagar toma la primera semana del último mes cargado desde septiembre y el próximo cae el primer día hábil. Ya pagado no compara el monto: en esa semana ya hay un egreso con ID compra al mismo proveedor. Eso no se aplica si la serie no tiene ID compra. Tocá una semana para ver solo ese detalle." aria-label="Ayuda: agenda de pagos" title="Ayuda">' + svgAyuda() + '</button>' +
+          '<button type="button" class="th-help th-help--inline" data-help="Estimado de egresos de las próximas 4 semanas, según los últimos 3 meses. El importe usa los últimos 3 pagos de ese proveedor y categoría: el más reciente pesa más. Primero las series con ID compra. También entran los pagos frecuentes sin ID compra. Impuestos de hasta $ 500.000 y Gastos bancarios no entran. Cada serie se abre por cuenta contable. Las semanas son de lunes a viernes. Si el cálculo cae sábado o domingo, el pago pasa al lunes. Sueldos y Jornales a pagar toma la primera semana del último mes cargado desde septiembre y el próximo cae el primer día hábil. Cada semana suma un colchón de entre 5% y 30% del estimado, según la dispersión de esa semana del mes en los últimos 6 meses. La más pareja queda en 5% y la más variable en 30%. La cuenta Mercaderías no entra en esa dispersión. Ya pagado no compara el monto: en esa semana ya hay un egreso con ID compra al mismo proveedor. Eso no se aplica si la serie no tiene ID compra. Tocá una semana para ver solo ese detalle." aria-label="Ayuda: agenda de pagos" title="Ayuda">' + svgAyuda() + '</button>' +
           '<p class="agp-lead">Por pagar en 4 semanas <strong>' + esc(fmtPesos(pendiente)) + '</strong>' +
+            (colchon ? ' · colchón ' + esc(fmtPesos(colchon)) : '') +
             (nPag ? ' · ' + nPag + ' ya pagado' + (nPag === 1 ? '' : 's') + ' (' + esc(fmtPesos(pagado)) + ')' : '') +
           '</p>' +
         '</div>' +
         htmlBarras(m, semanaFiltro) +
-        '<p class="agp-leyenda"><span><i class="pen"></i>Por pagar</span><span><i class="pag"></i>Ya pagado al proveedor</span></p>' +
+        '<p class="agp-leyenda"><span><i class="pen"></i>Por pagar</span><span><i class="buf"></i>Colchón de liquidez</span><span><i class="pag"></i>Ya pagado al proveedor</span></p>' +
         (chips ? '<div class="agp-chips">' + chips + '</div>' : '') +
-        '<p class="agp-nota">El monto es un estimado. El verde de cada barra es lo ya pagado a ese proveedor en la semana.</p>' +
+        '<p class="agp-nota">El monto es un estimado. La banda azul es el colchón: entre 5% y 30% de ese estimado, según la dispersión de la semana del mes. Mercaderías no entra. El verde es lo ya pagado a ese proveedor en la semana.</p>' +
       '</section>' +
       filtroTxt +
       htmlTabla(m);

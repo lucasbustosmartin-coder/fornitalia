@@ -30,6 +30,7 @@
   width: 100%; max-width: 3.2rem; display: flex; flex-direction: column; justify-content: flex-end;
   border-radius: 6px 6px 2px 2px; overflow: hidden; background: #e2e8f0;
 }
+.agp-barra-buf { display: block; width: 100%; background: #0369a1; }
 .agp-barra-pen { display: block; width: 100%; background: #b45309; }
 .agp-barra-pag { display: block; width: 100%; background: #0d7d3d; }
 .agp-barra-lab { font-size: 0.75rem; font-weight: 700; }
@@ -37,6 +38,7 @@
 .agp-leyenda { display: flex; gap: 0.85rem; margin: 0.35rem 0 0.6rem; font-size: 0.78rem; color: #475569; }
 .agp-leyenda i { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; margin-right: 0.25rem; vertical-align: -1px; }
 .agp-leyenda .pen { background: #b45309; }
+.agp-leyenda .buf { background: #0369a1; }
 .agp-leyenda .pag { background: #0d7d3d; }
 .agp-tabla-wrap { overflow: auto; max-height: min(62vh, 720px); -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; border: 1px solid #e5e7eb; border-radius: 10px; margin-top: 0.75rem; }
 .agp-tabla { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.9rem; }
@@ -48,10 +50,12 @@
 .agp-tabla th.num, .agp-tabla td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .agp-tabla tr.agp-total td { background: #f8fafc; font-weight: 700; }
 .agp-tabla tr.agp-row-ok td { color: #64748b; }
+.agp-tabla tr.agp-row-buf td { background: #f0f9ff; }
 .agp-sub { font-size: 0.75rem; color: #64748b; font-weight: 500; }
 .agp-badge { display: inline-flex; align-items: center; padding: 0.12rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
 .agp-badge-ok { background: #dcfce7; color: #166534; }
 .agp-badge-pend { background: #ffedd5; color: #9a3412; }
+.agp-badge-buf { background: #e0f2fe; color: #075985; }
 .agp-vacio { color: #64748b; margin: 0.5rem 0; }
 @media (max-width: 768px) {
   .agp-barras { gap: 0.25rem; }

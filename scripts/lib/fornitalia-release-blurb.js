@@ -8,12 +8,12 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.102',
+    versionLabel: 'v2.103',
     lines: [
-      'En Flujo de caja, lo primero que se ve es Agenda de pagos.',
-      'Estima las próximas 4 semanas, de lunes a viernes, por categoría, cuenta contable y proveedor.',
-      'Sueldos y Jornales a pagar queda el primer día hábil, con el total de la última primera semana.',
-      'Si un pago cae sábado o domingo, pasa al lunes. Impuestos chicos y gastos bancarios no entran.'
+      'En Agenda de pagos, cada semana suma un colchón de liquidez.',
+      'Es un adicional del estimado de esa semana, entre 5% y 30%.',
+      'La semana del mes más pareja queda en 5% y la más variable en 30%.',
+      'La cuenta Mercaderías no entra en ese colchón.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
