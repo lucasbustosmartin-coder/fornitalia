@@ -13,9 +13,11 @@
   <script src="scripts/lib/fornitalia-todo.js?v=2.101"></script>
   <script src="scripts/lib/fornitalia-tipo-cambio-global.js?v=2.92"></script>
   <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.101"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-agenda-pagos.css?v=2.102">
+  <script src="scripts/lib/fornitalia-agenda-pagos.js?v=2.102"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.101"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.102"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
@@ -1388,7 +1390,8 @@
     <div id="resumen" class="resumen" style="display:none;"></div>
     <div class="tabs-toolbar flujo-tabs-ocultas" id="flujo-tabs">
       <div class="tabs">
-        <button type="button" class="tab activo" data-panel="flujo" role="tab" aria-selected="true" aria-current="true" title="Vista activa"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></span>Flujo por mes<span class="lyp-tab-activo-mark">Activo</span></button>
+        <button type="button" class="tab activo" data-panel="agenda-pagos" role="tab" aria-selected="true" aria-current="true" title="Vista activa"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>Agenda de pagos<span class="lyp-tab-activo-mark">Activo</span></button>
+        <button type="button" class="tab" data-panel="flujo" role="tab" aria-selected="false"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></span>Flujo por mes</button>
         <button type="button" class="tab" data-panel="todas-transacciones" role="tab" aria-selected="false"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></span>Todas las transacciones</button>
         <button type="button" class="tab" data-panel="evolucion" role="tab" aria-selected="false"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Evolución</button>
         <button type="button" class="tab" data-panel="estado-financiero" role="tab" aria-selected="false"><span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></span>Estado Financiero</button>
@@ -1399,7 +1402,7 @@
   </div>
 
   <div id="tabla-wrap" style="display:none;">
-    <div id="panel-flujo" class="card panel activo">
+    <div id="panel-flujo" class="card panel">
       <template id="template-flujo-informe-pdf">
         <div class="th-help-rich-content">
           <p>En <strong>ARS</strong>, movimientos en <strong>USD</strong>: <strong>monto × tipo_cambio</strong> de la fila; si falta, <strong>monto × cotización</strong> de la tabla (MEP/CCL/Oficial); si no hay tasa, <strong>monto_cambio</strong> en BD. Movimientos ya en ARS: se usa <strong>monto</strong> (no <strong>monto_cambio</strong>, que en el extracto puede venir desalineado).</p>
@@ -1580,6 +1583,9 @@
           <tbody id="tbody-estado-financiero"></tbody>
         </table>
       </div>
+    </div>
+    <div id="panel-agenda-pagos" class="card panel activo">
+      <div id="agenda-pagos-mount"></div>
     </div>
   </div>
 
@@ -2056,7 +2062,7 @@
     <template id="template-seguridad-intro">
       <div class="th-help-rich-content">
         <p>Asigná el rol (Admin, Encargado, Visor o un perfil que crees) y el <strong>nombre para mostrar</strong> (habitualmente iniciales, ej. LB) a cada usuario. Ese nombre aparece como responsable en Gestión de Proyectos.</p>
-        <p>Con <strong>Nuevo perfil</strong> das de alta un rol vacío y después activás o desactivás <strong>cada solapa y menú</strong> para ese perfil. En <strong>Flujo de caja</strong> se elige qué se ve: Cards, Flujo por mes, Todas las transacciones, Evolución, Estado financiero y el botón Cargar tesorería histórica. En <strong>To-Do</strong>, el menú está en Menús laterales; crear, editar, eliminar y completar se eligen en el bloque To-Do. Los cambios aplican a todos los usuarios con ese rol. Admin, Encargado y Visor no se pueden borrar.</p>
+        <p>Con <strong>Nuevo perfil</strong> das de alta un rol vacío y después activás o desactivás <strong>cada solapa y menú</strong> para ese perfil. En <strong>Flujo de caja</strong> se elige qué se ve: Cards, Flujo por mes, Todas las transacciones, Evolución, Estado financiero, Agenda de pagos y el botón Cargar tesorería histórica. En <strong>To-Do</strong>, el menú está en Menús laterales; crear, editar, eliminar y completar se eligen en el bloque To-Do. Los cambios aplican a todos los usuarios con ese rol. Admin, Encargado y Visor no se pueden borrar.</p>
       </div>
     </template>
     <div id="seguridad-loading" class="seguridad-loading">Cargando usuarios…</div>
@@ -2532,7 +2538,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.101';
+    const APP_VERSION = '2.102';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -2576,6 +2582,7 @@
       'todas-transacciones': 'ver_solapa_todas_transacciones',
       evolucion: 'ver_solapa_evolucion',
       'estado-financiero': 'ver_solapa_estado_financiero',
+      'agenda-pagos': 'ver_solapa_agenda_pagos',
     };
 
     /** Bundle legacy: si el rol aún tiene solo dashboard_operador, equivale a estos permisos. */
@@ -2586,6 +2593,7 @@
       'ver_solapa_todas_transacciones',
       'ver_solapa_evolucion',
       'ver_solapa_estado_financiero',
+      'ver_solapa_agenda_pagos',
       'ver_novedades',
       'ver_configuracion',
       'ver_reportes',
@@ -3287,6 +3295,7 @@
         id: 'flujo-caja',
         titulo: 'Flujo de caja',
         operar: [
+          'ver_solapa_agenda_pagos',
           'ver_flujo_cards',
           'ver_flujo_por_mes',
           'ver_solapa_todas_transacciones',
@@ -3444,6 +3453,7 @@
         if (permMap.ver_solapa_todas_transacciones) permMap.ver_solapa_todas_transacciones = 'Todas las transacciones';
         if (permMap.ver_solapa_evolucion) permMap.ver_solapa_evolucion = 'Evolución';
         if (permMap.ver_solapa_estado_financiero) permMap.ver_solapa_estado_financiero = 'Estado financiero';
+        if (permMap.ver_solapa_agenda_pagos) permMap.ver_solapa_agenda_pagos = 'Agenda de pagos';
         if (permMap.cargar_tesoreria_historica) permMap.cargar_tesoreria_historica = 'Cargar tesorería histórica';
         if (permMap.ver_todo) permMap.ver_todo = 'Ver To-Do (menú lateral)';
         if (permMap.crear_todo) permMap.crear_todo = 'Crear tareas y ver las de todos';
@@ -4641,7 +4651,7 @@
           await syncConfigFromSupabase();
           await cargarDatos();
           if (filtrosWrap) filtrosWrap.style.display = 'flex';
-          if (tablaWrap) tablaWrap.style.display = puedeVerSolapa('flujo') || puedeVerSolapa('todas-transacciones') || puedeVerSolapa('evolucion') || puedeVerSolapa('estado-financiero') ? 'block' : 'none';
+          if (tablaWrap) tablaWrap.style.display = puedeVerSolapa('flujo') || puedeVerSolapa('todas-transacciones') || puedeVerSolapa('evolucion') || puedeVerSolapa('estado-financiero') || puedeVerSolapa('agenda-pagos') ? 'block' : 'none';
           recalcular();
           void cargarPosicionCaja();
           const panel = document.querySelector('#tabla-wrap .panel.activo');
@@ -5142,6 +5152,19 @@
       const moneda = getMoneda();
       const tipoDolar = document.getElementById('tipoDolar').value;
       const rows = cacheTransacciones;
+      if (window.FornitaliaAgendaPagos) {
+        window.FornitaliaAgendaPagos.actualizar({
+          rows: rows,
+          montoArs: function (r) { return montoConvertido(r, 'ARS', 'mep'); },
+          excluir: function (r) {
+            if (!r) return true;
+            if ((r.status || '').toString().trim() === 'Anulado') return true;
+            if (esAperturaOCierreCaja(r)) return true;
+            if (esTraspasoInternoCategoria(r.categoria)) return true;
+            return false;
+          }
+        });
+      }
 
       const porMes = {};
       const porMesCategoria = {};
@@ -9198,7 +9221,7 @@
         await syncConfigFromSupabase();
         await cargarDatos();
         filtrosWrap.style.display = 'flex';
-        tablaWrap.style.display = (puedeVerSolapa('flujo') || puedeVerSolapa('todas-transacciones') || puedeVerSolapa('evolucion') || puedeVerSolapa('estado-financiero')) ? 'block' : 'none';
+        tablaWrap.style.display = (puedeVerSolapa('flujo') || puedeVerSolapa('todas-transacciones') || puedeVerSolapa('evolucion') || puedeVerSolapa('estado-financiero') || puedeVerSolapa('agenda-pagos')) ? 'block' : 'none';
         loading.style.display = 'none';
 
         document.querySelectorAll('#toggle-moneda button').forEach(btn => {

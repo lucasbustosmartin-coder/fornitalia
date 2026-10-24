@@ -8,11 +8,12 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.101',
+    versionLabel: 'v2.102',
     lines: [
-      'En To-Do hay un filtro de Recurrencia.',
-      'Se puede dejar solo las únicas, o las diarias, semanales, mensuales, bimestrales, trimestrales o anuales.',
-      'También recorta las tarjetas, la matriz por responsable y el Excel.'
+      'En Flujo de caja, lo primero que se ve es Agenda de pagos.',
+      'Estima las próximas 4 semanas, de lunes a viernes, por categoría, cuenta contable y proveedor.',
+      'Sueldos y Jornales a pagar queda el primer día hábil, con el total de la última primera semana.',
+      'Si un pago cae sábado o domingo, pasa al lunes. Impuestos chicos y gastos bancarios no entran.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
