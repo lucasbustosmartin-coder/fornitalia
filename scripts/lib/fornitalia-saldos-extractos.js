@@ -1939,7 +1939,6 @@
 
   function saldoCanalMes(canal, ym) {
     var ars = saldoCanalMesGuardado(canal, ym);
-    if (esCajaFisicaUsdSe(canal)) return ars;
     if (mesYYYYMM(hoyYmd()) !== ym || !esCanalUsdSe(canal)) return ars;
     var usd = usdCanalMes(canal, ym);
     if (usd == null || !isFinite(Number(usd))) return ars;
@@ -3833,7 +3832,7 @@
     if (state.canal === CANAL_SF_USD) {
       return 'Saldo de <strong>' + esc(LABEL_SF_USD) + '</strong> (caja física / efectivo dólar sin factura). El número grande es el saldo en <strong>dólares</strong> (por ejemplo 1.600), no los pesos divididos por el MEP de hoy. No se carga acá: se actualiza al importar el histórico con Caja <em>Efectivo Dolar (sin factura)</em> o Moneda USD en <strong>Cajas (físicas)</strong>. Si un corte no cierra con esos dólares, se rearma con los movimientos.';
     }
-    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_FCI) + ', ' + esc(LABEL_FCI_USD) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). FCI es la tenencia del fondo; el extracto de Galicia sigue mostrando la cuenta del banco. En Mercado Pago el mes en curso parte del saldo total de la última carta. En Galicia, el <strong>mes en curso</strong> (celeste) es el saldo corrido del extracto (el saldo real del banco). Los dólares del mes en curso de Galicia USD y FCI USD se pesifican al MEP de hoy, o al inmediato anterior: el mismo de la torta de Flujo de caja. El efectivo en dólares queda en dólares (la suma de los movimientos), sin dividir los pesos por el tipo de cambio. Los meses cerrados no se recalculan. El promedio de saldo es cuánto dinero queda en promedio.';
+    return 'Posición <strong>consolidada al mes</strong>: último saldo de ' + esc(LABEL_GAL) + ', ' + esc(LABEL_GAL_USD) + ', Mercado Pago, ' + esc(LABEL_CRED) + ', ' + esc(LABEL_FCI) + ', ' + esc(LABEL_FCI_USD) + ', ' + esc(LABEL_GF) + ', ' + esc(LABEL_MOR) + ', ' + esc(LABEL_USD) + ', ' + esc(LABEL_SF) + ' y ' + esc(LABEL_SF_USD) + ' (si un canal no tiene corte ese mes, se arrastra el anterior). FCI es la tenencia del fondo; el extracto de Galicia sigue mostrando la cuenta del banco. En Mercado Pago el mes en curso parte del saldo total de la última carta. En Galicia, el <strong>mes en curso</strong> (celeste) es el saldo corrido del extracto (el saldo real del banco). Los dólares del mes en curso (Galicia USD, FCI USD, Efectivo-f USD y Efectivo sin factura USD) se pesifican al MEP de hoy, o al inmediato anterior: el mismo de la torta de Flujo de caja. Así el saldo actual del consolidado coincide con la posición de caja. Los meses cerrados no se recalculan. El promedio de saldo es cuánto dinero queda en promedio.';
   }
 
   function renderShell() {

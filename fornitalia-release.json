@@ -1,9 +1,8 @@
 {
-  "versionLabel": "v2.103",
+  "versionLabel": "v2.104",
   "lines": [
-    "En Agenda de pagos, cada semana suma un colchón de liquidez.",
-    "Es un adicional del estimado de esa semana, entre 5% y 30%.",
-    "La semana del mes más pareja queda en 5% y la más variable en 30%.",
-    "La cuenta Mercaderías no entra en ese colchón."
+    "En Saldos extractos, el efectivo en dólares del mes en curso se pasa a pesos con el MEP de hoy.",
+    "Efectivo-f (USD) ya no queda en pesos negativos si todavía hay dólares en la caja.",
+    "El saldo actual del consolidado coincide con la posición de caja de Flujo de caja."
   ]
 }
