@@ -5,6 +5,7 @@
  * Ya pagado = hubo un egreso con ID compra a ese mismo proveedor en esa semana
  * (no compara el monto). Sin ID compra: un pago de la misma categoría y cuenta
  * toma una fila de esa semana, le pone el importe real y la deja pagada.
+ * Si hay más pagos que filas, los que sobran no marcan nada y no cortan el tablero.
  * Sueldos y Jornales se proyecta el día 1, cada 30 días, con los
  * pagos cargados desde septiembre de 2026.
  * Cada semana suma un colchón de entre 5% y 30% del estimado.
@@ -517,20 +518,24 @@
       var libres = itemsCombo[k];
       if (!libres || !libres.length) return;
       pagosCombo[k].slice().sort(function (a, b) { return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); }).forEach(function (p) {
-        var pool = libres.filter(function (it) { return it.provKey === p.provKey; });
-        if (!pool.length) pool = libres;
-        var best = pool[0];
-        var bestD = Math.abs(diffDays(best.fecha, p.fecha));
+        if (!p || !libres.length) return;
+        var pool = libres.filter(function (it) { return it && it.provKey === p.provKey; });
+        if (!pool.length) pool = libres.filter(function (it) { return it && it.fecha; });
+        var best = null;
+        var bestD = Infinity;
         pool.forEach(function (it) {
+          if (!it || !it.fecha) return;
           var d = Math.abs(diffDays(it.fecha, p.fecha));
-          if (d < bestD || (d === bestD && it.fecha < best.fecha)) {
+          if (!best || d < bestD || (d === bestD && it.fecha < best.fecha)) {
             best = it;
             bestD = d;
           }
         });
+        if (!best) return;
         best.yaPagado = true;
         best.monto = p.monto;
-        libres.splice(libres.indexOf(best), 1);
+        var idx = libres.indexOf(best);
+        if (idx >= 0) libres.splice(idx, 1);
       });
     });
 

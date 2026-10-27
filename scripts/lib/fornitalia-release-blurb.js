@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.106',
+    versionLabel: 'v2.107',
     lines: [
-      'En Agenda de pagos, un día de esta semana sigue aunque ya haya pasado.',
-      'Si entró un pago de esa categoría y cuenta, una fila queda Ya pagado con el importe real.',
-      'En Conciliación, entrar no vuelve a armar las sugerencias de quien ya está conciliando.'
+      'Flujo de caja vuelve a abrir sin el cartel de error.',
+      'Si en la semana hay más pagos que filas de esa categoría y cuenta, se marcan las que hay.',
+      'Esas filas quedan Ya pagado con el importe real.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
