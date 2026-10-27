@@ -555,7 +555,8 @@
     }
     /** c/f redondeado a 1 decimal; s/f es el complemento para que el par sume 100. */
     function filaParIngresosCaja() {
-      var cfMes = function (k) { return pctRatio(Number(dato(k).ingresosCf) || 0, ing(k)); };
+      var venta = function (k) { return Number(dato(k).ingresosVenta) || 0; };
+      var cfMes = function (k) { return pctRatio(Number(dato(k).ingresosCf) || 0, venta(k)); };
       var serieCf = meses.map(function (k) { return redondearPct1(cfMes(k)); });
       var serieSf = serieCf.map(function (p) { return p == null ? null : redondearPct1(100 - p); });
       function celdas(serie) {
@@ -573,7 +574,7 @@
           return '<td class="' + clsCurso(meses[i], 'valor-ratio') + '"><span class="ratio-con-variacion">' + fmtPct(p) + iconoVar(p, anteriorCerrado(i)) + '</span></td>';
         });
         var num = mesesCerrados.reduce(function (s, k) { return s + (Number(dato(k).ingresosCf) || 0); }, 0);
-        var denTot = mesesCerrados.reduce(function (s, k) { return s + ing(k); }, 0);
+        var denTot = mesesCerrados.reduce(function (s, k) { return s + venta(k); }, 0);
         var totCf = redondearPct1(pctRatio(num, denTot));
         var tot = serie === serieCf ? totCf : (totCf == null ? null : redondearPct1(100 - totCf));
         vals.push('<td class="valor-ratio">' + fmtPct(tot) + '</td>');

@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.104",
+  "versionLabel": "v2.105",
   "lines": [
-    "En Saldos extractos, el efectivo en dólares del mes en curso se pasa a pesos con el MEP de hoy.",
-    "Efectivo-f (USD) ya no queda en pesos negativos si todavía hay dólares en la caja.",
-    "El saldo actual del consolidado coincide con la posición de caja de Flujo de caja."
+    "En Flujo por mes, Ingresos c/f e Ingresos s/f cuentan solo las cobranzas por ventas.",
+    "Entra el subítem Cobranzas por Ventas, o la categoría Ventas.",
+    "Los dos porcentajes siguen sumando 100% de esas cobranzas."
   ]
 }
