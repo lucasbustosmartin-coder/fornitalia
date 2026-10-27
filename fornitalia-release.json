@@ -1,8 +1,8 @@
 {
-  "versionLabel": "v2.105",
+  "versionLabel": "v2.106",
   "lines": [
-    "En Flujo por mes, Ingresos c/f e Ingresos s/f cuentan solo las cobranzas por ventas.",
-    "Entra el subítem Cobranzas por Ventas, o la categoría Ventas.",
-    "Los dos porcentajes siguen sumando 100% de esas cobranzas."
+    "En Agenda de pagos, un día de esta semana sigue aunque ya haya pasado.",
+    "Si entró un pago de esa categoría y cuenta, una fila queda Ya pagado con el importe real.",
+    "En Conciliación, entrar no vuelve a armar las sugerencias de quien ya está conciliando."
   ]
 }

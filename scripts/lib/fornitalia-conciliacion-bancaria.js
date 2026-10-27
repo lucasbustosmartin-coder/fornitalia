@@ -132,7 +132,11 @@
 
   function errMsg(e) {
     if (!e) return 'Error desconocido.';
-    return e.message || e.error_description || String(e);
+    var m = e.message || e.error_description || String(e);
+    if (/no existe|ya está en otra conciliación|lock timeout|canceling statement due to lock/i.test(m)) {
+      return 'Otra persona estaba actualizando esta conciliación. Volvé a abrir el listado y reintentá.';
+    }
+    return m;
   }
 
   function pad2(n) { return String(n).padStart(2, '0'); }
@@ -2731,17 +2735,6 @@
       await cargarUsuarios();
       await cargarDatos();
       state.err = '';
-      if (can(PERM_CARGAR) || can(PERM_CONFIRMAR)) {
-        try {
-          marcarCargando('Recalculando sugerencias…');
-          await regenerarSugerencias();
-          marcarCargando('Actualizando listados…');
-          await cargarDatos();
-          state.err = '';
-        } catch (e2) {
-          state.err = 'No se pudieron recalcular las sugerencias: ' + errMsg(e2);
-        }
-      }
     } catch (e) {
       state.err = 'No se pudo cargar Conciliación Bancaria: ' + errMsg(e);
     } finally {

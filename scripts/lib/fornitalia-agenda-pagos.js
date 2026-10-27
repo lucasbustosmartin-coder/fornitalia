@@ -1,10 +1,11 @@
 /**
- * Agenda de pagos: estimado de egresos de las próximas 4 semanas
- * a partir de los últimos 3 meses de tesorería.
+ * Agenda de pagos: estimado de egresos de 4 semanas, desde el lunes de la semana en curso.
+ * Un día de esa semana sigue aunque ya haya pasado.
  * Con ID compra: serie por proveedor, categoría y cuenta contable.
  * Ya pagado = hubo un egreso con ID compra a ese mismo proveedor en esa semana
- * (no compara el monto). Sin ID compra: solo si es frecuente, y nunca se marca
- * como pagado. Sueldos y Jornales se proyecta el día 1, cada 30 días, con los
+ * (no compara el monto). Sin ID compra: un pago de la misma categoría y cuenta
+ * toma una fila de esa semana, le pone el importe real y la deja pagada.
+ * Sueldos y Jornales se proyecta el día 1, cada 30 días, con los
  * pagos cargados desde septiembre de 2026.
  * Cada semana suma un colchón de entre 5% y 30% del estimado.
  * El porcentaje sale de la dispersión de esa semana del mes en los
@@ -240,11 +241,18 @@
   }
 
   function proyectar(fechas, montos, hoy, semanas) {
-    var orden = fechas.slice().sort();
+    var piso = semanas[0].desde;
+    var pares = [];
+    for (var i = 0; i < fechas.length; i++) {
+      if (fechas[i] && fechas[i] < piso) pares.push({ f: fechas[i], m: montos[i] });
+    }
+    pares.sort(function (a, b) { return a.f < b.f ? -1 : (a.f > b.f ? 1 : 0); });
+    var orden = pares.map(function (p) { return p.f; });
+    var montosBase = pares.map(function (p) { return p.m; });
     var gaps = [];
-    for (var i = 1; i < orden.length; i++) {
-      var g = diffDays(orden[i - 1], orden[i]);
-      if (g >= 1) gaps.push(g);
+    for (var g = 1; g < orden.length; g++) {
+      var gap = diffDays(orden[g - 1], orden[g]);
+      if (gap >= 1) gaps.push(gap);
     }
     var medGap = median(gaps);
     if (medGap == null) return [];
@@ -256,11 +264,11 @@
     var ultima = orden[orden.length - 1];
     var diasDesde = diffDays(ultima, hoy);
     if (diasDesde > medGap * 1.75 + 3) return [];
-    var medMonto = montoEstimado(montos);
+    var medMonto = montoEstimado(montosBase);
     if (medMonto == null || medMonto <= 0) return [];
     var cursor = addDays(ultima, medGap);
     var guard = 0;
-    while (cursor && diaHabil(cursor) < hoy && guard < 8) {
+    while (cursor && diaHabil(cursor) < piso && guard < 8) {
       cursor = addDays(cursor, medGap);
       guard++;
     }
@@ -288,7 +296,8 @@
     if (monto == null || monto <= 0) return [];
     var cursor = diaUnoMesSiguiente(fechas[fechas.length - 1]);
     var guard = 0;
-    while (cursor && diaHabil(cursor) < hoy && guard < 6) {
+    var piso = semanas[0].desde;
+    while (cursor && diaHabil(cursor) < piso && guard < 6) {
       cursor = diaUnoMesSiguiente(cursor);
       guard++;
     }
@@ -486,6 +495,43 @@
       if (it.origen !== 'compra') return;
       if (it.provKey === norm('Sin identificar')) return;
       if (pagadoEnSemana[it.provKey + '|' + it.semana]) it.yaPagado = true;
+    });
+
+    var pagosCombo = {};
+    pagos.forEach(function (p) {
+      if (p.fecha > hoy) return;
+      var sem = semanaDe(diaHabil(p.fecha), semanas);
+      if (!sem) return;
+      var k = sem.i + '|' + p.catKey + '|' + p.cuentaKey;
+      if (!pagosCombo[k]) pagosCombo[k] = [];
+      pagosCombo[k].push(p);
+    });
+    var itemsCombo = {};
+    items.forEach(function (it) {
+      if (it.origen === 'colchon' || it.yaPagado) return;
+      var k = it.semana + '|' + norm(it.cat) + '|' + norm(it.cuenta);
+      if (!itemsCombo[k]) itemsCombo[k] = [];
+      itemsCombo[k].push(it);
+    });
+    Object.keys(pagosCombo).forEach(function (k) {
+      var libres = itemsCombo[k];
+      if (!libres || !libres.length) return;
+      pagosCombo[k].slice().sort(function (a, b) { return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); }).forEach(function (p) {
+        var pool = libres.filter(function (it) { return it.provKey === p.provKey; });
+        if (!pool.length) pool = libres;
+        var best = pool[0];
+        var bestD = Math.abs(diffDays(best.fecha, p.fecha));
+        pool.forEach(function (it) {
+          var d = Math.abs(diffDays(it.fecha, p.fecha));
+          if (d < bestD || (d === bestD && it.fecha < best.fecha)) {
+            best = it;
+            bestD = d;
+          }
+        });
+        best.yaPagado = true;
+        best.monto = p.monto;
+        libres.splice(libres.indexOf(best), 1);
+      });
     });
 
     var porSemMes = {};
@@ -692,7 +738,7 @@
     mount.innerHTML =
       '<section class="agp-card" aria-label="Agenda de pagos">' +
         '<div class="agp-card-top">' +
-          '<button type="button" class="th-help th-help--inline" data-help="Estimado de egresos de las próximas 4 semanas, según los últimos 3 meses. El importe usa los últimos 3 pagos de ese proveedor y categoría: el más reciente pesa más. Primero las series con ID compra. También entran los pagos frecuentes sin ID compra. Impuestos de hasta $ 500.000 y Gastos bancarios no entran. Cada serie se abre por cuenta contable. Las semanas son de lunes a viernes. Si el cálculo cae sábado o domingo, el pago pasa al lunes. Sueldos y Jornales a pagar toma la primera semana del último mes cargado desde septiembre y el próximo cae el primer día hábil. Cada semana suma un colchón de entre 5% y 30% del estimado, según la dispersión de esa semana del mes en los últimos 6 meses. La más pareja queda en 5% y la más variable en 30%. La cuenta Mercaderías no entra en esa dispersión. Ya pagado no compara el monto: en esa semana ya hay un egreso con ID compra al mismo proveedor. Eso no se aplica si la serie no tiene ID compra. Tocá una semana para ver solo ese detalle." aria-label="Ayuda: agenda de pagos" title="Ayuda">' + svgAyuda() + '</button>' +
+          '<button type="button" class="th-help th-help--inline" data-help="Estimado de egresos de las próximas 4 semanas, según los últimos 3 meses. El importe usa los últimos 3 pagos de ese proveedor y categoría: el más reciente pesa más. Primero las series con ID compra. También entran los pagos frecuentes sin ID compra. Impuestos de hasta $ 500.000 y Gastos bancarios no entran. Cada serie se abre por cuenta contable. Las semanas son de lunes a viernes. Un día de la semana en curso sigue en la agenda aunque ya haya pasado: el pago no cae justo en la fecha estimada. Si en esa semana ya hubo un pago al proveedor, el estado pasa a Ya pagado y la fila sigue en la tabla. Sin ID compra, un pago de la misma categoría y cuenta contable toma una sola fila de esa semana, le pone el importe real y la deja en Ya pagado: el importe no tiene que coincidir. Si el cálculo cae sábado o domingo, el pago pasa al lunes. Sueldos y Jornales a pagar toma la primera semana del último mes cargado desde septiembre y el próximo cae el primer día hábil. Cada semana suma un colchón de entre 5% y 30% del estimado, según la dispersión de esa semana del mes en los últimos 6 meses. La más pareja queda en 5% y la más variable en 30%. La cuenta Mercaderías no entra en esa dispersión. Ya pagado no compara el monto: en esa semana ya hay un egreso con ID compra al mismo proveedor. Eso no se aplica si la serie no tiene ID compra. Tocá una semana para ver solo ese detalle." aria-label="Ayuda: agenda de pagos" title="Ayuda">' + svgAyuda() + '</button>' +
           '<p class="agp-lead">Por pagar en 4 semanas <strong>' + esc(fmtPesos(pendiente)) + '</strong>' +
             (colchon ? ' · colchón ' + esc(fmtPesos(colchon)) : '') +
             (nPag ? ' · ' + nPag + ' ya pagado' + (nPag === 1 ? '' : 's') + ' (' + esc(fmtPesos(pagado)) + ')' : '') +
@@ -701,7 +747,7 @@
         htmlBarras(m, semanaFiltro) +
         '<p class="agp-leyenda"><span><i class="pen"></i>Por pagar</span><span><i class="buf"></i>Colchón de liquidez</span><span><i class="pag"></i>Ya pagado al proveedor</span></p>' +
         (chips ? '<div class="agp-chips">' + chips + '</div>' : '') +
-        '<p class="agp-nota">El monto es un estimado. La banda azul es el colchón: entre 5% y 30% de ese estimado, según la dispersión de la semana del mes. Mercaderías no entra. El verde es lo ya pagado a ese proveedor en la semana.</p>' +
+        '<p class="agp-nota">El monto es un estimado. La banda azul es el colchón: entre 5% y 30% de ese estimado, según la dispersión de la semana del mes. Mercaderías no entra. El verde es lo ya pagado en la semana. Con ID compra, al mismo proveedor. Sin ID compra, una fila de esa categoría y cuenta, con el importe del pago.</p>' +
       '</section>' +
       filtroTxt +
       htmlTabla(m);
