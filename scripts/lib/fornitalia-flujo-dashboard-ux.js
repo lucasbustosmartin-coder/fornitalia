@@ -135,11 +135,15 @@
     if (sel) sel.classList.toggle('filtro-activo', sel.value !== 'todo');
   }
 
+  function fmtUnDecimalMillon(n) {
+    return (Number(n) / 1e6).toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
+
   function gpEnMillones(v) {
     var n = Number(v);
     if (!isFinite(n)) return '';
-    if (n === 0) return '0';
-    var s = (Math.abs(n) / 1e6).toLocaleString('es-AR', { maximumFractionDigits: 1 });
+    var s = fmtUnDecimalMillon(Math.abs(n));
+    if (n === 0) return s + ' M';
     return (n < 0 ? '−' : '+') + s + ' M';
   }
 
@@ -147,7 +151,7 @@
     var a = Math.abs(v);
     var s;
     if (a >= 1e9) s = (a / 1e9).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + ' MM';
-    else if (a >= 1e6) s = (a / 1e6).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + ' M';
+    else if (a >= 1e6) s = fmtUnDecimalMillon(a) + ' M';
     else if (a >= 1e3) s = (a / 1e3).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + ' k';
     else s = a.toLocaleString('es-AR', { maximumFractionDigits: moneda === 'USD' ? 2 : 0 });
     return (v < 0 ? '−' : '+') + s;
@@ -440,7 +444,7 @@
                 if (!isFinite(n)) return value;
                 var a = Math.abs(n);
                 var s;
-                if (a >= 1e6) s = (a / 1e6).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + ' M';
+                if (a >= 1e6) s = fmtUnDecimalMillon(a) + ' M';
                 else if (a >= 1e3) s = (a / 1e3).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + ' k';
                 else s = a.toLocaleString('es-AR', { maximumFractionDigits: 0 });
                 return (n < 0 ? '−' : '') + 'US$ ' + s;

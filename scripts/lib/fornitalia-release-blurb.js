@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.107',
+    versionLabel: 'v2.108',
     lines: [
-      'Flujo de caja vuelve a abrir sin el cartel de error.',
-      'Si en la semana hay más pagos que filas de esa categoría y cuenta, se marcan las que hay.',
-      'Esas filas quedan Ya pagado con el importe real.'
+      'Los importes en millones muestran un decimal.',
+      'En la posición de caja, $ 200.423.092 se ve como 200,4 M.',
+      'Lo mismo en el total, en el gráfico de G/P y en el PDF.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
