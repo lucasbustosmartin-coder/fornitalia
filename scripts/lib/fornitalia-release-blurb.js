@@ -8,11 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.108',
+    versionLabel: 'v2.109',
     lines: [
-      'Los importes en millones muestran un decimal.',
-      'En la posición de caja, $ 200.423.092 se ve como 200,4 M.',
-      'Lo mismo en el total, en el gráfico de G/P y en el PDF.'
+      'En Agenda de pagos, las comisiones de venta aparecen en la última semana del mes.',
+      'Si ya se pagaron, la fila queda en Ya pagado con el importe real.',
+      'Un gasto que entra antes de lo previsto se ve pagado esa semana y se descuenta de la proyección siguiente.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

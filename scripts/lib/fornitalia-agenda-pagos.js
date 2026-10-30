@@ -8,6 +8,9 @@
  * Si hay más pagos que filas, los que sobran no marcan nada y no cortan el tablero.
  * Sueldos y Jornales se proyecta el día 1, cada 30 días, con los
  * pagos cargados desde septiembre de 2026.
+ * Comisiones de venta se proyectan en la última semana del mes.
+ * Un pago de esta semana que estaba previsto más adelante queda Ya pagado
+ * con el importe real y se descuenta de esa proyección.
  * Cada semana suma un colchón de entre 5% y 30% del estimado.
  * El porcentaje sale de la dispersión de esa semana del mes en los
  * últimos 6 meses: la más pareja queda en 5% y la más variable en 30%.
@@ -127,6 +130,16 @@
     return norm(cuenta).indexOf('sueldos y jornales') !== -1;
   }
 
+  /** Comisión comercial de ventas. No incluye gastos ni comisiones bancarias. */
+  function esComisionVenta(cat, cuenta) {
+    var c = norm(cat);
+    var u = norm(cuenta);
+    if (u.indexOf('bancari') !== -1 || c.indexOf('bancari') !== -1) return false;
+    if (c.indexOf('mercado pago') !== -1) return false;
+    if (u.indexOf('comisones ventas') !== -1 || u.indexOf('comisiones ventas') !== -1) return true;
+    return c.indexOf('comision fuerza de venta') !== -1;
+  }
+
   function diaDelMes(ymd) {
     return Number(String(ymd || '').split('-')[2]) || 0;
   }
@@ -192,6 +205,26 @@
       out[k] = 0.05 + 0.25 * t;
     });
     return out;
+  }
+
+  function ultimoDiaMes(ym) {
+    var p = String(ym || '').split('-');
+    var y = Number(p[0]);
+    var m = Number(p[1]);
+    if (!y || !m) return '';
+    var last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return y + '-' + String(m).padStart(2, '0') + '-' + String(last).padStart(2, '0');
+  }
+
+  /** Lunes de la semana que contiene el último día del mes. */
+  function lunesCierreMes(ym) {
+    return lunesDe(ultimoDiaMes(ym));
+  }
+
+  /** Cierre de comisiones: día 22 en adelante, o la semana del último día del mes. */
+  function esCierreMes(fecha) {
+    if (diaDelMes(fecha) >= 22) return true;
+    return lunesDe(diaHabil(fecha)) === lunesCierreMes(mesDe(fecha));
   }
 
   function diaUnoMesSiguiente(ymd) {
@@ -313,6 +346,74 @@
     return out;
   }
 
+  /**
+   * Comisiones de venta: una fila en la última semana de cada mes que entre
+   * en las 4 semanas. El importe sale de los cierres anteriores (día 22 en adelante).
+   * Si esta semana ya se pagó, la fila queda con la suma real.
+   */
+  function proyectarComisiones(pagos, hoy, semanas) {
+    if (!pagos.length) return [];
+    var porMes = {};
+    pagos.forEach(function (p) {
+      if (!p || !esCierreMes(p.fecha) || p.fecha > hoy) return;
+      var ym = mesDe(p.fecha);
+      if (!porMes[ym]) porMes[ym] = 0;
+      porMes[ym] += p.monto;
+    });
+    var ultimo = pagos[0];
+    pagos.forEach(function (p) { if (!ultimo || p.fecha >= ultimo.fecha) ultimo = p; });
+    var cat = ultimo.cat;
+    var cuenta = ultimo.cuenta;
+    var out = [];
+    semanas.forEach(function (sem) {
+      var ym = mesDe(sem.hasta);
+      if (lunesCierreMes(ym) !== sem.desde && lunesCierreMes(mesDe(sem.desde)) !== sem.desde) return;
+      var ymCierre = lunesCierreMes(mesDe(sem.desde)) === sem.desde ? mesDe(sem.desde) : ym;
+      var hist = [];
+      Object.keys(porMes).sort().forEach(function (k) {
+        if (k < ymCierre) hist.push(porMes[k]);
+      });
+      var estimado = montoEstimado(hist);
+      var reales = pagos.filter(function (p) {
+        if (!p || p.fecha > hoy) return false;
+        var s = semanaDe(diaHabil(p.fecha), semanas);
+        return s && s.i === sem.i;
+      });
+      var monto = estimado;
+      var yaPagado = false;
+      var prov = 'Comisiones';
+      if (reales.length) {
+        yaPagado = true;
+        monto = 0;
+        var nombres = {};
+        reales.forEach(function (p) {
+          monto += p.monto;
+          p._usado = true;
+          if (p.prov && p.provKey !== norm('Sin identificar')) nombres[p.prov] = true;
+          cat = p.cat;
+          cuenta = p.cuenta;
+        });
+        var lista = Object.keys(nombres);
+        prov = !lista.length ? 'Comisiones' : (lista.length <= 2 ? lista.join(' · ') : 'Varios');
+      }
+      if (monto == null || !(monto > 0)) return;
+      out.push({
+        semana: sem.i,
+        fecha: sem.desde,
+        prov: prov,
+        provKey: norm(prov),
+        cat: cat,
+        cuenta: cuenta,
+        monto: monto,
+        origen: 'comision',
+        cada: 30,
+        veces: hist.length,
+        yaPagado: yaPagado
+      });
+    });
+    return out;
+  }
+
   function calcularAgenda(rows, opts) {
     opts = opts || {};
     var hoy = opts.hoy || hoyArgentina();
@@ -355,11 +456,16 @@
     });
 
     var nominaPagos = [];
+    var comisionPagos = [];
     var conCompra = {};
     var sinCompra = {};
     pagos.forEach(function (p) {
       if (esSueldosYJornales(p.cuenta)) {
         if (p.fecha >= DESDE_NOMINA) nominaPagos.push(p);
+        return;
+      }
+      if (esComisionVenta(p.cat, p.cuenta)) {
+        comisionPagos.push(p);
         return;
       }
       var key = p.provKey + '|' + p.catKey + '|' + p.cuentaKey;
@@ -483,6 +589,8 @@
       });
     }
 
+    proyectarComisiones(comisionPagos, hoy, semanas).forEach(function (it) { items.push(it); });
+
     var pagadoEnSemana = {};
     pagos.forEach(function (p) {
       if (!p.idc) return;
@@ -534,8 +642,46 @@
         if (!best) return;
         best.yaPagado = true;
         best.monto = p.monto;
+        p._usado = true;
         var idx = libres.indexOf(best);
         if (idx >= 0) libres.splice(idx, 1);
+      });
+    });
+
+    pagos.slice().sort(function (a, b) { return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); }).forEach(function (p) {
+      if (!p || p._usado || p.fecha > hoy) return;
+      var sem = semanaDe(diaHabil(p.fecha), semanas);
+      if (!sem) return;
+      var futuros = items.filter(function (it) {
+        return it && !it.yaPagado && it.origen !== 'colchon' && it.semana > sem.i
+          && norm(it.cat) === p.catKey && norm(it.cuenta) === p.cuentaKey && it.monto > 0;
+      });
+      if (!futuros.length) return;
+      var pool = futuros.filter(function (it) { return it.provKey === p.provKey; });
+      if (!pool.length) pool = futuros;
+      pool.sort(function (a, b) {
+        if (a.semana !== b.semana) return a.semana - b.semana;
+        return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0);
+      });
+      var futuro = pool[0];
+      futuro.monto = Math.round((futuro.monto - p.monto) * 100) / 100;
+      if (!(futuro.monto > 1)) {
+        var ix = items.indexOf(futuro);
+        if (ix >= 0) items.splice(ix, 1);
+      }
+      p._usado = true;
+      items.push({
+        semana: sem.i,
+        fecha: p.fecha,
+        prov: p.prov,
+        provKey: p.provKey,
+        cat: p.cat,
+        cuenta: p.cuenta,
+        monto: p.monto,
+        origen: 'adelanto',
+        cada: futuro.cada,
+        veces: futuro.veces,
+        yaPagado: true
       });
     });
 
@@ -689,9 +835,13 @@
         ? (Math.round(it.pct * 100) + '% del estimado · semana ' + s.semMes + ' del mes · ' + it.veces + ' semanas en 6 meses')
         : (it.origen === 'nomina'
           ? 'Día 1 del mes · cada 30 días · carga desde septiembre'
-          : (it.origen === 'compra'
-            ? 'Con ID compra · cada ' + it.cada + ' días'
-            : 'Frecuente, sin ID compra · cada ' + it.cada + ' días'));
+          : (it.origen === 'comision'
+            ? 'Última semana del mes'
+            : (it.origen === 'adelanto'
+              ? 'Entró antes de lo previsto · se descuenta de la proyección siguiente'
+              : (it.origen === 'compra'
+                ? 'Con ID compra · cada ' + it.cada + ' días'
+                : 'Frecuente, sin ID compra · cada ' + it.cada + ' días'))));
       var sub = it.origen === 'colchon' ? ('Semana ' + s.semMes + ' del mes') : fmtDia(it.fecha);
       var filaClase = it.origen === 'colchon' ? 'agp-row-buf' : (it.yaPagado ? 'agp-row-ok' : '');
       html += '<tr' + (filaClase ? ' class="' + filaClase + '"' : '') + '>' +
@@ -743,7 +893,7 @@
     mount.innerHTML =
       '<section class="agp-card" aria-label="Agenda de pagos">' +
         '<div class="agp-card-top">' +
-          '<button type="button" class="th-help th-help--inline" data-help="Estimado de egresos de las próximas 4 semanas, según los últimos 3 meses. El importe usa los últimos 3 pagos de ese proveedor y categoría: el más reciente pesa más. Primero las series con ID compra. También entran los pagos frecuentes sin ID compra. Impuestos de hasta $ 500.000 y Gastos bancarios no entran. Cada serie se abre por cuenta contable. Las semanas son de lunes a viernes. Un día de la semana en curso sigue en la agenda aunque ya haya pasado: el pago no cae justo en la fecha estimada. Si en esa semana ya hubo un pago al proveedor, el estado pasa a Ya pagado y la fila sigue en la tabla. Sin ID compra, un pago de la misma categoría y cuenta contable toma una sola fila de esa semana, le pone el importe real y la deja en Ya pagado: el importe no tiene que coincidir. Si el cálculo cae sábado o domingo, el pago pasa al lunes. Sueldos y Jornales a pagar toma la primera semana del último mes cargado desde septiembre y el próximo cae el primer día hábil. Cada semana suma un colchón de entre 5% y 30% del estimado, según la dispersión de esa semana del mes en los últimos 6 meses. La más pareja queda en 5% y la más variable en 30%. La cuenta Mercaderías no entra en esa dispersión. Ya pagado no compara el monto: en esa semana ya hay un egreso con ID compra al mismo proveedor. Eso no se aplica si la serie no tiene ID compra. Tocá una semana para ver solo ese detalle." aria-label="Ayuda: agenda de pagos" title="Ayuda">' + svgAyuda() + '</button>' +
+          '<button type="button" class="th-help th-help--inline" data-help="Estimado de egresos de las próximas 4 semanas, según los últimos 3 meses. El importe usa los últimos 3 pagos de ese proveedor y categoría: el más reciente pesa más. Primero las series con ID compra. También entran los pagos frecuentes sin ID compra. Impuestos de hasta $ 500.000 y Gastos bancarios no entran. Cada serie se abre por cuenta contable. Las semanas son de lunes a viernes. Un día de la semana en curso sigue en la agenda aunque ya haya pasado: el pago no cae justo en la fecha estimada. Si en esa semana ya hubo un pago al proveedor, el estado pasa a Ya pagado y la fila sigue en la tabla. Sin ID compra, un pago de la misma categoría y cuenta contable toma una sola fila de esa semana, le pone el importe real y la deja en Ya pagado: el importe no tiene que coincidir. Si el cálculo cae sábado o domingo, el pago pasa al lunes. Sueldos y Jornales a pagar toma la primera semana del último mes cargado desde septiembre y el próximo cae el primer día hábil. Comisiones de venta se proyectan en la última semana del mes. Si un pago entra antes de la semana prevista, queda Ya pagado esta semana con el importe real y se descuenta de esa proyección. Cada semana suma un colchón de entre 5% y 30% del estimado, según la dispersión de esa semana del mes en los últimos 6 meses. La más pareja queda en 5% y la más variable en 30%. La cuenta Mercaderías no entra en esa dispersión. Ya pagado no compara el monto: en esa semana ya hay un egreso con ID compra al mismo proveedor. Eso no se aplica si la serie no tiene ID compra. Tocá una semana para ver solo ese detalle." aria-label="Ayuda: agenda de pagos" title="Ayuda">' + svgAyuda() + '</button>' +
           '<p class="agp-lead">Por pagar en 4 semanas <strong>' + esc(fmtPesos(pendiente)) + '</strong>' +
             (colchon ? ' · colchón ' + esc(fmtPesos(colchon)) : '') +
             (nPag ? ' · ' + nPag + ' ya pagado' + (nPag === 1 ? '' : 's') + ' (' + esc(fmtPesos(pagado)) + ')' : '') +
@@ -752,7 +902,7 @@
         htmlBarras(m, semanaFiltro) +
         '<p class="agp-leyenda"><span><i class="pen"></i>Por pagar</span><span><i class="buf"></i>Colchón de liquidez</span><span><i class="pag"></i>Ya pagado al proveedor</span></p>' +
         (chips ? '<div class="agp-chips">' + chips + '</div>' : '') +
-        '<p class="agp-nota">El monto es un estimado. La banda azul es el colchón: entre 5% y 30% de ese estimado, según la dispersión de la semana del mes. Mercaderías no entra. El verde es lo ya pagado en la semana. Con ID compra, al mismo proveedor. Sin ID compra, una fila de esa categoría y cuenta, con el importe del pago.</p>' +
+        '<p class="agp-nota">El monto es un estimado. La banda azul es el colchón: entre 5% y 30% de ese estimado, según la dispersión de la semana del mes. Mercaderías no entra. El verde es lo ya pagado. Comisiones de venta van en la última semana del mes. Si un gasto entra antes de lo previsto, se ve pagado esa semana con el importe real y se descuenta de la proyección siguiente.</p>' +
       '</section>' +
       filtroTxt +
       htmlTabla(m);
