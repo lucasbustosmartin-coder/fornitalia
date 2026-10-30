@@ -17,7 +17,7 @@
   <script src="scripts/lib/fornitalia-agenda-pagos.js?v=2.109"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.109"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.110"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
@@ -1558,7 +1558,7 @@
       <template id="template-estado-financiero-panel">
         <div class="th-help-rich-content">
           <p>Estructura desde Supabase <code>ef_estructura</code> (ABM en menú <strong>Matriz EF → Estructura EF</strong>), montos desde tesorería por <code>ef_subitem</code> (matriz categoría + cuenta; Ingreso y Egreso del mismo par pegan en la misma línea, p. ej. Pago de Cuotas de Créditos / Intereses Bancarios). En <strong>ARS</strong>, movimientos en USD se convierten al <strong>dólar MEP</strong> de la fecha (tabla de cotización; si falta, la última MEP conocida o el TC de la fila).</p>
-          <p>Columna <strong>Ítem</strong>: secciones y totales en negrita; detalle con viñeta. Subtotales y fórmulas muestran % del <strong>Flujo Operativo Generado</strong>. Clic en un <strong>importe</strong> abre el detalle de transacciones que lo componen. Icono <strong>línea</strong> por fila: evolución mensual. Icono <strong>barras</strong> en columnas: consumo del Flujo Op. (Margen bruto de caja y Flujo neto del período).</p>
+          <p>Columna <strong>Ítem</strong>: secciones y totales en negrita; detalle con viñeta. Subtotales y fórmulas muestran % del <strong>Flujo Operativo Generado</strong>. El margen bruto incluye el ajuste de saldos de caja. El flujo de caja neto del período suma además la financiación y los intereses del FCI. Clic en un <strong>importe</strong> abre el detalle de transacciones que lo componen, y la suma de ese detalle cierra con la celda. Icono <strong>línea</strong> por fila: evolución mensual. Icono <strong>barras</strong> en columnas: consumo del Flujo Op. (Margen bruto de caja y Flujo neto del período).</p>
           <p>Al final de la tabla, filas <strong>Indicadores de Gestión</strong> (mismas columnas de período). Fórmula y notas en el icono <strong>?</strong> junto al nombre.</p>
           <p>La columna <strong>Avg Mensual</strong>, antes de <strong>Total</strong>, es el promedio de los <strong>últimos 12 meses cerrados móviles</strong>: el mes en curso no entra y un mes sin movimientos cuenta como cero.</p>
           <p><em>Conciliación de disponibilidades (sección 7) oculta por ahora.</em></p>
@@ -2538,7 +2538,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.109';
+    const APP_VERSION = '2.110';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -6224,17 +6224,17 @@
         const nat = normalizarString(line.naturaleza || '');
         const s = (c) => efSubitemsDesdeSeccionCodigo(lines, c);
         const sub = (c) => efSubitemPorCodigoLinea(lines, c);
+        if (cod === 'D' || (/Flujo\s+Neto\s+C/i.test(nat) && /6\.1/i.test(nat))) {
+          return s('1').concat(s('1.2'), s('2'), s('3'), s('4'), s('5'), sub('6.1'), sub('6.2'), sub('6.3'), sub('6.4'));
+        }
         if (cod === 'A' || /Total\s+1\s*-\s*Total\s+2/i.test(nat)) {
-          return s('1').concat(s('2'));
+          return s('1').concat(s('1.2'), s('2'));
         }
         if (cod === 'B' || /Margen\s+Bruto/i.test(nat)) {
-          return s('1').concat(s('2'), s('3'));
+          return s('1').concat(s('1.2'), s('2'), s('3'));
         }
-        if (cod === 'C' || (/Flujo\s+Neto\s+C/i.test(nat) && /6\.1/i.test(nat))) {
-          return s('1').concat(s('2'), s('3'), s('4'), s('5'), sub('6.1'), sub('6.2'), sub('6.3'));
-        }
-        if (cod === 'D') {
-          return s('1').concat(s('2'), s('3'), s('4'), s('5'), sub('6.1'), sub('6.2'), sub('6.3'));
+        if (cod === 'C') {
+          return s('1').concat(s('1.2'), s('2'), s('3'), s('4'), s('5'));
         }
         if (cod === '7.2') {
           return sub('7.1').concat(efSubitemsParaLineaDetalle(
@@ -6437,7 +6437,7 @@
       };
 
       if (/Total\s+1\s*-\s*Total\s+2/i.test(t)) {
-        return efColMapSubAbs(columnas, section('1'), section('2'));
+        return efColMapSubAbs(columnas, efColMapAdd(columnas, section('1'), section('1.2')), section('2'));
       }
       if (/Margen\s+Bruto\s+A\s*-\s*Total\s+3/i.test(t)) {
         return efColMapSubAbs(columnas, totalRow('A'), section('3'));
@@ -6446,7 +6446,7 @@
         return efColMapSubAbs(columnas, efColMapSubAbs(columnas, totalRow('B'), section('4')), section('5'));
       }
       if (/Flujo\s+Neto\s+C/i.test(t) && /6\.1/i.test(t)) {
-        // 6.2 / 6.3 y el ajuste 1.2 ya vienen con signo (egreso −, ingreso +).
+        // 6.1 a 6.4 vienen con signo (egreso −, ingreso +). El ajuste 1.2 ya está en el margen (A) y llega por C.
         return efColMapAdd(
           columnas,
           efColMapAdd(
@@ -6454,7 +6454,7 @@
             efColMapAdd(columnas, totalRow('C'), subitem('6.1')),
             efColMapAdd(columnas, subitem('6.2'), subitem('6.3'))
           ),
-          section('1.2')
+          subitem('6.4')
         );
       }
       if (codigoEq(line.codigo) === '7.2') {
@@ -6928,13 +6928,16 @@
 
     function buildEfConsumoWaterfallChartData(lines, montosPorOrden, colKey, columnasOrdenadas) {
       const fo = efMontoLineaEnCol(lines, montosPorOrden, '1', 0, colKey, columnasOrdenadas);
+      const aj = efMontoLineaEnCol(lines, montosPorOrden, '1.2', 0, colKey, columnasOrdenadas);
+      const despuesAjuste = fo + aj;
       const mA = efMontoLineaEnCol(lines, montosPorOrden, 'A', 2, colKey, columnasOrdenadas);
       const mB = efMontoLineaEnCol(lines, montosPorOrden, 'B', 2, colKey, columnasOrdenadas);
       const mC = efMontoLineaEnCol(lines, montosPorOrden, 'C', 2, colKey, columnasOrdenadas);
       const mD = efMontoLineaEnCol(lines, montosPorOrden, 'D', 2, colKey, columnasOrdenadas);
       const barSegments = [
         { label: 'Flujo Op. Generado', bottom: 0, top: fo, color: 'rgba(13, 125, 61, 0.88)' },
-        { label: 'Costos directos', bottom: mA, top: fo, color: 'rgba(220, 38, 38, 0.78)' },
+        { label: 'Ajuste de caja', bottom: fo, top: despuesAjuste, color: 'rgba(37, 99, 235, 0.75)' },
+        { label: 'Costos directos', bottom: mA, top: despuesAjuste, color: 'rgba(220, 38, 38, 0.78)' },
         { label: 'Costos indirectos', bottom: mB, top: mA, color: 'rgba(220, 38, 38, 0.78)' },
         { label: 'Impuestos y anticipos', bottom: mC, top: mB, color: 'rgba(220, 38, 38, 0.78)' },
         { label: 'Financ. e inversión', bottom: mD, top: mC, color: 'rgba(220, 38, 38, 0.78)' }
