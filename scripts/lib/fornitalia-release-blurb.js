@@ -8,12 +8,11 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.110',
+    versionLabel: 'v2.111',
     lines: [
-      'En el Estado Financiero, el margen bruto incluye el ajuste de caja.',
-      'El flujo de caja neto del período suma los intereses del FCI.',
-      'En octubre ese total queda cerca de 3,2 millones, en línea con el resultado de la empresa.',
-      'Al abrir un total, la suma del detalle coincide con la celda.'
+      'En Mercado Pago, el saldo actual sigue los retiros aunque haya cambiado el mes.',
+      'Parte de la última carta de saldo y suma el extracto desde el día siguiente.',
+      'Si cargás una carta nueva, el saldo arranca de esa carta.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
