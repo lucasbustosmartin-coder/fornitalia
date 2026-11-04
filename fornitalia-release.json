@@ -1,8 +1,9 @@
 {
-  "versionLabel": "v2.111",
+  "versionLabel": "v2.112",
   "lines": [
-    "En Mercado Pago, el saldo actual sigue los retiros aunque haya cambiado el mes.",
-    "Parte de la última carta de saldo y suma el extracto desde el día siguiente.",
-    "Si cargás una carta nueva, el saldo arranca de esa carta."
+    "La agenda muestra las próximas 4 semanas según la semana del mes.",
+    "Esta semana es la 1ª de noviembre: el estimado es lo habitual de la 1ª semana.",
+    "Lo ya pagado figura con el importe real. Lo que falta de esa semana sigue por pagar.",
+    "La semana que viene se ven la 2ª, la 3ª, la 4ª y la 1ª de diciembre."
   ]
 }

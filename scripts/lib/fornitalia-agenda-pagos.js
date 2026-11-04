@@ -6,11 +6,14 @@
  * (no compara el monto). Sin ID compra: un pago de la misma categoría y cuenta
  * toma una fila de esa semana, le pone el importe real y la deja pagada.
  * Si hay más pagos que filas, los que sobran no marcan nada y no cortan el tablero.
- * Sueldos y Jornales se proyecta el día 1, cada 30 días, con los
- * pagos cargados desde septiembre de 2026.
+ * Cada una de las 4 semanas es una semana del mes (1ª, 2ª, 3ª o 4ª)
+ * y el estimado es lo que habitualmente se paga en esa misma semana.
+ * La ventana siempre mira hacia adelante: al pasar de semana, entra
+ * la 1ª del mes siguiente y sale la que quedó atrás.
+ * La semana en curso muestra lo pagado, por categoría y cuenta, con el
+ * importe real, más lo habitual de esa semana que todavía no se pagó.
+ * Un pago de la semana anterior, o uno que entró antes, se descuenta.
  * Comisiones de venta se proyectan en la última semana del mes.
- * Un pago de esta semana que estaba previsto más adelante queda Ya pagado
- * con el importe real y se descuenta de esa proyección.
  * Cada semana suma un colchón de entre 5% y 30% del estimado.
  * El porcentaje sale de la dispersión de esa semana del mes en los
  * últimos 6 meses: la más pareja queda en 5% y la más variable en 30%.
@@ -159,6 +162,59 @@
     var last = new Date(Date.UTC(y, m, 0)).getUTCDate();
     if (d > last) d = last;
     return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+
+  function mesAnteriorYm(ym) {
+    var p = String(ym || '').split('-');
+    var y = Number(p[0]);
+    var m = Number(p[1]) - 1;
+    if (!y || !Number(p[1])) return '';
+    if (m < 1) { m = 12; y -= 1; }
+    return y + '-' + String(m).padStart(2, '0');
+  }
+
+  function mesSiguienteYm(ym) {
+    return mesDe(diaUnoMesSiguiente(ym + '-01'));
+  }
+
+  /** Lunes de la semana que contiene el primer día hábil del mes. Esa semana es la 1ª. */
+  function lunesSemana1(ym) {
+    return lunesDe(diaHabil(ym + '-01'));
+  }
+
+  /**
+   * Semana del mes de un lunes. La semana del día 1 es la 1ª de ese mes
+   * (aunque el lunes caiga en el mes anterior). La siguiente es la 2ª, y así.
+   */
+  function clasificarLunes(lunes) {
+    var ymL = mesDe(lunes);
+    var ymVie = mesDe(addDays(lunes, 4));
+    var candidatos = [ymVie, ymL, mesSiguienteYm(ymVie), mesAnteriorYm(ymL)];
+    var visto = {};
+    var i;
+    for (i = 0; i < candidatos.length; i++) {
+      var ym = candidatos[i];
+      if (!ym || visto[ym]) continue;
+      visto[ym] = true;
+      if (lunesSemana1(ym) === lunes) return { ym: ym, n: 1 };
+    }
+    var bestYm = '';
+    var bestS1 = '';
+    Object.keys(visto).forEach(function (ym) {
+      var s1 = lunesSemana1(ym);
+      if (!s1 || s1 > lunes) return;
+      if (!bestS1 || s1 > bestS1) { bestS1 = s1; bestYm = ym; }
+    });
+    var n = bestS1 ? (1 + Math.round(diffDays(bestS1, lunes) / 7)) : 1;
+    if (n < 1) n = 1;
+    return { ym: bestYm || ymL, n: n };
+  }
+
+  function etiquetaSemanaMes(c) {
+    var meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    var m = Number(String(c && c.ym || '').split('-')[1]) - 1;
+    var nom = meses[m] || '';
+    return (c && c.n ? c.n : 1) + 'ª de ' + nom;
   }
 
   /** 1 = días 1 a 7 del mes, 2 = 8 a 14, 3 = 15 a 21, 4 = 22 a 28, 5 = 29 a 31. El día es el lunes de esa semana. */
@@ -323,24 +379,43 @@
     });
   }
 
-  /** Nómina: el día 1 del mes siguiente al último pago oportuno (desde septiembre). */
-  function proyectarNomina(fechas, montos, hoy, semanas) {
-    if (!fechas.length) return [];
-    var monto = montoEstimado(montos);
-    if (monto == null || monto <= 0) return [];
-    var cursor = diaUnoMesSiguiente(fechas[fechas.length - 1]);
-    var guard = 0;
+  /**
+   * Nómina: el día 1 hábil de cada mes que entre en las 4 semanas.
+   * El importe es la primera semana (días 1 a 7) del mes anterior.
+   * Así, si este mes ya se pagó, la fila sigue en la semana en curso
+   * y el ajuste posterior la deja en el importe real.
+   */
+  function proyectarNomina(pagos, hoy, semanas) {
+    if (!pagos.length || !semanas.length) return [];
+    var porMes = {};
+    var cat = 'Sueldos';
+    var cuenta = 'Sueldos y Jornales a pagar';
+    pagos.forEach(function (p) {
+      if (!p || diaDelMes(p.fecha) > 7) return;
+      if (norm(p.cat).indexOf('sueldo') === -1 && norm(p.cat).indexOf('jornal') === -1) return;
+      var ym = mesDe(p.fecha);
+      if (!ym) return;
+      porMes[ym] = (porMes[ym] || 0) + p.monto;
+      cat = p.cat;
+      if (p.cuenta) cuenta = p.cuenta;
+    });
+    var meses = Object.keys(porMes).sort();
+    if (!meses.length) return [];
     var piso = semanas[0].desde;
-    while (cursor && diaHabil(cursor) < piso && guard < 6) {
-      cursor = diaUnoMesSiguiente(cursor);
-      guard++;
-    }
     var fin = semanas[semanas.length - 1].hasta;
+    var ym = mesDe(piso);
     var out = [];
-    while (cursor && cursor <= addDays(fin, 2) && guard < 8) {
-      var habil = diaHabil(cursor);
-      if (habil >= semanas[0].desde && habil <= fin) out.push({ fecha: habil, monto: monto, cada: 30, veces: fechas.length });
-      cursor = diaUnoMesSiguiente(cursor);
+    var guard = 0;
+    while (ym && guard < 6) {
+      var fecha = diaHabil(ym + '-01');
+      if (fecha && fecha > addDays(fin, 2)) break;
+      if (fecha && fecha >= piso && fecha <= fin) {
+        var prev = null;
+        meses.forEach(function (k) { if (k < ym) prev = porMes[k]; });
+        var monto = prev != null ? prev : porMes[ym];
+        if (monto > 0) out.push({ fecha: fecha, monto: monto, cada: 30, veces: meses.length, cat: cat, cuenta: cuenta });
+      }
+      ym = mesDe(diaUnoMesSiguiente(ym + '-01'));
       guard++;
     }
     return out;
@@ -414,6 +489,209 @@
     return out;
   }
 
+  /**
+   * Cada semana hacia adelante muestra lo habitual de esa semana del mes
+   * (1ª, 2ª, 3ª…). El hábito sale de los meses ya cerrados: en cada mes
+   * manda la semana en la que más se pagó esa serie, y el importe pondera
+   * los últimos tres. Nómina va junta. Comisiones tienen su propia semana.
+   */
+  function proyectarHabitual(pagos, semanas, hoy) {
+    var mesActual = mesDe(hoy);
+    var series = {};
+    (pagos || []).forEach(function (p) {
+      if (!p || esComisionVenta(p.cat, p.cuenta)) return;
+      var lunes = lunesDe(diaHabil(p.fecha));
+      var c = clasificarLunes(lunes);
+      if (!c || !c.ym || c.ym >= mesActual) return;
+      var key;
+      var meta;
+      if (esSueldosYJornales(p.cuenta) && (norm(p.cat).indexOf('sueldo') !== -1 || norm(p.cat).indexOf('jornal') !== -1)) {
+        key = 'nomina';
+        meta = { prov: 'Nómina', provKey: norm('Nómina'), cat: p.cat, cuenta: p.cuenta, origen: 'nomina' };
+      } else {
+        if (p.provKey === norm('Sin identificar') && (p.catKey === 'transferencia' || p.catKey === 'deposito')) return;
+        key = p.provKey + '|' + p.catKey + '|' + p.cuentaKey;
+        meta = { prov: p.prov, provKey: p.provKey, cat: p.cat, cuenta: p.cuenta, origen: p.idc ? 'compra' : 'frecuente' };
+      }
+      if (!series[key]) series[key] = { meta: meta, meses: {} };
+      else if (meta.origen === 'nomina' && norm(p.cat).indexOf('sueldo') !== -1) series[key].meta.cat = p.cat;
+      if (!series[key].meses[c.ym]) series[key].meses[c.ym] = {};
+      series[key].meses[c.ym][c.n] = (series[key].meses[c.ym][c.n] || 0) + p.monto;
+    });
+
+    var habito = {};
+    Object.keys(series).forEach(function (key) {
+      var meses = Object.keys(series[key].meses).sort();
+      if (meses.length < 2 && key !== 'nomina') return;
+      if (!meses.length) return;
+      var sums = [];
+      var slot = null;
+      meses.slice(-3).forEach(function (ym) {
+        var slots = series[key].meses[ym];
+        var bestN = null;
+        var bestV = 0;
+        Object.keys(slots).forEach(function (n) {
+          if (slots[n] > bestV) { bestV = slots[n]; bestN = Number(n); }
+        });
+        if (bestN != null && bestV > 0) {
+          sums.push(bestV);
+          slot = bestN;
+        }
+      });
+      var monto = montoEstimado(sums);
+      if (slot == null || monto == null || !(monto > 0)) return;
+      habito[key] = { meta: series[key].meta, n: slot, monto: monto, veces: sums.length };
+    });
+
+    var items = [];
+    (semanas || []).forEach(function (sem) {
+      var c = clasificarLunes(sem.desde);
+      Object.keys(habito).forEach(function (key) {
+        var h = habito[key];
+        if (h.n !== c.n) return;
+        items.push({
+          semana: sem.i,
+          fecha: sem.desde,
+          prov: h.meta.prov,
+          provKey: h.meta.provKey,
+          cat: h.meta.cat,
+          cuenta: h.meta.cuenta,
+          monto: h.monto,
+          origen: h.meta.origen,
+          cada: null,
+          veces: h.veces,
+          semMes: c.n,
+          yaPagado: false
+        });
+      });
+    });
+    return items;
+  }
+
+  function round2(n) {
+    return Math.round((Number(n) || 0) * 100) / 100;
+  }
+
+  function mismaCatCuenta(it, p) {
+    return it && p && norm(it.cat) === p.catKey && norm(it.cuenta) === p.cuentaKey;
+  }
+
+  /** Resta el importe de las proyecciones, primero las del mismo proveedor. */
+  function restarProyecciones(lista, monto) {
+    var pool = (lista || []).filter(function (it) { return it && !it._consumido && it.monto > 1; });
+    var resta = Number(monto) || 0;
+    pool.forEach(function (it) {
+      if (!(resta > 0)) return;
+      if (resta >= it.monto - 1) {
+        resta = round2(resta - it.monto);
+        it._consumido = true;
+      } else {
+        it.monto = round2(it.monto - resta);
+        resta = 0;
+      }
+    });
+    return resta;
+  }
+
+  function proyeccionesDe(items, p, pred) {
+    var propias = [];
+    var otras = [];
+    items.forEach(function (it) {
+      if (!it || it._consumido || it.origen === 'colchon' || it.yaPagado) return;
+      if (!mismaCatCuenta(it, p) || !(it.monto > 1)) return;
+      if (pred && !pred(it)) return;
+      if (p.provKey && it.provKey === p.provKey) propias.push(it);
+      else otras.push(it);
+    });
+    function porFecha(a, b) {
+      if (a.semana !== b.semana) return a.semana - b.semana;
+      return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0);
+    }
+    propias.sort(porFecha);
+    otras.sort(porFecha);
+    return propias.concat(otras);
+  }
+
+  /**
+   * La semana en curso queda con el importe real pagado, por categoría y cuenta,
+   * más el habitual de esa semana que no se cubrió.
+   * Un pago de la semana anterior, o uno que entra antes de la semana prevista,
+   * se descuenta de esa proyección.
+   */
+  function ajustarConLoPagado(items, pagos, semanas, hoy) {
+    if (!semanas.length) return;
+    var hayEnSemana = {};
+    (pagos || []).forEach(function (p) {
+      if (!p || p._usado || p.fecha > hoy) return;
+      var sem = semanaDe(diaHabil(p.fecha), semanas);
+      if (!sem) return;
+      p._sem = sem.i;
+      if (proyeccionesDe(items, p, function (it) { return it.semana === sem.i; }).length) {
+        hayEnSemana[sem.i + '|' + p.catKey + '|' + p.cuentaKey] = true;
+      }
+    });
+
+    (pagos || []).slice().sort(function (a, b) {
+      return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0);
+    }).forEach(function (p) {
+      if (!p || p._usado || p.fecha > hoy) return;
+      if (p._sem != null) return;
+      var dest = proyeccionesDe(items, p, function (it) {
+        var desde = addDays(lunesDe(it.fecha), -7);
+        return p.fecha >= desde && p.fecha < it.fecha;
+      });
+      if (!dest.length) return;
+      restarProyecciones([dest[0]], p.monto);
+    });
+
+    (pagos || []).forEach(function (p) {
+      if (!p || p._usado || p._sem == null || p.fecha > hoy) return;
+      var k = p._sem + '|' + p.catKey + '|' + p.cuentaKey;
+      if (hayEnSemana[k]) {
+        var queda = restarProyecciones(proyeccionesDe(items, p, function (it) { return it.semana === p._sem; }), p.monto);
+        if (queda > 1) restarProyecciones(proyeccionesDe(items, p, function (it) { return it.semana > p._sem; }), queda);
+        return;
+      }
+      restarProyecciones(proyeccionesDe(items, p, function (it) { return it.semana > p._sem; }), p.monto);
+    });
+
+    for (var i = items.length - 1; i >= 0; i--) {
+      if (items[i] && items[i]._consumido) items.splice(i, 1);
+    }
+
+    var grupos = {};
+    (pagos || []).forEach(function (p) {
+      if (!p || p._usado || p._sem == null || p.fecha > hoy) return;
+      var k = p._sem + '|' + p.catKey + '|' + p.cuentaKey;
+      if (!grupos[k]) {
+        grupos[k] = { sem: p._sem, cat: p.cat, cuenta: p.cuenta, monto: 0, provs: {}, fecha: p.fecha };
+      }
+      grupos[k].monto += p.monto;
+      if (p.fecha > grupos[k].fecha) grupos[k].fecha = p.fecha;
+      if (p.prov && p.provKey !== norm('Sin identificar')) grupos[k].provs[p.prov] = true;
+    });
+    Object.keys(grupos).forEach(function (k) {
+      var g = grupos[k];
+      var nombres = Object.keys(g.provs);
+      var prov = !nombres.length ? 'Varios' : (nombres.length <= 2 ? nombres.join(' · ') : 'Varios');
+      if (esSueldosYJornales(g.cuenta) && nombres.length > 2) prov = 'Nómina';
+      var cubierta = !!hayEnSemana[k];
+      items.push({
+        semana: g.sem,
+        fecha: g.fecha,
+        prov: prov,
+        provKey: norm(prov),
+        cat: g.cat,
+        cuenta: g.cuenta,
+        monto: round2(g.monto),
+        origen: cubierta ? 'real' : 'adelanto',
+        cada: null,
+        veces: nombres.length,
+        yaPagado: true
+      });
+    });
+  }
+
   function calcularAgenda(rows, opts) {
     opts = opts || {};
     var hoy = opts.hoy || hoyArgentina();
@@ -455,239 +733,19 @@
       });
     });
 
-    var nominaPagos = [];
     var comisionPagos = [];
-    var conCompra = {};
-    var sinCompra = {};
     pagos.forEach(function (p) {
-      if (esSueldosYJornales(p.cuenta)) {
-        if (p.fecha >= DESDE_NOMINA) nominaPagos.push(p);
-        return;
-      }
-      if (esComisionVenta(p.cat, p.cuenta)) {
-        comisionPagos.push(p);
-        return;
-      }
-      var key = p.provKey + '|' + p.catKey + '|' + p.cuentaKey;
-      if (p.idc) {
-        if (!conCompra[key]) conCompra[key] = { prov: p.prov, cat: p.cat, cuenta: p.cuenta, provKey: p.provKey, eventos: {} };
-        var ev = conCompra[key].eventos[p.idc];
-        if (!ev) conCompra[key].eventos[p.idc] = { fecha: p.fecha, monto: p.monto };
-        else {
-          if (p.fecha > ev.fecha) ev.fecha = p.fecha;
-          ev.monto += p.monto;
-        }
-      } else {
-        if (!sinCompra[key]) sinCompra[key] = { prov: p.prov, cat: p.cat, cuenta: p.cuenta, provKey: p.provKey, catKey: p.catKey, dias: {} };
-        if (!sinCompra[key].dias[p.fecha]) sinCompra[key].dias[p.fecha] = 0;
-        sinCompra[key].dias[p.fecha] += p.monto;
-      }
+      if (esComisionVenta(p.cat, p.cuenta)) comisionPagos.push(p);
     });
 
-    var items = [];
-    var cubiertos = {};
-
-    Object.keys(conCompra).forEach(function (key) {
-      var g = conCompra[key];
-      var fechas = [];
-      var montos = [];
-      var porDia = {};
-      Object.keys(g.eventos).forEach(function (idc) {
-        var ev = g.eventos[idc];
-        if (!porDia[ev.fecha]) porDia[ev.fecha] = 0;
-        porDia[ev.fecha] += ev.monto;
-      });
-      Object.keys(porDia).sort().forEach(function (f) {
-        fechas.push(f);
-        montos.push(porDia[f]);
-      });
-      proyectar(fechas, montos, hoy, semanas).forEach(function (pr) {
-        var sem = semanaDe(pr.fecha, semanas);
-        if (!sem) return;
-        cubiertos[key] = true;
-        items.push({
-          semana: sem.i,
-          fecha: pr.fecha,
-          prov: g.prov,
-          provKey: g.provKey,
-          cat: g.cat,
-          cuenta: g.cuenta,
-          monto: pr.monto,
-          origen: 'compra',
-          cada: pr.cada,
-          veces: pr.veces,
-          yaPagado: false
-        });
-      });
-    });
-
-    Object.keys(sinCompra).forEach(function (key) {
-      if (cubiertos[key]) return;
-      var g = sinCompra[key];
-      if (g.provKey === norm('Sin identificar') && (g.catKey === 'transferencia' || g.catKey === 'deposito')) return;
-      var fechas = Object.keys(g.dias).sort();
-      if (fechas.length < (g.provKey === norm('Sin identificar') ? 6 : 4)) return;
-      var montos = fechas.map(function (f) { return g.dias[f]; });
-      proyectar(fechas, montos, hoy, semanas).forEach(function (pr) {
-        var sem = semanaDe(pr.fecha, semanas);
-        if (!sem) return;
-        items.push({
-          semana: sem.i,
-          fecha: pr.fecha,
-          prov: g.prov,
-          provKey: g.provKey,
-          cat: g.cat,
-          cuenta: g.cuenta,
-          monto: pr.monto,
-          origen: 'frecuente',
-          cada: pr.cada,
-          veces: pr.veces,
-          yaPagado: false
-        });
-      });
-    });
-
-    var anclaNomina = '';
-    nominaPagos.forEach(function (p) {
-      if (diaDelMes(p.fecha) <= 7 && (!anclaNomina || p.fecha > anclaNomina)) anclaNomina = p.fecha;
-    });
-    if (!anclaNomina) {
-      nominaPagos.forEach(function (p) {
-        if (!anclaNomina || p.fecha > anclaNomina) anclaNomina = p.fecha;
-      });
-    }
-    if (anclaNomina) {
-      var mesNomina = mesDe(anclaNomina);
-      var enPrimera = diaDelMes(anclaNomina) <= 7;
-      var sumaNomina = 0;
-      var nominaCat = 'Sueldos';
-      var nominaCuenta = 'Sueldos y Jornales a pagar';
-      nominaPagos.forEach(function (p) {
-        if (mesDe(p.fecha) !== mesNomina) return;
-        if (enPrimera && diaDelMes(p.fecha) > 7) return;
-        if (!enPrimera && p.fecha !== anclaNomina) return;
-        sumaNomina += p.monto;
-        if (norm(p.cat).indexOf('sueldo') !== -1) nominaCat = p.cat;
-        nominaCuenta = p.cuenta;
-      });
-      proyectarNomina([anclaNomina], [sumaNomina], hoy, semanas).forEach(function (pr) {
-        var sem = semanaDe(pr.fecha, semanas);
-        if (!sem) return;
-        items.push({
-          semana: sem.i,
-          fecha: pr.fecha,
-          prov: 'Nómina',
-          provKey: norm('Nómina'),
-          cat: nominaCat,
-          cuenta: nominaCuenta,
-          monto: pr.monto,
-          origen: 'nomina',
-          cada: pr.cada,
-          veces: pr.veces,
-          yaPagado: false
-        });
-      });
-    }
-
+    var items = proyectarHabitual(pagos, semanas, hoy);
     proyectarComisiones(comisionPagos, hoy, semanas).forEach(function (it) { items.push(it); });
 
-    var pagadoEnSemana = {};
-    pagos.forEach(function (p) {
-      if (!p.idc) return;
-      if (p.provKey === norm('Sin identificar')) return;
-      if (p.fecha > hoy) return;
-      var sem = semanaDe(diaHabil(p.fecha), semanas);
-      if (!sem) return;
-      pagadoEnSemana[p.provKey + '|' + sem.i] = true;
-    });
-    items.forEach(function (it) {
-      if (it.origen !== 'compra') return;
-      if (it.provKey === norm('Sin identificar')) return;
-      if (pagadoEnSemana[it.provKey + '|' + it.semana]) it.yaPagado = true;
-    });
-
-    var pagosCombo = {};
-    pagos.forEach(function (p) {
-      if (p.fecha > hoy) return;
-      var sem = semanaDe(diaHabil(p.fecha), semanas);
-      if (!sem) return;
-      var k = sem.i + '|' + p.catKey + '|' + p.cuentaKey;
-      if (!pagosCombo[k]) pagosCombo[k] = [];
-      pagosCombo[k].push(p);
-    });
-    var itemsCombo = {};
-    items.forEach(function (it) {
-      if (it.origen === 'colchon' || it.yaPagado) return;
-      var k = it.semana + '|' + norm(it.cat) + '|' + norm(it.cuenta);
-      if (!itemsCombo[k]) itemsCombo[k] = [];
-      itemsCombo[k].push(it);
-    });
-    Object.keys(pagosCombo).forEach(function (k) {
-      var libres = itemsCombo[k];
-      if (!libres || !libres.length) return;
-      pagosCombo[k].slice().sort(function (a, b) { return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); }).forEach(function (p) {
-        if (!p || !libres.length) return;
-        var pool = libres.filter(function (it) { return it && it.provKey === p.provKey; });
-        if (!pool.length) pool = libres.filter(function (it) { return it && it.fecha; });
-        var best = null;
-        var bestD = Infinity;
-        pool.forEach(function (it) {
-          if (!it || !it.fecha) return;
-          var d = Math.abs(diffDays(it.fecha, p.fecha));
-          if (!best || d < bestD || (d === bestD && it.fecha < best.fecha)) {
-            best = it;
-            bestD = d;
-          }
-        });
-        if (!best) return;
-        best.yaPagado = true;
-        best.monto = p.monto;
-        p._usado = true;
-        var idx = libres.indexOf(best);
-        if (idx >= 0) libres.splice(idx, 1);
-      });
-    });
-
-    pagos.slice().sort(function (a, b) { return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); }).forEach(function (p) {
-      if (!p || p._usado || p.fecha > hoy) return;
-      var sem = semanaDe(diaHabil(p.fecha), semanas);
-      if (!sem) return;
-      var futuros = items.filter(function (it) {
-        return it && !it.yaPagado && it.origen !== 'colchon' && it.semana > sem.i
-          && norm(it.cat) === p.catKey && norm(it.cuenta) === p.cuentaKey && it.monto > 0;
-      });
-      if (!futuros.length) return;
-      var pool = futuros.filter(function (it) { return it.provKey === p.provKey; });
-      if (!pool.length) pool = futuros;
-      pool.sort(function (a, b) {
-        if (a.semana !== b.semana) return a.semana - b.semana;
-        return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0);
-      });
-      var futuro = pool[0];
-      futuro.monto = Math.round((futuro.monto - p.monto) * 100) / 100;
-      if (!(futuro.monto > 1)) {
-        var ix = items.indexOf(futuro);
-        if (ix >= 0) items.splice(ix, 1);
-      }
-      p._usado = true;
-      items.push({
-        semana: sem.i,
-        fecha: p.fecha,
-        prov: p.prov,
-        provKey: p.provKey,
-        cat: p.cat,
-        cuenta: p.cuenta,
-        monto: p.monto,
-        origen: 'adelanto',
-        cada: futuro.cada,
-        veces: futuro.veces,
-        yaPagado: true
-      });
-    });
+    ajustarConLoPagado(items, pagos, semanas, hoy);
 
     var porSemMes = {};
     Object.keys(totalesPorLunes).forEach(function (lunes) {
-      var k = String(semanaDelMes(lunes));
+      var k = String(clasificarLunes(lunes).n);
       if (!porSemMes[k]) porSemMes[k] = [];
       porSemMes[k].push(totalesPorLunes[lunes]);
     });
@@ -703,7 +761,9 @@
     var pctPorSemMes = porcentajesColchon(statsSemMes);
 
     var semanasOut = semanas.map(function (s) {
-      var semMes = semanaDelMes(s.desde);
+      var clase = clasificarLunes(s.desde);
+      var semMes = clase.n;
+      s.etiqueta = etiquetaSemanaMes(clase);
       var st = statsSemMes[String(semMes)] || { n: 0, cv: 0 };
       var nHist = st.n;
       var cv = st.cv || 0;
@@ -715,7 +775,8 @@
       if (nHist < 2 && semMes === 5 && pctPorSemMes['4'] != null) pct = pctPorSemMes['4'];
       if (pct == null) pct = 0.05;
       return {
-        i: s.i, desde: s.desde, hasta: s.hasta, label: s.label, rango: s.rango,
+        i: s.i, desde: s.desde, hasta: s.hasta, label: s.label,
+        rango: s.rango + ' · ' + s.etiqueta,
         pendiente: 0, pagado: 0, colchon: 0, pct: pct, semMes: semMes, colchonN: nHist
       };
     });
@@ -833,15 +894,15 @@
           : '<span class="agp-badge agp-badge-pend">Por pagar</span>');
       var base = it.origen === 'colchon'
         ? (Math.round(it.pct * 100) + '% del estimado · semana ' + s.semMes + ' del mes · ' + it.veces + ' semanas en 6 meses')
-        : (it.origen === 'nomina'
-          ? 'Día 1 del mes · cada 30 días · carga desde septiembre'
-          : (it.origen === 'comision'
-            ? 'Última semana del mes'
-            : (it.origen === 'adelanto'
-              ? 'Entró antes de lo previsto · se descuenta de la proyección siguiente'
-              : (it.origen === 'compra'
-                ? 'Con ID compra · cada ' + it.cada + ' días'
-                : 'Frecuente, sin ID compra · cada ' + it.cada + ' días'))));
+        : (it.origen === 'real'
+          ? 'Pagado en la semana · importe real'
+          : (it.origen === 'nomina'
+            ? ('Semana ' + (it.semMes || s.semMes) + ' del mes · nómina habitual')
+            : (it.origen === 'comision'
+              ? 'Última semana del mes'
+              : (it.origen === 'adelanto'
+                ? 'Entró antes de lo previsto · se descuenta de la semana estimada'
+                : ('Semana ' + (it.semMes || s.semMes) + ' del mes')))));
       var sub = it.origen === 'colchon' ? ('Semana ' + s.semMes + ' del mes') : fmtDia(it.fecha);
       var filaClase = it.origen === 'colchon' ? 'agp-row-buf' : (it.yaPagado ? 'agp-row-ok' : '');
       html += '<tr' + (filaClase ? ' class="' + filaClase + '"' : '') + '>' +
@@ -893,7 +954,7 @@
     mount.innerHTML =
       '<section class="agp-card" aria-label="Agenda de pagos">' +
         '<div class="agp-card-top">' +
-          '<button type="button" class="th-help th-help--inline" data-help="Estimado de egresos de las próximas 4 semanas, según los últimos 3 meses. El importe usa los últimos 3 pagos de ese proveedor y categoría: el más reciente pesa más. Primero las series con ID compra. También entran los pagos frecuentes sin ID compra. Impuestos de hasta $ 500.000 y Gastos bancarios no entran. Cada serie se abre por cuenta contable. Las semanas son de lunes a viernes. Un día de la semana en curso sigue en la agenda aunque ya haya pasado: el pago no cae justo en la fecha estimada. Si en esa semana ya hubo un pago al proveedor, el estado pasa a Ya pagado y la fila sigue en la tabla. Sin ID compra, un pago de la misma categoría y cuenta contable toma una sola fila de esa semana, le pone el importe real y la deja en Ya pagado: el importe no tiene que coincidir. Si el cálculo cae sábado o domingo, el pago pasa al lunes. Sueldos y Jornales a pagar toma la primera semana del último mes cargado desde septiembre y el próximo cae el primer día hábil. Comisiones de venta se proyectan en la última semana del mes. Si un pago entra antes de la semana prevista, queda Ya pagado esta semana con el importe real y se descuenta de esa proyección. Cada semana suma un colchón de entre 5% y 30% del estimado, según la dispersión de esa semana del mes en los últimos 6 meses. La más pareja queda en 5% y la más variable en 30%. La cuenta Mercaderías no entra en esa dispersión. Ya pagado no compara el monto: en esa semana ya hay un egreso con ID compra al mismo proveedor. Eso no se aplica si la serie no tiene ID compra. Tocá una semana para ver solo ese detalle." aria-label="Ayuda: agenda de pagos" title="Ayuda">' + svgAyuda() + '</button>' +
+          '<button type="button" class="th-help th-help--inline" data-help="Las próximas 4 semanas, de lunes a viernes, siempre hacia adelante. Cada una es una semana del mes: 1ª, 2ª, 3ª o 4ª. El estimado es lo que habitualmente se paga en esa misma semana, con los meses ya cerrados. Hoy, en la 1ª de noviembre, se ve la 1ª, la 2ª, la 3ª y la 4ª. La semana que viene se ven la 2ª, la 3ª, la 4ª y la 1ª de diciembre. La semana en curso muestra lo ya pagado, por categoría y cuenta, con el importe real, y lo habitual que todavía no se pagó. Un pago de la semana anterior, o uno que entra antes, se descuenta de la semana estimada. Impuestos de hasta $ 500.000 y Gastos bancarios no entran. Comisiones de venta van en la última semana del mes. Cada semana suma un colchón de entre 5% y 30% del estimado. La cuenta Mercaderías no entra en esa dispersión. Tocá una semana para ver solo ese detalle." aria-label="Ayuda: agenda de pagos" title="Ayuda">' + svgAyuda() + '</button>' +
           '<p class="agp-lead">Por pagar en 4 semanas <strong>' + esc(fmtPesos(pendiente)) + '</strong>' +
             (colchon ? ' · colchón ' + esc(fmtPesos(colchon)) : '') +
             (nPag ? ' · ' + nPag + ' ya pagado' + (nPag === 1 ? '' : 's') + ' (' + esc(fmtPesos(pagado)) + ')' : '') +
@@ -902,7 +963,7 @@
         htmlBarras(m, semanaFiltro) +
         '<p class="agp-leyenda"><span><i class="pen"></i>Por pagar</span><span><i class="buf"></i>Colchón de liquidez</span><span><i class="pag"></i>Ya pagado al proveedor</span></p>' +
         (chips ? '<div class="agp-chips">' + chips + '</div>' : '') +
-        '<p class="agp-nota">El monto es un estimado. La banda azul es el colchón: entre 5% y 30% de ese estimado, según la dispersión de la semana del mes. Mercaderías no entra. El verde es lo ya pagado. Comisiones de venta van en la última semana del mes. Si un gasto entra antes de lo previsto, se ve pagado esa semana con el importe real y se descuenta de la proyección siguiente.</p>' +
+        '<p class="agp-nota">Cada barra es una semana del mes, siempre hacia adelante. El estimado es lo habitual de esa semana. La semana en curso muestra lo pagado, por categoría y cuenta, con el importe real, y lo habitual que todavía no se pagó. El verde es lo ya pagado. La banda azul es el colchón.</p>' +
       '</section>' +
       filtroTxt +
       htmlTabla(m);
