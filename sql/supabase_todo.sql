@@ -142,6 +142,30 @@ AS $$
   SELECT p_fecha IS NOT NULL AND EXTRACT(ISODOW FROM p_fecha)::int = 7;
 $$;
 
+-- Sábado (6) y domingo (7) según el día calendario, no según la zona de la sesión.
+CREATE OR REPLACE FUNCTION public.todo_es_fin_de_semana(p_fecha date)
+RETURNS boolean
+LANGUAGE sql
+IMMUTABLE
+SET search_path = ''
+AS $$
+  SELECT p_fecha IS NOT NULL AND EXTRACT(ISODOW FROM p_fecha)::int IN (6, 7);
+$$;
+
+-- Sábado pasa al lunes (+2). Domingo pasa al lunes (+1). El resto queda igual.
+CREATE OR REPLACE FUNCTION public.todo_pasar_a_habil(p_fecha date)
+RETURNS date
+LANGUAGE sql
+IMMUTABLE
+SET search_path = ''
+AS $$
+  SELECT CASE EXTRACT(ISODOW FROM p_fecha)::int
+    WHEN 6 THEN p_fecha + 2
+    WHEN 7 THEN p_fecha + 1
+    ELSE p_fecha
+  END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.todo_ts_argentina(p_fecha date, p_hora time without time zone)
 RETURNS timestamptz
 LANGUAGE sql
@@ -237,27 +261,28 @@ BEGIN
   ancla := COALESCE(p_fecha_inicio, public.fecha_hoy_argentina());
   d := ancla;
   IF p_recurrencia = 'ninguna' THEN
-    IF NOT public.todo_es_domingo(d) THEN RETURN NEXT d; END IF;
+    IF NOT public.todo_es_fin_de_semana(d) THEN RETURN NEXT d; END IF;
     RETURN;
   END IF;
   last_day := LEAST(COALESCE(p_fecha_fin, p_hasta), p_hasta);
   IF last_day IS NULL OR d > last_day THEN RETURN; END IF;
   IF p_recurrencia = 'diaria' THEN
     WHILE d <= last_day LOOP
-      IF NOT public.todo_es_domingo(d) THEN RETURN NEXT d; END IF;
+      IF NOT public.todo_es_fin_de_semana(d) THEN RETURN NEXT d; END IF;
       d := d + 1;
     END LOOP;
     RETURN;
   END IF;
   IF p_recurrencia = 'semanal' THEN
+    IF p_dia_semana IS NOT NULL AND p_dia_semana IN (6, 7) THEN RETURN; END IF;
     IF p_dia_semana IS NOT NULL AND EXTRACT(ISODOW FROM d)::int <> p_dia_semana THEN
       WHILE EXTRACT(ISODOW FROM d)::int <> p_dia_semana LOOP
         d := d + 1; IF d > last_day THEN RETURN; END IF;
       END LOOP;
     END IF;
-    IF public.todo_es_domingo(d) THEN d := d + 1; END IF;
+    IF public.todo_es_fin_de_semana(d) THEN RETURN; END IF;
     WHILE d <= last_day LOOP
-      IF NOT public.todo_es_domingo(d) THEN RETURN NEXT d; END IF;
+      IF NOT public.todo_es_fin_de_semana(d) THEN RETURN NEXT d; END IF;
       d := d + 7;
     END LOOP;
     RETURN;
@@ -267,7 +292,7 @@ BEGIN
     usar_dia_mes := p_dia_mes IS NOT NULL AND EXTRACT(DAY FROM ancla)::int <> p_dia_mes::int;
     IF NOT usar_dia_mes THEN
       WHILE d <= last_day LOOP
-        emit := CASE WHEN public.todo_es_domingo(d) THEN d + 1 ELSE d END;
+        emit := public.todo_pasar_a_habil(d);
         IF emit <= last_day THEN RETURN NEXT emit; END IF;
         d := (d + pg_catalog.make_interval(months => step_months))::date;
       END LOOP;
@@ -277,7 +302,7 @@ BEGIN
     WHILE d <= last_day LOOP
       candidate := pg_catalog.make_date(EXTRACT(YEAR FROM d)::int, EXTRACT(MONTH FROM d)::int,
         LEAST(p_dia_mes::int, EXTRACT(DAY FROM (date_trunc('month', d) + interval '1 month' - interval '1 day'))::int));
-      emit := CASE WHEN public.todo_es_domingo(candidate) THEN candidate + 1 ELSE candidate END;
+      emit := public.todo_pasar_a_habil(candidate);
       IF emit >= ancla AND emit <= last_day THEN RETURN NEXT emit; END IF;
       d := (date_trunc('month', d) + pg_catalog.make_interval(months => step_months))::date;
     END LOOP;
@@ -325,6 +350,9 @@ BEGIN
       t.recurrencia, t.fecha_inicio, t.fecha_fin, t.dia_semana, t.dia_mes, hasta
     ) AS x
   LOOP
+    IF public.todo_es_fin_de_semana(d) THEN
+      CONTINUE;
+    END IF;
     v_at := public.todo_ts_argentina(d, hora);
     FOREACH sede_nom IN ARRAY sedes LOOP
       IF NOT EXISTS (
@@ -421,10 +449,16 @@ BEGIN
   v_hora := COALESCE(p_hora_vencimiento, time '23:59');
   v_todas := COALESCE(p_aplica_todas_sedes, true);
   v_sede := NULLIF(btrim(COALESCE(p_sede, '')), '');
-  IF public.todo_es_domingo(v_inicio) THEN RAISE EXCEPTION 'No se registran tareas en domingo (el comercio está cerrado)'; END IF;
+  IF public.todo_es_fin_de_semana(v_inicio) THEN RAISE EXCEPTION 'No se registran tareas en sábado ni domingo (el comercio está cerrado)'; END IF;
+  IF p_vencimiento_at IS NOT NULL AND public.todo_es_fin_de_semana((p_vencimiento_at AT TIME ZONE 'America/Argentina/Buenos_Aires')::date) THEN
+    RAISE EXCEPTION 'No se registran tareas en sábado ni domingo (el comercio está cerrado)';
+  END IF;
   v_dow := EXTRACT(ISODOW FROM v_inicio)::smallint;
   v_dom := EXTRACT(DAY FROM v_inicio)::smallint;
   IF v_todas THEN v_sede := NULL; END IF;
+  IF v_rec = 'semanal' AND COALESCE(p_dia_semana, v_dow) IN (6, 7) THEN
+    RAISE EXCEPTION 'No se registran tareas en sábado ni domingo (el comercio está cerrado)';
+  END IF;
   IF v_rec <> 'ninguna' THEN
     IF p_fecha_fin IS NULL THEN RAISE EXCEPTION 'En tareas recurrentes debés indicar hasta qué fecha se replica'; END IF;
     IF p_fecha_fin < v_inicio THEN RAISE EXCEPTION 'La fecha hasta no puede ser anterior al primer vencimiento'; END IF;
@@ -528,7 +562,7 @@ BEGIN
   IF v_prio NOT BETWEEN 1 AND 3 THEN RAISE EXCEPTION 'Prioridad inválida'; END IF;
   v_venc := COALESCE(p_vencimiento_at, i.vencimiento_at);
   v_dia := (v_venc AT TIME ZONE 'America/Argentina/Buenos_Aires')::date;
-  IF public.todo_es_domingo(v_dia) THEN RAISE EXCEPTION 'No se registran tareas en domingo (el comercio está cerrado)'; END IF;
+  IF public.todo_es_fin_de_semana(v_dia) THEN RAISE EXCEPTION 'No se registran tareas en sábado ni domingo (el comercio está cerrado)'; END IF;
   v_sede := CASE WHEN p_sede IS NULL THEN i.sede WHEN btrim(p_sede) = '' THEN NULL ELSE btrim(p_sede) END;
   UPDATE public.todo_instancia
   SET titulo = v_titulo, descripcion = v_desc, prioridad = v_prio, vencimiento_at = v_venc, sede = v_sede, updated_at = now()

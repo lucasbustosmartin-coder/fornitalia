@@ -427,14 +427,15 @@
         return new Date(utc).toLocaleDateString('en-CA', { timeZone: 'UTC' });
       }
 
-      function esDomingoYYYYMMDD(yyyyMmDd) {
+      function esFinDeSemanaYYYYMMDD(yyyyMmDd) {
         var parts = String(yyyyMmDd || '').split('-');
         if (parts.length !== 3) return false;
         var y = Number(parts[0]);
         var m = Number(parts[1]);
         var d = Number(parts[2]);
         if (!y || !m || !d) return false;
-        return new Date(Date.UTC(y, m - 1, d)).getUTCDay() === 0;
+        var dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+        return dow === 0 || dow === 6;
       }
 
       /** Diaria: bloquear Hecha solo si el día de vencimiento (AR) es posterior a hoy. No mira la hora. */
@@ -806,8 +807,8 @@
         if (hintFecha) {
           hintFecha.style.display = 'block';
           hintFecha.textContent = rec === 'ninguna'
-            ? 'No se asignan vencimientos en domingo (el comercio está cerrado).'
-            : 'La serie arranca en esta fecha. No se generan ocurrencias en domingo. Diario +1 día (lun–sáb), semanal +7, trimestral +3 meses, etc.';
+            ? 'No se asignan vencimientos en sábado ni domingo (el comercio está cerrado).'
+            : 'La serie arranca en esta fecha. No se generan ocurrencias en sábado ni domingo. La diaria salta el fin de semana. Si una mensual cae sábado o domingo, pasa al lunes.';
         }
         if (wrapFin) wrapFin.style.display = (rec === 'ninguna') ? 'none' : '';
         if (wrapHora) wrapHora.style.display = '';
@@ -1086,7 +1087,7 @@
             if (!id || !titulo) { showErr('El título es obligatorio.'); return; }
             var fecha = (document.getElementById('todo-editar-fecha') || {}).value || fechaHoyYYYYMMDDArgentina();
             var hora = (document.getElementById('todo-editar-hora') || {}).value || '23:59';
-            if (esDomingoYYYYMMDD(fecha)) { showErr('El domingo el comercio está cerrado. Elegí otro día.'); return; }
+            if (esFinDeSemanaYYYYMMDD(fecha)) { showErr('El sábado y el domingo el comercio está cerrado. Elegí otro día.'); return; }
             var vencIso = null;
             try {
               // Construir instante Argentina vía RPC helper no disponible en client; usar offset fijo AR (-03)
@@ -1151,7 +1152,7 @@
             var fechaFin = (document.getElementById('todo-nueva-fecha-fin') || {}).value || null;
             var hora = (document.getElementById('todo-nueva-hora') || {}).value || '23:59';
             if (!fecha) { showErr('Indicá el primer vencimiento.'); return; }
-            if (esDomingoYYYYMMDD(fecha)) { showErr('El domingo el comercio está cerrado. Elegí otro día.'); return; }
+            if (esFinDeSemanaYYYYMMDD(fecha)) { showErr('El sábado y el domingo el comercio está cerrado. Elegí otro día.'); return; }
             if (recurrencia === 'diaria' && !hora) { showErr('Indicá la hora.'); return; }
             if (recurrencia !== 'ninguna' && !fechaFin) { showErr('Indicá hasta qué fecha se replica la tarea.'); return; }
             if (recurrencia !== 'ninguna' && fechaFin && fechaFin < fecha) {

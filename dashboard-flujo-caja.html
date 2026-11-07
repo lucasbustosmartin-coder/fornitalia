@@ -10,14 +10,14 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="scripts/lib/fornitalia-mensajes.js?v=2.101"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-todo.css?v=2.101">
-  <script src="scripts/lib/fornitalia-todo.js?v=2.113"></script>
+  <script src="scripts/lib/fornitalia-todo.js?v=2.114"></script>
   <script src="scripts/lib/fornitalia-tipo-cambio-global.js?v=2.92"></script>
   <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.108"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-agenda-pagos.css?v=2.103">
   <script src="scripts/lib/fornitalia-agenda-pagos.js?v=2.112"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.113"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.114"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
@@ -1820,7 +1820,7 @@
               <div class="form-group" id="todo-nueva-fecha-wrap">
                 <label for="todo-nueva-fecha" id="todo-nueva-fecha-label">Fecha de vencimiento</label>
                 <input type="date" id="todo-nueva-fecha" />
-                <small id="todo-nueva-fecha-hint" style="display:block; margin-top:0.25rem; color:#64748b; font-size:0.78rem;">No se asignan vencimientos en domingo (el comercio está cerrado).</small>
+                <small id="todo-nueva-fecha-hint" style="display:block; margin-top:0.25rem; color:#64748b; font-size:0.78rem;">No se asignan vencimientos en sábado ni domingo (el comercio está cerrado).</small>
               </div>
               <div class="form-group" id="todo-nueva-fecha-fin-wrap" style="display:none;">
                 <label for="todo-nueva-fecha-fin">Replicar hasta *</label>
@@ -1839,8 +1839,6 @@
                   <option value="3">Miércoles</option>
                   <option value="4">Jueves</option>
                   <option value="5">Viernes</option>
-                  <option value="6">Sábado</option>
-                  <option value="7">Domingo</option>
                 </select>
               </div>
               <div class="form-group" id="todo-nueva-dia-mes-wrap" style="display:none;">
@@ -2538,7 +2536,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.113';
+    const APP_VERSION = '2.114';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';

@@ -8,12 +8,12 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.113',
+    versionLabel: 'v2.114',
     lines: [
-      'En To-Do cada uno ve sus tareas y las de su perfil.',
-      'Crear tareas ya no muestra las de los demás.',
-      'Ver las de todos es un permiso aparte.',
-      'Admin y Encargado siguen viendo todas y la matriz Por responsable.'
+      'En To-Do ya no hay tareas de sábado ni de domingo.',
+      'La diaria salta el fin de semana.',
+      'Si una mensual cae sábado o domingo, pasa al lunes.',
+      'Las que vencían un sábado se sacaron de la bandeja.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
