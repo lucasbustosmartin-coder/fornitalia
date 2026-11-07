@@ -8,12 +8,12 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.112',
+    versionLabel: 'v2.113',
     lines: [
-      'La agenda muestra las próximas 4 semanas según la semana del mes.',
-      'Esta semana es la 1ª de noviembre: el estimado es lo habitual de la 1ª semana.',
-      'Lo ya pagado figura con el importe real. Lo que falta de esa semana sigue por pagar.',
-      'La semana que viene se ven la 2ª, la 3ª, la 4ª y la 1ª de diciembre.'
+      'En To-Do cada uno ve sus tareas y las de su perfil.',
+      'Crear tareas ya no muestra las de los demás.',
+      'Ver las de todos es un permiso aparte.',
+      'Admin y Encargado siguen viendo todas y la matriz Por responsable.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

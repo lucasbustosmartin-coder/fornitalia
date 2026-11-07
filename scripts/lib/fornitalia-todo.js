@@ -1,6 +1,6 @@
 /**
  * Bandeja To-Do (mismo modelo que Everfit): tareas, recurrencia, responsable usuario o perfil.
- * Permisos: ver_todo, crear_todo, editar_todo, eliminar_todo, completar_todo.
+ * Permisos: ver_todo, crear_todo, ver_todo_todos, editar_todo, eliminar_todo, completar_todo.
  */
 (function (global) {
   var ZONA_ARGENTINA = 'America/Argentina/Buenos_Aires';
@@ -14,7 +14,7 @@
   var todoBooted = false;
 
   function syncPerms() {
-    var keys = ['ver_todo', 'crear_todo', 'editar_todo', 'eliminar_todo', 'completar_todo', 'ver_configuracion'];
+    var keys = ['ver_todo', 'crear_todo', 'ver_todo_todos', 'editar_todo', 'eliminar_todo', 'completar_todo', 'ver_configuracion'];
     userPermissions = keys.filter(function (p) { return !!hasPermFn(p); });
     currentUserId = getUserId() || '';
   }
@@ -251,7 +251,7 @@
       var TODO_MATRIZ_ESTADOS = ['pendiente', 'en_curso', 'vencida', 'hecha', 'cancelada'];
 
       function todoPuedeVerMatriz() {
-        return currentUserRole === 'admin' || currentUserRole === 'encargado';
+        return userPermissions.indexOf('ver_todo_todos') !== -1;
       }
 
       function syncTodoMatrizTabVisibility() {

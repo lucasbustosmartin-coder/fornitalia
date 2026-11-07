@@ -10,14 +10,14 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="scripts/lib/fornitalia-mensajes.js?v=2.101"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-todo.css?v=2.101">
-  <script src="scripts/lib/fornitalia-todo.js?v=2.101"></script>
+  <script src="scripts/lib/fornitalia-todo.js?v=2.113"></script>
   <script src="scripts/lib/fornitalia-tipo-cambio-global.js?v=2.92"></script>
   <script src="scripts/lib/fornitalia-flujo-dashboard-ux.js?v=2.108"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-agenda-pagos.css?v=2.103">
   <script src="scripts/lib/fornitalia-agenda-pagos.js?v=2.112"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.112"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.113"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
@@ -2538,7 +2538,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.112';
+    const APP_VERSION = '2.113';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -3312,7 +3312,7 @@
       {
         id: 'todo',
         titulo: 'To-Do',
-        operar: ['crear_todo', 'editar_todo', 'eliminar_todo', 'completar_todo'],
+        operar: ['crear_todo', 'ver_todo_todos', 'editar_todo', 'eliminar_todo', 'completar_todo'],
       },
       {
         id: 'gestion-proyectos',
@@ -3456,7 +3456,8 @@
         if (permMap.ver_solapa_agenda_pagos) permMap.ver_solapa_agenda_pagos = 'Agenda de pagos';
         if (permMap.cargar_tesoreria_historica) permMap.cargar_tesoreria_historica = 'Cargar tesorería histórica';
         if (permMap.ver_todo) permMap.ver_todo = 'Ver To-Do (menú lateral)';
-        if (permMap.crear_todo) permMap.crear_todo = 'Crear tareas y ver las de todos';
+        if (permMap.crear_todo) permMap.crear_todo = 'Crear tareas';
+        if (permMap.ver_todo_todos) permMap.ver_todo_todos = 'Ver las tareas de todos';
         if (permMap.editar_todo) permMap.editar_todo = 'Editar tareas';
         if (permMap.eliminar_todo) permMap.eliminar_todo = 'Eliminar tareas';
         if (permMap.completar_todo) permMap.completar_todo = 'Completar y cambiar estado';

@@ -1,15 +1,16 @@
 -- =============================================================================
 -- Fornitalia – To-Do (bandeja), mismo modelo que Everfit.
--- Permisos: ver_todo, crear_todo, editar_todo, eliminar_todo, completar_todo.
+-- Permisos: ver_todo, crear_todo, ver_todo_todos, editar_todo, eliminar_todo, completar_todo.
 -- ver y completar: todos los perfiles existentes.
--- crear, editar y eliminar: Admin y Encargado.
+-- crear, editar y eliminar: Admin y Encargado. ver_todo_todos (ver las de todos): Admin y Encargado.
 -- Sin catálogo de sucursales por usuario: no se filtra por sede.
 -- Prerrequisito: sql/helpers_fecha_argentina.sql, sql/supabase_seguridad_forfitalia.sql
 -- =============================================================================
 
 INSERT INTO public.app_permission (permission, description) VALUES
   ('ver_todo', 'Ver menú To-Do y la bandeja de tareas propias o de su perfil'),
-  ('crear_todo', 'Crear tareas del To-Do y ver las de todos'),
+  ('crear_todo', 'Crear tareas del To-Do'),
+  ('ver_todo_todos', 'Ver las tareas de todos en el To-Do'),
   ('editar_todo', 'Editar tareas del To-Do'),
   ('eliminar_todo', 'Eliminar tareas del To-Do'),
   ('completar_todo', 'Cambiar estado de tareas del To-Do (pendiente, en curso, hecha, cancelada)')
@@ -23,9 +24,11 @@ ON CONFLICT (role, permission) DO NOTHING;
 
 INSERT INTO public.app_role_permission (role, permission) VALUES
   ('admin', 'crear_todo'),
+  ('admin', 'ver_todo_todos'),
   ('admin', 'editar_todo'),
   ('admin', 'eliminar_todo'),
   ('encargado', 'crear_todo'),
+  ('encargado', 'ver_todo_todos'),
   ('encargado', 'editar_todo'),
   ('encargado', 'eliminar_todo')
 ON CONFLICT (role, permission) DO NOTHING;
@@ -159,7 +162,7 @@ AS $$
   SELECT
     public.has_permission('ver_todo')
     AND (
-      public.has_permission('crear_todo')
+      public.has_permission('ver_todo_todos')
       OR (i.responsable_tipo = 'usuario' AND i.responsable_user_id = auth.uid())
       OR (i.responsable_tipo = 'rol' AND i.responsable_role = public.get_my_role())
     );
@@ -175,7 +178,7 @@ AS $$
   SELECT
     public.has_permission('completar_todo')
     AND (
-      public.has_permission('crear_todo')
+      public.has_permission('ver_todo_todos')
       OR (i.responsable_tipo = 'usuario' AND i.responsable_user_id = auth.uid())
       OR (i.responsable_tipo = 'rol' AND i.responsable_role = public.get_my_role())
     );
@@ -662,7 +665,7 @@ BEGIN
     RETURN;
   END IF;
   my_role := public.get_my_role();
-  can_all := public.has_permission('crear_todo');
+  can_all := public.has_permission('ver_todo_todos');
   hoy := public.fecha_hoy_argentina();
   my_suc := NULL;
   IF p_ventana = 'hoy' THEN
@@ -758,7 +761,7 @@ BEGIN
     RETURN;
   END IF;
   my_role := public.get_my_role();
-  can_all := public.has_permission('crear_todo');
+  can_all := public.has_permission('ver_todo_todos');
   hoy := public.fecha_hoy_argentina();
   my_suc := NULL;
   RETURN QUERY
@@ -811,7 +814,7 @@ BEGIN
     RETURN;
   END IF;
   my_role := public.get_my_role();
-  can_all := public.has_permission('crear_todo');
+  can_all := public.has_permission('ver_todo_todos');
   hoy := public.fecha_hoy_argentina();
   desde := public.todo_ts_argentina(hoy, time '00:00');
   hasta := public.todo_ts_argentina(hoy, time '23:59:59');
@@ -1002,7 +1005,7 @@ CREATE POLICY todo_tarea_select ON public.todo_tarea
   USING (
     public.has_permission('ver_todo')
     AND (
-      public.has_permission('crear_todo')
+      public.has_permission('ver_todo_todos')
       OR (responsable_tipo = 'usuario' AND responsable_user_id = auth.uid())
       OR (responsable_tipo = 'rol' AND responsable_role = public.get_my_role())
       OR creado_por = auth.uid()
