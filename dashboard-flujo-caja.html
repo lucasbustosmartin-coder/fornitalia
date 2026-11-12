@@ -17,7 +17,7 @@
   <script src="scripts/lib/fornitalia-agenda-pagos.js?v=2.112"></script>
   <script src="scripts/lib/fornitalia-help.js?v=2.52"></script>
   <script src="scripts/lib/fornitalia-usuario.js?v=2.49"></script>
-  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.114"></script>
+  <script src="scripts/lib/fornitalia-release-blurb.js?v=2.115"></script>
   <script src="scripts/lib/fornitalia-matriz-relaciones-transacciones.js"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-gestion-proyectos.css?v=2.52">
   <script src="scripts/lib/fornitalia-gestion-proyectos.js?v=2.75"></script>
@@ -1560,7 +1560,7 @@
           <p>Estructura desde Supabase <code>ef_estructura</code> (ABM en menú <strong>Matriz EF → Estructura EF</strong>), montos desde tesorería por <code>ef_subitem</code> (matriz categoría + cuenta; Ingreso y Egreso del mismo par pegan en la misma línea, p. ej. Pago de Cuotas de Créditos / Intereses Bancarios). En <strong>ARS</strong>, movimientos en USD se convierten al <strong>dólar MEP</strong> de la fecha (tabla de cotización; si falta, la última MEP conocida o el TC de la fila).</p>
           <p>Columna <strong>Ítem</strong>: secciones y totales en negrita; detalle con viñeta. Subtotales y fórmulas muestran % del <strong>Flujo Operativo Generado</strong>. El margen bruto incluye el ajuste de saldos de caja. El flujo de caja neto del período suma además la financiación y los intereses del FCI. Clic en un <strong>importe</strong> abre el detalle de transacciones que lo componen, y la suma de ese detalle cierra con la celda. Icono <strong>línea</strong> por fila: evolución mensual. Icono <strong>barras</strong> en columnas: consumo del Flujo Op. (Margen bruto de caja y Flujo neto del período).</p>
           <p>Al final de la tabla, filas <strong>Indicadores de Gestión</strong> (mismas columnas de período). Fórmula y notas en el icono <strong>?</strong> junto al nombre.</p>
-          <p>La columna <strong>Avg Mensual</strong>, antes de <strong>Total</strong>, es el promedio de los <strong>últimos 12 meses cerrados móviles</strong>: el mes en curso no entra y un mes sin movimientos cuenta como cero.</p>
+          <p>La columna <strong>Avg Mensual</strong>, antes de <strong>Total</strong>, toma los <strong>últimos 12 meses cerrados</strong>. Entra un mes si el valor absoluto del importe es mayor a cero, sea ingreso o egreso. Se suma el importe con su signo y se divide por cuántos de esos 12 meses entran. Un mes en cero no entra. El mes en curso tampoco.</p>
           <p><em>Conciliación de disponibilidades (sección 7) oculta por ahora.</em></p>
         </div>
       </template>
@@ -2536,7 +2536,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.114';
+    const APP_VERSION = '2.115';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -6576,8 +6576,14 @@
     function promedioUltimos12CerradosEf(montos, keys) {
       if (!keys || !keys.length) return null;
       let sum = 0;
-      keys.forEach(function (k) { sum += Number((montos && montos[k]) || 0) || 0; });
-      return sum / keys.length;
+      let n = 0;
+      keys.forEach(function (k) {
+        const v = Number(montos && montos[k]);
+        if (!Number.isFinite(v) || Math.abs(v) <= 0) return;
+        sum += v;
+        n += 1;
+      });
+      return n ? sum / n : null;
     }
 
     function montosMensualesEf(allLines, moneda, tipoDolar) {
@@ -6594,7 +6600,7 @@
       };
     }
 
-    const EF_AVG_MENSUAL_HELP = 'Últimos 12 meses cerrados móviles. El mes en curso no entra. Un mes sin movimientos cuenta como cero.';
+    const EF_AVG_MENSUAL_HELP = 'Últimos 12 meses cerrados. El mes en curso no entra. Entra un mes si el valor absoluto es mayor a cero, ingreso o egreso. Se suma con su signo y se divide por cuántos entran.';
 
     function htmlThAvgMensualEf() {
       return '<th class="num-ef ef-th-avg"><div class="ef-th-periodo-wrap"><span class="ef-th-periodo-label">Avg Mensual</span>'

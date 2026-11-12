@@ -8,12 +8,12 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.114',
+    versionLabel: 'v2.115',
     lines: [
-      'En To-Do ya no hay tareas de sábado ni de domingo.',
-      'La diaria salta el fin de semana.',
-      'Si una mensual cae sábado o domingo, pasa al lunes.',
-      'Las que vencían un sábado se sacaron de la bandeja.'
+      'En Estado Financiero, Avg Mensual deja afuera los meses en cero.',
+      'Entra un mes si el importe, ingreso o egreso, no es cero.',
+      'Se suma con su signo y se divide por cuántos meses entran.',
+      'El mes en curso no entra. El Excel usa la misma cuenta.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {
