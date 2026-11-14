@@ -8,12 +8,12 @@
 (function (root) {
   'use strict';
   var blurb = {
-    versionLabel: 'v2.116',
+    versionLabel: 'v2.117',
     lines: [
-      'Nuevo menú Reposición hornos: la tabla del 13/11/2026, con tarjetas y una alerta antes de emitir la orden.',
-      'Se puede subir el histórico de ventas para recalcular, y exportar el Excel con el mismo diseño.',
-      'Préstamo o servicio no cuenta como stock para vender. Lo ya agotado y la orden vencida se marcan aparte.',
-      'Cada columna calculada explica su fórmula. Si el artículo no estaba en el inventario, las cantidades quedan en 0.'
+      'En Reposición hornos, las fechas de entrega ya no suman hornos: solo dicen cuándo llega a puerto lo que ya está por ingresar.',
+      'Cada carga de ventas vuelve a calcular el stock y adelanta o corre la fecha de la orden según el ritmo.',
+      'El costo en pesos usa el dólar oficial de hoy, y ese valor se ve junto al título.',
+      'Las columnas se ordenan al tocar el encabezado. El precio de lista toma el de la venta más reciente del archivo.'
     ]
   };
   if (typeof module !== 'undefined' && module.exports) {

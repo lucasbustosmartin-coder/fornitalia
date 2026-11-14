@@ -31,9 +31,9 @@
   <script src="scripts/lib/fornitalia-impuestos.js?v=2.75"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.57">
   <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.93"></script>
-  <link rel="stylesheet" href="scripts/lib/fornitalia-reposicion-hornos.css?v=2.116">
-  <script src="scripts/lib/fornitalia-reposicion-hornos-data.js?v=2.116"></script>
-  <script src="scripts/lib/fornitalia-reposicion-hornos.js?v=2.116"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-reposicion-hornos.css?v=2.117">
+  <script src="scripts/lib/fornitalia-reposicion-hornos-data.js?v=2.117"></script>
+  <script src="scripts/lib/fornitalia-reposicion-hornos.js?v=2.117"></script>
   <style>
     .lyp-user {
       font-weight: 600;
@@ -2544,7 +2544,7 @@
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     /** Versión de la app: actualizar al desplegar cuando lo indiques */
-    const APP_VERSION = '2.116';
+    const APP_VERSION = '2.117';
 
     const PROYECCION_METODO_KEY = 'fornitalia_proyeccion_metodo';
     const PROYECCION_MESES_KEY = 'fornitalia_proyeccion_meses';
@@ -3354,6 +3354,11 @@
         operar: ['editar_matriz_ef'],
       },
       {
+        id: 'reposicion-hornos',
+        titulo: 'Reposición hornos',
+        operar: ['editar_costo_reposicion_hornos', 'desactivar_producto_reposicion_hornos'],
+      },
+      {
         id: 'impuestos',
         titulo: 'Impuestos',
         operar: ['cargar_impuestos', 'exportar_impuestos'],
@@ -3475,6 +3480,8 @@
         if (permMap.editar_todo) permMap.editar_todo = 'Editar tareas';
         if (permMap.eliminar_todo) permMap.eliminar_todo = 'Eliminar tareas';
         if (permMap.completar_todo) permMap.completar_todo = 'Completar y cambiar estado';
+        if (permMap.editar_costo_reposicion_hornos) permMap.editar_costo_reposicion_hornos = 'Editar costo unitario en dólares';
+        if (permMap.desactivar_producto_reposicion_hornos) permMap.desactivar_producto_reposicion_hornos = 'Sacar un producto de la lista';
         const rolePermList = rRolePerms.data || [];
         const rolePermSet = new Set(rolePermList.map((r) => r.role + '|' + r.permission));
         const userCountByRole = {};
@@ -9136,6 +9143,9 @@
             hasPerm,
             getRoot: () => document.getElementById('view-impuestos'),
           });
+        }
+        if (window.FornitaliaReposicionHornos && window.FornitaliaReposicionHornos.init) {
+          window.FornitaliaReposicionHornos.init({ client: client, hasPerm: hasPerm });
         }
         if (window.FornitaliaMatrizEf) {
           window.FornitaliaMatrizEf.init({
