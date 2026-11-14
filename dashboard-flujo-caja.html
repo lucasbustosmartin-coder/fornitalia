@@ -31,6 +31,9 @@
   <script src="scripts/lib/fornitalia-impuestos.js?v=2.75"></script>
   <link rel="stylesheet" href="scripts/lib/fornitalia-matriz-ef.css?v=2.57">
   <script src="scripts/lib/fornitalia-matriz-ef.js?v=2.93"></script>
+  <link rel="stylesheet" href="scripts/lib/fornitalia-reposicion-hornos.css?v=2.115">
+  <script src="scripts/lib/fornitalia-reposicion-hornos-data.js?v=2.115"></script>
+  <script src="scripts/lib/fornitalia-reposicion-hornos.js?v=2.115"></script>
   <style>
     .lyp-user {
       font-weight: 600;
@@ -1294,6 +1297,10 @@
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
         <span class="menu-label">Matriz EF</span>
       </button>
+      <button type="button" class="menu-item" id="menu-reposicion-hornos" title="Reposición hornos" aria-label="Reposición hornos" style="display:none;">
+        <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18"/><path d="M6 7V5a2 2 0 012-2h8a2 2 0 012 2v2"/><path d="M4 7l1 13h14l1-13"/></svg></span>
+        <span class="menu-label">Reposición hornos</span>
+      </button>
       <button type="button" class="menu-item" id="menu-reportes" title="Reportes" aria-label="Reportes" style="display:none;">
         <span class="menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M8 9h2"/></svg></span>
         <span class="menu-label">Reportes</span>
@@ -1989,6 +1996,7 @@
   <div id="view-saldos-extractos" class="card vista-se" style="display:none;"></div>
   <div id="view-impuestos" class="card vista-imp" style="display:none;"></div>
   <div id="view-matriz-ef" class="card vista-mef" style="display:none;"></div>
+  <div id="view-reposicion-hornos" class="card vista-rh" style="display:none;"></div>
   <div id="view-reportes" class="card" style="display:none;">
     <div class="dashboard-header-row">
       <h1 class="vista-titulo">
@@ -2570,6 +2578,7 @@
     const PERM_VER_SALDOS_EXTRACTOS = 'ver_saldos_extractos';
     const PERM_VER_IMPUESTOS = 'ver_impuestos';
     const PERM_VER_MATRIZ_EF = 'ver_matriz_ef';
+    const PERM_VER_REPOSICION_HORNOS = 'ver_reposicion_hornos';
     const PERM_VER_FLUJO_CARDS = 'ver_flujo_cards';
     const PERM_VER_FLUJO_POR_MES = 'ver_flujo_por_mes';
     const PERM_CARGAR_TESORERIA_HISTORICA = 'cargar_tesoreria_historica';
@@ -2962,6 +2971,7 @@
       const se = hasPerm(PERM_VER_SALDOS_EXTRACTOS);
       const imp = hasPerm(PERM_VER_IMPUESTOS);
       const mef = hasPerm(PERM_VER_MATRIZ_EF);
+      const rh = hasPerm(PERM_VER_REPOSICION_HORNOS) || puedeAssignRoles();
 
       const setVis = (id, visible) => {
         const n = document.getElementById(id);
@@ -2978,6 +2988,7 @@
       setVis('menu-saldos-extractos', se);
       setVis('menu-impuestos', imp);
       setVis('menu-matriz-ef', mef);
+      setVis('menu-reposicion-hornos', rh);
       setVis('menu-seguridad', sec);
       setVis('menu-mi-perfil', true);
       setVis('menu-cerrar-sesion', true);
@@ -3060,6 +3071,7 @@
         { vista: 'saldos-extractos', menuId: 'menu-saldos-extractos', ok: () => hasPerm(PERM_VER_SALDOS_EXTRACTOS) },
         { vista: 'impuestos', menuId: 'menu-impuestos', ok: () => hasPerm(PERM_VER_IMPUESTOS) },
         { vista: 'matriz-ef', menuId: 'menu-matriz-ef', ok: () => hasPerm(PERM_VER_MATRIZ_EF) },
+        { vista: 'reposicion-hornos', menuId: 'menu-reposicion-hornos', ok: () => hasPerm(PERM_VER_REPOSICION_HORNOS) || puedeAssignRoles() },
         { vista: 'reportes', menuId: 'menu-reportes', ok: () => hasPerm(PERM_VER_REPORTES) || puedeExportarBaseHistorica() },
         { vista: 'novedades', menuId: 'menu-novedades', ok: () => hasPerm(PERM_VER_NOVEDADES) },
         { vista: 'seguridad', menuId: 'menu-seguridad', ok: () => puedeAssignRoles() },
@@ -3085,6 +3097,7 @@
         ['view-saldos-extractos', 'saldos-extractos'],
         ['view-impuestos', 'impuestos'],
         ['view-matriz-ef', 'matriz-ef'],
+        ['view-reposicion-hornos', 'reposicion-hornos'],
         ['view-reportes', 'reportes'],
         ['view-novedades', 'novedades'],
         ['view-seguridad', 'seguridad'],
@@ -3135,6 +3148,7 @@
       const vse = document.getElementById('view-saldos-extractos');
       const vimp = document.getElementById('view-impuestos');
       const vmef = document.getElementById('view-matriz-ef');
+      const vrh = document.getElementById('view-reposicion-hornos');
       if (vd) vd.style.display = idVista === 'dashboard' ? 'block' : 'none';
       if (vn) vn.style.display = idVista === 'novedades' ? 'block' : 'none';
       if (vr) vr.style.display = idVista === 'reportes' ? 'block' : 'none';
@@ -3146,6 +3160,8 @@
       if (vse) vse.style.display = idVista === 'saldos-extractos' ? 'block' : 'none';
       if (vimp) vimp.style.display = idVista === 'impuestos' ? 'block' : 'none';
       if (vmef) vmef.style.display = idVista === 'matriz-ef' ? 'block' : 'none';
+      if (vrh) vrh.style.display = idVista === 'reposicion-hornos' ? 'block' : 'none';
+      if (idVista === 'reposicion-hornos' && window.FornitaliaReposicionHornos) window.FornitaliaReposicionHornos.show();
       if (idVista === 'dashboard' && !skipRefresh) void refrescarDashboardFlujo();
     }
 
@@ -3305,7 +3321,7 @@
       {
         id: 'menus',
         titulo: 'Menús laterales',
-        operar: ['ver_solapa_flujo', 'ver_todo', 'ver_novedades', 'ver_configuracion', 'ver_reportes', 'ver_gestion_proyectos', 'ver_conciliacion_bancaria', 'ver_cajas_fisicas', 'ver_saldos_extractos', 'ver_impuestos', 'ver_matriz_ef'],
+        operar: ['ver_solapa_flujo', 'ver_todo', 'ver_novedades', 'ver_configuracion', 'ver_reportes', 'ver_gestion_proyectos', 'ver_conciliacion_bancaria', 'ver_cajas_fisicas', 'ver_saldos_extractos', 'ver_impuestos', 'ver_matriz_ef', 'ver_reposicion_hornos'],
       },
       {
         id: 'todo',
@@ -9212,6 +9228,13 @@
           document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
           document.getElementById('menu-impuestos')?.classList.add('menu-item-active');
           if (window.FornitaliaImpuestos) window.FornitaliaImpuestos.show();
+        });
+        document.getElementById('menu-reposicion-hornos')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (!hasPerm(PERM_VER_REPOSICION_HORNOS) && !puedeAssignRoles()) return;
+          mostrarVistaPrincipal('reposicion-hornos');
+          document.querySelectorAll('.sidebar-nav .menu-item').forEach((m) => m.classList.remove('menu-item-active'));
+          document.getElementById('menu-reposicion-hornos')?.classList.add('menu-item-active');
         });
         document.getElementById('menu-reportes')?.addEventListener('click', (e) => {
           e.preventDefault();
