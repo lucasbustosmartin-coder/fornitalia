@@ -20,8 +20,11 @@
 }
 .rh-banner {
   background: #fdf3e7; border: 1px solid #e6d3b8; border-radius: 8px;
-  padding: 0.75rem 0.9rem; margin-bottom: 0.85rem;
+  padding: 0.75rem 0.9rem; margin-bottom: 0.55rem;
 }
+.rh-banner-agotado { background: #fdecec; border-color: #e3a3a3; }
+.rh-banner-vencida { background: #fde4cc; border-color: #e09a4a; }
+.rh-banner-proxima { background: #fdf3e7; border-color: #e6d3b8; }
 .rh-banner strong { display: block; margin-bottom: 0.25rem; }
 .rh-banner ul { margin: 0.25rem 0 0; padding-left: 1.1rem; }
 .rh-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 0.9rem; }
@@ -48,7 +51,9 @@
 .rh-tabla td { text-align: right; background: #fff; }
 .rh-tabla td.rh-txt { text-align: left; }
 .rh-tabla tbody tr:nth-child(even) td { background: #f4f7f5; }
-.rh-tabla tbody tr.rh-row-alerta td { background: #fdf3e7; }
+.rh-tabla tbody tr.rh-row-proxima td { background: #fdf3e7; }
+.rh-tabla tbody tr.rh-row-vencida td { background: #f8d7b5; }
+.rh-tabla tbody tr.rh-row-agotado td { background: #f6c9c9; }
 .rh-th { display: inline-flex; align-items: center; gap: 0.2rem; }
 .rh-tabla th .th-help.th-help--inline { color: rgba(255,255,255,0.9); }
 .rh-tabla th .th-help.th-help--inline:hover { color: #fff; }

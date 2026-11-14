@@ -21,7 +21,8 @@
   var FACTURAS = { '16/11/2026': 1, '17/11/2026': 1, '31/12/2026': 1, '15/01/2027': 1, '16/01/2027': 1 };
   var TEXTO = { 'Modelo': 1, 'Artículo': 1, 'En inventario': 1 };
 
-  var state = { rows: null, momentoCero: true, archivo: '', lineas: 0, hasta: '', bound: false };
+  var ESTADOS_STOCK = ['Disponible', 'Préstamo / SR', 'Por ingresar', 'Pago parcial', 'Pend. despacho', 'Pago pendiente'];
+  var state = { rows: null, momentoCero: true, archivo: '', lineas: 0, hasta: '', dias: 0, bound: false };
 
   function host() {
     return typeof window !== 'undefined' ? window : globalThis;
@@ -306,7 +307,6 @@
         row[H['% $ hornos']] = 0;
         row[H['% $ archivo']] = 0;
       }
-      aplicarReglaPrestamo(row, H);
       var costo = row[H['Costo ARS']];
       var precioNeto = row[H['Precio neto unit.']];
       if (costo != null && precioNeto != null && cant > 0) {
@@ -319,13 +319,7 @@
       }).filter(function (x) { return x[1]; });
       var enCamino = llegadas.reduce(function (s, x) { return s + x[1]; }, 0);
       row[H['En camino']] = enCamino || null;
-      var sim = simular(row[H['Disponible']], cant > 0 ? cant / dias : 0, llegadas, b.fotoStock);
-      if (sim) {
-        row[H['Se agota']] = sim.agota;
-        row[H['Emitir orden']] = sim.emitir;
-        row[H['Fin de fabricación']] = sim.fin;
-      }
-      return row;
+      return cerrarFila(row, H, dias, b.fotoStock);
     });
     filas.sort(function (a, c) {
       var dc = (c[H['Unidades vendidas']] || 0) - (a[H['Unidades vendidas']] || 0);
@@ -357,30 +351,53 @@
     return isFinite(n) ? n : null;
   }
 
-  function aplicarReglaPrestamo(row, H) {
-    var partes = ['Disponible', 'Por ingresar', 'Pago parcial', 'Pend. despacho', 'Pago pendiente'];
-    var hayStock = numOrNull(row[H['Préstamo / SR']]) != null || partes.some(function (h) {
-      return numOrNull(row[H[h]]) != null;
-    }) || numOrNull(row[H['Stock total']]) != null;
-    if (!hayStock) return row;
-    var disp = numOrNull(row[H['Disponible']]) || 0;
-    var ing = numOrNull(row[H['Por ingresar']]) || 0;
-    var parc = numOrNull(row[H['Pago parcial']]) || 0;
-    var desp = numOrNull(row[H['Pend. despacho']]) || 0;
-    var pend = numOrNull(row[H['Pago pendiente']]) || 0;
-    row[H['Stock total']] = disp + ing + parc + desp + pend;
-    row[H['Sin vender (uds.)']] = disp + ing;
-    var ritmoMes = numOrNull(row[H['Uds. por mes']]);
-    if (numOrNull(row[H['Disponible']]) == null) row[H['Meses con disponible']] = null;
-    else row[H['Meses con disponible']] = ritmoMes > 0 ? disp / ritmoMes : 0;
+  function sinInventario(row, H) {
+    if (row[H['En inventario']] === 'No') return true;
+    return ESTADOS_STOCK.every(function (h) { return numOrNull(row[H[h]]) == null; });
+  }
+
+  function cerrarFila(row, H, dias, foto) {
+    if (sinInventario(row, H)) {
+      ESTADOS_STOCK.forEach(function (h) { row[H[h]] = 0; });
+      row[H['En inventario']] = 'No';
+    }
+    var hay = ESTADOS_STOCK.some(function (h) { return numOrNull(row[H[h]]) != null; });
+    if (hay) {
+      var disp = numOrNull(row[H['Disponible']]) || 0;
+      var ing = numOrNull(row[H['Por ingresar']]) || 0;
+      var parc = numOrNull(row[H['Pago parcial']]) || 0;
+      var desp = numOrNull(row[H['Pend. despacho']]) || 0;
+      var pend = numOrNull(row[H['Pago pendiente']]) || 0;
+      row[H['Stock total']] = disp + ing + parc + desp + pend;
+      row[H['Sin vender (uds.)']] = disp + ing;
+      var ritmoMes = numOrNull(row[H['Uds. por mes']]);
+      row[H['Meses con disponible']] = ritmoMes > 0 ? disp / ritmoMes : 0;
+    }
+    var cant = numOrNull(row[H['Unidades vendidas']]) || 0;
+    var llegadas = ['16/11/2026', '17/11/2026', '31/12/2026', '15/01/2027', '16/01/2027'].map(function (h) {
+      var p = h.split('/');
+      return [p[2] + '-' + p[1] + '-' + p[0], row[H[h]]];
+    }).filter(function (x) { return x[1]; });
+    var sim = simular(row[H['Disponible']], cant > 0 && dias > 0 ? cant / dias : 0, llegadas, foto);
+    row[H['Se agota']] = sim ? sim.agota : null;
+    row[H['Emitir orden']] = sim ? sim.emitir : null;
+    row[H['Fin de fabricación']] = sim ? sim.fin : null;
     return row;
   }
 
   function filasActuales() {
-    var rows = state.rows || base().rows;
+    var b = base();
     var H = {};
-    base().headers.forEach(function (h, i) { H[h] = i; });
-    return rows.map(function (r) { return aplicarReglaPrestamo(r.slice(), H); });
+    b.headers.forEach(function (h, i) { H[h] = i; });
+    var dias = state.dias || (isoDiff(b.desde, b.hasta) + 1);
+    return (state.rows || b.rows).map(function (r) { return cerrarFila(r.slice(), H, dias, b.fotoStock); });
+  }
+
+  function claseAlerta(emitir, agota, dias, hoy) {
+    if (agota && agota <= hoy) return 'agotado';
+    if (emitir && emitir < hoy) return 'vencida';
+    if (emitir && isoDiff(hoy, emitir) <= dias) return 'proxima';
+    return '';
   }
 
   function ayudas(b) {
@@ -395,9 +412,9 @@
       'Puesto uds.': ['Orden por unidades vendidas, de mayor a menor', 'Si empatan, queda primero el de más facturación. Si siguen empatando, orden alfabético.'],
       'Puesto $': ['Orden por facturación con IVA, de mayor a menor', 'Si empatan, orden alfabético.'],
       'Unidades vendidas': ['Suma de Cantidad', 'Solo filas de tipo Hornos, en el período que arranca el ' + desde + '.'],
-      'Stock total': ['Disponible + Por ingresar + Pago parcial + Pend. despacho + Pago pendiente', 'Foto del ' + foto + '.' + prest],
-      'Sin vender (uds.)': ['Disponible + Por ingresar', 'Lo que todavía no se vendió y sí se puede vender.' + prest],
-      'Meses con disponible': ['Disponible / Uds. por mes', 'Usa solo lo que está en Disponible.' + prest],
+      'Stock total': ['Disponible + Por ingresar + Pago parcial + Pend. despacho + Pago pendiente', 'Foto del ' + foto + '.' + prest + ' Si el artículo no estaba en el inventario, cada estado queda en 0.'],
+      'Sin vender (uds.)': ['Disponible + Por ingresar', 'Lo que todavía no se vendió y sí se puede vender.' + prest + ' Si no estaba en el inventario, queda en 0.'],
+      'Meses con disponible': ['Disponible / Uds. por mes', 'Usa solo lo que está en Disponible.' + prest + ' Sin inventario, Disponible es 0.'],
       '% uds. hornos': ['Unidades del artículo / unidades de todos los hornos', 'Participación dentro del tipo Hornos.'],
       '% uds. acumulado': ['Suma corrida de unidades, en el orden del puesto, / unidades de hornos', 'Al 100% ya entraron todos los hornos con ventas.'],
       '% uds. archivo': ['Unidades del artículo / unidades de todo el archivo', 'El denominador incluye lo que no es horno.'],
@@ -423,7 +440,7 @@
       'Margen $ / unidad': ['Precio neto unit. − Costo ARS', 'Pesos que deja cada unidad ya vendida, sin IVA. El costo es el de esta importación.'],
       'Margen %': ['Margen $ / Precio neto unit.', 'La lavavajilla con costo USD 2 no entra en «el que más deja».'],
       'En camino': ['Suma de las cinco facturas', 'Cada fecha es una factura distinta, aunque la cantidad se repita.'],
-      'Se agota': ['Disponible el ' + foto + ', más cada factura, menos el ritmo diario', 'El ritmo diario es unidades vendidas / días del período.' + prest + ' Por ingresar del inventario no se vuelve a sumar: si esas unidades son las facturas, entrarían dos veces.'],
+      'Se agota': ['Disponible el ' + foto + ', más cada factura, menos el ritmo diario', 'El ritmo diario es unidades vendidas / días del período.' + prest + ' Por ingresar del inventario no se vuelve a sumar. Si no estaba en el inventario, se parte de 0.'],
       'Emitir orden': ['Se agota − ' + lead + ' días', b.fabricacion + ' días de fabricación y ' + b.transporte + ' de transporte. ' + lead + ' días en total desde que se emite la orden hasta el puerto.'],
       'Fin de fabricación': ['Se agota − ' + b.transporte + ' días', 'Termina la fabricación y arrancan los ' + b.transporte + ' días de transporte. También es emitir la orden más ' + b.fabricacion + ' días.']
     };
@@ -445,10 +462,24 @@
     var H = {};
     b.headers.forEach(function (h, i) { H[h] = i; });
     var hoy = hoyAR();
-    var alertas = rows.filter(function (r) { return enAlerta(r[H['Emitir orden']], diasAlerta, hoy); });
+    function ordenar(lista, campo) {
+      return lista.slice().sort(function (a, c) { return a[H[campo]] < c[H[campo]] ? -1 : 1; });
+    }
+    var agotados = [];
+    var vencidas = [];
+    var proximas = [];
+    rows.forEach(function (r) {
+      var clase = claseAlerta(r[H['Emitir orden']], r[H['Se agota']], diasAlerta, hoy);
+      if (clase === 'agotado') agotados.push(r);
+      else if (clase === 'vencida') vencidas.push(r);
+      else if (clase === 'proxima') proximas.push(r);
+    });
+    agotados = ordenar(agotados, 'Se agota');
+    vencidas = ordenar(vencidas, 'Emitir orden');
+    proximas = ordenar(proximas, 'Emitir orden');
     var futuras = rows.filter(function (r) { return r[H['Emitir orden']] && r[H['Emitir orden']] >= hoy; });
     futuras.sort(function (a, c) { return a[H['Emitir orden']] < c[H['Emitir orden']] ? -1 : 1; });
-    var proxima = futuras[0] || alertas.slice().sort(function (a, c) { return a[H['Emitir orden']] < c[H['Emitir orden']] ? -1 : 1; })[0];
+    var proxima = futuras[0];
     var conMargen = rows.filter(function (r) {
       return r[H['Margen $ / unidad']] != null && (r[H['Unidades vendidas']] || 0) > 0 && r[H['Costo USD']] !== 2;
     });
@@ -456,7 +487,7 @@
       return (c[H['Margen $ / unidad']] * c[H['Unidades vendidas']]) - (a[H['Margen $ / unidad']] * a[H['Unidades vendidas']]);
     })[0];
     var fino = conMargen.slice().sort(function (a, c) { return a[H['Margen %']] - c[H['Margen %']]; })[0];
-    return { alertas: alertas, proxima: proxima, mejor: mejor, fino: fino, hoy: hoy, H: H };
+    return { agotados: agotados, vencidas: vencidas, proximas: proximas, proxima: proxima, mejor: mejor, fino: fino, hoy: hoy, H: H };
   }
 
   function celdaTexto(h, v) {
@@ -483,22 +514,32 @@
     var info = resumen(rows, dias);
     var H = info.H;
     var estado = state.momentoCero
-      ? 'Momento cero · la tabla del Excel al ' + fmtFecha(b.fotoStock) + '. El stock y las facturas son de esa fecha. Préstamo / SR no entra al stock: no se vende.'
-      : 'Recalculado con ' + state.archivo + ' · ' + state.lineas + ' líneas de hornos. El ritmo llega hasta el ' + fmtFecha(state.hasta) + '. El stock y las facturas siguen siendo los del ' + fmtFecha(b.fotoStock) + '. Préstamo / SR no entra al stock: no se vende.';
-    var banner = '';
-    if (info.alertas.length) {
-      banner = '<div class="rh-banner"><strong>Órdenes a mirar: faltan ' + dias + ' días o menos para emitirlas, o ya venció la fecha.</strong><ul>' +
-        info.alertas.map(function (r) {
-          return '<li>' + esc(r[H['Artículo']]) + ': emitir el ' + fmtFecha(r[H['Emitir orden']]) + ' (se agota el ' + fmtFecha(r[H['Se agota']]) + ')</li>';
-        }).join('') + '</ul></div>';
+      ? 'Momento cero · la tabla del Excel al ' + fmtFecha(b.fotoStock) + '. El stock y las facturas son de esa fecha. Préstamo / SR no se vende. Si el artículo no estaba en el inventario, cada estado queda en 0.'
+      : 'Recalculado con ' + state.archivo + ' · ' + state.lineas + ' líneas de hornos. El ritmo llega hasta el ' + fmtFecha(state.hasta) + '. El stock y las facturas siguen siendo los del ' + fmtFecha(b.fotoStock) + '. Préstamo / SR no se vende. Si el artículo no estaba en el inventario, cada estado queda en 0.';
+    function itemAlerta(r, tipo) {
+      var art = esc(r[H['Artículo']]);
+      var emitir = fmtFecha(r[H['Emitir orden']]);
+      var agota = fmtFecha(r[H['Se agota']]);
+      if (tipo === 'agotado') return '<li>' + art + ': ya no hay stock desde el ' + agota + '. La orden era el ' + emitir + '.</li>';
+      if (tipo === 'vencida') return '<li>' + art + ': la orden era el ' + emitir + ' y esa fecha ya pasó. Se agota el ' + agota + '.</li>';
+      return '<li>' + art + ': emitir el ' + emitir + ' (faltan ' + isoDiff(info.hoy, r[H['Emitir orden']]) + ' días). Se agota el ' + agota + '.</li>';
     }
+    function bloque(tipo, titulo, lista) {
+      if (!lista.length) return '';
+      return '<div class="rh-banner rh-banner-' + tipo + '"><strong>' + titulo + '</strong><ul>' +
+        lista.map(function (r) { return itemAlerta(r, tipo); }).join('') + '</ul></div>';
+    }
+    var banner = bloque('agotado', 'Ya agotados', info.agotados) +
+      bloque('vencida', 'La fecha de la orden ya pasó', info.vencidas) +
+      bloque('proxima', 'Faltan ' + dias + ' días o menos para emitir la orden', info.proximas);
     function card(k, v, s) {
       return '<article class="rh-card"><div class="rh-k">' + k + '</div><div class="rh-v">' + v + '</div><div class="rh-s">' + s + '</div></article>';
     }
+    var enAlertaN = info.agotados.length + info.vencidas.length + info.proximas.length;
     var cards = card(
       'En alerta (T-' + dias + ')',
-      String(info.alertas.length),
-      info.alertas.length ? 'Hay que emitir la orden o ya pasó la fecha.' : 'Ninguna orden entra en esa ventana.'
+      String(enAlertaN),
+      enAlertaN ? info.agotados.length + ' ya agotados · ' + info.vencidas.length + ' con la orden vencida · ' + info.proximas.length + ' dentro de los ' + dias + ' días' : 'Ninguna orden entra en esa ventana.'
     ) + card(
       'Próxima orden',
       info.proxima ? fmtFecha(info.proxima[H['Emitir orden']]) : '—',
@@ -522,13 +563,13 @@
       return '<th class="' + cls.trim() + '">' + ayudaHtml(h, b) + '</th>';
     }).join('');
     var body = rows.map(function (r) {
-      var alerta = enAlerta(r[H['Emitir orden']], dias, info.hoy);
+      var alerta = claseAlerta(r[H['Emitir orden']], r[H['Se agota']], dias, info.hoy);
       var tds = b.headers.map(function (h, i) {
         var cls = TEXTO[h] ? 'rh-txt' : '';
         if (h === 'Artículo') cls += ' rh-art';
         return '<td class="' + cls.trim() + '">' + celdaTexto(h, r[i]) + '</td>';
       }).join('');
-      return '<tr class="' + (alerta ? 'rh-row-alerta' : '') + '">' + tds + '</tr>';
+      return '<tr class="' + (alerta ? 'rh-row-' + alerta : '') + '">' + tds + '</tr>';
     }).join('');
     rootEl.innerHTML =
       '<div class="rh-head"><div><h1 class="rh-titulo">' +
@@ -556,6 +597,7 @@
       state.rows = null;
       state.momentoCero = true;
       state.archivo = '';
+      state.dias = 0;
       render();
     });
     document.getElementById('rh-excel').addEventListener('click', exportar);
@@ -580,6 +622,7 @@
         state.archivo = file.name;
         state.lineas = out.lineas;
         state.hasta = out.hasta;
+        state.dias = out.dias;
         render();
       } catch (err) {
         if (host().FornitaliaMensajes) host().FornitaliaMensajes.avisar(err && err.message ? err.message : 'No se pudo leer el archivo de ventas.');
@@ -645,7 +688,9 @@
       ['Alerta configurada: ' + alertaDias() + ' días antes de emitir la orden. Hoy ' + fmtFecha(info.hoy) + '.'],
       info.mejor ? ['El que más deja: ' + info.mejor[info.H['Artículo']] + ' ' + fmtPesos(info.mejor[info.H['Margen $ / unidad']]) + ' (' + fmtPct(info.mejor[info.H['Margen %']]) + ').'] : ['Sin margen calculado.'],
       info.fino ? ['Margen más fino: ' + info.fino[info.H['Artículo']] + ' ' + fmtPct(info.fino[info.H['Margen %']]) + '.'] : [''],
-      ['Órdenes en alerta: ' + info.alertas.map(function (r) { return r[info.H['Artículo']] + ' ' + fmtFecha(r[info.H['Emitir orden']]); }).join('; ')]
+      ['Ya agotados: ' + info.agotados.map(function (r) { return r[info.H['Artículo']]; }).join('; ')],
+      ['Orden vencida: ' + info.vencidas.map(function (r) { return r[info.H['Artículo']] + ' ' + fmtFecha(r[info.H['Emitir orden']]); }).join('; ')],
+      ['Por emitir: ' + info.proximas.map(function (r) { return r[info.H['Artículo']] + ' ' + fmtFecha(r[info.H['Emitir orden']]); }).join('; ')]
     ];
     host().XLSX.utils.book_append_sheet(wb, host().XLSX.utils.aoa_to_sheet(conclusiones), 'Conclusiones');
     host().XLSX.writeFile(wb, 'Ventas_Hornos_Analisis.xlsx', { cellStyles: true });
