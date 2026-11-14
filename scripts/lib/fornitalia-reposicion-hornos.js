@@ -306,9 +306,7 @@
         row[H['% $ hornos']] = 0;
         row[H['% $ archivo']] = 0;
       }
-      var disp = row[H['Disponible']];
-      var ritmoMes = row[H['Uds. por mes']];
-      row[H['Meses con disponible']] = (disp != null && ritmoMes > 0) ? disp / ritmoMes : (disp == null ? null : 0);
+      aplicarReglaPrestamo(row, H);
       var costo = row[H['Costo ARS']];
       var precioNeto = row[H['Precio neto unit.']];
       if (costo != null && precioNeto != null && cant > 0) {
@@ -321,7 +319,7 @@
       }).filter(function (x) { return x[1]; });
       var enCamino = llegadas.reduce(function (s, x) { return s + x[1]; }, 0);
       row[H['En camino']] = enCamino || null;
-      var sim = simular(disp, cant > 0 ? cant / dias : 0, llegadas, b.fotoStock);
+      var sim = simular(row[H['Disponible']], cant > 0 ? cant / dias : 0, llegadas, b.fotoStock);
       if (sim) {
         row[H['Se agota']] = sim.agota;
         row[H['Emitir orden']] = sim.emitir;
@@ -353,8 +351,93 @@
     return { rows: filas, hasta: hasta, dias: dias, lineas: hornos.length };
   }
 
+  function numOrNull(v) {
+    if (v == null || v === '') return null;
+    var n = Number(v);
+    return isFinite(n) ? n : null;
+  }
+
+  function aplicarReglaPrestamo(row, H) {
+    var partes = ['Disponible', 'Por ingresar', 'Pago parcial', 'Pend. despacho', 'Pago pendiente'];
+    var hayStock = numOrNull(row[H['Préstamo / SR']]) != null || partes.some(function (h) {
+      return numOrNull(row[H[h]]) != null;
+    }) || numOrNull(row[H['Stock total']]) != null;
+    if (!hayStock) return row;
+    var disp = numOrNull(row[H['Disponible']]) || 0;
+    var ing = numOrNull(row[H['Por ingresar']]) || 0;
+    var parc = numOrNull(row[H['Pago parcial']]) || 0;
+    var desp = numOrNull(row[H['Pend. despacho']]) || 0;
+    var pend = numOrNull(row[H['Pago pendiente']]) || 0;
+    row[H['Stock total']] = disp + ing + parc + desp + pend;
+    row[H['Sin vender (uds.)']] = disp + ing;
+    var ritmoMes = numOrNull(row[H['Uds. por mes']]);
+    if (numOrNull(row[H['Disponible']]) == null) row[H['Meses con disponible']] = null;
+    else row[H['Meses con disponible']] = ritmoMes > 0 ? disp / ritmoMes : 0;
+    return row;
+  }
+
   function filasActuales() {
-    return state.rows || base().rows;
+    var rows = state.rows || base().rows;
+    var H = {};
+    base().headers.forEach(function (h, i) { H[h] = i; });
+    return rows.map(function (r) { return aplicarReglaPrestamo(r.slice(), H); });
+  }
+
+  function ayudas(b) {
+    var tc = (Number(b.tc) / 1000).toLocaleString('es-AR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+    var mes = String(b.mesDias).replace('.', ',');
+    var lead = b.fabricacion + b.transporte;
+    var desde = fmtFecha(b.desde);
+    var hasta = fmtFecha(b.hasta);
+    var foto = fmtFecha(b.fotoStock);
+    var prest = ' Préstamo / SR no entra: esas unidades no están para la venta.';
+    return {
+      'Puesto uds.': ['Orden por unidades vendidas, de mayor a menor', 'Si empatan, queda primero el de más facturación. Si siguen empatando, orden alfabético.'],
+      'Puesto $': ['Orden por facturación con IVA, de mayor a menor', 'Si empatan, orden alfabético.'],
+      'Unidades vendidas': ['Suma de Cantidad', 'Solo filas de tipo Hornos, en el período que arranca el ' + desde + '.'],
+      'Stock total': ['Disponible + Por ingresar + Pago parcial + Pend. despacho + Pago pendiente', 'Foto del ' + foto + '.' + prest],
+      'Sin vender (uds.)': ['Disponible + Por ingresar', 'Lo que todavía no se vendió y sí se puede vender.' + prest],
+      'Meses con disponible': ['Disponible / Uds. por mes', 'Usa solo lo que está en Disponible.' + prest],
+      '% uds. hornos': ['Unidades del artículo / unidades de todos los hornos', 'Participación dentro del tipo Hornos.'],
+      '% uds. acumulado': ['Suma corrida de unidades, en el orden del puesto, / unidades de hornos', 'Al 100% ya entraron todos los hornos con ventas.'],
+      '% uds. archivo': ['Unidades del artículo / unidades de todo el archivo', 'El denominador incluye lo que no es horno.'],
+      'Facturación c/IVA': ['Suma de Total', 'Importe con IVA de las líneas de ese artículo.'],
+      '% $ hornos': ['Facturación del artículo / facturación de todos los hornos', 'Participación en pesos, con IVA, dentro de Hornos.'],
+      '% $ archivo': ['Facturación del artículo / facturación de todo el archivo', 'El denominador incluye lo que no es horno.'],
+      'Neto sin IVA': ['Monto − Descuento', 'Lo cobrado sin IVA. El margen sale de este neto, no del precio con IVA.'],
+      'Precio lista unit.': ['Monto / Unidades vendidas', 'Precio de lista promedio, con IVA, de lo ya vendido.'],
+      'Precio neto unit.': ['Neto sin IVA / Unidades vendidas', 'Precio promedio ya cobrado, sin IVA.'],
+      'Precio final unit.': ['Facturación c/IVA / Unidades vendidas', 'Precio promedio final, con IVA.'],
+      'Descuento prom.': ['Descuento $ / Monto', 'Descuento promedio sobre el precio de lista.'],
+      'Descuento $': ['Suma de Descuento', 'Descuento total del artículo en el período.'],
+      'Uds. por mes': ['Unidades vendidas × ' + mes + ' / días del período', 'Un mes son 365,25 / 12 días. El período va del ' + desde + ' al ' + hasta + ', o hasta la última venta si es posterior.'],
+      'Días por unidad': ['Días del período / Unidades vendidas', 'Cada cuántos días se vende una unidad, con el mismo período que Uds. por mes.'],
+      'Uds. últ. 12 m': ['Suma de Cantidad desde el día 1 del mes, 11 meses antes del cierre', 'Si el cierre es ' + hasta + ', arranca el 1 de ese mes menos 11 meses.'],
+      'Prom. mensual 12 m': ['Uds. últ. 12 m / 12', 'Promedio simple de esos doce meses, también si alguno vino en cero.'],
+      'Líneas': ['Cantidad de filas de venta', 'Cada renglón del histórico cuenta una.'],
+      'Comprobantes': ['Cantidad de ID_Venta distintos', 'Un mismo comprobante con varias líneas cuenta una vez.'],
+      'Clientes': ['Cantidad de clientes distintos', 'Se unen los espacios de más del nombre.'],
+      'Primera venta': ['Fecha de venta más antigua', 'Día de la primera línea de ese artículo.'],
+      'Última venta': ['Fecha de venta más reciente', 'Día de la última línea de ese artículo.'],
+      'Costo ARS': ['Costo USD × ' + tc, 'Dólar Banco Nación del archivo de importaciones. Si el costo en dólares está vacío, este queda vacío.'],
+      'Margen $ / unidad': ['Precio neto unit. − Costo ARS', 'Pesos que deja cada unidad ya vendida, sin IVA. El costo es el de esta importación.'],
+      'Margen %': ['Margen $ / Precio neto unit.', 'La lavavajilla con costo USD 2 no entra en «el que más deja».'],
+      'En camino': ['Suma de las cinco facturas', 'Cada fecha es una factura distinta, aunque la cantidad se repita.'],
+      'Se agota': ['Disponible el ' + foto + ', más cada factura, menos el ritmo diario', 'El ritmo diario es unidades vendidas / días del período.' + prest + ' Por ingresar del inventario no se vuelve a sumar: si esas unidades son las facturas, entrarían dos veces.'],
+      'Emitir orden': ['Se agota − ' + lead + ' días', b.fabricacion + ' días de fabricación y ' + b.transporte + ' de transporte. ' + lead + ' días en total desde que se emite la orden hasta el puerto.'],
+      'Fin de fabricación': ['Se agota − ' + b.transporte + ' días', 'Termina la fabricación y arrancan los ' + b.transporte + ' días de transporte. También es emitir la orden más ' + b.fabricacion + ' días.']
+    };
+  }
+
+  function ayudaHtml(h, b) {
+    var par = ayudas(b)[h];
+    if (!par) return esc(h);
+    var id = 'rh-help-' + h.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    var inner = '<p><code>' + esc(par[0]) + '</code></p><p>' + esc(par[1]) + '</p>';
+    var marca = host().FornitaliaHelp
+      ? host().FornitaliaHelp.inline(id, 'Ayuda: ' + h, inner)
+      : '<button type="button" class="th-help th-help--inline" data-help-template="' + esc(id) + '" aria-label="' + esc('Ayuda: ' + h) + '" title="Ayuda"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button><template id="' + esc(id) + '"><div class="th-help-rich-content">' + inner + '</div></template>';
+    return '<span class="rh-th"><span>' + esc(h) + '</span>' + marca + '</span>';
   }
 
   function resumen(rows, diasAlerta) {
@@ -400,8 +483,8 @@
     var info = resumen(rows, dias);
     var H = info.H;
     var estado = state.momentoCero
-      ? 'Momento cero · la tabla del Excel al ' + fmtFecha(b.fotoStock) + '. El stock y las facturas son de esa fecha.'
-      : 'Recalculado con ' + state.archivo + ' · ' + state.lineas + ' líneas de hornos. El ritmo llega hasta el ' + fmtFecha(state.hasta) + '. El stock y las facturas siguen siendo los del ' + fmtFecha(b.fotoStock) + '.';
+      ? 'Momento cero · la tabla del Excel al ' + fmtFecha(b.fotoStock) + '. El stock y las facturas son de esa fecha. Préstamo / SR no entra al stock: no se vende.'
+      : 'Recalculado con ' + state.archivo + ' · ' + state.lineas + ' líneas de hornos. El ritmo llega hasta el ' + fmtFecha(state.hasta) + '. El stock y las facturas siguen siendo los del ' + fmtFecha(b.fotoStock) + '. Préstamo / SR no entra al stock: no se vende.';
     var banner = '';
     if (info.alertas.length) {
       banner = '<div class="rh-banner"><strong>Órdenes a mirar: faltan ' + dias + ' días o menos para emitirlas, o ya venció la fecha.</strong><ul>' +
@@ -436,7 +519,7 @@
       else if (ORDEN[h]) cls = 'rh-orden';
       if (h === 'Artículo') cls += ' rh-art';
       if (!TEXTO[h] && h !== 'Artículo') cls = cls.replace('rh-txt', '');
-      return '<th class="' + cls.trim() + '">' + h + '</th>';
+      return '<th class="' + cls.trim() + '">' + ayudaHtml(h, b) + '</th>';
     }).join('');
     var body = rows.map(function (r) {
       var alerta = enAlerta(r[H['Emitir orden']], dias, info.hoy);

@@ -49,12 +49,16 @@
 .rh-tabla td.rh-txt { text-align: left; }
 .rh-tabla tbody tr:nth-child(even) td { background: #f4f7f5; }
 .rh-tabla tbody tr.rh-row-alerta td { background: #fdf3e7; }
+.rh-th { display: inline-flex; align-items: center; gap: 0.2rem; }
+.rh-tabla th .th-help.th-help--inline { color: rgba(255,255,255,0.9); }
+.rh-tabla th .th-help.th-help--inline:hover { color: #fff; }
 .rh-tabla th.rh-art, .rh-tabla td.rh-art { position: sticky; left: 0; z-index: 1; }
 .rh-tabla th.rh-art { z-index: 3; }
 @media (max-width: 768px) {
   .rh-cards { grid-template-columns: 1fr 1fr; }
   .rh-tabla-wrap { max-height: 70vh; }
   .rh-alerta-dias input { font-size: 16px; }
+  .rh-tabla th .th-help.th-help--inline { min-width: 44px; min-height: 44px; }
 }
 @media (max-width: 480px) {
   .rh-cards { grid-template-columns: 1fr; }
